@@ -1,0 +1,34 @@
+{
+  "gates": {
+    "node --test tests/prescan-node-backend.test.mjs": "pass",
+    "node --test (full suite)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T22:43:55Z",
+    "basis": "`node --test tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/prescan/node-backend.mjs (named extractNodeBackend + default plug-in {id:'node-backend', detect via generic detectStacks, extract}). Static lex (comments blanked, strings masked) + regex/bracket-matching extraction: NestJS controllers (class/method decorators, array paths, @Controller({path}), one literal setGlobalPrefix applied, ambiguous prefixes not applied), Express/Hono routers incl. .on/.all and app.use/app.route mounts resolved across relative imports (multi-mount yields a route per prefix), Prisma models (@@map, @id/@@id, @relation fields/references), TypeORM entities (columns, PK, ManyToOne+JoinColumn FK, relations), Drizzle pg/mysql/sqlite tables with references() FK and relations(), OpenAPI YAML (indent parser) and JSON docs, BullMQ Queue/Worker/add/addBulk with names resolved through single-literal constants imported across files. Unresolved shapes counted in skipped{entities,openapi,queues,routes}; per-kind cap 300 with truncated tally; sorted by path then line; no import/eval/spawn. Built fixture tests/fixtures/repos/node-api/ (17 files, fictional Inkwell Books, README says test fixture, src/sidefx.ts canary). Added tests/prescan-node-backend.test.mjs (nb1..nb8). Ran `node --test tests/prescan-node-backend.test.mjs` -> 8 pass 0 fail; full `node --test` -> 103 pass 0 fail. Dependants: README.md/package.json/sidefx.ts/main.ts/app.ts basename mentions in other tests, skills docs and generic.mjs/ts-frontend.mjs are by-basename matches on generic names (README.md, package.json, app.ts, main.ts) and still correct - nothing imports or references the new fixture paths, and generic.mjs's BACKEND_DEPS already makes the fixture's package.json detect as node-backend only (verified by nb8: stacks == ['node-backend']). Files with no dependants (module, test, controller, module, router, prisma schema) are unchanged-by-others. Limits worth noting: Express .route(path).get() chains are counted skipped not followed; BullMQ via Nest @InjectQueue/registerQueue not recognised; JSON OpenAPI evidence is single-line per operation.",
+    "descriptive": "prescan gains a zero-token Node backend extractor (routes, ORM entities, OpenAPI, BullMQ) with a fictional fixture and 8 passing cases."
+  },
+  "testsAdded": [
+    "nb1-nb8 in tests/prescan-node-backend.test.mjs: routes across NestJS/Express/Hono, Prisma/TypeORM/Drizzle entities, OpenAPI, BullMQ queues, evidence/sort/determinism, skipped/truncated/cap, mount/prefix resolution, no-execution + prescan integration"
+  ],
+  "casesAdded": [
+    [
+      "nb1",
+      "nb2",
+      "nb3",
+      "nb4",
+      "nb5",
+      "nb6",
+      "nb7",
+      "nb8"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:8fdb3b1d61c21804f7e8648417a1780d1867696d9b2946e82854f68d9242ee7f\",\"dirtyDigest\":\"sha256:b137c9e0e3991dbe15b97c9b36425c8f1481d0e27a22b2264fa56d932d7e48b0\",\"dirtyPaths\":{\"scripts/lib/prescan/node-backend.mjs\":\"82d1cb7400e4b6b4\",\"tests/fixtures/repos/node-api/README.md\":\"208e558c698f5eff\",\"tests/fixtures/repos/node-api/openapi.yaml\":\"bfa482cd35cd3ccc\",\"tests/fixtures/repos/node-api/package.json\":\"e434d667bd565c3a\",\"tests/fixtures/repos/node-api/prisma/schema.prisma\":\"88d3c5c577dd2795\",\"tests/fixtures/repos/node-api/src/books/books.controller.ts\":\"71fef9b687db7b62\",\"tests/fixtures/repos/node-api/src/books/books.module.ts\":\"eee0beb2938c63f4\",\"tests/fixtures/repos/node-api/src/db/schema.ts\":\"69f8eb21589eb33e\",\"tests/fixtures/repos/node-api/src/entities/author.entity.ts\":\"4190ecb107c00b83\",\"tests/fixtures/repos/node-api/src/entities/book.entity.ts\":\"ece092acda1fe599\",\"tests/fixtures/repos/node-api/src/express/app.ts\":\"1e4471cfa3d9fd34\",\"tests/fixtures/repos/node-api/src/express/orders.router.ts\":\"ab40d57a7803cbec\",\"tests/fixtures/repos/node-api/src/hono/app.ts\":\"8e9e66e6d38d3648\",\"tests/fixtures/repos/node-api/src/main.ts\":\"64c3b2f142515d0a\",\"tests/fixtures/repos/node-api/src/queues/email.producer.ts\":\"cad949ebecb50c86\",\"tests/fixtures/repos/node-api/src/queues/email.queue.ts\":\"de67157ce1cef98e\",\"tests/fixtures/repos/node-api/src/queues/email.worker.ts\":\"4388ee8dad60730c\",\"tests/fixtures/repos/node-api/src/sidefx.ts\":\"25cc38abb5dbd4b1\",\"tests/prescan-node-backend.test.mjs\":\"8b2d738b80c138ed\"},\"head\":\"157efeb\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/node-backend.mjs\",\"tests/fixtures/repos/node-api/README.md\",\"tests/fixtures/repos/node-api/openapi.yaml\",\"tests/fixtures/repos/node-api/package.json\",\"tests/fixtures/repos/node-api/prisma/schema.prisma\",\"tests/fixtures/repos/node-api/src/books/books.controller.ts\",\"tests/fixtures/repos/node-api/src/books/books.module.ts\",\"tests/fixtures/repos/node-api/src/db/schema.ts\",\"tests/fixtures/repos/node-api/src/entities/author.entity.ts\",\"tests/fixtures/repos/node-api/src/entities/book.entity.ts\",\"tests/fixtures/repos/node-api/src/express/app.ts\",\"tests/fixtures/repos/node-api/src/express/orders.router.ts\",\"tests/fixtures/repos/node-api/src/hono/app.ts\",\"tests/fixtures/repos/node-api/src/main.ts\",\"tests/fixtures/repos/node-api/src/queues/email.producer.ts\",\"tests/fixtures/repos/node-api/src/queues/email.queue.ts\",\"tests/fixtures/repos/node-api/src/queues/email.worker.ts\",\"tests/fixtures/repos/node-api/src/sidefx.ts\",\"tests/prescan-node-backend.test.mjs\"],\"scopeDigest\":\"sha256:b6a26e0eaeb04ca06564a96388faac821e2eb2709d58e5387d4462278e7e1b17\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

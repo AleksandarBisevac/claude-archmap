@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: Inkwell Books API
+  version: 1.2.0
+servers:
+  - url: https://api.inkwell.example.invalid/v1
+paths:
+  /books:
+    get:
+      operationId: listBooks
+      summary: List books
+    post:
+      operationId: createBook
+      summary: Add a book
+  /books/{bookId}:
+    parameters:
+      - name: bookId
+        in: path
+    get:
+      operationId: getBook
+    delete:
+      summary: Remove a book
+components:
+  schemas:
+    Book:
+      type: object
+    Author:
+      type: object

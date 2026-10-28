@@ -1233,7 +1233,7 @@
         {
           "id": "P3.3",
           "title": "TS frontend extractor (React, Next.js, React Native; routers; RTK Query, React Query, Redux, Zustand; axios/fetch)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement the ts-frontend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: pages/routes from React Router, Next.js app/pages dirs and React Navigation, state stores (Redux slices, Zustand, RTK Query endpoints, React Query keys) and API calls (axios/fetch/RTK Query) with method and path.\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/ts-web/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
           "files": [
             "scripts/lib/prescan/ts-frontend.mjs",
@@ -1284,25 +1284,38 @@
           ],
           "attempts": 2,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "157efeb650bb",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/ts-frontend.mjs (named export extractTsFrontend + default plug-in {id:'ts-frontend', detect, extract}, mirroring python.mjs: comment/string-masking JS lexer, bracket matching, no import/eval/spawn). Extracts routes (React Router JSX with nested path joining and data-router objects; Next.js app/ page+route handlers and pages/ + pages/api only in a package whose nearest package.json depends on next, src/app|src/pages only when the root lacks app|pages; React Navigation Screen entries), stores (Redux Toolkit slices, Zustand stores, RTK Query endpoints, React Query query/mutation keys) and apiCalls (fetch, axios direct and axios.create instances with baseURL, RTK Query with fetchBaseQuery baseUrl), each with {path,lines} evidence, sorted by path then line, capped at 300 per kind with a truncated tally, non-static shapes counted in skipped. Wrote the fictional Fleetwise fixture under tests/fixtures/repos/ts-web (package.json, App.tsx, router.tsx, src/pages/Dashboard.tsx, app/*, pages/*, mobile/navigation.tsx, store/api/hooks files; kept README.md and sidefx.ts from attempt 1, extended README). Test tests/prescan-ts-frontend.test.mjs has cases ts1..ts8; written before the module existed and first run failed with ERR_MODULE_NOT_FOUND. Own test: node --test tests/prescan-ts-frontend.test.mjs -> 8 pass, 0 fail. Did not run the full node --test (runsGate own-tests). Dependants: README.md/package.json/App.tsx basename mentions in prescan-core.test.mjs, generic.mjs, docs and skills refer to generic files, not this fixture, so unchanged; not re-run by me.",
+            "descriptive": "prescan gains a deterministic TS frontend extractor (routes, stores, API calls) tested on a fictional fleet-tracker fixture."
           },
           "startedAt": "2026-10-28T22:27:55Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:36:40Z",
+          "verifiedBy": [
+            "ts1..ts8 in tests/prescan-ts-frontend.test.mjs: routes, Next.js package-root rule, stores, apiCalls, evidence/sort/determinism, skipped tally and cap, JSX nesting and const/template resolution, no execution and prescan integration"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:36:39Z.306f78",
             "status": "passed",
             "at": "2026-10-28T22:36:39Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "157efeb650bb",
+            "at": "2026-10-28T22:36:40Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:36:19Z",
+            "basis": "`node --test tests/prescan-ts-frontend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P3.4",
           "title": "Node backend extractor (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement the node-backend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async).\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/node-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
           "files": [
             "scripts/lib/prescan/node-backend.mjs",
@@ -1345,16 +1358,22 @@
           "dependsOn": [
             "P3.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T22:36:40Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:44:08Z.3de829",
+            "status": "passed",
+            "at": "2026-10-28T22:44:08Z"
+          }
         },
         {
           "id": "P3.5-cdj",

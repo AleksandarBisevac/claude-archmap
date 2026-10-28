@@ -1,0 +1,39 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Format {
+  HARDCOVER
+  PAPERBACK
+}
+
+model Customer {
+  id      Int      @id @default(autoincrement())
+  email   String   @unique
+  orders  Order[]
+}
+
+model Order {
+  id         Int      @id @default(autoincrement())
+  placedAt   DateTime @default(now())
+  format     Format?
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+  lines      OrderLine[]
+
+  @@map("orders")
+}
+
+model OrderLine {
+  orderId Int
+  sku     String
+  qty     Int
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  @@id([orderId, sku])
+}
