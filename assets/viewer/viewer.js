@@ -1146,7 +1146,11 @@ function gotoIssue(id){
   el.classList.add("ping"); setTimeout(() => el.classList.remove("ping"), 1600);
 }
 const issueSwitch = $("issues-switch");
-if (issueSwitch) issueSwitch.addEventListener("change", () => document.body.classList.toggle("issues-off", !issueSwitch.checked));
+if (issueSwitch) issueSwitch.addEventListener("change", () => {
+  document.body.classList.toggle("issues-off", !issueSwitch.checked);
+  // the Issues tab and panel are hidden while the switch is off; do not leave the user on a blank page
+  if (!issueSwitch.checked && curTab === "issues") showTab("graph");
+});
 
 /* ───────── search ───────── */
 (function(){

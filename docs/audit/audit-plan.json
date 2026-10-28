@@ -459,8 +459,10 @@
             "severity": "med",
             "file": "assets/viewer/viewer.js:496",
             "issue": "The phase desired outcome says the golden render matches the reference in screenshots of every tab at desktop and 400 px. P2.5's own filed return reports defects it did not fix. The Graph, Deployment and Trust SVGs are clipped on the right at 1440 px (svg.style.minWidth = max(980, w*0.6) forces horizontal scroll with no fit-to-width; the same pattern is at :780 for ER and :943 for sequences). At 400 px the Graph tab opens on a mostly blank canvas, and the sequence diagrams show only the first 3 lifelines. The screenshot script passes with these present because it only asserts console errors and requests, not layout.",
-            "resolution": "Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or viewBox that shows the diagram at 400 px. Re-run tests/visual/screenshots.py and look at the PNGs.",
-            "fixTask": "P2.6-2vu"
+            "resolution": "fixed in P2.6-2vu (c8499ff6d92d): Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or viewBox that shows the diagram at 400 px. Re-run tests/visual/screenshots.py and look at the PNGs.",
+            "fixTask": "P2.6-2vu",
+            "commit": "c8499ff6d92d",
+            "status": "fixed"
           },
           {
             "id": "P2-R2",
@@ -486,7 +488,7 @@
             "fixTask": "P2.8-2vu"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -802,7 +804,7 @@
         {
           "id": "P2.6-2vu",
           "title": "fix P2-R1: The phase desired outcome says the golden render matches the refer...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The phase desired outcome says the golden render matches the reference in screenshots of every tab at desktop and 400 px. P2.5's own filed return reports defects it did not fix. The Graph, Deployment and Trust SVGs are clipped on the right at 1440 px (svg.style.minWidth = max(980, w*0.6) forces horizontal scroll with no fit-to-width; the same pattern is at :780 for ER and :943 for sequences). At 400 px the Graph tab opens on a mostly blank canvas, and the sequence diagrams show only the first 3 lifelines. The screenshot script passes with these present because it only asserts console errors and requests, not layout.\n\nResolution asked: Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or viewBox that shows the diagram at 400 px. Re-run tests/visual/screenshots.py and look at the PNGs.",
           "files": [
             "assets/viewer/viewer.js",
@@ -826,14 +828,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "c8499ff6d92d",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "assets/viewer/viewer.js: added setFigureScale/applyFigureScale. Every figure (graph/deployment/trust via renderGraph, ER via drawEr, sequences via renderSeq) now opens fitted to its panel (inline min-width 0, width 100%) instead of min-width max(980, w*0.6|0.7|0.82); a Fit / 100% button pair (.fig-scale, existing .btn class, aria-pressed, data-scale) is inserted once per figure, and 100% sets min-width to the natural viewBox width so the panel scrolls. The inline min-width also overrides the CSS 980/760 floors, so no viewer.css change was needed. tests/visual/screenshots.py: check_figures runs per tab/theme/size/mode and reports an error if the figure overflows or its svg passes the panel's right edge, if the drawing fills under 60% of its viewBox, if the Fit/100% control is missing or Fit is not pressed by default, or if 100% is narrower than Fit. Red before fix, then .venv/bin/python tests/visual/screenshots.py: PASS vs1, 52 screenshots, 0 errors; node --test: 72 pass, 0 fail. I looked at PNGs: graph/sequences narrow show whole drawing (all lifelines, small text, 100% available), trust desktop dark fully visible. Caveat: at 400 px Fit text is tiny; readable via 100%. Dependants: tests/visual/README.md still correct but does not mention the new layout checks (not in my files, not edited); viewer.css, render.mjs, tests/viewer.test.mjs and docs/design.md are unaffected (no class/ids renamed, tests pass, inline min-width overrides the CSS floors; design.md untouched, may want a line on the scale control).",
+            "descriptive": "Viewer figures now fit the panel width by default with a Fit/100% control, and the screenshot script fails on clipped, blank or control-less figures."
           },
           "startedAt": "2026-10-28T19:15:33Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T19:18:34Z",
+          "verifiedBy": [
+            "check_figures in tests/visual/screenshots.py: per figure, no horizontal clipping, drawing fills its viewBox, Fit/100% control present with Fit default, 100% not narrower than Fit"
+          ],
           "notes": [
             {
               "at": "2026-10-28T19:15:33Z",
@@ -856,12 +860,24 @@
             "runId": "2026-10-28T19:18:34Z.b92ad5",
             "status": "passed",
             "at": "2026-10-28T19:18:34Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "c8499ff6d92d",
+            "at": "2026-10-28T19:18:34Z",
+            "basis": "a fix task for P2-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-28T19:18:22Z",
+            "basis": "`.venv/bin/python tests/visual/screenshots.py` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P2.7-2vu",
           "title": "fix P2-R2: Turning the Issues switch off while the Issues tab is active hides...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Turning the Issues switch off while the Issues tab is active hides the Issues panel and its nav tab (viewer.css:338 hides .issues-only) but does not leave the tab. curTab stays 'issues', so the page shows a blank content area until the user finds another tab.\n\nResolution asked: In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph').",
           "files": [
             "assets/viewer/viewer.js"
@@ -880,14 +896,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T19:18:35Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -906,7 +922,13 @@
           ],
           "fixes": [
             "P2-R2"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T19:19:06Z.2c29cd",
+            "status": "passed",
+            "at": "2026-10-28T19:19:06Z"
+          }
         },
         {
           "id": "P2.8-2vu",

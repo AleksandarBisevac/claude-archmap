@@ -1,0 +1,18 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "tests.expectRedFirst is false on this tdd task: it names no case to prove a red by, so no red-first proof is owed",
+    "at": "2026-10-28T19:18:59Z"
+  },
+  "outcome": {
+    "technical": "assets/viewer/viewer.js: the #issues-switch change handler now also calls showTab('graph') when the switch is unchecked and curTab === 'issues'. node --check viewer.js exit 0; node --test exit 0, 72 pass 0 fail. Dependants: viewer.css (.issues-only / body.issues-off hiding) still correct, class toggle unchanged; scripts/render.mjs still correct, it inlines viewer.js unchanged in interface; tests/viewer.test.mjs still correct, passes 72/72 (no test of the handler since the task adds none and the handler is DOM-only); docs/design.md still correct, no documented behaviour changed. Not verified in a browser.",
+    "descriptive": "Turning the Issues switch off while on the Issues tab now returns to the graph tab instead of leaving a blank page."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:9494b1543933f05d2f94f23e0bcb95b7c71efc39acc56d6a61c40e19d5d15443\",\"dirtyDigest\":\"sha256:5b5a1f0c1ab461de5ce64ce0c5ce2edd760289a510dcf18451ad0836759b6884\",\"dirtyPaths\":{\"assets/viewer/viewer.js\":\"29dc3a7e72b42bae\"},\"head\":\"c8499ff\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/viewer.js\"],\"scopeDigest\":\"sha256:53d3104315ec82014b0af72edc824735c13fe30f49ddfda4a1f923eeb1553098\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
