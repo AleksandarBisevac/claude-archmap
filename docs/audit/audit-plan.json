@@ -437,7 +437,7 @@
     {
       "id": "P2",
       "title": "Viewer port, ELK layout and renderer",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "assets/viewer is driven by the model; layout.mjs (vendored elkjs) is deterministic, seeded and honours pins; render.mjs builds clean, internal and shared HTML; the golden render matches the reference in Playwright screenshots of every tab, light and dark, desktop and 400 px, with no console errors.",
       "testGate": [
@@ -446,8 +446,8 @@
       "blockedBy": [
         "P1"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "787ed00d5fa7f187630e954f0fbd354d0eb7801a",
+      "branch": "audit/p2-viewer-port-elk-layout-and-ren",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -460,7 +460,7 @@
         {
           "id": "P2.1",
           "title": "Repo-wide denylist guard test",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The repo is public and P2 ports viewer code from a private reference, so the denylist guard must cover every tracked file,\nnot only tests/fixtures. Write tests/denylist.test.mjs (node:test, zero deps):\n- list files with `git ls-files` (run via child_process execFileSync, cwd = repo root);\n- exempt docs/design.md (it names a public data platform as a v1.1 roadmap item) and binary files;\n- read .private/anonymise-denylist.txt at runtime (skip # comments and blank lines); NEVER inline any term;\n- on a hit, fail with \"<file>: term #<index>\" so CI logs never print a term;\n- when the list is absent, call t.skip with a message saying the denylist was not checked.\nKeep tests/golden.test.mjs's own check; this one is the repo-wide net.",
           "files": [
             "tests/denylist.test.mjs"
@@ -483,16 +483,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T18:32:36Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T18:33:36Z.03bf4b",
+            "status": "passed",
+            "at": "2026-10-28T18:33:36Z"
+          }
         },
         {
           "id": "P2.2",
@@ -666,7 +672,9 @@
       "area": [
         "viewer",
         "layout"
-      ]
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-28T18:32:36Z"
     },
     {
       "id": "P3",

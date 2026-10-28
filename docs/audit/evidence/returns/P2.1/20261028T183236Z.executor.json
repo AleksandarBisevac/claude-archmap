@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test tests/denylist.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression mode, expectRedFirst false: the task adds a repo-wide guard test, no production code changed"
+  },
+  "outcome": {
+    "technical": "Added tests/denylist.test.mjs (node:test, zero deps). d1 lists files via execFileSync git ls-files -z at repo root, exempts docs/design.md and binaries (NUL byte), skips non-regular/deleted paths, reads .private/anonymise-denylist.txt at runtime (skips # and blank lines), case-insensitive match, fails with '<file>: term #<index>' only, and t.skip with a 'denylist not checked' message when the list is absent. d2 is a synthetic self-check of the scanner (case-insensitivity, binary/exempt skip, comment skip, no term in output). First run hit EISDIR on a tracked non-file path; fixed with a statSync isFile guard. Ran node --test tests/denylist.test.mjs: 2/2 pass, exit 0; full node --test: 50 tests, 50 pass, 0 fail, 0 skipped. No term was read into output or inlined.",
+    "descriptive": "Repo-wide denylist guard now covers every tracked file, not only tests/fixtures, without ever printing a term."
+  },
+  "testsAdded": [
+    "d1 repo-wide denylist scan over git ls-files with visible skip when the list is absent",
+    "d2 scanner self-check on synthetic data"
+  ],
+  "casesAdded": [
+    "d1"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:d99aa1cb25d741018da5f57667f34376fa2dd73465a73627e10b09a4ea428327\",\"dirtyDigest\":\"sha256:4c149a13cedc157be448c80c678eb323e89a205b143b4b30933b838c24f63f3f\",\"dirtyPaths\":{\"tests/denylist.test.mjs\":\"1778b332bc0a7cd6\"},\"head\":\"787ed00\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/denylist.test.mjs\"],\"scopeDigest\":\"sha256:29e44dda852418055fd5ff2fbfc298539c75dfdc3c6501d11b1fa434b924f5b3\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
