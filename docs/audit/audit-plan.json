@@ -576,7 +576,7 @@
         {
           "id": "P2.3",
           "title": "Port the viewer core and write render.mjs (clean, internal, shared)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Port the viewer core from the single HTML file in .private/reference/ (design section 7), CODE ONLY:\n- relation table ET, zone table ZN, addMarkers, roundedPath; renderGraph (zones, nodes, edge labels, issue badges);\n  focusNode / focusEdge / select / renderDetail; legend chips that toggle relation types and the zone key; renderSeq +\n  setStep (numbered steps, fragments, notes, issue dots, prev/next and arrow keys); the light/dark CSS token system as is.\n- Replace the reference's hand-placed coordinates and edgeGeom anchors with architecture.layout.json positions and ELK\n  routed edge sections. Everything is driven by the embedded model + layout; nothing is hard-coded.\nANONYMITY (repo is PUBLIC, absolute): copy no data, labels, titles, comments, sample text, ids or names from the reference;\nonly generic rendering logic and CSS. Rename anything domain-specific. Do not name the reference file anywhere. P2.1's\nrepo-wide denylist test must stay green.\nFonts: no external font URLs (the output is offline); use a system font stack, overridable by archmap.theme.json.\nscripts/render.mjs: node scripts/render.mjs <model.json> --layout <layout.json> [--issues <issues.json>]\n[--theme <theme.json>] [--mode clean|internal|shared] [--out <file>]. Inlines template, CSS, JS, model, layout (and issues\nper mode) into one HTML. clean = default, physically contains no issues; internal = full issues with detail and the global\nIssues switch; shared = calibrated summary/impact/fix only. Validate inputs with validate() first.\nTheme: archmap-theme.schema.json allows fonts, chrome and accent only; relation, zone and severity colours are fixed,\ncolour-blind-safe with dash patterns (D10).",
           "files": [
             "assets/viewer/template.html",
@@ -607,25 +607,45 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "c39136462d79",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "New: scripts/render.mjs (CLI + exports checkInputs, renderHtml, issuesFor, stripIssueRefs, unplacedNodes, MODES). It validates the model and issues with validate(), the theme with the theme schema and a CSS-safety check (rejects ; { } < > backslash, comments, newlines), and the layout shape (schemaVersion 1, finite x/y/w/h). Exit 1 means invalid input and nothing is written; exit 2 means usage (unknown --mode; internal/shared without --issues or without an explicit --out, so issue builds are never dropped into the analysed repo). It inlines template + CSS + JS + JSON blocks #archmap-model/#archmap-layout/#archmap-issues in a single replace pass. JSON escapes < > & U+2028/2029. clean cuts the <!--ISSUES--> and <!--SWITCH--> template regions and strips steps[].i from the embedded model. shared drops issue.detail and has no Issues switch (internal-only, per archmap-review SKILL.md section 4). The theme becomes one `:root:root:root{...}` block covering only fonts.sans/mono, chrome bg/surface/text/muted/border and accent; any other key is ignored. New: assets/viewer/template.html, viewer.css, viewer.js, a generic port of the reference viewer core: relation table REL (12 types, dash and width per type), zone kinds, addMarkers, roundedPath, renderGraph (zones, nodes, edge labels, node and edge issue badges), focusNode/focusEdge/select/renderDetail (facts, connections, evidence chips linked to repoUrl/blob/<commit> only for http(s) URLs, issues), legend chips toggling types, zone key, model.views as tabs projected from the single layout, renderSeq/setStep (numbered steps, fragments, notes, issue dots, prev/next, arrow keys), an issues list with severity filter and show-on-diagram, the Issues switch (body.issues-off), and the light/dark token system renamed to --rel-*/--zone-*/--sev-* with system font stacks. Edge geometry comes from ELK sections in the layout, with a straight side-to-side fallback when the layout lacks the edge. No URL literal in shipped viewer code: the SVG namespace is read from the inline <svg>. Tests: tests/render.test.mjs has 8 cases r1-r8, `node --test tests/render.test.mjs` gives pass 8 / fail 0. Extra checks (not gates): headless Chromium (Playwright's cached chrome-headless-shell, --dump-dom with --enable-logging) on golden internal/shared/clean renders drew 34 nodes and 13 sequence messages, 0 CONSOLE lines in each. The probe page proved that logging does surface console errors. The Issues switch shows in internal only. Screenshots of desktop internal and 400px dark clean looked correct. A denylist self-scan of my 5 files over the 14 terms found 0 hits (terms not printed). The full `node --test` gate and the denylist test were not run (runsGate own-tests). Dependants: tests/review-scan.test.mjs still correct, since it only uses the path scripts/render.mjs as content in a synthetic repo. .claude/skills/archmap-review/SKILL.md still correct, and this change was brought in line with it: switch internal-only, no http(s) in assets/viewer, fixed colours not themeable. docs/design.md still correct: it only names render.mjs/template.html/viewer.js/viewer.css and the clean/internal/shared modes, which this implements. One note: the planned /archmap:render command uses --internal/--shared, which will map to --mode. The test file was edited after implementing for three reasons: two regexes with catastrophic backtracking (60 s) were replaced; r4 was flipped to expect no switch in shared after reading SKILL.md section 4; and the r1 URL allowance was tightened to none.",
+            "descriptive": "render.mjs now builds clean, internal and shared self-contained offline HTML from model + ELK layout (+ issues per mode, + fonts/chrome/accent theme), with a generic, model-driven port of the viewer core."
           },
           "startedAt": "2026-10-28T18:39:30Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T18:54:16Z",
+          "verifiedBy": [
+            "r1 every mode renders one self-contained HTML: no external script/link/@import/@font-face/remote url()/src/href, no fetch/XHR/import()/WebSocket, no URL in template/CSS/JS",
+            "r2 clean (and the default mode) carries no issue id/title/summary/impact/fix/detail, no issues block, no Issues switch, no steps[].i",
+            "r3 internal embeds the full issues incl. detail and the Issues switch",
+            "r4 shared embeds sev/category/title/anchor/summary/impact/fix for every issue, never detail, and no switch",
+            "r5 embedded model and layout round-trip (clean differs only by steps[].i), including a hostile model string with </script>, <!--, U+2028/2029",
+            "r6 theme applies fonts/chrome/accent, ignores out-of-contract keys, and leaves every --rel-*/--zone-*/--sev-* declaration byte-identical (each golden edge type, zone kind, severity has one)",
+            "r7 invalid model, issues, schema-invalid theme or CSS-breaking theme value -> exit 1 and no file; unknown mode or internal without --issues -> exit 2",
+            "r8 same inputs give byte-identical HTML in every mode"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T18:53:23Z.23342e",
             "status": "passed",
             "at": "2026-10-28T18:53:23Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "c39136462d79",
+            "at": "2026-10-28T18:54:16Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T18:52:53Z",
+            "basis": "`node --test tests/render.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P2.4",
           "title": "Viewer v1 views: ER, CRUD matrix, lineage, search, path finder, deployment and trust",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add the v1 views to the ported viewer (design section 7 \"New in v1\"), all driven by the embedded model + layout:\n- ER tab: entity cards with field rows, PK/FK markers, crow's-foot cardinality, provenance styling (declared / observed /\n  inferred), using the ER layout and per-field ports from layout.mjs.\n- CRUD matrix tab (nodes x entities, ops letters), click-through to the node or entity.\n- Lineage path highlight from an entity through access rows and edges.\n- Search (nodes, edges, entities, sequences) and a path finder: BFS between two nodes, path highlighted. Keep the BFS and\n  other pure logic in exported functions so node:test can test them without a browser.\n- Deployment and trust views from model.views, trust boundaries as dashed enclosures.\n- Global Issues switch (internal mode only) hides badges, flags, issue rows and step dots.\n- Evidence chips link to repoUrl/blob/<commit>/<path>#L<a>-L<b>.\nNo external URLs; keep the repo-wide denylist test green; do not open .private/reference/ for this task.",
           "files": [
             "assets/viewer/viewer.js",
@@ -653,16 +673,22 @@
           "dependsOn": [
             "P2.3"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T18:54:16Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T19:09:47Z.6b37b2",
+            "status": "passed",
+            "at": "2026-10-28T19:09:47Z"
+          }
         },
         {
           "id": "P2.5",

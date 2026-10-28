@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/viewer.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task (expectRedFirst false): tests were added after the implementation to lock the behaviour; no red owed and no -- command given to the helper",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Rewrote assets/viewer/viewer.js into (1) pure exported-for-test functions (findPath BFS, lineageOf, searchModel, crudMatrix/crudHtml, erScene/erMarkup/crowFoot/relationKeys, evidenceUrl/evidenceChipHtml, viewRole, trustBoundaries/crossesTrust) that go to module.exports when no `document` exists, and (2) the DOM: tabbed panels (Graph, ER, CRUD matrix, Sequences, Deployment, Trust, Issues-in-issue-builds), generic graph panes (architecture, deployment and trust views split by view.kind or id/title regex), trust view with dashed enclosures per top-level zone and haloed boundary-crossing edges, ER cards from layout.er with per-field ports, PK/FK markers, crow's-foot ends and declared/observed/inferred styling, CRUD matrix with click-through, entity lineage pinned in the graph, header search over nodes/edges/entities/sequences, path-finder with pinned shortest-path highlight, evidence chips repoUrl/blob/<commit>/<path>#L<a>-L<b>. The Issues switch still hides badges/flags/issue rows/step dots (ER badges use .bdg). template.html: new header search, tab nav, panels, path bar; render.mjs placeholders and ISSUES/SWITCH regions untouched. viewer.css: tab, search, path/pin, trust, ER, CRUD styles. Added tests/viewer.test.mjs (6 cases, loading viewer.js from the rendered golden HTML). Checked in headless Chrome (file URL, each tab dumped/screenshot, interaction probe for path finder, search, CRUD cell, lineage, ER select, Issues switch; clean build tab walk): no console/window errors. Ran `node --test tests/viewer.test.mjs` (6 pass) and `node --test` (72 pass, 0 fail). Dependants: scripts/render.mjs still correct (uses template placeholders {{TITLE}}/{{CSS}}/{{THEME}}/{{MODE}}/{{DATA}}/{{JS}} and the ISSUES/SWITCH regions, all kept; render.test r1-r8 pass, including no-URL and clean-has-no-issues); viewer.css dependants (render.mjs, design.md) still correct, fixed --rel/--zone/--sev tokens unchanged; docs/design.md section 7 still correct, the v1 items it lists are now implemented (note: deployment/trust views are recognised by optional view.kind else id/title, since the schema has no view kind). Playwright was not available (not installed); screenshots were taken with headless Google Chrome, which hung on repeated CLI runs, so I used a perl alarm wrapper. A pkill of Chrome was refused by the permission classifier and was not retried.",
+    "descriptive": "The viewer now has ER, CRUD matrix, lineage, search, path finder, deployment and trust views, all model-driven and with pure logic tested in node:test."
+  },
+  "testsAdded": [
+    "v1: rendered golden HTML has tab buttons and panels for graph, er, crud, sequences, deployment, trust (issues only in issue builds), search and path finder present",
+    "v2: ER markup draws every golden entity with PK/FK markers and prov-* classes on entities, fields and relations, crow's-foot helpers",
+    "v3: CRUD matrix has one td.cell per golden access row with node/entity/ops, header click-through buttons, duplicate pairs merged",
+    "v4: evidence chips/URLs match repoUrl/blob/commit/path#La-Lb for all golden evidence, plain code without repo, unsafe repoUrl refused, no URL literals in shipped script",
+    "v5: BFS findPath is shortest vs a Floyd-Warshall reference over all golden node pairs, with valid edges, directed mode, null for unconnected",
+    "v6 (extra): search over nodes/edges/entities/sequences, entity lineage, trust crossing and boundary enclosures"
+  ],
+  "casesAdded": [
+    [
+      "v1",
+      "v2",
+      "v3",
+      "v4",
+      "v5"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:de89e0e6d910c82e175b065929ae3780d76a6eda012f05ab7289fc1d2854b731\",\"dirtyDigest\":\"sha256:f5ea990df92dc11eb6e4a2b276c01f78610b9ed43a8676d9bc853230bdf60308\",\"dirtyPaths\":{\"assets/viewer/template.html\":\"58f90b91930ff926\",\"assets/viewer/viewer.css\":\"44e9de19d3c0ee46\",\"assets/viewer/viewer.js\":\"8b667851a328f7d5\",\"tests/viewer.test.mjs\":\"c16ad8362a06ae5d\"},\"head\":\"c391364\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/template.html\",\"assets/viewer/viewer.css\",\"assets/viewer/viewer.js\",\"tests/viewer.test.mjs\"],\"scopeDigest\":\"sha256:aca4ed482ab04b6281b622222934ef9eaa142339b62a6f5fec68c0a285d59b3f\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -16,6 +16,10 @@
     <p class="eyebrow" id="eyebrow"></p>
     <h1 id="title"></h1>
     <div class="toprow">
+      <div class="search">
+        <input type="search" id="q" placeholder="Search components, relations, entities, sequences" aria-label="Search components, relations, entities and sequences" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="qres">
+        <ul id="qres" role="listbox" aria-label="Search results" hidden></ul>
+      </div>
 <!--SWITCH-->
       <label class="iswitch"><input type="checkbox" id="issues-switch" checked> Issues</label>
 <!--/SWITCH-->
@@ -25,18 +29,22 @@
 
 <nav class="sections" aria-label="Sections">
   <div class="wrap">
-    <ul id="navlist">
-      <li><a href="#architecture">Architecture</a></li>
-      <li><a href="#sequences">Sequences</a></li>
+    <ul id="navlist" role="tablist" aria-label="Views">
+      <li role="presentation"><button class="navtab" role="tab" data-tab="graph" aria-controls="architecture" aria-selected="true">Graph</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="er" aria-controls="er" aria-selected="false">ER</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="crud" aria-controls="crud" aria-selected="false">CRUD matrix</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="sequences" aria-controls="sequences" aria-selected="false">Sequences</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="deployment" aria-controls="deployment" aria-selected="false">Deployment</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="trust" aria-controls="trust" aria-selected="false">Trust</button></li>
 <!--ISSUES-->
-      <li class="issues-only"><a href="#issues">Issues</a></li>
+      <li class="issues-only" role="presentation"><button class="navtab" role="tab" data-tab="issues" aria-controls="issues" aria-selected="false">Issues</button></li>
 <!--/ISSUES-->
     </ul>
   </div>
 </nav>
 
 <main>
-  <section class="block" id="architecture">
+  <section class="block" id="architecture" role="tabpanel">
     <div class="wrap">
       <div class="shead">
         <h2>Architecture</h2>
@@ -44,20 +52,62 @@
       </div>
       <div class="panel">
         <div class="panel-bar">
-          <div class="tabs" role="tablist" aria-label="Diagram view" id="viewtabs"></div>
-          <div class="legend" id="legend" aria-label="Relation types: click to show or hide"></div>
+          <div class="tabs" role="tablist" aria-label="Diagram view" id="arch-tabs"></div>
+          <div class="legend" id="arch-legend" aria-label="Relation types: click to show or hide"></div>
         </div>
-        <div class="zonekey" id="zonekey"></div>
+        <div class="pathbar" id="pathbar" role="group" aria-label="Path finder">
+          <label>From <select id="pf-from"></select></label>
+          <label>To <select id="pf-to"></select></label>
+          <button class="btn" id="pf-go">Find shortest path</button>
+          <span class="muted" id="pf-out" role="status"></span>
+        </div>
+        <div class="pinbar" id="pinbar" hidden>
+          <span id="pintext" role="status"></span>
+          <button class="btn" id="pinclear">Clear highlight</button>
+        </div>
+        <div class="zonekey" id="arch-zonekey"></div>
         <figure>
           <div class="fig-scroll"><svg id="arch" role="group" aria-label="Architecture diagram"></svg></div>
-          <figcaption id="archcap"></figcaption>
+          <figcaption id="arch-cap"></figcaption>
         </figure>
-        <div class="detail" id="detail" aria-live="polite"></div>
+        <div class="detail" id="arch-detail" aria-live="polite"></div>
       </div>
     </div>
   </section>
 
-  <section class="block" id="sequences">
+  <section class="block" id="er" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Data model</h2>
+        <p>Entities with their fields, keys and relations. Crow's feet mark the many end of a relation. Dotted bars mark fields observed from a live database, dashed ones fields inferred from names; click an entity for details.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar"><div class="legend erkey" id="er-key"></div></div>
+        <figure>
+          <div class="fig-scroll"><svg id="ersvg" class="er" role="group" aria-label="Entity relationship diagram"></svg></div>
+          <figcaption id="er-cap"></figcaption>
+        </figure>
+        <div class="detail" id="er-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="crud" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>CRUD matrix</h2>
+        <p>Which component creates, reads, updates or deletes which entity. Click a name to open the component or entity, a cell for its evidence.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar"><div class="legend erkey" id="crud-key"></div></div>
+        <div class="matrix-scroll" id="crud-wrap" tabindex="0" role="region" aria-label="CRUD matrix"></div>
+        <p class="capline" id="crud-cap"></p>
+        <div class="detail" id="crud-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="sequences" role="tabpanel" hidden>
     <div class="wrap">
       <div class="shead">
         <h2>Sequence diagrams</h2>
@@ -79,9 +129,50 @@
       </div>
     </div>
   </section>
+  <section class="block" id="deployment" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Deployment</h2>
+        <p>How the system is built, shipped and hosted: the delivery pipeline, the runtime hosts and the services running on them.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Deployment view" id="dep-tabs"></div>
+          <div class="legend" id="dep-legend" aria-label="Relation types: click to show or hide"></div>
+        </div>
+        <div class="zonekey" id="dep-zonekey"></div>
+        <figure>
+          <div class="fig-scroll"><svg id="dep" role="group" aria-label="Deployment diagram"></svg></div>
+          <figcaption id="dep-cap"></figcaption>
+        </figure>
+        <div class="detail" id="dep-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="trust" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Trust boundaries</h2>
+        <p>Dashed enclosures mark the trust boundaries. A relation with an amber halo crosses one: that is where input must be authenticated and validated.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Trust view" id="trs-tabs"></div>
+          <div class="legend" id="trs-legend" aria-label="Relation types: click to show or hide"></div>
+        </div>
+        <div class="zonekey" id="trs-zonekey"></div>
+        <figure>
+          <div class="fig-scroll"><svg id="trs" role="group" aria-label="Trust boundary diagram"></svg></div>
+          <figcaption id="trs-cap"></figcaption>
+        </figure>
+        <div class="detail" id="trs-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
 <!--ISSUES-->
 
-  <section class="block issues-only" id="issues">
+  <section class="block issues-only" id="issues" role="tabpanel" hidden>
     <div class="wrap">
       <div class="shead">
         <h2>Issues</h2>
