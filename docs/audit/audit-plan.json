@@ -1581,7 +1581,7 @@
         {
           "id": "P4.2",
           "title": "Discovery references: generic recipe, three stack references, schema introspection",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write the discovery references (docs/design.md D5, D7, §8). discovery-generic.md: the recipe for any stack prescan does not recognise - find entrypoints, routes, stores, queues, externals and deploy units via Grep and line-range reads, never whole trees. Each stack-*.md tells an explorer what prescan (scripts/lib/prescan/*) already extracts for that stack and what it must still read itself to complete nodes, edges, entities and access: python-backend (FastAPI, Django, Flask; SQLAlchemy, Pydantic, Alembic; DuckDB/SQLite), ts-frontend (React, Next.js, React Native; routers; RTK Query, React Query, Redux, Zustand; axios/fetch), node-backend (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ/queues). schema-introspection.md: read-only recipes via the duckdb/sqlite3 CLIs or the project's own Python, schema only and never rows, copy a DuckDB file held by a running server to a temp file first, remote DB only with explicit --db <dsn> and information_schema only, no shipped driver, a skipped step is recorded in meta.sources with the reason. Never execute the scanned project's code. Repo is public: examples must be fictional.",
           "files": [
             "skills/architecture-map/references/discovery-generic.md",
@@ -1609,25 +1609,40 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "5867ef4d9129",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests/skill-discovery-refs.test.mjs (10 cases d1-d10) first and saw it fail (ENOENT, references absent). Then wrote skills/architecture-map/references/discovery-generic.md, stack-python-backend.md, stack-ts-frontend.md, stack-node-backend.md and schema-introspection.md from docs/design.md D5/D7/section 8 and the prescan extractor headers (scripts/lib/prescan/*.mjs, which list the item kinds each extracts). One test regex was loosened (a line wrap broke the temp-copy match). Result: node --test tests/skill-discovery-refs.test.mjs pass 10 fail 0; full node --test pass 121 fail 0. Dependants: docs/design.md references these basenames and is still correct, as the files now exist under those names; no other tracked file names the test or the stack references. All examples are fictional (shop-api, shop-web, ledger-svc).",
+            "descriptive": "Adds the generic discovery recipe, three stack references and schema-introspection rules for the architecture-map explorer, with a test that locks their contents."
           },
           "startedAt": "2026-10-28T22:55:57Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:58:10Z",
+          "verifiedBy": [
+            "Stack references name every D7 framework/ORM/library (d1-d4)",
+            "schema-introspection states read-only, schema-only, DuckDB temp-copy, --db/information_schema, meta.sources skips (d5-d8)",
+            "discovery-generic forbids whole-tree reads and covers the discovery targets (d9); all references state the never-execute rule (d10)"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:58:10Z.818f31",
             "status": "passed",
             "at": "2026-10-28T22:58:10Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "5867ef4d9129",
+            "at": "2026-10-28T22:58:10Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:58:01Z",
+            "basis": "`node --test tests/skill-discovery-refs.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P4.3",
           "title": "Issues catalogue reference",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write issues-catalog.md (docs/design.md D4, §11): architecture-level issues only, visible through structure and relations, never line-level review. Generalise each §11 seed into a pattern with what to look for in the model (which node/edge/entity/step it anchors to), category (security, data, reliability, performance, design, docs), default severity high/med/low, and the calibrated summary/impact/fix wording for shared builds versus internal-only detail for security. Cover audit import (bugs[] and phases[].review.findings[], legacy string findings) at the level the reviewer agent needs. Repo is public: no client names, paths or identifiers - generic, fictional wording only.",
           "files": [
             "skills/architecture-map/references/issues-catalog.md",
@@ -1649,16 +1664,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T22:58:11Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T23:00:18Z.82b2ee",
+            "status": "passed",
+            "at": "2026-10-28T23:00:18Z"
+          }
         },
         {
           "id": "P4.4",

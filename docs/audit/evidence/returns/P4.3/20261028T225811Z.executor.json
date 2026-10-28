@@ -1,0 +1,32 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/skill-issues-catalog.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T23:00:01Z",
+    "basis": "`node --test tests/skill-issues-catalog.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/skill-issues-catalog.test.mjs first (4 cases i1-i4); first run was red because skills/architecture-map/references/issues-catalog.md did not exist (test file failed to load, 1 fail). Then wrote issues-catalog.md: scope rule (architecture-level, never line-level), issue record fields, calibrated wording rules (summary/impact/fix shared-safe, detail internal-only for security), 15 patterns P1-P15 each with Anchor/Category/Severity/Look for/example wording (generalising all 11 design.md section 11 seeds plus chatty-pull, dependency-cycle), anchor choice, audit import (bugs[], phases[].review.findings[], legacy string findings, mapping to sev/category/anchor/evidence/track, skip reporting), pre-filing checklist. Step anchor format <sequenceId>:<stepIndex> taken from scripts/validate.mjs. Final: node --test tests/skill-issues-catalog.test.mjs 4/4 pass (denylist file present, so i4 actually ran the denylist scan, not skipped); full node --test 125 pass 0 fail, exit 0. Dependants: docs/design.md refers to issues-catalog.md by basename (section 11 seeds) - still correct, the file now exists at skills/architecture-map/references/issues-catalog.md and design.md was not changed; the test file has no dependants.",
+    "descriptive": "Adds the issues catalogue reference for the archmap-reviewer, with a test locking enum coverage, anchor kinds per pattern, calibration/import wording and the denylist."
+  },
+  "testsAdded": [
+    "i1 schema category and severity enums all used, each category and severity is the default of at least one pattern",
+    "i2 every pattern has Anchor (node|edge|entity|step), Category and Severity; at least 11 patterns",
+    "i3 calibration and audit import wording present",
+    "i4 no home paths and no denylist term"
+  ],
+  "casesAdded": [
+    [
+      "i1",
+      "i2",
+      "i4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:0dc3b34f50d2b2cd5fc3f83ce5a68e111df759e81562593162f0444fd9896dc6\",\"dirtyDigest\":\"sha256:312dfcd2e05b5438bb3590d62849fb30fdfc72e10e925cc1a9c8e6d3bca22624\",\"dirtyPaths\":{\"skills/architecture-map/references/issues-catalog.md\":\"d096e598ddd806a9\",\"tests/skill-issues-catalog.test.mjs\":\"509c401406e30c9d\"},\"head\":\"5867ef4\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/references/issues-catalog.md\",\"tests/skill-issues-catalog.test.mjs\"],\"scopeDigest\":\"sha256:80d98a09b50bf8ab1f8432db51b37cd7c31b95bce75cc1ea845a4e9bf000ca5f\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
