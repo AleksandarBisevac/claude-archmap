@@ -1762,7 +1762,7 @@
         {
           "id": "P4.5",
           "title": "archmap-explorer, archmap-synthesizer and archmap-reviewer agents",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write the three agents (docs/design.md §4, §6, §8, D11). Frontmatter name, description, tools, model, effort: archmap-explorer model sonnet effort medium tools Read, Grep, Glob, Bash (Bash only for read-only introspection CLIs, never executing the scanned project's code); archmap-synthesizer and archmap-reviewer model opus effort high tools Read, Grep, Glob. Explorer: input a prescan area slice, output exactly the fragment contract from references/model-schema.md, excerpts only. Synthesizer: input fragments + merged model, adds cross-area edges, 3-7 sequences, CRUD/lineage, views, targeted reads only. Reviewer: input the model (+ audit import), output issues per references/issues-catalog.md anchored to model ids, security detail internal only. Each agent names the references it reads. Then run claude plugin validate . and fix what it reports; if it rejects effort in agent frontmatter (design §13 open question), report that in the outcome instead of silently dropping the field.",
           "files": [
             "agents/archmap-explorer.md",
@@ -1791,19 +1791,76 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2a4514332fae",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests/agents.test.mjs first (cases a1-a3) and saw it fail (agents/archmap-explorer.md did not exist). Then wrote agents/archmap-explorer.md (sonnet, medium, Read/Grep/Glob/Bash; Bash limited to read-only introspection CLIs, never executes scanned code), agents/archmap-synthesizer.md and agents/archmap-reviewer.md (opus, high, Read/Grep/Glob). Each has Input, References, Output sections naming the references it reads. Results: node --test tests/agents.test.mjs 3/3 pass; node --test full suite 132 pass 0 fail; claude plugin validate . passes (only the existing ICON_MISSING directory warning). Design question 13: validate did NOT reject the effort field. However I checked in a scratch copy that validate also passes with a bogus model, bogus effort and broken YAML in an agent's frontmatter, so it does not inspect agent frontmatter at all; acceptance of effort by the runtime is therefore not proven by validate. effort is kept in all three agents. DISCREPANCY for the orchestrator: skills/architecture-map/SKILL.md (not in my files) says the synthesizer 'edits only architecture.model.json', but the design gives it only Read, Grep, Glob, so it cannot write. I made the synthesizer return one JSON object (edges, sequences, access, relations, views, notes, conflicts) that the caller merges and validates; the reviewer likewise returns the issues JSON (SKILL.md already says the caller writes issues.json). SKILL.md step 5 wording should be aligned. Dependants: the three agent files are referenced by docs/design.md by basename; still correct, since names, models, efforts and tools match design section 4 exactly. tests/agents.test.mjs has no tracked dependants.",
+            "descriptive": "Adds the three archmap agents with designed model, effort and tool frontmatter, locked by a test; plugin validate passes."
           },
           "startedAt": "2026-10-28T23:02:11Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T23:03:58Z",
+          "verifiedBy": [
+            "tests/agents.test.mjs: a1 exact frontmatter (name, model, effort, tools, key set); a2 no Edit/Write/Agent, no Bash for synthesizer and reviewer; a3 bodies have Input/Output/References sections and name their references"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T23:03:57Z.c19ed7",
             "status": "passed",
             "at": "2026-10-28T23:03:57Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2a4514332fae",
+            "at": "2026-10-28T23:03:58Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T23:03:41Z",
+            "basis": "`node --test tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: agents/archmap-explorer.md exists; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
+          }
+        },
+        {
+          "id": "P4.6-w15",
+          "title": "Align SKILL.md with the synthesizer's return-JSON contract",
+          "status": "in_progress",
+          "description": "SKILL.md says the archmap-synthesizer 'edits only architecture.model.json' (step 5, around line 134) and its agent table row says it outputs 'The updated model', but agents/archmap-synthesizer.md (P4.5) has no write tools, as the design requires (Read, Grep, Glob), and returns one JSON object (edges, sequences, access, relations, views, notes, conflicts) for the caller to merge into the model and validate. Align SKILL.md step 5, the agent table, and the update flow's synthesizer step with the agent file: the orchestrating session merges the returned object and runs validate; only the orchestrator writes architecture.model.json. Keep the reviewer wording consistent the same way. Read agents/archmap-synthesizer.md and agents/archmap-reviewer.md for the exact output contracts.",
+          "files": [
+            "skills/architecture-map/SKILL.md",
+            "tests/skill.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill.test.mjs: SKILL.md does not claim the synthesizer or reviewer edits or writes architecture.model.json, and states the orchestrator merges the synthesizer's returned JSON and runs validate"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P4.5"
+          ],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-28T23:04:31Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T23:05:19Z.d03c4a",
+            "status": "passed",
+            "at": "2026-10-28T23:05:19Z"
           }
         }
       ],
@@ -2282,10 +2339,12 @@
       "P4.3"
     ],
     "skills/architecture-map/SKILL.md": [
-      "P4.4"
+      "P4.4",
+      "P4.6-w15"
     ],
     "tests/skill.test.mjs": [
-      "P4.4"
+      "P4.4",
+      "P4.6-w15"
     ],
     "agents/archmap-explorer.md": [
       "P4.5"

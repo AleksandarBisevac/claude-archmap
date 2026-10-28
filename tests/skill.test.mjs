@@ -49,3 +49,21 @@ test('s4 the three agents and the three profiles are mentioned', () => {
   for (const a of ['archmap-explorer', 'archmap-synthesizer', 'archmap-reviewer']) assert.ok(skill.includes(a), a);
   for (const p of ['max', 'balanced', 'economy']) assert.match(skill, new RegExp(`\\b${p}\\b`), p);
 });
+
+test('s5 SKILL.md does not let the synthesizer or reviewer write architecture.model.json; the orchestrator merges the returned JSON and validates', () => {
+  const lines = skill.split('\n');
+  const writeVerb = /\b(edits?|writes?|writing|rewrites?|updates?|saves?)\b/i;
+  const claims = lines.filter((l) => {
+    if (!/synthesizer|reviewer/i.test(l)) return false;
+    if (/\b(never|not|no|without|only the orchestrat\w*)\b/i.test(l)) return false;
+    return writeVerb.test(l) && l.includes('architecture.model.json');
+  });
+  assert.deepEqual(claims, [], 'a line claims an agent writes architecture.model.json');
+  const rows = lines.filter((l) => /^\|.*(archmap-synthesizer|archmap-reviewer)/.test(l));
+  assert.ok(rows.length >= 2, 'agent table rows for synthesizer and reviewer');
+  assert.deepEqual(rows.filter((l) => /updated model/i.test(l)), [], 'no table row says an agent outputs the updated model');
+  const synth = rows.find((l) => l.includes('archmap-synthesizer'));
+  assert.match(synth, /JSON/, 'synthesizer row says it returns JSON');
+  assert.match(skill, /orchestrat\w*[^\n]*\bmerg\w*[^\n]*\bvalidate/i, 'orchestrator merges the returned object and runs validate');
+  assert.match(skill, /only the orchestrat\w*[^\n]*(writes?|edits?)[^\n]*architecture\.model\.json/i, 'only the orchestrator writes the model');
+});

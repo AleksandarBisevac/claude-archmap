@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test tests/skill.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T23:05:06Z",
+    "basis": "`node --test tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: no table row says an agent outputs the updated model; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "SKILL.md: agent table synthesizer row now says it returns one JSON object (edges, sequences, access, relations, views, notes, conflicts) with no write tools; reviewer row says one JSON object (issues, import, unreviewed) written by the caller as issues.json; step 5 says the orchestrating session merges the returned object and runs validate, and only the orchestrator writes architecture.model.json; update-flow step 4 says the returned touched elements are merged in place and validated. SKILL.md is 249 lines. Added case s5 to tests/skill.test.mjs; node --test tests/skill.test.mjs exits 0 with s1-s5 passing. Dependants: tests/skill.test.mjs still correct (s1-s4 pass); .agents/skills/node/tile.json, skills-lock.json, docs/design.md reference SKILL.md by basename only and were not changed, content they refer to (the file's existence/name) is unchanged. Step 7 reviewer wording already said the reviewer returns the list and the caller writes it, so left as is.",
+    "descriptive": "SKILL.md now matches the synthesizer and reviewer return-JSON contracts: only the orchestrator merges and writes the model."
+  },
+  "testsAdded": [
+    "s5: no line claims synthesizer/reviewer writes architecture.model.json, no agent table row says 'updated model', synthesizer row says JSON, and SKILL.md states the orchestrator merges the returned object and runs validate and is the only writer"
+  ],
+  "casesAdded": [
+    "s5"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:327bfbae9a773801a06215e16224246a8732baf72be2a70f1e2b88010aefdb14\",\"dirtyDigest\":\"sha256:17798fd5881201120e72416ea7e525bc94eb8e9e69b8aa7279f27b04f38fa7dc\",\"dirtyPaths\":{\"skills/architecture-map/SKILL.md\":\"0a5257338f52934a\",\"tests/skill.test.mjs\":\"dcf0281f9f8ac201\"},\"head\":\"2a45143\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/SKILL.md\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:afbced5b09ed2a1688e43bd713ac41028e0ab06a466e716504fc6327032056a2\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

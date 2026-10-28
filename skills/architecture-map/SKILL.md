@@ -49,8 +49,8 @@ Read a reference at the step named, not up front. Detail lives there; this file 
 | Agent | Default model | Reads | Returns |
 |---|---|---|---|
 | `archmap-explorer` | Sonnet, medium effort | One area's prescan slice plus excerpts (Grep, line ranges) | One size-capped JSON fragment, nothing else |
-| `archmap-synthesizer` | Opus, high effort | Fragments and the merged model; targeted reads only | The updated model: cross-area edges, 3-7 sequences, CRUD and lineage, views |
-| `archmap-reviewer` | Opus, high effort | The model and the issues catalogue; targeted reads only | An issues list for the overlay file |
+| `archmap-synthesizer` | Opus, high effort | Fragments and the merged model; targeted reads only | One JSON object (no write tools): cross-area `edges`, 3-7 `sequences`, `access`, `relations`, `views`, `notes`, `conflicts` |
+| `archmap-reviewer` | Opus, high effort | The model and the issues catalogue; targeted reads only | One JSON object (no write tools): `issues`, optional `import`, `unreviewed`; you write it as `issues.json` |
 
 Dispatch each with the `Agent` tool and pass the `model` override the chosen profile requires (see
 [Token rules](#token-rules)). Give an agent exactly what it needs: its area, the relevant prescan slice and extract, the
@@ -131,7 +131,9 @@ does not check evidence: say so if that is all you ran.
 Dispatch `archmap-synthesizer` with the merged model path. It reads the model and fragments, not the tree, plus
 targeted source reads to confirm a cross-area claim. It adds cross-area edges, 3-7 sequences (read
 [sequences.md](references/sequences.md)), `access[]` rows that drive the CRUD matrix and lineage, `relations[]`, and
-`views[]`. It edits only `architecture.model.json`.
+`views[]`. It has no write tools and returns one JSON object (`edges`, `sequences`, `access`, `relations`, `views`,
+`notes`, `conflicts`). The orchestrating session merges that object into the model, then runs validate (step 6); a
+non-empty `conflicts` is reported, not resolved silently. Only the orchestrator writes `architecture.model.json`.
 
 ### 6. Validate, layout, render
 
@@ -190,7 +192,8 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
    fragment's node ids supplied so ids stay stable.
 3. **Merge, preserving user fields.** Replace only the affected areas' elements. `locked` and `notes` and layout
    `pinned` survive; a locked node keeps its authored content, and a conflict is reported, not resolved silently.
-4. **Synthesizer only for touched edges and sequences**: pass it the list of affected ids.
+4. **Synthesizer only for touched edges and sequences**: pass it the list of affected ids. It returns only the touched or new elements with the same ids; you merge
+   them in place and run validate, as in build step 5.
 5. **Validate, layout, render.** Layout is seeded from the previous positions in `architecture.layout.json`. Set
    `meta.commit` to HEAD and `generatedAt` anew.
 6. **Issues**, only with `--issues`: re-review the affected anchors only and merge into the existing overlay.
