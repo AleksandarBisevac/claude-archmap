@@ -41,6 +41,37 @@ def build(tmp):
     return pages
 
 
+# Layout checks for the figure in the open tab (P2-R1): the default view fits the figure to the panel width, so
+# nothing is clipped on the right and nothing scrolls sideways, the drawing fills its viewBox (no mostly blank canvas),
+# and a scale control (Fit / 100%) lets the reader zoom in and scroll.
+FIGURE_JS = """() => [...document.querySelectorAll('.fig-scroll')].filter(f => f.offsetParent !== null).map(f => {
+  const svg = f.querySelector('svg'), r = svg.getBoundingClientRect(), fr = f.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal, bb = svg.getBBox();
+  const ctl = f.parentElement.querySelector('.fig-scale');
+  return {id: svg.id, overflow: f.scrollWidth - f.clientWidth, right: r.right - fr.right, width: r.width,
+          fill: vb.width ? bb.width / vb.width : 1,
+          control: !!ctl, fitOn: !!ctl && !!ctl.querySelector('[data-scale="fit"][aria-pressed="true"]')};
+})"""
+
+
+def check_figures(page, where, errors):
+    for fig in page.evaluate(FIGURE_JS):
+        at = f"{where}/{fig['id']}"
+        if fig["overflow"] > 1 or fig["right"] > 1:
+            errors.append(f"{at}: figure clipped on the right (scroll overflow {fig['overflow']}px, svg past panel {fig['right']:.0f}px)")
+        if fig["fill"] < 0.6:
+            errors.append(f"{at}: drawing fills only {fig['fill']:.0%} of its viewBox (mostly blank canvas)")
+        if not fig["control"] or not fig["fitOn"]:
+            errors.append(f"{at}: no scale control with Fit pressed by default")
+        else:
+            fig_el = page.locator(f'#{fig["id"]}').locator("xpath=ancestor::figure")
+            fig_el.locator("button[data-scale='full']").click()
+            wide = next(w for w in page.evaluate(FIGURE_JS) if w["id"] == fig["id"])
+            fig_el.locator("button[data-scale='fit']").click()
+            if wide["width"] < fig["width"] - 1:
+                errors.append(f"{at}: 100% is narrower than Fit")
+
+
 def check_page(browser, mode, html, results, errors):
     for size_name, (w, h) in SIZES.items():
         for theme in THEMES:
@@ -70,6 +101,7 @@ def check_page(browser, mode, html, results, errors):
                     continue  # e.g. the Issues tab in a clean render
                 btn.click()
                 page.wait_for_timeout(300)
+                check_figures(page, f"{where}/{tab}", errors)
                 path = OUT / f"{mode}-{tab}-{theme}-{size_name}.png"
                 page.screenshot(path=str(path), full_page=True)
                 shown += 1

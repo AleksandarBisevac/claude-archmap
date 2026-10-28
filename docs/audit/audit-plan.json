@@ -453,7 +453,40 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P2-R1",
+            "severity": "med",
+            "file": "assets/viewer/viewer.js:496",
+            "issue": "The phase desired outcome says the golden render matches the reference in screenshots of every tab at desktop and 400 px. P2.5's own filed return reports defects it did not fix. The Graph, Deployment and Trust SVGs are clipped on the right at 1440 px (svg.style.minWidth = max(980, w*0.6) forces horizontal scroll with no fit-to-width; the same pattern is at :780 for ER and :943 for sequences). At 400 px the Graph tab opens on a mostly blank canvas, and the sequence diagrams show only the first 3 lifelines. The screenshot script passes with these present because it only asserts console errors and requests, not layout.",
+            "resolution": "Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or viewBox that shows the diagram at 400 px. Re-run tests/visual/screenshots.py and look at the PNGs.",
+            "fixTask": "P2.6-2vu"
+          },
+          {
+            "id": "P2-R2",
+            "severity": "low",
+            "file": "assets/viewer/viewer.js:1116",
+            "issue": "Turning the Issues switch off while the Issues tab is active hides the Issues panel and its nav tab (viewer.css:338 hides .issues-only) but does not leave the tab. curTab stays 'issues', so the page shows a blank content area until the user finds another tab.",
+            "resolution": "In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph').",
+            "fixTask": "P2.7-2vu"
+          },
+          {
+            "id": "P2-R3",
+            "severity": "low",
+            "file": "assets/viewer/viewer.js:62-69",
+            "issue": "viewRole picks deployment and trust views by regex on view id and title (/trust|boundar/, /deploy|release|topolog|infra/) because the model schema has no view kind (schema/archmap-model.schema.json:212-221). The task said 'from model.views' and left open how a view is marked deployment or trust. A graph view titled e.g. 'Infrastructure API' or 'Release notes service' is silently moved out of the Graph tab. The synthesizer that writes views has no documented contract for this.",
+            "resolution": "Add an optional, additive 'kind' (graph|deployment|trust) to the view definition in the schema and design section 5, keep the regex only as a fallback, and have the synthesizer set it."
+          },
+          {
+            "id": "P2-R4",
+            "severity": "low",
+            "file": "tests/visual/screenshots.py:51-53",
+            "issue": "The failure path of the visual check was never exercised: the executor says it ran no negative test, so exit 1 on a console error, page error or external request is unproven. Only console messages of type 'error' are collected, so warnings never fail it. No shared-mode render is covered, although shared is one of the three modes the phase builds.",
+            "resolution": "Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build().",
+            "fixTask": "P2.8-2vu"
+          }
+        ],
+        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -710,7 +743,7 @@
         {
           "id": "P2.5",
           "title": "Visual check of the golden render with Playwright",
-          "status": "in_progress",
+          "status": "done",
           "description": "Design section 10 \"Visual\": Playwright screenshots of every tab (light and dark, desktop and 400 px) of the golden render,\nwith no console errors. Use the project skill webapp-testing (Python Playwright).\n- Python Playwright is not installed globally. Use a gitignored venv at .venv/ (add `.venv/` and `tests/visual/out/` to\n  .gitignore): python3 -m venv .venv && .venv/bin/pip install playwright. Chromium browsers are already in the local\n  ms-playwright cache; only run `playwright install chromium` if launch fails.\n- tests/visual/screenshots.py: run `node scripts/layout.mjs` + `node scripts/render.mjs` on tests/fixtures/golden into a\n  temp dir, then drive the HTML over file:// (offline; also assert no network request leaves the page). Screenshots go to\n  tests/visual/out/ (gitignored). Exit 1 on any console error, page error or failed/external request.\n- This check is local, not part of `node --test` and not in CI (no browser there). tests/visual/README.md says how to run it.\n- Run it, look at the screenshots yourself (Read the PNGs), and report anything visibly broken: overlapping nodes, edges\n  through cards, unreadable dark mode, clipped panels at 400 px. Fix real rendering bugs in assets/viewer/ only if small;\n  otherwise report them for a follow-up task.",
           "files": [
             "tests/visual/screenshots.py",
@@ -739,20 +772,189 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "ff2ab96aa89e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Created .venv (gitignored) with Python Playwright; added .venv/ and tests/visual/out/ to .gitignore. tests/visual/screenshots.py runs node scripts/layout.mjs then render.mjs (clean and internal) on tests/fixtures/golden into a temp dir, opens each over file:// in headless Chromium with color_scheme light/dark at 1440x900 and 400x800, clicks every visible #navlist tab and saves full-page PNGs to tests/visual/out/ (52 screenshots: 6 tabs clean + 7 tabs internal, x2 themes x2 sizes). It fails on console errors, pageerrors, requestfailed and any request not file:/data:/blob:/about:; prints 'PASS vs1 ...' / 'FAIL vs1 ...'. Run: exit 0, 52 screenshots, 0 errors. node --test: 72 pass, 0 fail. I did not run a negative test (injected console error) to see the script exit 1, so the failure path is unverified. I Read 9 of the PNGs (internal graph light desktop, graph dark 400, ER dark desktop, CRUD light 400, sequences dark 400, deployment light desktop, trust dark desktop, issues light 400): dark mode is readable, ER, CRUD, issues and deployment look right, no overlapping nodes seen. FINDINGS for follow-up (none fixed, not small): (1) Graph, Deployment and Trust SVGs render at fixed scale inside .fig-scroll, so at 1440 px they are clipped on the right (need horizontal scroll; zones and edges run off the edge) and have no fit-to-width. (2) At 400 px the Graph tab's initial view shows a large blank area with only the Delivery pipeline zone visible at the left edge; the real diagram is off-screen right/below, so the first impression on mobile is an empty canvas. (3) Sequence diagrams at 400 px are cropped on the right (only the first 3 lifelines visible) and the alt/loop frame bodies have large empty gaps; this is also horizontal scroll. (4) Trust tab: long relation edges run around the outer edge of the backend boundary and cross large empty zone interiors; legible but sparse. Dependants: tests/visual/README.md is a new file; the 5 files naming README.md by basename (audit.config.json, review-scan.test.mjs, node skill rules, docs/design.md) refer to other READMEs/generic mentions and are unaffected. .gitignore gained two lines; audit.config.json and tests/review-scan.test.mjs name it by basename and are unaffected (node --test green, which includes review-scan). screenshots.py has no dependants.",
+            "descriptive": "Adds a local Playwright visual check of the golden render (52 screenshots, no console errors or external requests) and reports graph-fit and 400 px clipping issues for a follow-up viewer task."
           },
           "startedAt": "2026-10-28T19:09:48Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T19:12:46Z",
+          "verifiedBy": [
+            "tests/visual/screenshots.py: builds the golden render (clean and internal), opens it over file:// in headless Chromium, screenshots every tab in light and dark at 1440 px and 400 px, and exits non-zero on any console error, page error, failed or external request."
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T19:12:46Z.1a3e41",
             "status": "passed",
             "at": "2026-10-28T19:12:46Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "ff2ab96aa89e",
+            "at": "2026-10-28T19:12:46Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "Task mode is regression with expectRedFirst false: a local browser script locking the behaviour of an already-built render; no fix was made, so no red was owed.",
+            "at": "n/a"
           }
+        },
+        {
+          "id": "P2.6-2vu",
+          "title": "fix P2-R1: The phase desired outcome says the golden render matches the refer...",
+          "status": "in_progress",
+          "description": "The phase desired outcome says the golden render matches the reference in screenshots of every tab at desktop and 400 px. P2.5's own filed return reports defects it did not fix. The Graph, Deployment and Trust SVGs are clipped on the right at 1440 px (svg.style.minWidth = max(980, w*0.6) forces horizontal scroll with no fit-to-width; the same pattern is at :780 for ER and :943 for sequences). At 400 px the Graph tab opens on a mostly blank canvas, and the sequence diagrams show only the first 3 lifelines. The screenshot script passes with these present because it only asserts console errors and requests, not layout.\n\nResolution asked: Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or viewBox that shows the diagram at 400 px. Re-run tests/visual/screenshots.py and look at the PNGs.",
+          "files": [
+            "assets/viewer/viewer.js",
+            "tests/visual/screenshots.py"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/visual/screenshots.py: Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or ..."
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-28T19:15:33Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "scope: assets/viewer/viewer.js, tests/visual/screenshots.py, every path the finding(s) P2-R1 name"
+            },
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "no suite: assets/viewer/viewer.js - no test sits beside it and no test file names it; name the one that tests it with `scope --files`, none was guessed"
+            },
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "no test runner in this task's gate for the test P2-R1 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P2 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P2-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T19:18:34Z.b92ad5",
+            "status": "passed",
+            "at": "2026-10-28T19:18:34Z"
+          }
+        },
+        {
+          "id": "P2.7-2vu",
+          "title": "fix P2-R2: Turning the Issues switch off while the Issues tab is active hides...",
+          "status": "pending",
+          "description": "Turning the Issues switch off while the Issues tab is active hides the Issues panel and its nav tab (viewer.css:338 hides .issues-only) but does not leave the tab. curTab stays 'issues', so the page shows a blank content area until the user finds another tab.\n\nResolution asked: In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph').",
+          "files": [
+            "assets/viewer/viewer.js"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "scope: assets/viewer/viewer.js, every path the finding(s) P2-R2 name"
+            },
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "no suite: assets/viewer/viewer.js - no test sits beside it and no test file names it; name the one that tests it with `scope --files`, none was guessed"
+            },
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "no tests.add clause for P2-R2: no test file is named, placed or mapped for it; name the case with `scope --tests-add \"<path>: <what it asserts>\"`"
+            }
+          ],
+          "fixes": [
+            "P2-R2"
+          ]
+        },
+        {
+          "id": "P2.8-2vu",
+          "title": "fix P2-R4: The failure path of the visual check was never exercised: the exec...",
+          "status": "pending",
+          "description": "The failure path of the visual check was never exercised: the executor says it ran no negative test, so exit 1 on a console error, page error or external request is unproven. Only console messages of type 'error' are collected, so warnings never fail it. No shared-mode render is covered, although shared is one of the three modes the phase builds.\n\nResolution asked: Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build().",
+          "files": [
+            "tests/visual/screenshots.py"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/visual/screenshots.py: the case P2-R4 asks for, locking the behaviour at HEAD"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "scope: tests/visual/screenshots.py, every path the finding(s) P2-R4 name"
+            },
+            {
+              "at": "2026-10-28T19:15:33Z",
+              "text": "no test runner in this task's gate for the test P2-R4 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P2 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P2-R4"
+          ]
         }
       ],
       "area": [
@@ -1177,7 +1379,9 @@
     ],
     "assets/viewer/viewer.js": [
       "P2.3",
-      "P2.4"
+      "P2.4",
+      "P2.6-2vu",
+      "P2.7-2vu"
     ],
     "scripts/render.mjs": [
       "P2.3"
@@ -1189,7 +1393,9 @@
       "P2.4"
     ],
     "tests/visual/screenshots.py": [
-      "P2.5"
+      "P2.5",
+      "P2.6-2vu",
+      "P2.8-2vu"
     ],
     "tests/visual/README.md": [
       "P2.5"

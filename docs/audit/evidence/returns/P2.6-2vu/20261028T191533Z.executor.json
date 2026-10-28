@@ -1,0 +1,25 @@
+{
+  "gates": {
+    ".venv/bin/python tests/visual/screenshots.py": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T19:18:22Z",
+    "basis": "`.venv/bin/python tests/visual/screenshots.py` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "assets/viewer/viewer.js: added setFigureScale/applyFigureScale. Every figure (graph/deployment/trust via renderGraph, ER via drawEr, sequences via renderSeq) now opens fitted to its panel (inline min-width 0, width 100%) instead of min-width max(980, w*0.6|0.7|0.82); a Fit / 100% button pair (.fig-scale, existing .btn class, aria-pressed, data-scale) is inserted once per figure, and 100% sets min-width to the natural viewBox width so the panel scrolls. The inline min-width also overrides the CSS 980/760 floors, so no viewer.css change was needed. tests/visual/screenshots.py: check_figures runs per tab/theme/size/mode and reports an error if the figure overflows or its svg passes the panel's right edge, if the drawing fills under 60% of its viewBox, if the Fit/100% control is missing or Fit is not pressed by default, or if 100% is narrower than Fit. Red before fix, then .venv/bin/python tests/visual/screenshots.py: PASS vs1, 52 screenshots, 0 errors; node --test: 72 pass, 0 fail. I looked at PNGs: graph/sequences narrow show whole drawing (all lifelines, small text, 100% available), trust desktop dark fully visible. Caveat: at 400 px Fit text is tiny; readable via 100%. Dependants: tests/visual/README.md still correct but does not mention the new layout checks (not in my files, not edited); viewer.css, render.mjs, tests/viewer.test.mjs and docs/design.md are unaffected (no class/ids renamed, tests pass, inline min-width overrides the CSS floors; design.md untouched, may want a line on the scale control).",
+    "descriptive": "Viewer figures now fit the panel width by default with a Fit/100% control, and the screenshot script fails on clipped, blank or control-less figures."
+  },
+  "testsAdded": [
+    "check_figures in tests/visual/screenshots.py: per figure, no horizontal clipping, drawing fills its viewBox, Fit/100% control present with Fit default, 100% not narrower than Fit"
+  ],
+  "casesAdded": [
+    "vs1"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f701046edc7dd45cafdf5bb52f104b487b11fcbf76ad58ab998c761fcf386e34\",\"dirtyDigest\":\"sha256:4f401046073eb02369a40e37b4e7e50eadd019c90eb027de4a6fcc4e9945e1a1\",\"dirtyPaths\":{\"assets/viewer/viewer.js\":\"fd3b196efb9c3b17\",\"tests/visual/screenshots.py\":\"6cda4dd0c6a57f0b\"},\"head\":\"ff2ab96\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/viewer.js\",\"tests/visual/screenshots.py\"],\"scopeDigest\":\"sha256:c830adaeb7f759a1180e26e24216aae66dc380a0325f6ffbe78b5be7f86ff8d2\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

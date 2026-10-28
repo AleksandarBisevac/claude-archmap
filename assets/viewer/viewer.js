@@ -487,13 +487,46 @@ function viewBox(view, extra){
 }
 const ALL_VIEWS = buildViews();
 
+/* Figure scale: every diagram opens fitted to its panel (whole drawing visible, nothing clipped, no sideways scroll);
+   the 100% button draws it at its natural size inside the scrolling panel. The choice is kept per figure. */
+function setFigureScale(svg, naturalW){
+  svg.__natW = Math.max(1, Math.round(naturalW));
+  if (!svg.__scale) svg.__scale = "fit";
+  const fig = svg.closest("figure");
+  if (fig && !fig.querySelector(".fig-scale") && svg.parentNode){
+    const bar = document.createElement("div");
+    bar.className = "fig-scale";
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Diagram scale");
+    bar.style.cssText = "display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:8px 14px 0";
+    [["fit", "Fit"], ["full", "100%"]].forEach(a => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn"; b.dataset.scale = a[0]; b.textContent = a[1];
+      b.addEventListener("click", () => { svg.__scale = a[0]; if (a[0] === "fit") svg.parentNode.scrollLeft = 0; applyFigureScale(svg); });
+      bar.appendChild(b);
+    });
+    fig.insertBefore(bar, svg.parentNode);
+  }
+  applyFigureScale(svg);
+}
+function applyFigureScale(svg){
+  const full = svg.__scale === "full";
+  svg.style.minWidth = full ? svg.__natW + "px" : "0";
+  const fig = svg.closest("figure");
+  if (fig) fig.querySelectorAll(".fig-scale button").forEach(b => {
+    const on = b.dataset.scale === svg.__scale;
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.style.borderColor = on ? "var(--accent)" : "";
+    b.style.fontWeight = on ? "700" : "";
+  });
+}
+
 function renderGraph(svg, view, opt){
   opt = opt || {};
   while (svg.firstChild) svg.removeChild(svg.firstChild);
   const b = viewBox(view, opt.trust ? 14 : 0);
   svg.setAttribute("viewBox", b.x + " " + b.y + " " + b.w + " " + b.h);
-  // Keep text legible on wide layouts: the figure scrolls rather than shrinking below ~60% scale.
-  svg.style.minWidth = Math.max(980, Math.round(b.w * 0.6)) + "px";
+  setFigureScale(svg, b.w);
   addMarkers(svg);
   const gT = S("g", {class:"g-trust"}, svg), gZ = S("g", {class:"g-zones"}, svg), gE = S("g", {class:"g-edges"}, svg), gN = S("g", {class:"g-nodes"}, svg), gL = S("g", {class:"g-labels"}, svg), gZL = S("g", {class:"g-zlabels"}, svg);
   if (opt.trust){
@@ -777,7 +810,7 @@ function entityIssueMap(){
 function drawEr(){
   const mk = erMarkup(MODEL, LAYOUT.er, {issues:entityIssueMap()});
   erSvg.setAttribute("viewBox", mk.viewBox);
-  erSvg.style.minWidth = Math.max(980, Math.round(mk.width * 0.7)) + "px";
+  setFigureScale(erSvg, mk.width);
   erSvg.innerHTML = mk.inner;
   ER.scene = mk.scene;
   $("er-cap").textContent = mk.scene.cards.length + " entities, " + mk.scene.relations.length + " relations" + (mk.scene.cards.length < ENTITIES.length ? ". Run layout.mjs: " + (ENTITIES.length - mk.scene.cards.length) + " entities have no position." : "");
@@ -940,7 +973,7 @@ function renderSeq(seq){
   stack.forEach(f => { f.y1 = y + 2; });
   const H = y + 26;
   svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-  svg.style.minWidth = Math.max(760, W*0.82) + "px";
+  setFigureScale(svg, W);
   const gB = S("g", null, svg), gF = S("g", null, svg), gLf = S("g", null, svg), gM = S("g", null, svg), gH = S("g", null, svg);
   P.forEach(p => S("line", {x1:X[p.id], y1:58, x2:X[p.id], y2:H - 10, class:"life"}, gLf));
   frags.forEach(f => {

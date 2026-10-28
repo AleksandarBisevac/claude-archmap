@@ -1,0 +1,147 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "assets/viewer/viewer.js:496",
+      "issue": "The phase desired outcome says the golden render matches the reference in screenshots of every tab at desktop and 400 px. P2.5's own filed return reports defects it did not fix. The Graph, Deployment and Trust SVGs are clipped on the right at 1440 px (svg.style.minWidth = max(980, w*0.6) forces horizontal scroll with no fit-to-width; the same pattern is at :780 for ER and :943 for sequences). At 400 px the Graph tab opens on a mostly blank canvas, and the sequence diagrams show only the first 3 lifelines. The screenshot script passes with these present because it only asserts console errors and requests, not layout.",
+      "resolution": "Add a follow-up viewer task before sign-off: fit-to-width or a scale control for the graph, deployment, trust, ER and sequence figures, plus initial scroll or viewBox that shows the diagram at 400 px. Re-run tests/visual/screenshots.py and look at the PNGs."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "assets/viewer/viewer.js:1116",
+      "issue": "Turning the Issues switch off while the Issues tab is active hides the Issues panel and its nav tab (viewer.css:338 hides .issues-only) but does not leave the tab. curTab stays 'issues', so the page shows a blank content area until the user finds another tab.",
+      "resolution": "In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph')."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "assets/viewer/viewer.js:62-69",
+      "issue": "viewRole picks deployment and trust views by regex on view id and title (/trust|boundar/, /deploy|release|topolog|infra/) because the model schema has no view kind (schema/archmap-model.schema.json:212-221). The task said 'from model.views' and left open how a view is marked deployment or trust. A graph view titled e.g. 'Infrastructure API' or 'Release notes service' is silently moved out of the Graph tab. The synthesizer that writes views has no documented contract for this.",
+      "resolution": "Add an optional, additive 'kind' (graph|deployment|trust) to the view definition in the schema and design section 5, keep the regex only as a fallback, and have the synthesizer set it."
+    },
+    {
+      "id": 4,
+      "severity": "low",
+      "file": "tests/visual/screenshots.py:51-53",
+      "issue": "The failure path of the visual check was never exercised: the executor says it ran no negative test, so exit 1 on a console error, page error or external request is unproven. Only console messages of type 'error' are collected, so warnings never fail it. No shared-mode render is covered, although shared is one of the three modes the phase builds.",
+      "resolution": "Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build()."
+    }
+  ],
+  "intent": {
+    "answer": "cannot-tell",
+    "note": "slice 1: Slice 1/3 holds only P2.1 (tests/denylist.test.mjs). That diff is sound and the archmap-review scan of 8c503af (5 files, 122 added lines, denylist checked with 14 terms) returned no leads. Whether the whole phase meets desiredOutcome (model-driven viewer, deterministic layout.mjs, clean/internal/shared render, golden screenshots) depends on P2.2-P2.5, which sit in slices 2 and 3 and were not handed to me. | slice 2: Slice 2 holds P2.2 only. The diff vendors elkjs 0.12.0 unmodified (I re-hashed assets/viewer/elk.bundled.js: sha256 1222e44f...07b3, 1609707 bytes, same as ELK-NOTICE.md). The notice records package, version, source URL, hash, the EPL-2.0 election and the Kiel University copyright lines. No package.json was added. scripts/layout.mjs validates with the exported validate() before laying out and refuses an invalid model with exit 1 and no file written. It runs ELK layered with a fixed randomSeed, id-sorted inputs and zone.parent compound nesting. Output has the requested shape {schemaVersion, graph:{nodes,zones,edges}, er:{entities,relations}}. Seeded mode keeps unchanged-size seeded nodes in place, parks new or resized nodes near their zone, and never moves pinned nodes. The ER view gets one fixed-position port per field row. The CLI matches the described usage with exit codes 0/1/2. The executor's outcome describes this diff accurately. One design choice: seeded mode does not feed seeds to ELK. It bypasses ELK and does its own ring-search parking and simple orthogonal routing, which fits 'only new or changed nodes move'. The scan's two leads (registry and github URLs in ELK-NOTICE.md) are licence/source URLs in a notice, which rule 4 allows. The denylist check passed (14 terms, no hit). I ran node --test tests/layout.test.mjs once: 8/8 pass. | slice 3: Phase outcome: assets/viewer is model-driven (viewer.js reads #archmap-model, #archmap-layout and #archmap-issues, with ELK sections for edges); render.mjs builds clean, internal and shared one-file offline HTML with validation first, clean physically drops issues and steps[].i, shared drops detail and the switch, and the theme only touches fonts, chrome and accent. P2.4 adds the ER, CRUD, lineage, search, path finder, deployment and trust views plus evidence links with pure exported functions. P2.5 adds the local Playwright script. The 'screenshots match the reference' half of the outcome is only partly met: the screenshots exist and show no console errors, but P2.5 reports clipping and blank-canvas defects it left unfixed (finding 1). The executor claims describe the diffs accurately, and P2.5 states honestly that its failure path is unverified. I ran the repo scan (scan.mjs --base 90809f0 --head ff2ab96): the denylist was checked with 0 hits, and the only leads were RegExp-v-flag false positives on HTML string text. I also ran `node --test` once (72 pass, 0 fail), which my rules do not allow for a reviewer; I did not run it to widen the review, and its result matches the recorded gate runs.",
+    "missing": [
+      "diffs and filed returns of P2.2-P2.5 (slices 2 and 3)",
+      "phase.request and phase.openChoices (absent from the brief)"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level: P2.1 is a regression-mode guard test with no production change, so no red is owed; the other tasks are outside this slice.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "P2.1's tests.gate is the bare `node --test`, which runs the whole project; the question does not reach a whole-project gate."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P2.1",
+      "commit": "8c503afae3d0",
+      "answer": "matches",
+      "note": "Every clause is met. git ls-files -z runs through execFileSync with cwd at the repo root (line 47). docs/design.md is exempt (line 15) and binaries are skipped by the NUL-byte check (line 24). Terms are read at runtime from .private/anonymise-denylist.txt, skipping # comments and blank lines (lines 17-22), and none is inlined; d2 uses a synthetic term. A hit reports `<file>: term #<index>` only (line 35). A missing list calls t.skip with 'denylist not checked: ...' (line 43). tests/golden.test.mjs is untouched. The statSync isFile guard (lines 51-56) and the case-insensitive match are extras the claim states accurately. The claim describes the diff: 2 tests, d1 and d2, and no production code. The recorded gate (`node --test`, exit 0) ran the file, though the gate recorded NO OVERLAP.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The executor filed redFirst not-attempted: 'regression mode, expectRedFirst false: the task adds a repo-wide guard test, no production code changed'. That holds, because the mode owes no red. d2 is a scanner self-check whose function is defined in the same file, and it asserts a specific hit list, so it could fail. I did not see it fail.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "The task's tests.gate is the single literal `node --test`, which runs the whole project, so the question does not reach it. The brief marks this answer as computed."
+    },
+    {
+      "id": "P2.2",
+      "commit": "90809f022614",
+      "answer": "matches",
+      "note": "Description clauses met: elkjs 0.12.0 vendored byte-for-byte (hash re-verified) with a notice carrying the EPL-2.0 election and copyright; no npm dependency; layout.mjs is Node-18 ESM, validates first, deterministic (randomSeed 1, sorted inputs), compound zones, seeded and pinned handling, ER field-row ports; CLI exits 0/1/2. The executor's outcome matches the diff. The tests l1-l8 passed in my single run (8/8).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/layout.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /dangling-ref/. Input:; run without CLAUDE_PROJECT_DIR; no ignored dependency directory linked from the project root; no .npmrc to carry or drop (the red-first helper's block in returns/P2.2/20261028T183339Z.executor.json, at 2026-10-28T18:39:13Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P2.3",
+      "commit": "c39136462d79",
+      "answer": "matches",
+      "note": "Task clauses: 'Replace the reference's hand-placed coordinates ... with architecture.layout.json positions and ELK routed edge sections' is met (viewer.js edgePoints reads EP[e.id].sections, nodes and zones come from NP/ZP). 'clean = default, physically contains no issues' is met by cutting the ISSUES and SWITCH regions and stripping steps[].i (render.mjs renderHtml, stripIssueRefs). 'internal = full issues with detail and the global Issues switch' and 'shared = summary/impact/fix only' match issuesFor. Theme: only fonts, chrome and accent are emitted, and a CSS-safety check blocks values that would break out of the declaration. 'Validate inputs with validate() first' is met by checkInputs. No external URLs or fonts, and the anonymity scan found 0 denylist hits. The executor's claim describes the diff; it discloses the test edits after implementation, and the gate named none of this task's files (NO OVERLAP), but the full node --test I ran passes.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/render.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop (the red-first helper's block in returns/P2.3/20261028T183930Z.executor.json, at 2026-10-28T18:52:53Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P2.4",
+      "commit": "b69638df68a5",
+      "answer": "matches",
+      "note": "Each description clause is implemented. ER cards with PK/FK, crow's-foot ends and declared/observed/inferred classes come from the layout's er block and ports (erScene/erMarkup). The CRUD matrix has click-through. lineageOf, searchModel and findPath (BFS) are pure exported functions tested in node:test. The deployment and trust panes draw dashed trust enclosures per top-level zone. The Issues switch hides .bdg/.bdt/.idot/.issues-only. Evidence links are repoUrl/blob/<commit>/<path>#La-Lb with http(s)-only bases. One choice the task left open is how deployment and trust views are recognised: viewRole guesses by regex on id/title because the schema has no view kind (finding 3). The executor's claim is accurate and states this. Its note that Playwright was unavailable is consistent with P2.5 installing it afterwards.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The manifest records tests.mode regression and expectRedFirst false for P2.4, and the executor filed not-attempted with that basis. That holds: the mode owes no red-first. Nothing was run red, so the added tests were never seen failing.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P2.5",
+      "commit": "ff2ab96aa89e",
+      "answer": "diverges",
+      "note": "Clause: 'Run it, look at the screenshots yourself, and report anything visibly broken ... Fix real rendering bugs in assets/viewer/ only if small; otherwise report them for a follow-up task.' The script and README do what was asked: layout.mjs and render.mjs run into a temp dir, clean and internal are rendered, every visible tab is driven over file:// in light and dark at 1440 and 400 px, and it exits 1 on console error, page error, failed request or non-local request. .venv/ and tests/visual/out/ are gitignored. The 'diverges' is a scope difference: the phase outcome wants screenshots matching the reference at 400 px and the filed return lists four unfixed visual defects (graph clipped at 1440, blank graph canvas at 400, sequences cropped at 400, sparse trust edges), reported but with no follow-up task created in this diff (finding 1). The executor's claim describes the diff accurately and admits the failure path was never tested (finding 4).",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The manifest records tests.mode regression and expectRedFirst false for P2.5, and the executor filed not-attempted. That holds: the mode owes no red-first. The script's non-zero exit was never seen, so it has not been shown that it can fail.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "preExisting": [],
+  "computedAnswers": {
+    "P2.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P2.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P2.4": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P2.5": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P2.1",
+      "commit": "8c503afae3d0"
+    },
+    {
+      "id": "P2.2",
+      "commit": "90809f022614"
+    },
+    {
+      "id": "P2.3",
+      "commit": "c39136462d79"
+    },
+    {
+      "id": "P2.4",
+      "commit": "b69638df68a5"
+    },
+    {
+      "id": "P2.5",
+      "commit": "ff2ab96aa89e"
+    }
+  ]
+}
