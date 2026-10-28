@@ -1,13 +1,15 @@
 {
   "manifestPath": "docs/audit/audit-plan.json",
   "gitRoot": ".",
-  "//exemptGlobs": "Markdown is not exempt wholesale: skills, commands and agents are .md and are this plugin's code. Only prose docs are exempt.",
+  "//exemptGlobs": "Markdown is not exempt wholesale: skills, commands and agents are .md and are this plugin's code. Only prose docs and vendored third-party dev skills (.agents/, managed by `npx skills`) are exempt.",
   "exemptGlobs": [
     "docs/audit/**",
     "docs/*.md",
     "README.md",
     "CHANGELOG.md",
     ".claude/**",
+    ".agents/**",
+    "skills-lock.json",
     "**/*.test.*"
   ],
   "trivialLineThreshold": 80,
