@@ -437,7 +437,7 @@
     {
       "id": "P2",
       "title": "Viewer port, ELK layout and renderer",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "assets/viewer is driven by the model; layout.mjs (vendored elkjs) is deterministic, seeded and honours pins; render.mjs builds clean, internal and shared HTML; the golden render matches the reference in Playwright screenshots of every tab, light and dark, desktop and 400 px, with no console errors.",
       "testGate": [
@@ -448,7 +448,7 @@
       ],
       "baseRef": "787ed00d5fa7f187630e954f0fbd354d0eb7801a",
       "branch": "audit/p2-viewer-port-elk-layout-and-ren",
-      "mergedAt": null,
+      "mergedAt": "2026-10-28T22:05:35Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -1070,7 +1070,8 @@
         "runId": "2026-10-28T19:23:59Z.f2a069",
         "status": "passed",
         "at": "2026-10-28T19:23:59Z"
-      }
+      },
+      "mergedHead": "9e39469e20330ae9b9ede5c73f17196343b27234"
     },
     {
       "id": "P3",
