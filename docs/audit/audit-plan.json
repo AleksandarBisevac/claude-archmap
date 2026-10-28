@@ -1159,7 +1159,7 @@
         {
           "id": "P3.2",
           "title": "Python backend extractor (FastAPI, Django, Flask; SQLAlchemy, Pydantic, Alembic)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement the python stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes with method and path from FastAPI/Flask decorators and Django urls, SQLAlchemy/Django model entities with fields, PK/FK and types, Alembic migration ops, Pydantic schemas, raw SQL table names, and outbound HTTP calls.\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/python-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
           "files": [
             "scripts/lib/prescan/python.mjs",
@@ -1202,35 +1202,133 @@
           ],
           "attempts": 2,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "1ecf441459a7",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Copied the reviewed draft fixture into tests/fixtures/repos/python-api/ (15 files: README marking it a test fixture, pyproject, FastAPI app/main.py, Flask app/admin.py, Django shop/urls.py and shop/models.py, SQLAlchemy app/models.py, Pydantic app/schemas.py, two Alembic migrations, app/reports.py raw SQL, app/clients.py HTTP calls, app/sidefx.py import-time canary). Wrote tests/prescan-python.test.mjs first (8 cases py1-py8), saw it fail (module not found), then implemented scripts/lib/prescan/python.mjs: a mini lexer (string literals, comments, masked copy) plus regex/paren-matching extractors; exports extractPython(files, read) and a default plug-in {id:'python', detect(inventory), extract}. Fragment: {scanned, routes, entities, schemas, migrations, sqlTables, httpCalls, skipped{kind:n}, truncated{kind:n}}; every item has evidence:[{path, lines}], sorted by path then line, capped at 300 per kind. Constants and '+' chains of string literals are resolved; unresolvable shapes (Django include(), non-literal route/URL/table, f-string SQL table, unknown op, bulk_insert with non-literal table, non-literal __tablename__) are counted in skipped and never guessed; a Django table name is null unless Meta.db_table is given. Two test-expectation fixes during green: the router prefix applies to /api/v1/items/{item_id} (test was wrong), and Django db_table sits in nested Meta (code fixed). Ran `node --test tests/prescan-python.test.mjs`: 8 pass, 0 fail. The full `node --test` gate was not run (runsGate own-tests). IMPORTANT wiring gap: scripts/prescan.mjs loads plug-ins only from scripts/lib/prescan/stacks/*.mjs, but this task's declared file is scripts/lib/prescan/python.mjs, so the plug-in is not yet auto-loaded by the CLI. py8 proves it works through prescan(dir,{extractors:[pythonExtractor]}). A one-line scripts/lib/prescan/stacks/python.mjs (export { default } from '../python.mjs') is needed, outside this task's files; I did not add it. Dependants: README.md basename mentions in .claude/audit.config.json, tests/prescan-core.test.mjs, review-scan.test.mjs, visual/screenshots.py, .agents docs and docs/design.md refer to other READMEs or generic names, still correct; pyproject.toml, app/main.py, app/models.py, app/reports.py named by basename in prescan-core.test.mjs, generic.mjs, schema.test.mjs and golden architecture.model.json only as synthetic in-memory names or evidence paths in fixtures, not read from this directory, still correct; python.mjs and the other fixture files have no dependants. Exploration beyond the brief: read scripts/prescan.mjs, generic.mjs, inventory.mjs and schema/archmap-model.schema.json (evidence shape) to match the plug-in interface and evidence format.",
+            "descriptive": "prescan gains a python stack extractor that statically pulls routes, ORM entities, Pydantic schemas, Alembic ops, raw SQL tables and outbound HTTP calls with line evidence, tested on a fictional bookshop fixture at 0 tokens."
           },
           "startedAt": "2026-10-28T22:18:41Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:23:41Z",
+          "verifiedBy": [
+            "tests/prescan-python.test.mjs py1-py8: routes, entities, schemas, migrations, SQL tables and HTTP calls on the fictional fixture with exact expected items; evidence present and inside the file, sorted and order-independent; skipped tally and 300-item cap; canary never executed, no exec/import capability in the source, and the plug-in works inside prescan()"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:23:40Z.3406fa",
             "status": "passed",
             "at": "2026-10-28T22:23:40Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "1ecf441459a7",
+            "at": "2026-10-28T22:23:41Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:23:27Z",
+            "basis": "`node --test tests/prescan-python.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P3.3",
           "title": "TS frontend extractor (React, Next.js, React Native; routers; RTK Query, React Query, Redux, Zustand; axios/fetch)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement the ts-frontend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: pages/routes from React Router, Next.js app/pages dirs and React Navigation, state stores (Redux slices, Zustand, RTK Query endpoints, React Query keys) and API calls (axios/fetch/RTK Query) with method and path.\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/ts-web/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
           "files": [
             "scripts/lib/prescan/ts-frontend.mjs",
+            "tests/prescan-ts-frontend.test.mjs",
             "tests/fixtures/repos/ts-web/README.md",
-            "tests/prescan-ts-frontend.test.mjs"
+            "tests/fixtures/repos/ts-web/package.json",
+            "tests/fixtures/repos/ts-web/src/sidefx.ts",
+            "tests/fixtures/repos/ts-web/src/App.tsx",
+            "tests/fixtures/repos/ts-web/src/router.tsx",
+            "tests/fixtures/repos/ts-web/src/pages/Dashboard.tsx",
+            "tests/fixtures/repos/ts-web/app/layout.tsx",
+            "tests/fixtures/repos/ts-web/app/page.tsx",
+            "tests/fixtures/repos/ts-web/app/vehicles/[vehicleId]/page.tsx",
+            "tests/fixtures/repos/ts-web/app/(dashboard)/reports/page.tsx",
+            "tests/fixtures/repos/ts-web/app/api/health/route.ts",
+            "tests/fixtures/repos/ts-web/pages/_app.tsx",
+            "tests/fixtures/repos/ts-web/pages/index.tsx",
+            "tests/fixtures/repos/ts-web/pages/about.tsx",
+            "tests/fixtures/repos/ts-web/pages/drivers/index.tsx",
+            "tests/fixtures/repos/ts-web/pages/drivers/[driverId].tsx",
+            "tests/fixtures/repos/ts-web/pages/api/ping.ts",
+            "tests/fixtures/repos/ts-web/mobile/navigation.tsx",
+            "tests/fixtures/repos/ts-web/src/store/vehiclesSlice.ts",
+            "tests/fixtures/repos/ts-web/src/store/tripStore.ts",
+            "tests/fixtures/repos/ts-web/src/api/fleetApi.ts",
+            "tests/fixtures/repos/ts-web/src/hooks/useVehicles.ts",
+            "tests/fixtures/repos/ts-web/src/api/http.ts"
           ],
           "tests": {
             "mode": "tdd",
             "add": [
               "tests/prescan-ts-frontend.test.mjs: on the fictional fixture repo, the extractor finds pages/routes from React Router, Next.js app/pages dirs and React Navigation, state stores (Redux slices, Zustand, RTK Query endpoints, React Query keys) and API calls (axios/fetch/RTK Query) with method and path; every extracted item carries path and line evidence; nothing is executed or imported from the scanned repo"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P3.1"
+          ],
+          "attempts": 2,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-28T22:27:55Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:36:39Z.306f78",
+            "status": "passed",
+            "at": "2026-10-28T22:36:39Z"
+          }
+        },
+        {
+          "id": "P3.4",
+          "title": "Node backend extractor (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ)",
+          "status": "pending",
+          "description": "Implement the node-backend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async).\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/node-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
+          "files": [
+            "scripts/lib/prescan/node-backend.mjs",
+            "tests/prescan-node-backend.test.mjs",
+            "tests/fixtures/repos/node-api/README.md",
+            "tests/fixtures/repos/node-api/package.json",
+            "tests/fixtures/repos/node-api/src/sidefx.ts",
+            "tests/fixtures/repos/node-api/src/main.ts",
+            "tests/fixtures/repos/node-api/src/books/books.controller.ts",
+            "tests/fixtures/repos/node-api/src/books/books.module.ts",
+            "tests/fixtures/repos/node-api/src/express/app.ts",
+            "tests/fixtures/repos/node-api/src/express/orders.router.ts",
+            "tests/fixtures/repos/node-api/src/hono/app.ts",
+            "tests/fixtures/repos/node-api/prisma/schema.prisma",
+            "tests/fixtures/repos/node-api/src/entities/author.entity.ts",
+            "tests/fixtures/repos/node-api/src/entities/book.entity.ts",
+            "tests/fixtures/repos/node-api/src/db/schema.ts",
+            "tests/fixtures/repos/node-api/openapi.yaml",
+            "tests/fixtures/repos/node-api/src/queues/email.queue.ts",
+            "tests/fixtures/repos/node-api/src/queues/email.producer.ts",
+            "tests/fixtures/repos/node-api/src/queues/email.worker.ts"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-node-backend.test.mjs: on the fictional fixture repo, the extractor finds routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async); every extracted item carries path and line evidence; nothing is executed or imported from the scanned repo"
             ],
             "expectRedFirst": true,
             "gate": [
@@ -1259,19 +1357,20 @@
           "verifiedBy": []
         },
         {
-          "id": "P3.4",
-          "title": "Node backend extractor (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ)",
+          "id": "P3.5-cdj",
+          "title": "Wire the stack extractors into the prescan CLI",
           "status": "pending",
-          "description": "Implement the node-backend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async).\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/node-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
+          "description": "scripts/prescan.mjs loads plug-ins only from scripts/lib/prescan/stacks/*.mjs, but P3.2-P3.4 put python.mjs, ts-frontend.mjs and node-backend.mjs one directory up, so the real CLI runs without them. Add one-line re-exports in stacks/ (export { default } from '../<name>.mjs') for each, and a test that the CLI, run on each fixture repo under tests/fixtures/repos/, emits that stack's extract. Do not change the plug-in interface.",
           "files": [
-            "scripts/lib/prescan/node-backend.mjs",
-            "tests/fixtures/repos/node-api/README.md",
-            "tests/prescan-node-backend.test.mjs"
+            "scripts/lib/prescan/stacks/python.mjs",
+            "scripts/lib/prescan/stacks/ts-frontend.mjs",
+            "scripts/lib/prescan/stacks/node-backend.mjs",
+            "tests/prescan-wiring.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
             "add": [
-              "tests/prescan-node-backend.test.mjs: on the fictional fixture repo, the extractor finds routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async); every extracted item carries path and line evidence; nothing is executed or imported from the scanned repo"
+              "tests/prescan-wiring.test.mjs: running scripts/prescan.mjs (no extractors option) on each fixture repo (python-api, ts-web, node-api) yields that stack's fragment with at least one item, i.e. the default loader finds all three plug-ins"
             ],
             "expectRedFirst": true,
             "gate": [
@@ -1283,10 +1382,12 @@
           "skills": [
             "node"
           ],
-          "risk": "med",
+          "risk": "low",
           "blockedBy": [],
           "dependsOn": [
-            "P3.1"
+            "P3.2",
+            "P3.3",
+            "P3.4"
           ],
           "attempts": 0,
           "maxAttempts": 3,
@@ -1637,6 +1738,132 @@
     ],
     "tests/fixtures/repos/python-api/migrations/versions/0002_add_isbn.py": [
       "P3.2"
+    ],
+    "tests/fixtures/repos/ts-web/package.json": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/sidefx.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/App.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/router.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/pages/Dashboard.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/app/layout.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/app/page.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/app/vehicles/[vehicleId]/page.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/app/(dashboard)/reports/page.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/app/api/health/route.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/pages/_app.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/pages/index.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/pages/about.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/pages/drivers/index.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/pages/drivers/[driverId].tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/pages/api/ping.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/mobile/navigation.tsx": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/store/vehiclesSlice.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/store/tripStore.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/api/fleetApi.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/hooks/useVehicles.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/src/api/http.ts": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/node-api/package.json": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/sidefx.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/main.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/books/books.controller.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/books/books.module.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/express/app.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/express/orders.router.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/hono/app.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/prisma/schema.prisma": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/entities/author.entity.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/entities/book.entity.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/db/schema.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/openapi.yaml": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/queues/email.queue.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/queues/email.producer.ts": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/src/queues/email.worker.ts": [
+      "P3.4"
+    ],
+    "scripts/lib/prescan/stacks/python.mjs": [
+      "P3.5-cdj"
+    ],
+    "scripts/lib/prescan/stacks/ts-frontend.mjs": [
+      "P3.5-cdj"
+    ],
+    "scripts/lib/prescan/stacks/node-backend.mjs": [
+      "P3.5-cdj"
+    ],
+    "tests/prescan-wiring.test.mjs": [
+      "P3.5-cdj"
     ]
   },
   "bugs": [

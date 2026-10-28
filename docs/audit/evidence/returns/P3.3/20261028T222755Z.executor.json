@@ -1,0 +1,33 @@
+{
+  "gates": {
+    "node --test tests/prescan-ts-frontend.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T22:36:19Z",
+    "basis": "`node --test tests/prescan-ts-frontend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/prescan/ts-frontend.mjs (named export extractTsFrontend + default plug-in {id:'ts-frontend', detect, extract}, mirroring python.mjs: comment/string-masking JS lexer, bracket matching, no import/eval/spawn). Extracts routes (React Router JSX with nested path joining and data-router objects; Next.js app/ page+route handlers and pages/ + pages/api only in a package whose nearest package.json depends on next, src/app|src/pages only when the root lacks app|pages; React Navigation Screen entries), stores (Redux Toolkit slices, Zustand stores, RTK Query endpoints, React Query query/mutation keys) and apiCalls (fetch, axios direct and axios.create instances with baseURL, RTK Query with fetchBaseQuery baseUrl), each with {path,lines} evidence, sorted by path then line, capped at 300 per kind with a truncated tally, non-static shapes counted in skipped. Wrote the fictional Fleetwise fixture under tests/fixtures/repos/ts-web (package.json, App.tsx, router.tsx, src/pages/Dashboard.tsx, app/*, pages/*, mobile/navigation.tsx, store/api/hooks files; kept README.md and sidefx.ts from attempt 1, extended README). Test tests/prescan-ts-frontend.test.mjs has cases ts1..ts8; written before the module existed and first run failed with ERR_MODULE_NOT_FOUND. Own test: node --test tests/prescan-ts-frontend.test.mjs -> 8 pass, 0 fail. Did not run the full node --test (runsGate own-tests). Dependants: README.md/package.json/App.tsx basename mentions in prescan-core.test.mjs, generic.mjs, docs and skills refer to generic files, not this fixture, so unchanged; not re-run by me.",
+    "descriptive": "prescan gains a deterministic TS frontend extractor (routes, stores, API calls) tested on a fictional fleet-tracker fixture."
+  },
+  "testsAdded": [
+    "ts1..ts8 in tests/prescan-ts-frontend.test.mjs: routes, Next.js package-root rule, stores, apiCalls, evidence/sort/determinism, skipped tally and cap, JSX nesting and const/template resolution, no execution and prescan integration"
+  ],
+  "casesAdded": [
+    [
+      "ts1",
+      "ts2",
+      "ts3",
+      "ts4",
+      "ts5",
+      "ts6",
+      "ts7",
+      "ts8"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:4e734d5b9eff33c2c5e74770eb62ce1335d6f4b7e79e98fadd224806100a5cc7\",\"dirtyDigest\":\"sha256:725afab9bbbfed44ec5005b8bf36a3ba0159cc18dad3dd6c2a842455a9a7890f\",\"dirtyPaths\":null,\"head\":\"1ecf441\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/ts-frontend.mjs\",\"tests/fixtures/repos/ts-web/README.md\",\"tests/fixtures/repos/ts-web/app/(dashboard)/reports/page.tsx\",\"tests/fixtures/repos/ts-web/app/api/health/route.ts\",\"tests/fixtures/repos/ts-web/app/layout.tsx\",\"tests/fixtures/repos/ts-web/app/page.tsx\",\"tests/fixtures/repos/ts-web/app/vehicles/[vehicleId]/page.tsx\",\"tests/fixtures/repos/ts-web/mobile/navigation.tsx\",\"tests/fixtures/repos/ts-web/package.json\",\"tests/fixtures/repos/ts-web/pages/_app.tsx\",\"tests/fixtures/repos/ts-web/pages/about.tsx\",\"tests/fixtures/repos/ts-web/pages/api/ping.ts\",\"tests/fixtures/repos/ts-web/pages/drivers/[driverId].tsx\",\"tests/fixtures/repos/ts-web/pages/drivers/index.tsx\",\"tests/fixtures/repos/ts-web/pages/index.tsx\",\"tests/fixtures/repos/ts-web/src/App.tsx\",\"tests/fixtures/repos/ts-web/src/api/fleetApi.ts\",\"tests/fixtures/repos/ts-web/src/api/http.ts\",\"tests/fixtures/repos/ts-web/src/hooks/useVehicles.ts\",\"tests/fixtures/repos/ts-web/src/pages/Dashboard.tsx\",\"tests/fixtures/repos/ts-web/src/router.tsx\",\"tests/fixtures/repos/ts-web/src/sidefx.ts\",\"tests/fixtures/repos/ts-web/src/store/tripStore.ts\",\"tests/fixtures/repos/ts-web/src/store/vehiclesSlice.ts\",\"tests/prescan-ts-frontend.test.mjs\"],\"scopeDigest\":\"sha256:ac6feec441fd853291d3beb6e58a61fded8a569e9b8d07c574ceb3620de9102e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
