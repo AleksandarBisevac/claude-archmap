@@ -1,0 +1,33 @@
+{
+  "gates": {
+    "node --test tests/skill.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T23:02:01Z",
+    "basis": "`node --test tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote skills/architecture-map/SKILL.md (246 lines): frontmatter name architecture-map + trigger description; hard rules; references table with when-to-read for all 9 references; agents table; output locations (D2); build flow steps 1-9 and update flow with scripts via node \"${CLAUDE_PLUGIN_ROOT}/scripts/<x>.mjs\"; merge, diffmap, usage, issues, export, staleness named as not yet built with interim manual instructions; evidence rules; token rules with max|balanced|economy table and per-Agent model override; user-authored fields never overwritten. Added tests/skill.test.mjs with cases s1-s4. node --test tests/skill.test.mjs: 4 pass, 0 fail; full node --test: 129 pass, 0 fail (exit 0). Dependants: .agents/skills/node/tile.json, skills-lock.json, docs/design.md name SKILL.md by basename only; still correct since the file path and name are unchanged (new file at the path design.md section 4 already lists). tests/skill.test.mjs has no dependants. Note: the agents/ directory does not exist yet, so the three agent names are referenced but their files are not validated here.",
+    "descriptive": "The architecture-map skill entry point now exists, routing the build/update workflow, model contract, evidence and token rules to its references, with a test that locks its size, links, script invocation and agent/profile mentions."
+  },
+  "testsAdded": [
+    "s1 SKILL.md <=500 lines, name architecture-map, non-empty description",
+    "s2 every references/*.md linked and every relative link resolves",
+    "s3 scripts invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/ and none by a bare path",
+    "s4 three agent names and three profiles mentioned"
+  ],
+  "casesAdded": [
+    [
+      "s1",
+      "s2",
+      "s3",
+      "s4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:c558f99429f95033c7d33fc39040b86ff807f9711ba6a4424ce49495a5fd5cba\",\"dirtyDigest\":\"sha256:7b68e16ec1ba266fdd1f2fdc094a56a31dc2679b45898fcc04aec96858b9adb2\",\"dirtyPaths\":{\"skills/architecture-map/SKILL.md\":\"68d9b286b7ae3083\",\"tests/skill.test.mjs\":\"9ed3cc88f4d52352\"},\"head\":\"7a65c00\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/SKILL.md\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:85df5bf938e62ae43b7e43d96fe2baafafab525db6e295dac435e6733c6f7678\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
