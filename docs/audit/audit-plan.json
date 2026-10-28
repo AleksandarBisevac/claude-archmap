@@ -460,7 +460,7 @@
         {
           "id": "P2.1",
           "title": "Repo-wide denylist guard test",
-          "status": "in_progress",
+          "status": "done",
           "description": "The repo is public and P2 ports viewer code from a private reference, so the denylist guard must cover every tracked file,\nnot only tests/fixtures. Write tests/denylist.test.mjs (node:test, zero deps):\n- list files with `git ls-files` (run via child_process execFileSync, cwd = repo root);\n- exempt docs/design.md (it names a public data platform as a v1.1 roadmap item) and binary files;\n- read .private/anonymise-denylist.txt at runtime (skip # comments and blank lines); NEVER inline any term;\n- on a hit, fail with \"<file>: term #<index>\" so CI logs never print a term;\n- when the list is absent, call t.skip with a message saying the denylist was not checked.\nKeep tests/golden.test.mjs's own check; this one is the repo-wide net.",
           "files": [
             "tests/denylist.test.mjs"
@@ -485,25 +485,37 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "8c503afae3d0",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added tests/denylist.test.mjs (node:test, zero deps). d1 lists files via execFileSync git ls-files -z at repo root, exempts docs/design.md and binaries (NUL byte), skips non-regular/deleted paths, reads .private/anonymise-denylist.txt at runtime (skips # and blank lines), case-insensitive match, fails with '<file>: term #<index>' only, and t.skip with a 'denylist not checked' message when the list is absent. d2 is a synthetic self-check of the scanner (case-insensitivity, binary/exempt skip, comment skip, no term in output). First run hit EISDIR on a tracked non-file path; fixed with a statSync isFile guard. Ran node --test tests/denylist.test.mjs: 2/2 pass, exit 0; full node --test: 50 tests, 50 pass, 0 fail, 0 skipped. No term was read into output or inlined.",
+            "descriptive": "Repo-wide denylist guard now covers every tracked file, not only tests/fixtures, without ever printing a term."
           },
           "startedAt": "2026-10-28T18:32:36Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T18:33:38Z",
+          "verifiedBy": [
+            "d1 repo-wide denylist scan over git ls-files with visible skip when the list is absent",
+            "d2 scanner self-check on synthetic data"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T18:33:36Z.03bf4b",
             "status": "passed",
             "at": "2026-10-28T18:33:36Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "8c503afae3d0",
+            "at": "2026-10-28T18:33:38Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression mode, expectRedFirst false: the task adds a repo-wide guard test, no production code changed"
           }
         },
         {
           "id": "P2.2",
           "title": "Vendor elkjs 0.12.0 and write layout.mjs",
-          "status": "pending",
+          "status": "in_progress",
           "description": "1. Vendor elkjs 0.12.0 exactly (released 2026-07-17; newer versions are under two weeks old and are NOT allowed):\n   `npm pack elkjs@0.12.0` in a temp dir, copy lib/elk.bundled.js to assets/viewer/elk.bundled.js unmodified. Record in\n   assets/viewer/ELK-NOTICE.md: package, version, source URL, the sha256 of the copied file, and that it is used under\n   EPL-2.0 (the package is dual \"EPL-2.0 OR GPL-3.0-or-later\"; we elect EPL-2.0), with the EPL-2.0 notice text / link\n   and the Eclipse copyright line from the package. No package.json dependency: the repo stays zero-npm-deps.\n2. scripts/layout.mjs (Node >= 18 ESM): reads architecture.model.json (+ optional architecture.layout.json as seeds), runs\n   ELK layered with compound zones (zone.parent nesting), deterministic options (fixed seeds, sorted inputs), and writes\n   architecture.layout.json: {schemaVersion, graph:{nodes:{id:{x,y,w,h,pinned?}}, zones:{...}, edges:{id:{sections}}},\n   er:{entities:{id:{x,y,w,h}}, relations:{...}}}. Seeds: previous positions are fed back so only new or changed nodes move\n   (\"park\" new nodes near their zone, design 14.3). Pinned nodes (layout `pinned: true`) never move. ER view uses one port\n   per field row so relation edges attach to the right rows.\n   CLI: node scripts/layout.mjs <model.json> [--layout <layout.json>] [--out <file>]; exit 0 / 1 / 2 like validate.mjs.\nValidate the model with the exported validate() first and refuse an invalid one.",
           "files": [
             "assets/viewer/elk.bundled.js",
@@ -531,16 +543,22 @@
           "dependsOn": [
             "P2.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T18:33:39Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T18:39:28Z.6c8869",
+            "status": "passed",
+            "at": "2026-10-28T18:39:28Z"
+          }
         },
         {
           "id": "P2.3",

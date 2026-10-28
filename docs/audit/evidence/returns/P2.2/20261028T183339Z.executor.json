@@ -1,0 +1,34 @@
+{
+  "gates": {
+    "node --test tests/layout.test.mjs": "pass",
+    "node --test (full)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T18:39:13Z",
+    "basis": "`node --test tests/layout.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /dangling-ref/. Input:; run without CLAUDE_PROJECT_DIR; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Vendored elkjs 0.12.0 (npm pack elkjs@0.12.0; lib/elk.bundled.js copied unmodified to assets/viewer/elk.bundled.js, sha256 1222e44f953ce7746af23801e723708f8e6f436b8b377a6a5fc7552f34a307b3, 1609707 bytes; 0.12.1 published today was NOT used). assets/viewer/ELK-NOTICE.md records package, version, source URL, sha256, EPL-2.0 election (dual EPL-2.0 OR GPL-3.0-or-later), the EPL notice text/link and the Kiel University copyright lines found in the file. No package.json added. scripts/layout.mjs (Node>=18 ESM, loads the vendored bundle via createRequire): exports layoutModel(model,{layout}) and LAYOUT_SCHEMA_VERSION; CLI `node scripts/layout.mjs <model.json> [--layout f] [--out f]` validates with the exported validate() first (invalid -> exit 1, nothing written), exit 2 for usage/unreadable/bad-schemaVersion seed/layout failure; --out defaults to --layout else architecture.layout.json beside the model; a missing --layout file is treated as no seed with a stderr note. Fresh layout: ELK layered, RIGHT, ORTHOGONAL, randomSeed 1, inputs sorted by id, zones as compound nodes (zone.parent nesting, padding top 36), deterministic text-metric node sizes. Output {schemaVersion:1, graph:{nodes,zones,edges:{id:{sections}}}, er:{entities (with extra ports:{field:{x,y,side}}), relations keyed 'from.entity.field->to.entity.field'}} in absolute graph coords. Seeded layout: unchanged-size seeded nodes keep their position, pinned (pinned:true) nodes keep exact x,y and the flag, new/resized nodes are parked by a deterministic grid ring search next to their zone (no overlap with nodes or foreign zones), zone boxes are recomputed but a seed box that still holds its members is kept, seed edge routes are kept if endpoints still sit on the node borders else re-routed by a simple orthogonal router; re-running on its own output is byte-identical. ER: one ELK port per field row (FIXED_POS, WEST for target-only fields else EAST), relation edges attach to field ports. Tests: tests/layout.test.mjs l1-l8. Verified: `node --test tests/layout.test.mjs` 8/8 pass; `node --test` 58/58 pass, exit 0; CLI run on the golden model: 51/51 edge endpoints on node borders, in-place seeded re-run byte-identical (cmp). Red first: the tests were written before scripts/layout.mjs existed and all 8 failed with ERR_MODULE_NOT_FOUND (module import error, not an assertion) before implementation. Dependants: archmap-review SKILL.md line 43 (imports may be the vendored assets/viewer/elk.bundled.js) - still correct, layout.mjs imports it by relative require and adds no package.json; scan.mjs lines 70-71 exclude elk.bundled.js from own-code/shipped scans by basename - still correct, file name unchanged; its IMPORT_SPEC regex accepts the relative require. docs/design.md names layout.mjs and elk.bundled.js (+EPL notice) in its repo layout and step 2 - still correct, file names and the described behaviour (layered, compound zones, field ports, seeds, pins) match. ELK-NOTICE.md and tests/layout.test.mjs: no tracked dependants.",
+    "descriptive": "Adds vendored elkjs 0.12.0 and a deterministic, seeded, pin-honouring layout.mjs that lays out zones, nodes, edges and ER field ports into architecture.layout.json."
+  },
+  "testsAdded": [
+    "tests/layout.test.mjs: determinism (module and CLI byte-identical), node/zone containment and no overlap, zone nesting, edge routing, seeded re-layout stability + fixed point + parking, pinned positions, ER field-row ports and relation attachment, CLI exit codes and seed file"
+  ],
+  "casesAdded": [
+    [
+      "l1",
+      "l2",
+      "l3",
+      "l4",
+      "l5",
+      "l6",
+      "l7",
+      "l8"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:915e3e492f83604d9483f218b345124dd6cade9745e4fbfa1633a3e203ac9d75\",\"dirtyDigest\":\"sha256:156a33f3ef89dfde814f4025720e8dfc1f0fb2517bf9409eec47411cbe6e384d\",\"dirtyPaths\":{\"assets/viewer/ELK-NOTICE.md\":\"216dbc578137a73f\",\"assets/viewer/elk.bundled.js\":\"1222e44f953ce774\",\"scripts/layout.mjs\":\"7859563eab84115c\",\"tests/layout.test.mjs\":\"fee51c2024cc7295\"},\"head\":\"8c503af\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/ELK-NOTICE.md\",\"assets/viewer/elk.bundled.js\",\"scripts/layout.mjs\",\"tests/layout.test.mjs\"],\"scopeDigest\":\"sha256:d5b464c5ae091851db6e76308a7e890985f416279d3bdcb8ddafe41fc09151c1\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
