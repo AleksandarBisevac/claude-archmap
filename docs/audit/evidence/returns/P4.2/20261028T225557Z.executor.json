@@ -1,0 +1,42 @@
+{
+  "gates": {
+    "node --test tests/skill-discovery-refs.test.mjs": "pass",
+    "node --test (full)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T22:58:01Z",
+    "basis": "`node --test tests/skill-discovery-refs.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/skill-discovery-refs.test.mjs (10 cases d1-d10) first and saw it fail (ENOENT, references absent). Then wrote skills/architecture-map/references/discovery-generic.md, stack-python-backend.md, stack-ts-frontend.md, stack-node-backend.md and schema-introspection.md from docs/design.md D5/D7/section 8 and the prescan extractor headers (scripts/lib/prescan/*.mjs, which list the item kinds each extracts). One test regex was loosened (a line wrap broke the temp-copy match). Result: node --test tests/skill-discovery-refs.test.mjs pass 10 fail 0; full node --test pass 121 fail 0. Dependants: docs/design.md references these basenames and is still correct, as the files now exist under those names; no other tracked file names the test or the stack references. All examples are fictional (shop-api, shop-web, ledger-svc).",
+    "descriptive": "Adds the generic discovery recipe, three stack references and schema-introspection rules for the architecture-map explorer, with a test that locks their contents."
+  },
+  "testsAdded": [
+    "Stack references name every D7 framework/ORM/library (d1-d4)",
+    "schema-introspection states read-only, schema-only, DuckDB temp-copy, --db/information_schema, meta.sources skips (d5-d8)",
+    "discovery-generic forbids whole-tree reads and covers the discovery targets (d9); all references state the never-execute rule (d10)"
+  ],
+  "casesAdded": [
+    [
+      "d1",
+      "d2",
+      "d3",
+      "d4"
+    ],
+    [
+      "d5",
+      "d6",
+      "d7",
+      "d8"
+    ],
+    [
+      "d9",
+      "d10"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:347878deb6b86fd387632f488c10beabab59eb89f16c8d38cd70602dd75a9ba8\",\"dirtyDigest\":\"sha256:71a4dd4037ce73fef08495f871661f8e42a97f922151342649b642cbb0b0acff\",\"dirtyPaths\":{\"skills/architecture-map/references/discovery-generic.md\":\"f292a9dc732d8f65\",\"skills/architecture-map/references/schema-introspection.md\":\"b0eec6aa6dcd4ba4\",\"skills/architecture-map/references/stack-node-backend.md\":\"8f39e02af0481ec3\",\"skills/architecture-map/references/stack-python-backend.md\":\"53f329b3c6ebec1c\",\"skills/architecture-map/references/stack-ts-frontend.md\":\"86cdb9c58760f03f\",\"tests/skill-discovery-refs.test.mjs\":\"11d0e4f9bf9de4f5\"},\"head\":\"2c336a5\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/references/discovery-generic.md\",\"skills/architecture-map/references/schema-introspection.md\",\"skills/architecture-map/references/stack-node-backend.md\",\"skills/architecture-map/references/stack-python-backend.md\",\"skills/architecture-map/references/stack-ts-frontend.md\",\"tests/skill-discovery-refs.test.mjs\"],\"scopeDigest\":\"sha256:ac2891b50b02ed71ccf1d755bceb23d2a0a270aa1e2c547d2001b0dcc1d77924\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

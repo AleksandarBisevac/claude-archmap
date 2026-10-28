@@ -1521,7 +1521,7 @@
         {
           "id": "P4.1",
           "title": "Model-contract references: model-schema, relation-taxonomy, sequences",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write the model-contract references for the architecture-map skill (docs/design.md §5, D1-D4). model-schema.md documents every top-level and meta key of schema/archmap-model.schema.json (nodes, edges, entities, relations, access, sequences, views, zones), which fields are user-authored and never overwritten (locked, notes, pinned), the evidence rule (every element carries {path, lines}), field provenance declared/observed/inferred, compatibility (readers tolerate unknown keys), and the EXPLORER FRAGMENT CONTRACT: the size-capped JSON an archmap-explorer returns per area (partial nodes/edges/entities/access with evidence, plus coverage globs and a skipped tally) that P5's merge.mjs will consume. relation-taxonomy.md defines every edge type (api, static, auth, pull, sql, cache, persist, call, link, deploy, event, queue), confidence verified/inferred/external, async, and every zone kind and node kind, each with when-to-use guidance. sequences.md defines the step grammar (m/k/t/d/r/ret/i, frag alt|else|opt|loop|end, note) with a small fictional example and how to pick 3-7 sequences. Read the schema; do not invent keys it lacks. Repo is public: examples must be fictional.",
           "files": [
             "skills/architecture-map/references/model-schema.md",
@@ -1547,25 +1547,41 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2c336a5de599",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests/skill-references.test.mjs (4 cases r1-r4, derived from schema enums/keys) first, saw it fail on missing files, then wrote skills/architecture-map/references/{model-schema,relation-taxonomy,sequences}.md from the schema and docs/design.md section 5 (fictional examples only). node --test: 111 pass, 0 fail. Dependants (docs/design.md names the three references by basename): still correct, design.md unchanged and the references match its section 5. Node kinds are an open string in the schema, so the test takes the recommended list from design.md section 5.",
+            "descriptive": "Model-contract references for the architecture-map skill, including the explorer fragment contract, with a test that keeps them in step with the schema."
           },
           "startedAt": "2026-10-28T22:54:22Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:55:56Z",
+          "verifiedBy": [
+            "r1 top-level and meta schema keys named in model-schema.md",
+            "r2 edge types, zone kinds, confidence and node kinds in relation-taxonomy.md",
+            "r3 fragment-contract section exists in model-schema.md",
+            "r4 sequences.md names every step key and frag value"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:55:56Z.1b3cef",
             "status": "passed",
             "at": "2026-10-28T22:55:56Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2c336a5de599",
+            "at": "2026-10-28T22:55:56Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:55:41Z",
+            "basis": "`node --test tests/skill-references.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P4.2",
           "title": "Discovery references: generic recipe, three stack references, schema introspection",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write the discovery references (docs/design.md D5, D7, §8). discovery-generic.md: the recipe for any stack prescan does not recognise - find entrypoints, routes, stores, queues, externals and deploy units via Grep and line-range reads, never whole trees. Each stack-*.md tells an explorer what prescan (scripts/lib/prescan/*) already extracts for that stack and what it must still read itself to complete nodes, edges, entities and access: python-backend (FastAPI, Django, Flask; SQLAlchemy, Pydantic, Alembic; DuckDB/SQLite), ts-frontend (React, Next.js, React Native; routers; RTK Query, React Query, Redux, Zustand; axios/fetch), node-backend (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ/queues). schema-introspection.md: read-only recipes via the duckdb/sqlite3 CLIs or the project's own Python, schema only and never rows, copy a DuckDB file held by a running server to a temp file first, remote DB only with explicit --db <dsn> and information_schema only, no shipped driver, a skipped step is recorded in meta.sources with the reason. Never execute the scanned project's code. Repo is public: examples must be fictional.",
           "files": [
             "skills/architecture-map/references/discovery-generic.md",
@@ -1591,16 +1607,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T22:55:57Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:58:10Z.818f31",
+            "status": "passed",
+            "at": "2026-10-28T22:58:10Z"
+          }
         },
         {
           "id": "P4.3",
