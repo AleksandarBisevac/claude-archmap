@@ -1,0 +1,39 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/skill-references.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T22:55:41Z",
+    "basis": "`node --test tests/skill-references.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/skill-references.test.mjs (4 cases r1-r4, derived from schema enums/keys) first, saw it fail on missing files, then wrote skills/architecture-map/references/{model-schema,relation-taxonomy,sequences}.md from the schema and docs/design.md section 5 (fictional examples only). node --test: 111 pass, 0 fail. Dependants (docs/design.md names the three references by basename): still correct, design.md unchanged and the references match its section 5. Node kinds are an open string in the schema, so the test takes the recommended list from design.md section 5.",
+    "descriptive": "Model-contract references for the architecture-map skill, including the explorer fragment contract, with a test that keeps them in step with the schema."
+  },
+  "testsAdded": [
+    "r1 top-level and meta schema keys named in model-schema.md",
+    "r2 edge types, zone kinds, confidence and node kinds in relation-taxonomy.md",
+    "r3 fragment-contract section exists in model-schema.md",
+    "r4 sequences.md names every step key and frag value"
+  ],
+  "casesAdded": [
+    [
+      "r1"
+    ],
+    [
+      "r2"
+    ],
+    [
+      "r3"
+    ],
+    [
+      "r4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:144339ea36ec540e2643ad376250957de538009abbd02d714ef194f08c7329ab\",\"dirtyDigest\":\"sha256:c677a773e9340c3c5ea5268cabe6de532990d8565015acb01a6585f861658012\",\"dirtyPaths\":{\"skills/architecture-map/references/model-schema.md\":\"12be07a0dbd85df6\",\"skills/architecture-map/references/relation-taxonomy.md\":\"5aed7c96b3f0c86f\",\"skills/architecture-map/references/sequences.md\":\"154ddb1430da6675\",\"tests/skill-references.test.mjs\":\"b5b246c6afc0a88a\"},\"head\":\"f323d1a\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/references/model-schema.md\",\"skills/architecture-map/references/relation-taxonomy.md\",\"skills/architecture-map/references/sequences.md\",\"tests/skill-references.test.mjs\"],\"scopeDigest\":\"sha256:fd1249b0bf86118a637275c6b9d959e367a6431204349c0c0ef716fab5c9c579\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

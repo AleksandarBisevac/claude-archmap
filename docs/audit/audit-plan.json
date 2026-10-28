@@ -1497,7 +1497,7 @@
     {
       "id": "P4",
       "title": "architecture-map skill and agents",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "SKILL.md (500 lines or fewer) and its references define the workflow, model contract, evidence and token rules; archmap-explorer, archmap-synthesizer and archmap-reviewer agents pass claude plugin validate with their model and effort frontmatter.",
       "testGate": [
@@ -1507,8 +1507,8 @@
         "P1",
         "P3"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "f323d1aaaa14e5903f22b439eb6e5711a57226d9",
+      "branch": "audit/p4-architecture-map-skill-and-age",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -1517,11 +1517,215 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P4.1",
+          "title": "Model-contract references: model-schema, relation-taxonomy, sequences",
+          "status": "in_progress",
+          "description": "Write the model-contract references for the architecture-map skill (docs/design.md §5, D1-D4). model-schema.md documents every top-level and meta key of schema/archmap-model.schema.json (nodes, edges, entities, relations, access, sequences, views, zones), which fields are user-authored and never overwritten (locked, notes, pinned), the evidence rule (every element carries {path, lines}), field provenance declared/observed/inferred, compatibility (readers tolerate unknown keys), and the EXPLORER FRAGMENT CONTRACT: the size-capped JSON an archmap-explorer returns per area (partial nodes/edges/entities/access with evidence, plus coverage globs and a skipped tally) that P5's merge.mjs will consume. relation-taxonomy.md defines every edge type (api, static, auth, pull, sql, cache, persist, call, link, deploy, event, queue), confidence verified/inferred/external, async, and every zone kind and node kind, each with when-to-use guidance. sequences.md defines the step grammar (m/k/t/d/r/ret/i, frag alt|else|opt|loop|end, note) with a small fictional example and how to pick 3-7 sequences. Read the schema; do not invent keys it lacks. Repo is public: examples must be fictional.",
+          "files": [
+            "skills/architecture-map/references/model-schema.md",
+            "skills/architecture-map/references/relation-taxonomy.md",
+            "skills/architecture-map/references/sequences.md",
+            "tests/skill-references.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill-references.test.mjs: every top-level and meta property in archmap-model.schema.json is named in model-schema.md; every edge type, zone kind and node kind enum value in the schema appears in relation-taxonomy.md; model-schema.md has a fragment-contract section; sequences.md names every step key and frag value from the schema"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-28T22:54:22Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:55:56Z.1b3cef",
+            "status": "passed",
+            "at": "2026-10-28T22:55:56Z"
+          }
+        },
+        {
+          "id": "P4.2",
+          "title": "Discovery references: generic recipe, three stack references, schema introspection",
+          "status": "pending",
+          "description": "Write the discovery references (docs/design.md D5, D7, §8). discovery-generic.md: the recipe for any stack prescan does not recognise - find entrypoints, routes, stores, queues, externals and deploy units via Grep and line-range reads, never whole trees. Each stack-*.md tells an explorer what prescan (scripts/lib/prescan/*) already extracts for that stack and what it must still read itself to complete nodes, edges, entities and access: python-backend (FastAPI, Django, Flask; SQLAlchemy, Pydantic, Alembic; DuckDB/SQLite), ts-frontend (React, Next.js, React Native; routers; RTK Query, React Query, Redux, Zustand; axios/fetch), node-backend (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ/queues). schema-introspection.md: read-only recipes via the duckdb/sqlite3 CLIs or the project's own Python, schema only and never rows, copy a DuckDB file held by a running server to a temp file first, remote DB only with explicit --db <dsn> and information_schema only, no shipped driver, a skipped step is recorded in meta.sources with the reason. Never execute the scanned project's code. Repo is public: examples must be fictional.",
+          "files": [
+            "skills/architecture-map/references/discovery-generic.md",
+            "skills/architecture-map/references/stack-python-backend.md",
+            "skills/architecture-map/references/stack-ts-frontend.md",
+            "skills/architecture-map/references/stack-node-backend.md",
+            "skills/architecture-map/references/schema-introspection.md",
+            "tests/skill-discovery-refs.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill-discovery-refs.test.mjs: each stack reference names every framework/ORM/library listed for it in D7; schema-introspection.md states read-only, schema-only/never rows, the DuckDB temp-copy rule, the --db/information_schema rule and recording skips in meta.sources; discovery-generic.md forbids whole-tree reads"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P4.3",
+          "title": "Issues catalogue reference",
+          "status": "pending",
+          "description": "Write issues-catalog.md (docs/design.md D4, §11): architecture-level issues only, visible through structure and relations, never line-level review. Generalise each §11 seed into a pattern with what to look for in the model (which node/edge/entity/step it anchors to), category (security, data, reliability, performance, design, docs), default severity high/med/low, and the calibrated summary/impact/fix wording for shared builds versus internal-only detail for security. Cover audit import (bugs[] and phases[].review.findings[], legacy string findings) at the level the reviewer agent needs. Repo is public: no client names, paths or identifiers - generic, fictional wording only.",
+          "files": [
+            "skills/architecture-map/references/issues-catalog.md",
+            "tests/skill-issues-catalog.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill-issues-catalog.test.mjs: every category and severity enum value of schema/archmap-issues.schema.json is used in issues-catalog.md, every pattern names an anchor kind (node|edge|entity|step), and the file passes the repo denylist used by tests/denylist.test.mjs"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P4.4",
+          "title": "architecture-map SKILL.md: workflow, model contract, evidence and token rules",
+          "status": "pending",
+          "description": "Write skills/architecture-map/SKILL.md (500 lines or fewer; docs/design.md §4-§8, D1, D2, D11, D12). Frontmatter: name architecture-map and a trigger description. Body: the build and update flows step by step (prescan -> parallel archmap-explorer per area (<= 8) -> introspection -> merge + validate -> archmap-synthesizer -> validate, layout, render -> optional --issues archmap-reviewer -> optional --publish -> usage ledger), with scripts invoked as node \"${CLAUDE_PLUGIN_ROOT}/scripts/<x>.mjs\"; scripts not yet built (merge, diffmap, usage, issues, export, staleness) are named as such by their design names. The agent writes only architecture.model.json (D1); output locations (D2: model + clean html in docs/architecture/, issues overlay under <home>/.claude/archmap/<repo-slug>/); evidence rules (every element has {path, lines}, nothing without evidence, confidence levels); token rules (excerpts not whole trees, size-capped fragments, profiles max|balanced|economy and the per-Agent-call model override); user-authored fields are never overwritten. Link every references/*.md with when to read it, and keep detail in the references rather than duplicating it.",
+          "files": [
+            "skills/architecture-map/SKILL.md",
+            "tests/skill.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill.test.mjs: SKILL.md is <= 500 lines with name: architecture-map and a non-empty description in frontmatter; every file in skills/architecture-map/references/ is linked from SKILL.md and every relative link resolves; scripts are invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/; the three agent names and the three profiles are mentioned"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P4.1",
+            "P4.2",
+            "P4.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P4.5",
+          "title": "archmap-explorer, archmap-synthesizer and archmap-reviewer agents",
+          "status": "pending",
+          "description": "Write the three agents (docs/design.md §4, §6, §8, D11). Frontmatter name, description, tools, model, effort: archmap-explorer model sonnet effort medium tools Read, Grep, Glob, Bash (Bash only for read-only introspection CLIs, never executing the scanned project's code); archmap-synthesizer and archmap-reviewer model opus effort high tools Read, Grep, Glob. Explorer: input a prescan area slice, output exactly the fragment contract from references/model-schema.md, excerpts only. Synthesizer: input fragments + merged model, adds cross-area edges, 3-7 sequences, CRUD/lineage, views, targeted reads only. Reviewer: input the model (+ audit import), output issues per references/issues-catalog.md anchored to model ids, security detail internal only. Each agent names the references it reads. Then run claude plugin validate . and fix what it reports; if it rejects effort in agent frontmatter (design §13 open question), report that in the outcome instead of silently dropping the field.",
+          "files": [
+            "agents/archmap-explorer.md",
+            "agents/archmap-synthesizer.md",
+            "agents/archmap-reviewer.md",
+            "tests/agents.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/agents.test.mjs: each agent file's frontmatter has exactly the designed name, model, effort and tools; no agent lists Edit, Write or Agent; synthesizer and reviewer have no Bash; each body names its input and output contract and the references it reads"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test",
+              "claude plugin validate ."
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P4.4"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
       "area": [
         "skill",
         "agents"
-      ]
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-28T22:54:22Z"
     },
     {
       "id": "P5",
@@ -1953,6 +2157,60 @@
     ],
     "tests/prescan-wiring.test.mjs": [
       "P3.5-cdj"
+    ],
+    "skills/architecture-map/references/model-schema.md": [
+      "P4.1"
+    ],
+    "skills/architecture-map/references/relation-taxonomy.md": [
+      "P4.1"
+    ],
+    "skills/architecture-map/references/sequences.md": [
+      "P4.1"
+    ],
+    "tests/skill-references.test.mjs": [
+      "P4.1"
+    ],
+    "skills/architecture-map/references/discovery-generic.md": [
+      "P4.2"
+    ],
+    "skills/architecture-map/references/stack-python-backend.md": [
+      "P4.2"
+    ],
+    "skills/architecture-map/references/stack-ts-frontend.md": [
+      "P4.2"
+    ],
+    "skills/architecture-map/references/stack-node-backend.md": [
+      "P4.2"
+    ],
+    "skills/architecture-map/references/schema-introspection.md": [
+      "P4.2"
+    ],
+    "tests/skill-discovery-refs.test.mjs": [
+      "P4.2"
+    ],
+    "skills/architecture-map/references/issues-catalog.md": [
+      "P4.3"
+    ],
+    "tests/skill-issues-catalog.test.mjs": [
+      "P4.3"
+    ],
+    "skills/architecture-map/SKILL.md": [
+      "P4.4"
+    ],
+    "tests/skill.test.mjs": [
+      "P4.4"
+    ],
+    "agents/archmap-explorer.md": [
+      "P4.5"
+    ],
+    "agents/archmap-synthesizer.md": [
+      "P4.5"
+    ],
+    "agents/archmap-reviewer.md": [
+      "P4.5"
+    ],
+    "tests/agents.test.mjs": [
+      "P4.5"
     ]
   },
   "bugs": [
