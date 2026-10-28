@@ -1,0 +1,4 @@
+[project]
+name = "bookshop-api"
+version = "0.0.0"
+dependencies = ["fastapi", "flask", "django", "sqlalchemy", "alembic", "pydantic", "httpx", "requests"]

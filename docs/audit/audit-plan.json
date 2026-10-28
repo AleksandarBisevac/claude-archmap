@@ -1099,7 +1099,7 @@
         {
           "id": "P3.1",
           "title": "prescan.mjs core: inventory, stack detection, area partitioning, generic recipe",
-          "status": "in_progress",
+          "status": "done",
           "description": "prescan is the 0-token first step of /archmap:build (design sections 6 and 8). Write the core; stack extractors come in\nP3.2-P3.4 as plug-ins with a common interface (detect(inventory) -> bool, extract(files, read) -> fragment).\nCLI: node scripts/prescan.mjs <repoDir> [--scope <path>] [--out <file>] -> JSON\n{schemaVersion, repo, commit (git rev-parse HEAD), stacks[], areas[{id, title, globs[], files, stacks[]}],\n sources[{kind: sqlite|duckdb|..., path, status: found|skipped, reason?}], extracts{<stackId>: fragment}}.\n- Inventory: `git ls-files -co --exclude-standard`; skip vendored/generated dirs (node_modules, dist, build, .venv, ...),\n  binaries and files over a size cap.\n- Partition into <= 8 areas along app/package boundaries (monorepo workspaces, top-level apps, backend vs frontend),\n  merging small leftovers. Areas are what the explorer agents get one each.\n- Generic recipe: entry points, top-level dirs, Dockerfiles/compose and CI files listed as hints for any stack.\n- DB files (*.sqlite, *.db, *.duckdb) are only LISTED here; introspection happens later and never reads rows.\n- Deterministic: sorted everywhere, no timestamps in output.\nFixture repos live under tests/fixtures/repos/ and are tiny and FICTIONAL (repo is public). Build test repos with\n`git init` in os.tmpdir() from those fixture trees.",
           "files": [
             "scripts/prescan.mjs",
@@ -1128,30 +1128,57 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "ea2ff47032b0",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests/prescan-core.test.mjs first (7 cases pc1-pc7, fixture repos built with git init in os.tmpdir(), all fictional); first run was red: scripts/prescan.mjs did not exist (ERR_MODULE_NOT_FOUND / non-zero exit in every case). Then implemented scripts/prescan.mjs (CLI + exported prescan(), loadExtractors(); plug-in extractors loaded from scripts/lib/prescan/stacks/*.mjs, each {id, detect(inventory), extract(files, read)}; exit 2 on usage/non-git dir), scripts/lib/prescan/inventory.mjs (git ls-files -co --exclude-standard -z, skip vendored dirs/binaries/lockfiles/minified/over 512KiB, DB files only listed as sources, never opened), scripts/lib/prescan/partition.mjs (<=8 areas, top-level dirs + container/workspace expansion, monolith opening, small-leftover merge, smallest-pair merge to the cap; disjoint globs dir/**, dir/*, *), scripts/lib/prescan/generic.mjs (stack detection python/ts-frontend/node-backend from manifests+deps, workspace containers, generic recipe: entryPoints, topLevelDirs, containers, ci, manifests under extracts.generic). Output sorted by code unit, no timestamps, JSON.stringify(...,2)+newline. Ran `node --test tests/prescan-core.test.mjs`: 7/7 pass; full `node --test`: 79 tests, 79 pass, exit 0. No fixture files added under tests/fixtures (repos are built in the test) because that path is outside the task files. Dependants: docs/design.md names prescan.mjs by basename and its section 6/8 description (CLI, <=8 areas, 0 tokens) still matches; the other four files have no tracked dependants.",
+            "descriptive": "prescan.mjs core now inventories a git repo, detects the v1 stacks, partitions it into at most 8 disjoint areas, lists DB files and emits deterministic JSON with plug-in points for the P3.2-P3.4 extractors."
           },
           "startedAt": "2026-10-28T22:10:40Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:14:59Z",
+          "verifiedBy": [
+            "tests/prescan-core.test.mjs: 7 cases - git ls-files/.gitignore/vendored/binary filtering, stack detection, <=8 disjoint covering areas, wide repo cap and workspace split, sqlite/duckdb sources and generic hints, byte-identical output with --out/--scope/exit 2, plug-in extractor interface"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:14:59Z.e2e60e",
             "status": "passed",
             "at": "2026-10-28T22:14:59Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "ea2ff47032b0",
+            "at": "2026-10-28T22:14:59Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:14:48Z",
+            "basis": "`node --test tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P3.2",
           "title": "Python backend extractor (FastAPI, Django, Flask; SQLAlchemy, Pydantic, Alembic)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement the python stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes with method and path from FastAPI/Flask decorators and Django urls, SQLAlchemy/Django model entities with fields, PK/FK and types, Alembic migration ops, Pydantic schemas, raw SQL table names, and outbound HTTP calls.\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/python-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
           "files": [
             "scripts/lib/prescan/python.mjs",
+            "tests/prescan-python.test.mjs",
             "tests/fixtures/repos/python-api/README.md",
-            "tests/prescan-python.test.mjs"
+            "tests/fixtures/repos/python-api/pyproject.toml",
+            "tests/fixtures/repos/python-api/app/__init__.py",
+            "tests/fixtures/repos/python-api/app/main.py",
+            "tests/fixtures/repos/python-api/app/admin.py",
+            "tests/fixtures/repos/python-api/app/schemas.py",
+            "tests/fixtures/repos/python-api/app/models.py",
+            "tests/fixtures/repos/python-api/app/reports.py",
+            "tests/fixtures/repos/python-api/app/clients.py",
+            "tests/fixtures/repos/python-api/app/sidefx.py",
+            "tests/fixtures/repos/python-api/shop/__init__.py",
+            "tests/fixtures/repos/python-api/shop/models.py",
+            "tests/fixtures/repos/python-api/shop/urls.py",
+            "tests/fixtures/repos/python-api/migrations/versions/0001_create_books.py",
+            "tests/fixtures/repos/python-api/migrations/versions/0002_add_isbn.py"
           ],
           "tests": {
             "mode": "tdd",
@@ -1173,16 +1200,22 @@
           "dependsOn": [
             "P3.1"
           ],
-          "attempts": 0,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T22:18:41Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:23:40Z.3406fa",
+            "status": "passed",
+            "at": "2026-10-28T22:23:40Z"
+          }
         },
         {
           "id": "P3.3",
@@ -1562,6 +1595,48 @@
     ],
     "tests/prescan-node-backend.test.mjs": [
       "P3.4"
+    ],
+    "tests/fixtures/repos/python-api/pyproject.toml": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/__init__.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/main.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/admin.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/schemas.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/models.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/reports.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/clients.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/app/sidefx.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/shop/__init__.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/shop/models.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/shop/urls.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/migrations/versions/0001_create_books.py": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/migrations/versions/0002_add_isbn.py": [
+      "P3.2"
     ]
   },
   "bugs": [
