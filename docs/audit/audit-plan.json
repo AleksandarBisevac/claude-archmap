@@ -1076,7 +1076,7 @@
     {
       "id": "P3",
       "title": "Deterministic pre-scan for the v1 stacks",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "prescan.mjs partitions a repo into at most 8 areas and extracts routes, ORM entities, migrations and client calls for the Python, TS frontend and Node backend stacks, tested on small fixture repos, at 0 tokens.",
       "testGate": [
@@ -1087,7 +1087,7 @@
       ],
       "baseRef": "74e5701583841e08503dfc51d4ae75fa002bf3aa",
       "branch": "audit/p3-deterministic-pre-scan-for-the",
-      "mergedAt": null,
+      "mergedAt": "2026-10-28T22:47:01Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -1491,7 +1491,8 @@
         "runId": "2026-10-28T22:46:59Z.5382fe",
         "status": "passed",
         "at": "2026-10-28T22:46:59Z"
-      }
+      },
+      "mergedHead": "5b85feda52a86bc44fb104e5753e28e32c27825e"
     },
     {
       "id": "P4",
