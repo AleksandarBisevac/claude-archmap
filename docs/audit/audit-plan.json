@@ -24,7 +24,7 @@
     {
       "id": "P1",
       "title": "Model schemas, validator and golden fixture",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "JSON Schemas for model, issues and theme; validate.mjs rejects dangling ids and missing evidence and checks evidence paths at meta.commit; an anonymised golden model validates.",
       "testGate": [
@@ -33,7 +33,7 @@
       "blockedBy": [],
       "baseRef": "eda8d36c60e8783483e107ad2eec68c484732f99",
       "branch": "audit/p1-model-schemas-validator-and-go",
-      "mergedAt": null,
+      "mergedAt": "2026-10-28T13:31:51Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -427,7 +427,8 @@
         "runId": "2026-10-28T13:31:49Z.b10dd5",
         "status": "passed",
         "at": "2026-10-28T13:31:49Z"
-      }
+      },
+      "mergedHead": "79b9ba5119810445c86db0b111e4e69113ba48a7"
     },
     {
       "id": "P2",
