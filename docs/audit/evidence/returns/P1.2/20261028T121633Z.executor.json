@@ -1,0 +1,47 @@
+{
+  "gates": {
+    "node --test tests/validate.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T12:23:39Z",
+    "basis": "`node --test tests/validate.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/validate.test.mjs first (21 cases v1-v21, red: module not found), then scripts/lib/jsonschema.mjs (validateSchema: type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf, local $defs $ref; JSON-pointer errors) and scripts/validate.mjs (exports validate(model,{issues,repo}) -> {ok,findings[{code,pointer,message}],evidence:'checked'|'skipped'}; CLI with --issues/--repo/--json; exit 0/1/2). Codes: schema, duplicate-id, dangling-ref, evidence-lines-malformed, evidence-path-missing, evidence-lines-out-of-range, commit-missing. Integrity covers zone/parent/node.zone/edge ends/entity.store/fk/relations/access/participant node/step m[] and note ids/step i (only with issues)/view filters/issue anchors incl. seqId:stepIndex/duplicates. Evidence uses git cat-file -e <commit>:<path> then cat-file blob (rejects directories) for the line count; an unknown meta.commit gives one commit-missing finding; without --repo the output states evidence was skipped. Evidence is also checked on issues files. Ran: `node --test tests/validate.test.mjs` 21 pass 0 fail; full `node --test` 35 pass 0 fail (exit code not captured by my shell pipeline; the tally shows fail 0). Dependants: schema/archmap-issues.schema.json only names validate.mjs in a description (dangling step ids checked there, not in the schema) - still correct, validate.mjs checks step i against issues; tests/schema.test.mjs only mentions validate.mjs in a comment about the keyword subset - still correct, jsonschema.mjs uses exactly that subset and the full suite passes; docs/design.md names validate.mjs for the 14.3 evidence check - still correct, implemented as described (git cat-file -e at meta.commit plus line range; blob read instead of git show to reject directories). Exploration note: I read the two schemas and docs/design.md 14.3 (not in the brief) to know the model shape. Skill writing-javascript was skipped as the orchestrator instructed.",
+    "descriptive": "Adds the archmap validator: schema subset interpreter, referential-integrity and duplicate-id checks, and evidence checks at meta.commit, with a reusable validate() export and a 0/1/2 exit-code CLI."
+  },
+  "testsAdded": [
+    "tests/validate.test.mjs: 21 cases covering valid models, schema findings (missing evidence, bad lines, ops outside CRUD), malformed ranges, duplicates, dangling zone/node/entity/participant/issue-anchor/step-issue ids, unknown keys, evidence skipped vs checked, absent paths and out-of-range lines at meta.commit in a throwaway git repo, unknown commit, and CLI exit codes 0/1/2"
+  ],
+  "casesAdded": [
+    [
+      "v1",
+      "v2",
+      "v3",
+      "v4",
+      "v5",
+      "v6",
+      "v7",
+      "v8",
+      "v9",
+      "v10",
+      "v11",
+      "v12",
+      "v13",
+      "v14",
+      "v15",
+      "v16",
+      "v17",
+      "v18",
+      "v19",
+      "v20",
+      "v21"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:7dd1c44bad4c82da25e3fe486479b43a715f3a6562413743cd0cce757d51c17b\",\"dirtyDigest\":\"sha256:f7e6ed49083c00dc692ae98ab6f3440b6daa91d66ad675acde730555aa7db3e1\",\"dirtyPaths\":{\"scripts/lib/jsonschema.mjs\":\"5cd4e8dd568c0e0b\",\"scripts/validate.mjs\":\"e2d213389325f7c0\",\"tests/validate.test.mjs\":\"ed56c86795dd6d05\"},\"head\":\"562c31c\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/jsonschema.mjs\",\"scripts/validate.mjs\",\"tests/validate.test.mjs\"],\"scopeDigest\":\"sha256:291b99858e839bea1e9e3daefca9ce3a97a9703acec3c16c7c83e830462afb05\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

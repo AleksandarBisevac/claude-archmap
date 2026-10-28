@@ -45,7 +45,7 @@
         {
           "id": "P1.1",
           "title": "JSON Schemas for the model, issues and theme files",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write the three JSON Schemas (draft 2020-12) that define archmap's file contracts, following docs/design.md section 5 exactly.\n\n- schema/archmap-model.schema.json: meta (schemaVersion, project, commit, generatedAt, repoUrl, profile, sources, coverage),\n  zones, nodes, edges, entities (fields with provenance declared|observed|inferred), relations (cardinality 1-1|1-n|n-m,\n  kind fk|join|name-convention), access (ops is a non-empty subset of \"CRUD\"), sequences (step grammar: message {m,k,t,d,r,ret?,i?},\n  fragment {frag: alt|else|opt|loop|end, t}, note {note, t, tone}), views. Edge type enum: api, static, auth, pull, sql, cache,\n  persist, call, link, deploy, event, queue. Edge confidence: verified|inferred|external. Optional edge \"foundBy\":\n  static|llm|introspection (design section 14.3). Evidence item: {path, lines} where lines is \"N\" or \"N-M\".\n- schema/archmap-issues.schema.json: {id, sev high|med|low, category security|data|reliability|performance|design|docs, title,\n  anchor (exactly one of node|edge|entity|step), summary, impact, fix, detail?, evidence, source archmap|audit, track?}.\n- schema/archmap-theme.schema.json: fonts, chrome and accent only. Relation, zone and severity colours are fixed (D10) and must\n  NOT be themeable.\n\nRules: readers tolerate unknown keys, so do not set additionalProperties:false on objects (compatibility, design section 5).\nEvidence is required (minItems 1) on nodes and edges. Keep to a small keyword subset that validate.mjs (next task) will\ninterpret without npm deps: type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf, $ref to\nlocal $defs. No format, no if/then, no remote $ref.\nReferential checks (dangling ids) are NOT expressible here; they belong to validate.mjs.",
           "files": [
             "schema/archmap-model.schema.json",
@@ -74,25 +74,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "562c31c622ba",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests/schema.test.mjs first (12 cases s1-s12, with a small interpreter for the agreed keyword subset), then saw it fail because the schema files were missing. I then wrote schema/archmap-model.schema.json, archmap-issues.schema.json and archmap-theme.schema.json (draft 2020-12, each with an $id). The only keywords they use are type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf and local $defs refs. None sets additionalProperties. Evidence has minItems 1 on nodes, edges and issues, and lines matches ^[0-9]+(-[0-9]+)?$. access.ops matches ^(?!.*(.).*\\1)[CRUD]+$, a non-empty subset with no repeats. Steps are a oneOf of message, fragment and note. An issue anchor is a oneOf of four single-key shapes. The theme declares only fonts, chrome and accent. Decisions the design left open: the model requires meta, zones, nodes and edges, and the other arrays are optional. The issues file root is {schemaVersion?, issues:[...]}, with the issue shape in $defs.issue. Theme accent is a #rrggbb string. I used the interpreter in the test only to check the schemas; it is not a dependency. The `writing-javascript` skill the brief lists does not exist (Unknown skill), so only test-driven-development was invoked. Dependants: docs/design.md names the three schema files by basename only, so it is still correct. Nothing imports tests/schema.test.mjs.",
+            "descriptive": "Adds the three archmap JSON Schemas (model, issues, theme) and a 12-case test suite that locks them to design section 5."
           },
           "startedAt": "2026-10-28T12:13:47Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T12:16:33Z",
+          "verifiedBy": [
+            "12 cases in tests/schema.test.mjs. They check that each schema parses, declares draft 2020-12 and an $id, and that its required keys, enums and $defs match design section 5. They also check evidence minItems, the lines pattern, the ops subset, the step grammar, issue anchors and theme scope, and that no schema sets additionalProperties or uses a keyword outside the subset."
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T12:16:32Z.14ab0b",
             "status": "passed",
             "at": "2026-10-28T12:16:32Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "562c31c622ba",
+            "at": "2026-10-28T12:16:33Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T12:16:18Z",
+            "basis": "`node --test tests/schema.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P1.2",
           "title": "validate.mjs: schema subset, referential integrity and evidence checks",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement scripts/validate.mjs (Node >= 18, ESM, zero npm deps) and a tiny JSON Schema subset interpreter in\nscripts/lib/jsonschema.mjs that supports exactly the keywords P1.1's schemas use (type, required, properties, items, enum,\nconst, pattern, minItems, minLength, oneOf, local $ref). Unknown keys in data are allowed.\n\nCLI: node scripts/validate.mjs <model.json> [--issues <issues.json>] [--repo <dir>] [--json]\nChecks, each finding with a JSON pointer and a stable code:\n1. Schema: the model against schema/archmap-model.schema.json, the issues file against archmap-issues.schema.json.\n2. Referential integrity: node.zone, zone.parent, edge.from/to, entity.store (a node id), field.fk and relations\n   entity/field pairs, access.node/entity, sequence participant node and step m[] ids, note ids, view filters,\n   issue anchors (node|edge|entity|\"<seqId>:<stepIndex>\"), step i (issue id, only when --issues is given). Duplicate ids.\n3. Evidence (design section 14.3, borrowed from show-me): with --repo, for each evidence {path, lines} run\n   `git -C <repo> cat-file -e <meta.commit>:<path>` and check the line range is within the file at that commit\n   (git show). Without --repo the check is skipped and the output says so - it is never a silent pass.\nExport a validate(model, {issues, repo}) function returning {ok, findings[]} so later scripts (merge, render) reuse it.\nOutput: human-readable by default, --json for machines. Exit 0 valid, 1 findings, 2 usage or unreadable input.\nUse small inline fixtures and a throwaway git repo created in os.tmpdir() in the tests; do not depend on P1.3's golden model.",
           "files": [
             "scripts/validate.mjs",
@@ -120,16 +133,22 @@
           "dependsOn": [
             "P1.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T12:16:33Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T12:23:49Z.e6cfc6",
+            "status": "passed",
+            "at": "2026-10-28T12:23:49Z"
+          }
         },
         {
           "id": "P1.3",
