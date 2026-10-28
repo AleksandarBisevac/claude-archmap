@@ -18,7 +18,11 @@
       "at": "2026-10-28T12:16:32Z",
       "runId": "2026-10-28T12:16:32Z.14ab0b",
       "basis": "the first run this plan recorded; work completed before it could not carry evidence"
-    }
+    },
+    "defaultSkills": [
+      "node"
+    ],
+    "reviewSkill": "archmap-review"
   },
   "phases": [
     {
@@ -452,7 +456,213 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P2.1",
+          "title": "Repo-wide denylist guard test",
+          "status": "pending",
+          "description": "The repo is public and P2 ports viewer code from a private reference, so the denylist guard must cover every tracked file,\nnot only tests/fixtures. Write tests/denylist.test.mjs (node:test, zero deps):\n- list files with `git ls-files` (run via child_process execFileSync, cwd = repo root);\n- exempt docs/design.md (it names a public data platform as a v1.1 roadmap item) and binary files;\n- read .private/anonymise-denylist.txt at runtime (skip # comments and blank lines); NEVER inline any term;\n- on a hit, fail with \"<file>: term #<index>\" so CI logs never print a term;\n- when the list is absent, call t.skip with a message saying the denylist was not checked.\nKeep tests/golden.test.mjs's own check; this one is the repo-wide net.",
+          "files": [
+            "tests/denylist.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/denylist.test.mjs: no git-tracked file except docs/design.md contains a term from .private/anonymise-denylist.txt (case-insensitive); hits are reported by file and term index only, never the term; a visible skip when the list is absent, as in CI"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P2.2",
+          "title": "Vendor elkjs 0.12.0 and write layout.mjs",
+          "status": "pending",
+          "description": "1. Vendor elkjs 0.12.0 exactly (released 2026-07-17; newer versions are under two weeks old and are NOT allowed):\n   `npm pack elkjs@0.12.0` in a temp dir, copy lib/elk.bundled.js to assets/viewer/elk.bundled.js unmodified. Record in\n   assets/viewer/ELK-NOTICE.md: package, version, source URL, the sha256 of the copied file, and that it is used under\n   EPL-2.0 (the package is dual \"EPL-2.0 OR GPL-3.0-or-later\"; we elect EPL-2.0), with the EPL-2.0 notice text / link\n   and the Eclipse copyright line from the package. No package.json dependency: the repo stays zero-npm-deps.\n2. scripts/layout.mjs (Node >= 18 ESM): reads architecture.model.json (+ optional architecture.layout.json as seeds), runs\n   ELK layered with compound zones (zone.parent nesting), deterministic options (fixed seeds, sorted inputs), and writes\n   architecture.layout.json: {schemaVersion, graph:{nodes:{id:{x,y,w,h,pinned?}}, zones:{...}, edges:{id:{sections}}},\n   er:{entities:{id:{x,y,w,h}}, relations:{...}}}. Seeds: previous positions are fed back so only new or changed nodes move\n   (\"park\" new nodes near their zone, design 14.3). Pinned nodes (layout `pinned: true`) never move. ER view uses one port\n   per field row so relation edges attach to the right rows.\n   CLI: node scripts/layout.mjs <model.json> [--layout <layout.json>] [--out <file>]; exit 0 / 1 / 2 like validate.mjs.\nValidate the model with the exported validate() first and refuse an invalid one.",
+          "files": [
+            "assets/viewer/elk.bundled.js",
+            "assets/viewer/ELK-NOTICE.md",
+            "scripts/layout.mjs",
+            "tests/layout.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/layout.test.mjs: layout of the golden model is deterministic (two runs byte-identical); every node gets x,y,w,h inside its zone's bounds; zones nest per parent; edges get routed sections; a seeded re-layout after adding one node moves no unaffected node by more than a small tolerance; pinned nodes keep their exact positions; ER layout gives entities field-row ports"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P2.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P2.3",
+          "title": "Port the viewer core and write render.mjs (clean, internal, shared)",
+          "status": "pending",
+          "description": "Port the viewer core from the single HTML file in .private/reference/ (design section 7), CODE ONLY:\n- relation table ET, zone table ZN, addMarkers, roundedPath; renderGraph (zones, nodes, edge labels, issue badges);\n  focusNode / focusEdge / select / renderDetail; legend chips that toggle relation types and the zone key; renderSeq +\n  setStep (numbered steps, fragments, notes, issue dots, prev/next and arrow keys); the light/dark CSS token system as is.\n- Replace the reference's hand-placed coordinates and edgeGeom anchors with architecture.layout.json positions and ELK\n  routed edge sections. Everything is driven by the embedded model + layout; nothing is hard-coded.\nANONYMITY (repo is PUBLIC, absolute): copy no data, labels, titles, comments, sample text, ids or names from the reference;\nonly generic rendering logic and CSS. Rename anything domain-specific. Do not name the reference file anywhere. P2.1's\nrepo-wide denylist test must stay green.\nFonts: no external font URLs (the output is offline); use a system font stack, overridable by archmap.theme.json.\nscripts/render.mjs: node scripts/render.mjs <model.json> --layout <layout.json> [--issues <issues.json>]\n[--theme <theme.json>] [--mode clean|internal|shared] [--out <file>]. Inlines template, CSS, JS, model, layout (and issues\nper mode) into one HTML. clean = default, physically contains no issues; internal = full issues with detail and the global\nIssues switch; shared = calibrated summary/impact/fix only. Validate inputs with validate() first.\nTheme: archmap-theme.schema.json allows fonts, chrome and accent only; relation, zone and severity colours are fixed,\ncolour-blind-safe with dash patterns (D10).",
+          "files": [
+            "assets/viewer/template.html",
+            "assets/viewer/viewer.css",
+            "assets/viewer/viewer.js",
+            "scripts/render.mjs",
+            "tests/render.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/render.test.mjs: rendering the golden model gives one self-contained HTML (no external script, style, font or fetch URL); clean mode contains no issue id, title or text from the golden issues.json and no issue toggle; internal mode embeds issues and the Issues switch; shared mode embeds summary/impact/fix but never detail; the embedded model JSON round-trips; theme overrides change fonts/chrome/accent only, never relation, zone or severity colours"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [
+            "node"
+          ],
+          "risk": "high",
+          "blockedBy": [],
+          "dependsOn": [
+            "P2.2"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P2.4",
+          "title": "Viewer v1 views: ER, CRUD matrix, lineage, search, path finder, deployment and trust",
+          "status": "pending",
+          "description": "Add the v1 views to the ported viewer (design section 7 \"New in v1\"), all driven by the embedded model + layout:\n- ER tab: entity cards with field rows, PK/FK markers, crow's-foot cardinality, provenance styling (declared / observed /\n  inferred), using the ER layout and per-field ports from layout.mjs.\n- CRUD matrix tab (nodes x entities, ops letters), click-through to the node or entity.\n- Lineage path highlight from an entity through access rows and edges.\n- Search (nodes, edges, entities, sequences) and a path finder: BFS between two nodes, path highlighted. Keep the BFS and\n  other pure logic in exported functions so node:test can test them without a browser.\n- Deployment and trust views from model.views, trust boundaries as dashed enclosures.\n- Global Issues switch (internal mode only) hides badges, flags, issue rows and step dots.\n- Evidence chips link to repoUrl/blob/<commit>/<path>#L<a>-L<b>.\nNo external URLs; keep the repo-wide denylist test green; do not open .private/reference/ for this task.",
+          "files": [
+            "assets/viewer/viewer.js",
+            "assets/viewer/viewer.css",
+            "assets/viewer/template.html",
+            "tests/viewer.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/viewer.test.mjs: the rendered golden HTML has tabs for graph, ER, sequences, CRUD, deployment and trust; the ER tab lists every golden entity with PK/FK markers and provenance classes; the CRUD matrix has one cell per golden access row; evidence chips link to repoUrl/blob/<commit>/<path>#L<start>-L<end>; the BFS path finder (exported pure helper) returns the shortest node path on the golden graph"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P2.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P2.5",
+          "title": "Visual check of the golden render with Playwright",
+          "status": "pending",
+          "description": "Design section 10 \"Visual\": Playwright screenshots of every tab (light and dark, desktop and 400 px) of the golden render,\nwith no console errors. Use the project skill webapp-testing (Python Playwright).\n- Python Playwright is not installed globally. Use a gitignored venv at .venv/ (add `.venv/` and `tests/visual/out/` to\n  .gitignore): python3 -m venv .venv && .venv/bin/pip install playwright. Chromium browsers are already in the local\n  ms-playwright cache; only run `playwright install chromium` if launch fails.\n- tests/visual/screenshots.py: run `node scripts/layout.mjs` + `node scripts/render.mjs` on tests/fixtures/golden into a\n  temp dir, then drive the HTML over file:// (offline; also assert no network request leaves the page). Screenshots go to\n  tests/visual/out/ (gitignored). Exit 1 on any console error, page error or failed/external request.\n- This check is local, not part of `node --test` and not in CI (no browser there). tests/visual/README.md says how to run it.\n- Run it, look at the screenshots yourself (Read the PNGs), and report anything visibly broken: overlapping nodes, edges\n  through cards, unreadable dark mode, clipped panels at 400 px. Fix real rendering bugs in assets/viewer/ only if small;\n  otherwise report them for a follow-up task.",
+          "files": [
+            "tests/visual/screenshots.py",
+            "tests/visual/README.md",
+            ".gitignore"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/visual/screenshots.py: renders the golden model (clean and internal), opens it via file:// in headless Chromium, and for every tab in light and dark at 1440 px and 400 px saves a screenshot and asserts zero console errors and zero failed requests; exits non-zero on any error"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "webapp-testing"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P2.4"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
       "area": [
         "viewer",
         "layout"
@@ -480,7 +690,172 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P3.1",
+          "title": "prescan.mjs core: inventory, stack detection, area partitioning, generic recipe",
+          "status": "pending",
+          "description": "prescan is the 0-token first step of /archmap:build (design sections 6 and 8). Write the core; stack extractors come in\nP3.2-P3.4 as plug-ins with a common interface (detect(inventory) -> bool, extract(files, read) -> fragment).\nCLI: node scripts/prescan.mjs <repoDir> [--scope <path>] [--out <file>] -> JSON\n{schemaVersion, repo, commit (git rev-parse HEAD), stacks[], areas[{id, title, globs[], files, stacks[]}],\n sources[{kind: sqlite|duckdb|..., path, status: found|skipped, reason?}], extracts{<stackId>: fragment}}.\n- Inventory: `git ls-files -co --exclude-standard`; skip vendored/generated dirs (node_modules, dist, build, .venv, ...),\n  binaries and files over a size cap.\n- Partition into <= 8 areas along app/package boundaries (monorepo workspaces, top-level apps, backend vs frontend),\n  merging small leftovers. Areas are what the explorer agents get one each.\n- Generic recipe: entry points, top-level dirs, Dockerfiles/compose and CI files listed as hints for any stack.\n- DB files (*.sqlite, *.db, *.duckdb) are only LISTED here; introspection happens later and never reads rows.\n- Deterministic: sorted everywhere, no timestamps in output.\nFixture repos live under tests/fixtures/repos/ and are tiny and FICTIONAL (repo is public). Build test repos with\n`git init` in os.tmpdir() from those fixture trees.",
+          "files": [
+            "scripts/prescan.mjs",
+            "scripts/lib/prescan/inventory.mjs",
+            "scripts/lib/prescan/partition.mjs",
+            "scripts/lib/prescan/generic.mjs",
+            "tests/prescan-core.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-core.test.mjs: on a small mixed fixture repo, prescan lists files via git ls-files (respecting .gitignore), detects stacks from manifests (pyproject/requirements, package.json deps), partitions into at most 8 areas with disjoint globs that cover every source file, finds SQLite/DuckDB files and records them in sources, and its JSON output is byte-identical across runs"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P3.2",
+          "title": "Python backend extractor (FastAPI, Django, Flask; SQLAlchemy, Pydantic, Alembic)",
+          "status": "pending",
+          "description": "Implement the python stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes with method and path from FastAPI/Flask decorators and Django urls, SQLAlchemy/Django model entities with fields, PK/FK and types, Alembic migration ops, Pydantic schemas, raw SQL table names, and outbound HTTP calls.\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/python-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
+          "files": [
+            "scripts/lib/prescan/python.mjs",
+            "tests/fixtures/repos/python-api/README.md",
+            "tests/prescan-python.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-python.test.mjs: on the fictional fixture repo, the extractor finds routes with method and path from FastAPI/Flask decorators and Django urls, SQLAlchemy/Django model entities with fields, PK/FK and types, Alembic migration ops, Pydantic schemas, raw SQL table names, and outbound HTTP calls; every extracted item carries path and line evidence; nothing is executed or imported from the scanned repo"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P3.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P3.3",
+          "title": "TS frontend extractor (React, Next.js, React Native; routers; RTK Query, React Query, Redux, Zustand; axios/fetch)",
+          "status": "pending",
+          "description": "Implement the ts-frontend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: pages/routes from React Router, Next.js app/pages dirs and React Navigation, state stores (Redux slices, Zustand, RTK Query endpoints, React Query keys) and API calls (axios/fetch/RTK Query) with method and path.\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/ts-web/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
+          "files": [
+            "scripts/lib/prescan/ts-frontend.mjs",
+            "tests/fixtures/repos/ts-web/README.md",
+            "tests/prescan-ts-frontend.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-ts-frontend.test.mjs: on the fictional fixture repo, the extractor finds pages/routes from React Router, Next.js app/pages dirs and React Navigation, state stores (Redux slices, Zustand, RTK Query endpoints, React Query keys) and API calls (axios/fetch/RTK Query) with method and path; every extracted item carries path and line evidence; nothing is executed or imported from the scanned repo"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P3.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P3.4",
+          "title": "Node backend extractor (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ)",
+          "status": "pending",
+          "description": "Implement the node-backend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async).\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/node-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
+          "files": [
+            "scripts/lib/prescan/node-backend.mjs",
+            "tests/fixtures/repos/node-api/README.md",
+            "tests/prescan-node-backend.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-node-backend.test.mjs: on the fictional fixture repo, the extractor finds routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async); every extracted item carries path and line evidence; nothing is executed or imported from the scanned repo"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "node"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P3.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
       "area": "prescan"
     },
     {
@@ -682,6 +1057,93 @@
     ],
     "tests/golden.test.mjs": [
       "P1.3"
+    ],
+    "tests/denylist.test.mjs": [
+      "P2.1"
+    ],
+    "assets/viewer/elk.bundled.js": [
+      "P2.2"
+    ],
+    "assets/viewer/ELK-NOTICE.md": [
+      "P2.2"
+    ],
+    "scripts/layout.mjs": [
+      "P2.2"
+    ],
+    "tests/layout.test.mjs": [
+      "P2.2"
+    ],
+    "assets/viewer/template.html": [
+      "P2.3",
+      "P2.4"
+    ],
+    "assets/viewer/viewer.css": [
+      "P2.3",
+      "P2.4"
+    ],
+    "assets/viewer/viewer.js": [
+      "P2.3",
+      "P2.4"
+    ],
+    "scripts/render.mjs": [
+      "P2.3"
+    ],
+    "tests/render.test.mjs": [
+      "P2.3"
+    ],
+    "tests/viewer.test.mjs": [
+      "P2.4"
+    ],
+    "tests/visual/screenshots.py": [
+      "P2.5"
+    ],
+    "tests/visual/README.md": [
+      "P2.5"
+    ],
+    ".gitignore": [
+      "P2.5"
+    ],
+    "scripts/prescan.mjs": [
+      "P3.1"
+    ],
+    "scripts/lib/prescan/inventory.mjs": [
+      "P3.1"
+    ],
+    "scripts/lib/prescan/partition.mjs": [
+      "P3.1"
+    ],
+    "scripts/lib/prescan/generic.mjs": [
+      "P3.1"
+    ],
+    "tests/prescan-core.test.mjs": [
+      "P3.1"
+    ],
+    "scripts/lib/prescan/python.mjs": [
+      "P3.2"
+    ],
+    "tests/fixtures/repos/python-api/README.md": [
+      "P3.2"
+    ],
+    "tests/prescan-python.test.mjs": [
+      "P3.2"
+    ],
+    "scripts/lib/prescan/ts-frontend.mjs": [
+      "P3.3"
+    ],
+    "tests/fixtures/repos/ts-web/README.md": [
+      "P3.3"
+    ],
+    "tests/prescan-ts-frontend.test.mjs": [
+      "P3.3"
+    ],
+    "scripts/lib/prescan/node-backend.mjs": [
+      "P3.4"
+    ],
+    "tests/fixtures/repos/node-api/README.md": [
+      "P3.4"
+    ],
+    "tests/prescan-node-backend.test.mjs": [
+      "P3.4"
     ]
   },
   "bugs": []
