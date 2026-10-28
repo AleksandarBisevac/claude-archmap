@@ -1,0 +1,262 @@
+{
+  "meta": {
+    "version": 2,
+    "repo": "claude-archmap",
+    "developmentBranch": "main",
+    "branchPrefix": "audit",
+    "gitRoot": ".",
+    "buildCommands": {
+      "test": "node --test"
+    },
+    "createdISO": "2026-10-28T10:12:24Z",
+    "title": "archmap v1 build plan",
+    "commit": {
+      "type": "feat",
+      "coauthor": "Claude Opus 5.5 <noreply@anthropic.com>"
+    }
+  },
+  "phases": [
+    {
+      "id": "P1",
+      "title": "Model schemas, validator and golden fixture",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "JSON Schemas for model, issues and theme; validate.mjs rejects dangling ids and missing evidence and checks evidence paths at meta.commit; an anonymised golden model validates.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": "model"
+    },
+    {
+      "id": "P2",
+      "title": "Viewer port, ELK layout and renderer",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "assets/viewer is driven by the model; layout.mjs (vendored elkjs) is deterministic, seeded and honours pins; render.mjs builds clean, internal and shared HTML; the golden render matches the reference in Playwright screenshots of every tab, light and dark, desktop and 400 px, with no console errors.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P1"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": [
+        "viewer",
+        "layout"
+      ]
+    },
+    {
+      "id": "P3",
+      "title": "Deterministic pre-scan for the v1 stacks",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "prescan.mjs partitions a repo into at most 8 areas and extracts routes, ORM entities, migrations and client calls for the Python, TS frontend and Node backend stacks, tested on small fixture repos, at 0 tokens.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P1"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": "prescan"
+    },
+    {
+      "id": "P4",
+      "title": "architecture-map skill and agents",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "SKILL.md (500 lines or fewer) and its references define the workflow, model contract, evidence and token rules; archmap-explorer, archmap-synthesizer and archmap-reviewer agents pass claude plugin validate with their model and effort frontmatter.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P1",
+        "P3"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": [
+        "skill",
+        "agents"
+      ]
+    },
+    {
+      "id": "P5",
+      "title": "Commands, merge, diffmap and usage ledger",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "build, update, render and export commands run end to end; merge.mjs preserves user-authored fields; diffmap.mjs maps changed files to nodes and their dependents; the usage ledger prints per-phase tokens and duration.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": [
+        "commands",
+        "merge",
+        "diffmap"
+      ]
+    },
+    {
+      "id": "P6",
+      "title": "Staleness hook, check and issues overlay",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "The SessionStart hook prints one line for a stale model, nothing otherwise, and always exits 0; /archmap:check returns 0 or 1; the reviewer and issues.mjs (with audit import, legacy findings included) write the overlay outside the repo, and the clean render contains no issue text.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P5"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": [
+        "hooks",
+        "issues"
+      ]
+    },
+    {
+      "id": "P7",
+      "title": "Exporters",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "export.mjs writes Mermaid flowchart, erDiagram and sequenceDiagram, PlantUML, Markdown and SVG from the golden model, and PNG when headless Chromium is present.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P1",
+        "P2"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": "export"
+    },
+    {
+      "id": "P8",
+      "title": "Skill evals and trigger description",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "skill-creator evals 1-5 run with and without the skill and are reviewed by the owner; issue recall is at least 60 percent of high and medium reference issues; balanced is cheaper than max; the trigger description is optimised with run_loop.",
+      "testGate": [],
+      "blockedBy": [
+        "P5",
+        "P6"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": "evals"
+    },
+    {
+      "id": "P9",
+      "title": "Release v1.0.0 and roadmap",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "Version 1.0.0 tagged in this repo with a changelog entry, the marketplace listing description updated, and docs/roadmap.md covering v1.1 and later.",
+      "testGate": [
+        "node --test"
+      ],
+      "blockedBy": [
+        "P7",
+        "P8"
+      ],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "area": "release"
+    }
+  ],
+  "fileIndex": {},
+  "bugs": []
+}

@@ -1,0 +1,37 @@
+{
+  "manifestPath": "docs/audit/audit-plan.json",
+  "gitRoot": ".",
+  "//exemptGlobs": "Markdown is not exempt wholesale: skills, commands and agents are .md and are this plugin's code. Only prose docs are exempt.",
+  "exemptGlobs": [
+    "docs/audit/**",
+    "docs/*.md",
+    "README.md",
+    "CHANGELOG.md",
+    ".claude/**",
+    "**/*.test.*"
+  ],
+  "trivialLineThreshold": 80,
+  "stateDir": ".claude/state",
+  "logsDir": ".claude/logs",
+  "bypassKeyword": "#no-plan",
+  "tddReminder": {
+    "enabled": true,
+    "sourceGlobs": ["scripts/**/*.mjs", "assets/viewer/**/*.js"],
+    "testGlobs": ["tests/**"],
+    "throttleMinutes": 10,
+    "inProgressPolicy": "skip-gate-only"
+  },
+  "journal": {
+    "enabled": true,
+    "dir": null,
+    "strictManifestState": "off"
+  },
+  "//usage": "The repo is public: the ledger stays local (.gitignore) and records a hashed author, never an email.",
+  "usage": {
+    "enabled": true,
+    "ledgerDir": ".claude/usage",
+    "authorMode": "hash",
+    "showCost": true,
+    "backfillOnFirstRun": true
+  }
+}

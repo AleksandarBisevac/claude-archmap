@@ -5,3 +5,7 @@ node_modules/
 *.log
 # Local Claude Code settings.
 .claude/settings.local.json
+# audit plugin: local state, logs and the usage ledger.
+.claude/state/
+.claude/logs/
+.claude/usage/
