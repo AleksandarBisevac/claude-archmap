@@ -1091,10 +1091,17 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
-        "findings": []
+        "status": "passed",
+        "findings": [],
+        "outcome": "phase review filed at head 1cb89050bbd1",
+        "readReturns": [
+          {
+            "return": "returns/P3/1cb89050bbd1763b2291ca2aa9273d3251c22063.reviewer.json",
+            "sha256": "443ce1443046be2dcc39fb162d1f2c339abef1314167bdee1d8abf114b16c9e6"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "Reviewer verdict clean, 0 findings, intent matches: prescan.mjs partitions into <=8 areas and the python, ts-frontend and node-backend extractors (wired via stacks/ in P3.5-cdj) extract routes, entities, migrations and client calls with path+line evidence from fictional fixture repos, statically, at 0 tokens. Red-first could-not-prove on every task (ERR_MODULE_NOT_FOUND, no tally the helper reads). Fixture scope for P3.2-P3.4 widened by the owner; P3.1 builds its repos in-test.",
       "tasks": [
         {
           "id": "P3.1",
@@ -1145,9 +1152,14 @@
             "at": "2026-10-28T22:14:59Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "ea2ff47032b0",
-            "at": "2026-10-28T22:14:59Z"
+            "at": "2026-10-28T22:46:59Z",
+            "return": "returns/P3/1cb89050bbd1763b2291ca2aa9273d3251c22063.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.1/20261028T221040Z.executor.json, at 2026-10-28T22:14:48Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-28T22:14:48Z",
@@ -1219,9 +1231,14 @@
             "at": "2026-10-28T22:23:40Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "1ecf441459a7",
-            "at": "2026-10-28T22:23:41Z"
+            "at": "2026-10-28T22:46:59Z",
+            "return": "returns/P3/1cb89050bbd1763b2291ca2aa9273d3251c22063.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-python.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.2/20261028T221841Z.executor.json, at 2026-10-28T22:23:27Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-28T22:23:27Z",
@@ -1301,9 +1318,14 @@
             "at": "2026-10-28T22:36:39Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "157efeb650bb",
-            "at": "2026-10-28T22:36:40Z"
+            "at": "2026-10-28T22:46:59Z",
+            "return": "returns/P3/1cb89050bbd1763b2291ca2aa9273d3251c22063.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-ts-frontend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.3/20261028T222755Z.executor.json, at 2026-10-28T22:36:19Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-28T22:36:19Z",
@@ -1377,9 +1399,14 @@
             "at": "2026-10-28T22:44:08Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "07164012d730",
-            "at": "2026-10-28T22:44:08Z"
+            "at": "2026-10-28T22:46:59Z",
+            "return": "returns/P3/1cb89050bbd1763b2291ca2aa9273d3251c22063.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.4/20261028T223640Z.executor.json, at 2026-10-28T22:43:55Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-28T22:43:55Z",
@@ -1391,7 +1418,7 @@
         {
           "id": "P3.5-cdj",
           "title": "Wire the stack extractors into the prescan CLI",
-          "status": "in_progress",
+          "status": "done",
           "description": "scripts/prescan.mjs loads plug-ins only from scripts/lib/prescan/stacks/*.mjs, but P3.2-P3.4 put python.mjs, ts-frontend.mjs and node-backend.mjs one directory up, so the real CLI runs without them. Add one-line re-exports in stacks/ (export { default } from '../<name>.mjs') for each, and a test that the CLI, run on each fixture repo under tests/fixtures/repos/, emits that stack's extract. Do not change the plug-in interface.",
           "files": [
             "scripts/lib/prescan/stacks/python.mjs",
@@ -1423,25 +1450,48 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "1cb89050bbd1",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/stacks/{python,ts-frontend,node-backend}.mjs, each the one line `export { default } from '../<name>.mjs';`. Added tests/prescan-wiring.test.mjs: pw1-pw3 spawn scripts/prescan.mjs (default loader, no extractors option) on python-api, ts-web, node-api fixtures and assert extracts.<stack> exists, has no error, has >=1 item, and the stack is listed; pw4 asserts the shims are exact one-line re-exports resolving to the same plug-in object. Red first: 4/4 failed; after: 4/4 pass; full `node --test` 107 pass / 0 fail. Plug-in interface unchanged. Dependants: the three ../<name>.mjs plug-ins, tests/prescan-{python,ts-frontend,node-backend}.test.mjs and fixture READMEs import/mention the originals directly, which are untouched, so still correct; tests/prescan-wiring.test.mjs has no dependants.",
+            "descriptive": "The real prescan CLI now runs the Python, TS frontend and Node backend extractors, not just the generic recipe."
           },
           "startedAt": "2026-10-28T22:44:09Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:45:08Z",
+          "verifiedBy": [
+            "CLI-on-fixture wiring cases for each of the three stacks plus a re-export identity case"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:45:08Z.abf8a8",
             "status": "passed",
             "at": "2026-10-28T22:45:08Z"
+          },
+          "intentCheck": {
+            "commit": "1cb89050bbd1",
+            "at": "2026-10-28T22:46:59Z",
+            "return": "returns/P3/1cb89050bbd1763b2291ca2aa9273d3251c22063.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: python.mjs missing in stacks/; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.5-cdj/20261028T224409Z.executor.json, at 2026-10-28T22:44:56Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:44:56Z",
+            "basis": "`node --test tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: python.mjs missing in stacks/; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
       "area": "prescan",
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-28T22:10:40Z"
+      "startedAt": "2026-10-28T22:10:40Z",
+      "testEvidence": {
+        "runId": "2026-10-28T22:46:59Z.5382fe",
+        "status": "passed",
+        "at": "2026-10-28T22:46:59Z"
+      }
     },
     {
       "id": "P4",

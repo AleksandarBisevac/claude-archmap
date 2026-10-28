@@ -1,0 +1,125 @@
+{
+  "findings": [],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Against desiredOutcome (prescan.mjs partitions a repo into at most 8 areas and extracts routes, ORM entities, migrations and client calls for the Python, TS frontend and Node backend stacks, tested on small fixture repos, at 0 tokens): scripts/prescan.mjs plus inventory/partition/generic build a sorted, timestamp-free JSON; partition() caps at MAX_AREAS=8 by merging the two smallest areas (partition.mjs). python.mjs, ts-frontend.mjs and node-backend.mjs extract routes, entities, migrations (Alembic), client calls (httpCalls/apiCalls) with {path,lines} evidence. The three stacks/*.mjs shims make the CLI load them by default. No LLM calls, no network, no import/eval/spawn of scanned code (grep of the three extractors finds the only matches in their header comments); the only child process is execFileSync('git', [...]) with an argument array. archmap-review mechanical scan: 19 leads, all rule 2-deps on tests/fixtures/repos/** import lines or a string literal in prescan-core.test.mjs (fictional fixture content read as text, never run), denylist checked with no hit, no nondeterminism or post-Node-18 API leads. Fixture repos are fictional (Inkwell Books, Fleetwise, a bookshop) and carry README test-fixture notes; import-time canaries (sidefx.*) are asserted never executed. Executor claims describe the diffs. Limits the executors themselves disclosed (Express .route() chains counted as skipped, Nest @InjectQueue not recognised) are within the 'unknown patterns skipped and counted' clause.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "mode: phase owes no red-first of its own; the per-task redFirst words are computed by the filing verb (could-not-prove, each basis being an ERR_MODULE_NOT_FOUND or a missing-file assertion with no test tally the helper reads) and are left to it.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the single literal command `node --test`, which runs the whole project's suite, so the question has no bounded selection to ask about."
+  },
+  "verdict": "clean",
+  "tasks": [
+    {
+      "id": "P3.1",
+      "commit": "ea2ff47032b0",
+      "answer": "matches",
+      "note": "Description clauses vs diff: CLI `<repoDir> [--scope] [--out]` and the {schemaVersion, repo, commit, stacks, areas, sources, extracts} shape are in prescan.mjs; inventory uses `git ls-files -co --exclude-standard -z` via execFileSync, skips SKIP_DIRS/binaries/lockfiles/minified/over 512KiB; partition.mjs caps at 8 with disjoint globs (dir/**, dir/*, *), container expansion, small-leftover merge; genericRecipe lists entryPoints/topLevelDirs/containers/ci/manifests; DB files are only lstat-ed and listed (inventory.mjs never opens them); everything sorted with byCodeUnit and no timestamps. Executor claim matches the diff. One small drift: the description says to build test repos 'from those fixture trees' under tests/fixtures/repos/, but the tests build repos inline from in-test file maps; the executor disclosed this (fixture path outside the task files) and it does not change the behaviour tested. The recorded gate run reports NO OVERLAP for this task's files, but it passed over the whole suite.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.1/20261028T221040Z.executor.json, at 2026-10-28T22:14:48Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P3.2",
+      "commit": "1ecf441459a7",
+      "answer": "matches",
+      "note": "python.mjs covers every listed pattern (FastAPI/Flask decorators with router/blueprint prefixes, Django urls, SQLAlchemy/Django entities with type/pk/fk, Pydantic schemas, Alembic ops, raw SQL tables, outbound HTTP calls), each item with evidence [{path, lines}], sorted by path then line, capped at 300 per kind with a truncated tally, and unresolvable shapes counted in `skipped`. Static text lexing only; no import/eval/spawn. Fixture is a fictional bookshop with a README and an import-time canary that py8 asserts is never run. Executor claim matches, and it disclosed that the CLI does not yet auto-load the plug-in (closed by P3.5-cdj).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-python.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.2/20261028T221841Z.executor.json, at 2026-10-28T22:23:27Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P3.3",
+      "commit": "157efeb650bb",
+      "answer": "matches",
+      "note": "ts-frontend.mjs extracts React Router (JSX and data-router objects), Next.js app/pages routes gated on the nearest package.json depending on next, React Navigation screens, Redux slices, Zustand stores, RTK Query endpoints, React Query keys, and fetch/axios/RTK Query calls with method and path, with evidence, sorting, per-kind cap and skipped tally. Fictional fleet-tracker fixture with README and canary. Executor claim matches the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-ts-frontend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.3/20261028T222755Z.executor.json, at 2026-10-28T22:36:19Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P3.4",
+      "commit": "07164012d730",
+      "answer": "matches",
+      "note": "node-backend.mjs extracts NestJS controllers (with setGlobalPrefix applied only when unambiguous), Express/Hono routers including cross-file mounts, Prisma/TypeORM/Drizzle entities with pk/fk/relations, OpenAPI YAML/JSON documents, and BullMQ queues with producers and workers; evidence, sorting, cap and skipped as required. Fictional Inkwell Books fixture with README and canary. Executor claim matches and discloses its limits (Express .route() chains skipped, Nest @InjectQueue unrecognised), consistent with 'unknown patterns skipped and counted'.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.4/20261028T223640Z.executor.json, at 2026-10-28T22:43:55Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P3.5-cdj",
+      "commit": "1cb89050bbd1",
+      "answer": "matches",
+      "note": "Three one-line `export { default } from '../<name>.mjs';` shims in scripts/lib/prescan/stacks/ (read in the tree), no change to the plug-in interface. tests/prescan-wiring.test.mjs pw1-pw3 spawn the real CLI on each fixture repo with the default loader and require extracts.<stack> present, no error, at least one array item and the stack listed; pw4 pins the shim text and object identity. Matches the description and the executor's claim.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: python.mjs missing in stacks/; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P3.5-cdj/20261028T224409Z.executor.json, at 2026-10-28T22:44:56Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P3.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P3.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P3.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P3.4": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P3.5-cdj": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P3.1",
+      "commit": "ea2ff47032b0"
+    },
+    {
+      "id": "P3.2",
+      "commit": "1ecf441459a7"
+    },
+    {
+      "id": "P3.3",
+      "commit": "157efeb650bb"
+    },
+    {
+      "id": "P3.4",
+      "commit": "07164012d730"
+    },
+    {
+      "id": "P3.5-cdj",
+      "commit": "1cb89050bbd1"
+    }
+  ]
+}
