@@ -1315,7 +1315,7 @@
         {
           "id": "P3.4",
           "title": "Node backend extractor (NestJS, Express, Hono; Prisma, TypeORM, Drizzle; OpenAPI; BullMQ)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement the node-backend stack plug-in for prescan (interface from P3.1). Static, regex/lightweight-parse extraction only:\nnever import, require or execute code from the scanned repo, never read DB rows. Output a size-capped fragment with\n{path, lines} evidence on every item, sorted and deterministic.\nExtract: routes from NestJS controllers, Express and Hono routers, Prisma/TypeORM/Drizzle entities with fields, PK/FK and relations, OpenAPI documents, and BullMQ queues with producers and workers (async).\nFixture: a tiny, FICTIONAL repo under tests/fixtures/repos/node-api/ (repo is public; invent names, e.g. a bookshop or a fleet tracker),\nwith one realistic example of each pattern listed above, plus a README.md saying it is a test fixture.\nUnknown patterns are skipped silently and counted in the fragment's \"skipped\" tally, never guessed.",
           "files": [
             "scripts/lib/prescan/node-backend.mjs",
@@ -1360,25 +1360,38 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "07164012d730",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/node-backend.mjs (named extractNodeBackend + default plug-in {id:'node-backend', detect via generic detectStacks, extract}). Static lex (comments blanked, strings masked) + regex/bracket-matching extraction: NestJS controllers (class/method decorators, array paths, @Controller({path}), one literal setGlobalPrefix applied, ambiguous prefixes not applied), Express/Hono routers incl. .on/.all and app.use/app.route mounts resolved across relative imports (multi-mount yields a route per prefix), Prisma models (@@map, @id/@@id, @relation fields/references), TypeORM entities (columns, PK, ManyToOne+JoinColumn FK, relations), Drizzle pg/mysql/sqlite tables with references() FK and relations(), OpenAPI YAML (indent parser) and JSON docs, BullMQ Queue/Worker/add/addBulk with names resolved through single-literal constants imported across files. Unresolved shapes counted in skipped{entities,openapi,queues,routes}; per-kind cap 300 with truncated tally; sorted by path then line; no import/eval/spawn. Built fixture tests/fixtures/repos/node-api/ (17 files, fictional Inkwell Books, README says test fixture, src/sidefx.ts canary). Added tests/prescan-node-backend.test.mjs (nb1..nb8). Ran `node --test tests/prescan-node-backend.test.mjs` -> 8 pass 0 fail; full `node --test` -> 103 pass 0 fail. Dependants: README.md/package.json/sidefx.ts/main.ts/app.ts basename mentions in other tests, skills docs and generic.mjs/ts-frontend.mjs are by-basename matches on generic names (README.md, package.json, app.ts, main.ts) and still correct - nothing imports or references the new fixture paths, and generic.mjs's BACKEND_DEPS already makes the fixture's package.json detect as node-backend only (verified by nb8: stacks == ['node-backend']). Files with no dependants (module, test, controller, module, router, prisma schema) are unchanged-by-others. Limits worth noting: Express .route(path).get() chains are counted skipped not followed; BullMQ via Nest @InjectQueue/registerQueue not recognised; JSON OpenAPI evidence is single-line per operation.",
+            "descriptive": "prescan gains a zero-token Node backend extractor (routes, ORM entities, OpenAPI, BullMQ) with a fictional fixture and 8 passing cases."
           },
           "startedAt": "2026-10-28T22:36:40Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T22:44:08Z",
+          "verifiedBy": [
+            "nb1-nb8 in tests/prescan-node-backend.test.mjs: routes across NestJS/Express/Hono, Prisma/TypeORM/Drizzle entities, OpenAPI, BullMQ queues, evidence/sort/determinism, skipped/truncated/cap, mount/prefix resolution, no-execution + prescan integration"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T22:44:08Z.3de829",
             "status": "passed",
             "at": "2026-10-28T22:44:08Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "07164012d730",
+            "at": "2026-10-28T22:44:08Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T22:43:55Z",
+            "basis": "`node --test tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P3.5-cdj",
           "title": "Wire the stack extractors into the prescan CLI",
-          "status": "pending",
+          "status": "in_progress",
           "description": "scripts/prescan.mjs loads plug-ins only from scripts/lib/prescan/stacks/*.mjs, but P3.2-P3.4 put python.mjs, ts-frontend.mjs and node-backend.mjs one directory up, so the real CLI runs without them. Add one-line re-exports in stacks/ (export { default } from '../<name>.mjs') for each, and a test that the CLI, run on each fixture repo under tests/fixtures/repos/, emits that stack's extract. Do not change the plug-in interface.",
           "files": [
             "scripts/lib/prescan/stacks/python.mjs",
@@ -1408,16 +1421,22 @@
             "P3.3",
             "P3.4"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T22:44:09Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:45:08Z.abf8a8",
+            "status": "passed",
+            "at": "2026-10-28T22:45:08Z"
+          }
         }
       ],
       "area": "prescan",

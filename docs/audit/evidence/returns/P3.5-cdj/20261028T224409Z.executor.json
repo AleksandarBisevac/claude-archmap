@@ -1,0 +1,28 @@
+{
+  "gates": {
+    "node --test tests/prescan-wiring.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T22:44:56Z",
+    "basis": "`node --test tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: python.mjs missing in stacks/; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/prescan/stacks/{python,ts-frontend,node-backend}.mjs, each the one line `export { default } from '../<name>.mjs';`. Added tests/prescan-wiring.test.mjs: pw1-pw3 spawn scripts/prescan.mjs (default loader, no extractors option) on python-api, ts-web, node-api fixtures and assert extracts.<stack> exists, has no error, has >=1 item, and the stack is listed; pw4 asserts the shims are exact one-line re-exports resolving to the same plug-in object. Red first: 4/4 failed; after: 4/4 pass; full `node --test` 107 pass / 0 fail. Plug-in interface unchanged. Dependants: the three ../<name>.mjs plug-ins, tests/prescan-{python,ts-frontend,node-backend}.test.mjs and fixture READMEs import/mention the originals directly, which are untouched, so still correct; tests/prescan-wiring.test.mjs has no dependants.",
+    "descriptive": "The real prescan CLI now runs the Python, TS frontend and Node backend extractors, not just the generic recipe."
+  },
+  "testsAdded": [
+    "CLI-on-fixture wiring cases for each of the three stacks plus a re-export identity case"
+  ],
+  "casesAdded": [
+    [
+      "pw1",
+      "pw2",
+      "pw3"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:761c31ef77719919e29c5cb85dcccb7f1fc2c541099979fa1cf670e154241b5e\",\"dirtyDigest\":\"sha256:aea550827cb5c1110f9676c07be903639f80566b1edc7555bd380cf806a35f76\",\"dirtyPaths\":{\"scripts/lib/prescan/stacks/node-backend.mjs\":\"ed79911f1854f64e\",\"scripts/lib/prescan/stacks/python.mjs\":\"232adc3e26e74ee8\",\"scripts/lib/prescan/stacks/ts-frontend.mjs\":\"db1644c0634d3219\",\"tests/prescan-wiring.test.mjs\":\"2126f91a40bdb184\"},\"head\":\"0716401\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/stacks/node-backend.mjs\",\"scripts/lib/prescan/stacks/python.mjs\",\"scripts/lib/prescan/stacks/ts-frontend.mjs\",\"tests/prescan-wiring.test.mjs\"],\"scopeDigest\":\"sha256:fb1d2e86056966b8e2b6c3dcb52622be438d758817a1fbdfe1aac68b399acd4a\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
