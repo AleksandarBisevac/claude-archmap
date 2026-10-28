@@ -1,0 +1,104 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "scripts/validate.mjs:132-135",
+      "issue": "Referential integrity does not check sequences[].participants[].zone. The model schema (schema/archmap-model.schema.json participant.zone, design section 5 participants[{..., zone, node?}]) makes it a zone id, but checkIntegrity only resolves participant.node (line 133). A dangling participant zone validates clean. P1.2's description lists only 'sequence participant node', so this is a gap in the spec as well as the code, not a contradiction of a task clause.",
+      "resolution": "Add ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone') beside the node check, with a case in tests/validate.test.mjs and a golden-model run to confirm every participant zone in tests/fixtures/golden/architecture.model.json resolves (a script run found none dangling)."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "tests/schema.test.mjs:30-61",
+      "issue": "tests/schema.test.mjs carries its own second JSON Schema interpreter (check) alongside scripts/lib/jsonschema.mjs, added one task later. s5, s7, s8, s9, s10, s11 and s12 assert schema behaviour through the test's copy, not through the interpreter validate.mjs ships. The two can drift: for example check() on an unknown type throws a TypeError where validateSchema throws a clear error, and check() ignores $ref inside oneOf the same way only by coincidence. A schema change that the shipped interpreter rejects could still pass these tests.",
+      "resolution": "Replace check() with validateSchema from scripts/lib/jsonschema.mjs (error list is empty means valid), so the schema tests exercise the interpreter the validator uses. The keyword-subset walk (KEYWORDS) can stay."
+    }
+  ],
+  "preExisting": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "docs/design.md:55,224",
+      "issue": "This PUBLIC repo's tracked docs/design.md matches two terms of .private/anonymise-denylist.txt (3 lines: 55, 224, and 55 again for the second term; terms deliberately not quoted). The file arrived in scaffold commit 6ec1fcd, before this phase, and no P1 task touches it. The tracked P1 fixture files themselves have zero hits (checked: every non-empty denylist term, case-insensitive fixed-string, over git ls-files). Also docs/design.md still says the golden model is derived from the reference artifact (section 9 step 1), which the owner's 2026-10-28 note on P1.3 supersedes.",
+      "resolution": "Reword docs/design.md lines 55 and 224 to the generic names and restate step 1 as a hand-written, fully fictional fixture; decide separately whether the history of 6ec1fcd needs attention."
+    }
+  ],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome: 'JSON Schemas for model, issues and theme; validate.mjs rejects dangling ids and missing evidence and checks evidence paths at meta.commit; an anonymised golden model validates.' The diff adds the three draft 2020-12 schemas using only the agreed keyword subset (no additionalProperties anywhere, evidence minItems 1 on nodes, edges and issues, ops pattern for a non-empty CRUD subset, oneOf step grammar and anchors); scripts/lib/jsonschema.mjs plus scripts/validate.mjs (schema, duplicate-id, dangling-ref, evidence-lines-malformed, evidence-path-missing, evidence-lines-out-of-range, commit-missing; evidence 'skipped' stated explicitly without --repo; exit 0/1/2); and a fully fictional 34-node golden model (Northwind Freight) plus 6 issues that validate with zero findings (I ran tests/golden.test.mjs once: 7/7 pass). P1.3 deviates from its description's literal name and URL ('Northwind Insights', northwind-insights) in favour of 'Northwind Freight', which the owner's note on P1.3 (invented logistics app, reference not to be read) allows, so I do not count it a divergence. Executor claims: P1.1 and P1.2 describe their diffs accurately. P1.3's claim says the existing fixture was reviewed and left unchanged with only a test wording fix; that is true of the working tree, but the commit under review adds all three files (fixture, issues, golden test) new, so the claim understates what this diff contains.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level: the brief fixes intent.redFirst at not-attempted for mode phase. Per task: P1.1 and P1.2 were could-not-prove (red-first helper, computed: output carried no test tally, ENOENT / ERR_MODULE_NOT_FOUND); P1.3 is mode regression with expectRedFirst false.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test` (gateBasis phase-no-spelling), which runs the whole project's tests/*.test.mjs, so the question has no narrower bound. Not widened."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P1.1",
+      "commit": "562c31c622ba",
+      "answer": "matches",
+      "note": "Clauses checked against the diff: 'draft 2020-12' and $id on all three (schema/*.schema.json lines 2-3); edge type enum of 12 values, confidence, optional foundBy, evidence {path, lines} with lines pattern ^[0-9]+(-[0-9]+)?$ (archmap-model.schema.json edge/evidence defs); access ops pattern ^(?!.*(.).*\\1)[CRUD]+$; step grammar as oneOf message/fragment/note; issue anchor oneOf of four single-key shapes; theme limited to fonts, chrome, accent; no additionalProperties; only the listed keywords. The executor's outcome describes this accurately, including its two open decisions (model requires meta, zones, nodes, edges; accent is #rrggbb). Low-severity finding 2 concerns the test's duplicate interpreter.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/schema.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop (the red-first helper's block in returns/P1.1/20261028T121347Z.executor.json, at 2026-10-28T12:16:18Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P1.2",
+      "commit": "b2dae4796700",
+      "answer": "matches",
+      "note": "scripts/lib/jsonschema.mjs implements exactly type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf and local $defs $ref with JSON-pointer errors; scripts/validate.mjs exports validate(model,{issues,repo}) returning {ok, findings, evidence}, covers the listed integrity references (zone.parent, node.zone, edge ends, entity.store, fk, relations, access, participant node, step m[]/note ids, step i only with issues, view filters, issue anchors incl. seqId:stepIndex, duplicates), checks evidence via git cat-file -e <commit>:<path> and a blob line count only with --repo, states 'skipped' otherwise, and exits 0/1/2. I opened every changed function. The claim matches the diff; the executor honestly notes it did not capture the exit code of its run (the recorded gate shows exit 0). Gap: participant.zone is not checked (finding 1, outside the description's list).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/validate.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop (the red-first helper's block in returns/P1.2/20261028T121633Z.executor.json, at 2026-10-28T12:23:39Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P1.3",
+      "commit": "178ccba0356c",
+      "answer": "matches",
+      "note": "Description clauses: fictional project, generic paths, repoUrl on example.invalid, fixed fake 40-hex commit, 6-8 synthetic issues one per category with empty detail, rich coverage (all 7 zone kinds, levels 1-3, async event/queue edges, CRUD rows, inferred name-convention relations, 7 sequences, full step grammar), validated without --repo, and a denylist grep with zero hits. All hold in the diff (tests/golden.test.mjs g1-g7; model 768 lines, issues.json 6 issues anchored to edge, entity, step and node). I re-ran the denylist over all tracked files: zero hits in the P1.3 files. Deviations: name/URL are 'Northwind Freight'/northwind-freight rather than the description's 'Northwind Insights'/northwind-insights, authorised by the owner's note on P1.3; the description's 'derive from .private/reference' is superseded by that note. The claim understates the diff (see intent.note) but is otherwise accurate. Recorded run says NO OVERLAP between the gate and the task's files; `node --test` does select tests/golden.test.mjs, which I ran once and which passed 7/7.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The executor filed not-attempted: the manifest records P1.3 as mode regression with expectRedFirst false, so the mode owes no red run. Basis quoted: 'Regression task with expectRedFirst false... On HEAD the test file would fail at import because the fixture files do not exist, which is a load error, not an assertion failure.' It holds; no red was seen and none was owed.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P1.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P1.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P1.3": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P1.1",
+      "commit": "562c31c622ba"
+    },
+    {
+      "id": "P1.2",
+      "commit": "b2dae4796700"
+    },
+    {
+      "id": "P1.3",
+      "commit": "178ccba0356c"
+    }
+  ]
+}

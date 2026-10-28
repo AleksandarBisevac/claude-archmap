@@ -135,6 +135,7 @@ function checkIntegrity(model, issues, add) {
     const parts = ids(s.participants);
     list(s.participants).forEach((p, j) => {
       if (isObj(p) && p.node !== undefined) ref(nodes, p.node, `/sequences/${i}/participants/${j}/node`, 'node');
+      if (isObj(p) && p.zone !== undefined) ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone');
     });
     list(s.steps).forEach((st, j) => {
       if (!isObj(st)) return;

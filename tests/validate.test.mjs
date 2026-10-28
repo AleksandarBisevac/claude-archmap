@@ -374,3 +374,19 @@ test('v21 exit 2 on usage errors and unreadable input', () => {
   assert.equal(run([ok, '--issues', join(work, 'nope.json')]).status, 2, 'unreadable issues file');
   assert.equal(run([ok, '--repo', join(work, 'not-a-dir')]).status, 2, 'repo is not a directory');
 });
+
+test('v22 rejects a dangling sequence participant zone and accepts a resolving one', () => {
+  const ok = baseModel();
+  ok.sequences[0].participants[0].zone = 'web';
+  const okRes = validate(ok);
+  assert.deepEqual(okRes.findings, []);
+  assert.equal(okRes.ok, true);
+
+  const m = baseModel();
+  m.sequences[0].participants[0].zone = 'nozone';
+  m.sequences[0].participants[1].zone = 'api';
+  const res = validate(m);
+  assert.equal(res.ok, false);
+  assert.ok(find(res, 'dangling-ref', '/sequences/0/participants/0/zone'));
+  assert.equal(find(res, 'dangling-ref', '/sequences/0/participants/1/zone'), undefined);
+});

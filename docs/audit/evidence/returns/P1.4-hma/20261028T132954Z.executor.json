@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/validate.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T13:30:37Z",
+    "basis": "`node --test tests/validate.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone') beside the participant node check in scripts/validate.mjs (checkIntegrity). Added case v22 to tests/validate.test.mjs: a resolving zone validates clean; a dangling zone yields dangling-ref at /sequences/0/participants/0/zone and a resolving sibling yields none. Golden run: `node scripts/validate.mjs tests/fixtures/golden/architecture.model.json` exit 0 'OK: no findings'; script check found 44 participants with a zone, 0 dangling, so the golden fixture needed no edit. `node --test` full: 43 pass, 0 fail. Dependants: tests/golden.test.mjs and tests/validate.test.mjs still correct (golden validates clean, all other cases pass); schema/archmap-issues.schema.json, tests/schema.test.mjs, docs/design.md, README.md, schema/archmap-model.schema.json only reference validate.mjs or the fixture by name and are unaffected since no schema or fixture changed; tests/fixtures/golden/architecture.model.json unchanged and still correct because every participant zone resolves. Did not read .private/.",
+    "descriptive": "Validator now rejects dangling sequence participant zones, closing the P1-R1 referential-integrity gap."
+  },
+  "testsAdded": [
+    "v22: dangling participant zone is reported at its pointer, a resolving zone validates clean"
+  ],
+  "casesAdded": [
+    "v22"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f0407c8b551029e51c529f9e39a812b04d8dd5006f9e640a38563ab7c4da764e\",\"dirtyDigest\":\"sha256:faa4b8be6f1a41450e7a15b9a9d267bc30b46f4bc14b7a1ab19380efe99c373a\",\"dirtyPaths\":{\"scripts/validate.mjs\":\"a92511e7e2613617\",\"tests/validate.test.mjs\":\"71cbd2dcb4cd11ce\"},\"head\":\"178ccba\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/validate.mjs\",\"tests/fixtures/golden/architecture.model.json\",\"tests/validate.test.mjs\"],\"scopeDigest\":\"sha256:b1bae82049b7e7550b5b5f028a015e6026de39e6a7ca89ac0bc265d64638c36d\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
