@@ -1,0 +1,30 @@
+{
+  "gates": {
+    "node --test tests/agents.test.mjs": "pass",
+    "node --test (full suite)": "pass",
+    "claude plugin validate .": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T23:03:41Z",
+    "basis": "`node --test tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: agents/archmap-explorer.md exists; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/agents.test.mjs first (cases a1-a3) and saw it fail (agents/archmap-explorer.md did not exist). Then wrote agents/archmap-explorer.md (sonnet, medium, Read/Grep/Glob/Bash; Bash limited to read-only introspection CLIs, never executes scanned code), agents/archmap-synthesizer.md and agents/archmap-reviewer.md (opus, high, Read/Grep/Glob). Each has Input, References, Output sections naming the references it reads. Results: node --test tests/agents.test.mjs 3/3 pass; node --test full suite 132 pass 0 fail; claude plugin validate . passes (only the existing ICON_MISSING directory warning). Design question 13: validate did NOT reject the effort field. However I checked in a scratch copy that validate also passes with a bogus model, bogus effort and broken YAML in an agent's frontmatter, so it does not inspect agent frontmatter at all; acceptance of effort by the runtime is therefore not proven by validate. effort is kept in all three agents. DISCREPANCY for the orchestrator: skills/architecture-map/SKILL.md (not in my files) says the synthesizer 'edits only architecture.model.json', but the design gives it only Read, Grep, Glob, so it cannot write. I made the synthesizer return one JSON object (edges, sequences, access, relations, views, notes, conflicts) that the caller merges and validates; the reviewer likewise returns the issues JSON (SKILL.md already says the caller writes issues.json). SKILL.md step 5 wording should be aligned. Dependants: the three agent files are referenced by docs/design.md by basename; still correct, since names, models, efforts and tools match design section 4 exactly. tests/agents.test.mjs has no tracked dependants.",
+    "descriptive": "Adds the three archmap agents with designed model, effort and tool frontmatter, locked by a test; plugin validate passes."
+  },
+  "testsAdded": [
+    "tests/agents.test.mjs: a1 exact frontmatter (name, model, effort, tools, key set); a2 no Edit/Write/Agent, no Bash for synthesizer and reviewer; a3 bodies have Input/Output/References sections and name their references"
+  ],
+  "casesAdded": [
+    [
+      "a1",
+      "a2",
+      "a3"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:59b7f1f315e6f6a1b32956cf0bc84cdec4792055004c8c76ffdd74a005677902\",\"dirtyDigest\":\"sha256:457f08bb87569536ad7c306c1ab03e846dbde80cada0a113775fa3e5d0219397\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"313c8c17e0895eeb\",\"agents/archmap-reviewer.md\":\"a67c26be4ef13e5e\",\"agents/archmap-synthesizer.md\":\"9fabdad214542883\",\"tests/agents.test.mjs\":\"452c9890d7d7b1e1\"},\"head\":\"22f58c6\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"agents/archmap-reviewer.md\",\"agents/archmap-synthesizer.md\",\"tests/agents.test.mjs\"],\"scopeDigest\":\"sha256:ccf58a65fa8858bf4298933a8c3807b15dfe7ab236c29341d7677b192ebf800e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
