@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0",
+  "issues": [
+    {
+      "id": "NF-01",
+      "sev": "high",
+      "category": "security",
+      "title": "Carrier callbacks are accepted without verifying who sent them",
+      "anchor": { "edge": "e-ingress-hooks" },
+      "summary": "The webhook route sits outside the token guard and checks no signature.",
+      "impact": "Tracking state can be written by any client that reaches the route.",
+      "fix": "Verify a per-carrier signature (or use mutual TLS) before the payload is parsed.",
+      "detail": "",
+      "evidence": [{ "path": "backend/app/routers/carrier_hooks.py", "lines": "14-28" }],
+      "source": "archmap"
+    },
+    {
+      "id": "NF-02",
+      "sev": "med",
+      "category": "data",
+      "title": "Tracking events have no uniqueness constraint",
+      "anchor": { "entity": "tracking_events" },
+      "summary": "Every delivered event is inserted; nothing identifies a repeat.",
+      "impact": "Redelivered callbacks create duplicate events and skew on-time reporting.",
+      "fix": "Add a unique key on the carrier's event identity and upsert instead of insert.",
+      "detail": "",
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "120-134" }],
+      "source": "archmap"
+    },
+    {
+      "id": "NF-03",
+      "sev": "high",
+      "category": "reliability",
+      "title": "Label job retries are not idempotent",
+      "anchor": { "step": "label-job:10" },
+      "summary": "A retry re-runs the whole job, including parcels that already have a label.",
+      "impact": "A transient error can lead to paying for a second label for the same parcel.",
+      "fix": "Skip parcels that already have a label key, and send an idempotency key with each purchase.",
+      "detail": "",
+      "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "30-102" }],
+      "source": "archmap"
+    },
+    {
+      "id": "NF-04",
+      "sev": "med",
+      "category": "performance",
+      "title": "Rate quotes ask carriers one after another",
+      "anchor": { "node": "rating-service" },
+      "summary": "On a cache miss, each carrier is called in sequence.",
+      "impact": "Quote latency grows with the number of carriers and the slowest response.",
+      "fix": "Call carriers concurrently with a per-carrier timeout and return the rates that arrive.",
+      "detail": "",
+      "evidence": [{ "path": "backend/app/services/rating.py", "lines": "40-72" }],
+      "source": "archmap"
+    },
+    {
+      "id": "NF-05",
+      "sev": "low",
+      "category": "design",
+      "title": "Two processes share one analytics file as writer and reader",
+      "anchor": { "node": "analytics-db" },
+      "summary": "The worker rebuilds views in the file the API reads reports from.",
+      "impact": "Report requests during the nightly rebuild fail.",
+      "fix": "Build into a new file and swap it in atomically, or serve reports from a read-only copy.",
+      "detail": "",
+      "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "10-70" }],
+      "source": "archmap"
+    },
+    {
+      "id": "NF-06",
+      "sev": "low",
+      "category": "docs",
+      "title": "The deployment guide describes a manual release",
+      "anchor": { "node": "runtime-host" },
+      "summary": "The guide's steps predate the tag-driven pipeline.",
+      "impact": "Operators follow steps the pipeline no longer uses.",
+      "fix": "Generate the deployment section from the model and remove the manual steps.",
+      "detail": "",
+      "evidence": [{ "path": "docs/deployment.md", "lines": "1-60" }],
+      "source": "archmap"
+    }
+  ]
+}

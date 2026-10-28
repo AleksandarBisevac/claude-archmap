@@ -105,7 +105,7 @@
         {
           "id": "P1.2",
           "title": "validate.mjs: schema subset, referential integrity and evidence checks",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/validate.mjs (Node >= 18, ESM, zero npm deps) and a tiny JSON Schema subset interpreter in\nscripts/lib/jsonschema.mjs that supports exactly the keywords P1.1's schemas use (type, required, properties, items, enum,\nconst, pattern, minItems, minLength, oneOf, local $ref). Unknown keys in data are allowed.\n\nCLI: node scripts/validate.mjs <model.json> [--issues <issues.json>] [--repo <dir>] [--json]\nChecks, each finding with a JSON pointer and a stable code:\n1. Schema: the model against schema/archmap-model.schema.json, the issues file against archmap-issues.schema.json.\n2. Referential integrity: node.zone, zone.parent, edge.from/to, entity.store (a node id), field.fk and relations\n   entity/field pairs, access.node/entity, sequence participant node and step m[] ids, note ids, view filters,\n   issue anchors (node|edge|entity|\"<seqId>:<stepIndex>\"), step i (issue id, only when --issues is given). Duplicate ids.\n3. Evidence (design section 14.3, borrowed from show-me): with --repo, for each evidence {path, lines} run\n   `git -C <repo> cat-file -e <meta.commit>:<path>` and check the line range is within the file at that commit\n   (git show). Without --repo the check is skipped and the output says so - it is never a silent pass.\nExport a validate(model, {issues, repo}) function returning {ok, findings[]} so later scripts (merge, render) reuse it.\nOutput: human-readable by default, --json for machines. Exit 0 valid, 1 findings, 2 usage or unreadable input.\nUse small inline fixtures and a throwaway git repo created in os.tmpdir() in the tests; do not depend on P1.3's golden model.",
           "files": [
             "scripts/validate.mjs",
@@ -135,25 +135,38 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b2dae4796700",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests/validate.test.mjs first (21 cases v1-v21, red: module not found), then scripts/lib/jsonschema.mjs (validateSchema: type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf, local $defs $ref; JSON-pointer errors) and scripts/validate.mjs (exports validate(model,{issues,repo}) -> {ok,findings[{code,pointer,message}],evidence:'checked'|'skipped'}; CLI with --issues/--repo/--json; exit 0/1/2). Codes: schema, duplicate-id, dangling-ref, evidence-lines-malformed, evidence-path-missing, evidence-lines-out-of-range, commit-missing. Integrity covers zone/parent/node.zone/edge ends/entity.store/fk/relations/access/participant node/step m[] and note ids/step i (only with issues)/view filters/issue anchors incl. seqId:stepIndex/duplicates. Evidence uses git cat-file -e <commit>:<path> then cat-file blob (rejects directories) for the line count; an unknown meta.commit gives one commit-missing finding; without --repo the output states evidence was skipped. Evidence is also checked on issues files. Ran: `node --test tests/validate.test.mjs` 21 pass 0 fail; full `node --test` 35 pass 0 fail (exit code not captured by my shell pipeline; the tally shows fail 0). Dependants: schema/archmap-issues.schema.json only names validate.mjs in a description (dangling step ids checked there, not in the schema) - still correct, validate.mjs checks step i against issues; tests/schema.test.mjs only mentions validate.mjs in a comment about the keyword subset - still correct, jsonschema.mjs uses exactly that subset and the full suite passes; docs/design.md names validate.mjs for the 14.3 evidence check - still correct, implemented as described (git cat-file -e at meta.commit plus line range; blob read instead of git show to reject directories). Exploration note: I read the two schemas and docs/design.md 14.3 (not in the brief) to know the model shape. Skill writing-javascript was skipped as the orchestrator instructed.",
+            "descriptive": "Adds the archmap validator: schema subset interpreter, referential-integrity and duplicate-id checks, and evidence checks at meta.commit, with a reusable validate() export and a 0/1/2 exit-code CLI."
           },
           "startedAt": "2026-10-28T12:16:33Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T12:23:49Z",
+          "verifiedBy": [
+            "tests/validate.test.mjs: 21 cases covering valid models, schema findings (missing evidence, bad lines, ops outside CRUD), malformed ranges, duplicates, dangling zone/node/entity/participant/issue-anchor/step-issue ids, unknown keys, evidence skipped vs checked, absent paths and out-of-range lines at meta.commit in a throwaway git repo, unknown commit, and CLI exit codes 0/1/2"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T12:23:49Z.e6cfc6",
             "status": "passed",
             "at": "2026-10-28T12:23:49Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "b2dae4796700",
+            "at": "2026-10-28T12:23:49Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T12:23:39Z",
+            "basis": "`node --test tests/validate.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P1.3",
           "title": "Anonymised golden model fixture derived from the private reference",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Hand-write the golden fixture: an archmap model of the reference app, a FastAPI + React + DuckDB dashboard that pulls\nfrom an upstream data platform. Derive it from the single HTML file in .private/reference/, which you may READ but\nmust never copy, quote or name in any tracked file - not even its filename. THIS REPO IS PUBLIC.\n\nAnonymisation rules (all mandatory):\n- Use a fictional project name (\"Northwind Insights\"), fictional org, and generic repo paths (backend/app/..., frontend/src/...).\n  Keep the architecture's shape: zones, the node set, the typed edges, the entities and fields, the 7 sequences and the step grammar.\n- The upstream data platform, the SSO proxy, the lab-notebook vendor and any client product, site or table names become\n  generic names (\"Upstream data platform\", \"Corporate SSO proxy\", \"External lab notebook\"). No client names, people,\n  hostnames, URLs, dataset ids, RIDs or env var values.\n- meta.repoUrl is https://example.invalid/northwind-insights; meta.commit is a fixed fake sha.\n- Evidence keeps the {path, lines} shape with the anonymised paths. The golden test therefore runs validate WITHOUT --repo.\n- issues.json: do NOT carry over the reference's issues. Write 6-8 synthetic, generic issues, one per category, anchored to\n  fixture ids, each as class + consequence + fix only - no reproduction steps, no exploit detail, empty or generic `detail`.\n- Before finishing, grep every file you wrote against .private/anonymise-denylist.txt and report zero hits.\nThe fixture is the ground truth P2's renderer will be compared against, so it must be rich: all zone kinds the reference\nuses, C4 levels 1-3, async edges, CRUD access rows, name-convention relations with provenance inferred.",
           "files": [
             "tests/fixtures/golden/architecture.model.json",
@@ -181,16 +194,28 @@
           "dependsOn": [
             "P1.2"
           ],
-          "attempts": 0,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T13:23:29Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-10-28T12:35:28Z",
+              "text": "Owner decision 2026-10-28: the golden fixture must be fully fictional with no link to the private reference app. The reference was only the inspiration for the plugin. Do not read .private/reference/; build an invented logistics app instead."
+            }
+          ],
+          "testEvidence": {
+            "runId": "2026-10-28T13:25:41Z.6a059c",
+            "status": "passed",
+            "at": "2026-10-28T13:25:41Z"
+          }
         }
       ],
       "area": "model",

@@ -1,0 +1,768 @@
+{
+  "meta": {
+    "schemaVersion": "1.0",
+    "project": "Northwind Freight",
+    "commit": "7c3a9e1d5b2f40c8a6e4d2b0f9e8c7a6b5d4c3e2",
+    "generatedAt": "2026-10-28T00:00:00Z",
+    "repoUrl": "https://example.invalid/northwind-freight",
+    "profile": "balanced",
+    "sources": [
+      { "kind": "static", "status": "run", "note": "Python, TypeScript, Dockerfile and GitHub Actions extractors" },
+      { "kind": "sqlite", "status": "run", "note": "read-only PRAGMA table_info on a local copy of the operational DB" },
+      { "kind": "duckdb", "status": "run", "note": "read-only information_schema columns of the analytics file" },
+      { "kind": "openapi", "status": "skipped", "reason": "the carrier API spec is not in the repository" }
+    ],
+    "coverage": {
+      "api": ["backend/app/**"],
+      "worker": ["backend/worker/**"],
+      "web": ["frontend/src/**", "frontend/public/**"],
+      "delivery": [".github/workflows/**", "deploy/**", "infra/**"]
+    }
+  },
+  "zones": [
+    { "id": "zb-web", "kind": "browser", "label": "Web client · React SPA · frontend/" },
+    { "id": "zg-ingress", "kind": "edge", "label": "Ingress gateway · TLS", "outside": true },
+    { "id": "zs-backend", "kind": "service", "label": "Backend containers" },
+    { "id": "zs-api", "kind": "service", "label": "Freight API · FastAPI · backend/app", "parent": "zs-backend" },
+    { "id": "zs-worker", "kind": "service", "label": "Background worker · backend/worker", "parent": "zs-backend" },
+    { "id": "zd-stores", "kind": "data", "label": "Data stores · container volume" },
+    { "id": "zp-cloud", "kind": "platform", "label": "Managed cloud services" },
+    { "id": "zx-partners", "kind": "external", "label": "Third-party services", "outside": true },
+    { "id": "zr-release", "kind": "delivery", "label": "Delivery pipeline" }
+  ],
+  "nodes": [
+    {
+      "id": "web-app", "zone": "zb-web", "kind": "app", "level": 2,
+      "title": "Freight console SPA", "sub": ["React · TypeScript · Vite", "React Router · RTK Query"],
+      "role": "The dispatcher console: orders, quotes, shipments and live tracking.",
+      "facts": ["Every screen is a lazy route.", "Tokens are kept in memory, never in browser storage."],
+      "evidence": [{ "path": "frontend/src/main.tsx", "lines": "1-24" }],
+      "paths": ["frontend/src/**"]
+    },
+    {
+      "id": "ui-routes", "zone": "zb-web", "kind": "module", "level": 3,
+      "title": "Route table", "sub": ["/orders · /quotes · /tracking"],
+      "role": "Maps URLs to screens and guards them behind a session.",
+      "facts": ["Unauthenticated visits start the sign-in redirect."],
+      "evidence": [{ "path": "frontend/src/routes/AppRoutes.tsx", "lines": "8-64" }],
+      "paths": ["frontend/src/routes/**"]
+    },
+    {
+      "id": "orders-screen", "zone": "zb-web", "kind": "module", "level": 3,
+      "title": "Orders screen", "sub": ["draft · lines · submit"],
+      "role": "Builds an order draft and submits it.",
+      "facts": ["Column and filter preferences persist per user."],
+      "evidence": [{ "path": "frontend/src/screens/orders/OrdersScreen.tsx", "lines": "12-140" }],
+      "paths": ["frontend/src/screens/orders/**"]
+    },
+    {
+      "id": "quote-panel", "zone": "zb-web", "kind": "module", "level": 3,
+      "title": "Quote panel", "sub": ["origin · destination · weight"],
+      "role": "Asks the API for carrier rates and shows them side by side.",
+      "facts": [],
+      "evidence": [{ "path": "frontend/src/screens/quotes/QuotePanel.tsx", "lines": "5-88" }],
+      "paths": ["frontend/src/screens/quotes/**"]
+    },
+    {
+      "id": "tracking-board", "zone": "zb-web", "kind": "module", "level": 3,
+      "title": "Tracking board", "sub": ["polls every 60 s", "links to carrier pages"],
+      "role": "Live status of parcels in transit.",
+      "facts": ["Polling, not push."],
+      "evidence": [{ "path": "frontend/src/screens/tracking/TrackingBoard.tsx", "lines": "10-97" }],
+      "paths": ["frontend/src/screens/tracking/**"]
+    },
+    {
+      "id": "freight-api-slice", "zone": "zb-web", "kind": "module", "level": 3,
+      "title": "freightApi (RTK Query)", "sub": ["12 endpoints", "bearer token per request"],
+      "role": "All server state, with tag-based invalidation.",
+      "facts": ["prepareHeaders reads the access token from the OIDC client."],
+      "evidence": [{ "path": "frontend/src/services/freightApi.ts", "lines": "1-160" }],
+      "paths": ["frontend/src/services/**"]
+    },
+    {
+      "id": "oidc-client", "zone": "zb-web", "kind": "module", "level": 3,
+      "title": "OIDC client", "sub": ["code + PKCE", "silent refresh"],
+      "role": "Signs the user in against the identity provider and keeps tokens in memory.",
+      "facts": [],
+      "evidence": [{ "path": "frontend/src/auth/oidcClient.ts", "lines": "1-75" }],
+      "paths": ["frontend/src/auth/**"]
+    },
+    {
+      "id": "local-prefs", "zone": "zb-web", "kind": "store", "level": 3,
+      "title": "localStorage prefs", "sub": ["UI preferences only"],
+      "role": "Per-browser table and filter preferences.",
+      "facts": [],
+      "evidence": [{ "path": "frontend/src/state/persistPrefs.ts", "lines": "1-33" }],
+      "paths": ["frontend/src/state/**"]
+    },
+    {
+      "id": "ingress-gw", "zone": "zg-ingress", "kind": "external", "level": 1,
+      "title": "Ingress gateway", "sub": ["TLS termination", "path routing /, /v1, /hooks"],
+      "role": "Routes browser and carrier traffic to the API container. Managed outside the application code.",
+      "facts": ["/hooks/* is routed straight to the API without the browser session."],
+      "evidence": [{ "path": "infra/ingress/routes.yaml", "lines": "1-42" }],
+      "paths": ["infra/ingress/**"]
+    },
+    {
+      "id": "api-service", "zone": "zs-api", "kind": "app", "level": 2,
+      "title": "Freight API", "sub": ["FastAPI · gunicorn · 4 workers"],
+      "role": "The HTTP API and the static host for the SPA bundle.",
+      "facts": ["Runs schema migrations on start."],
+      "evidence": [{ "path": "backend/app/app_factory.py", "lines": "1-58" }],
+      "paths": ["backend/app/**"]
+    },
+    {
+      "id": "token-guard", "zone": "zs-api", "kind": "module", "level": 3,
+      "title": "Token guard", "sub": ["JWT verify · JWKS cache"],
+      "role": "A dependency on every /v1 router that verifies the bearer token.",
+      "facts": ["Checks signature, issuer, audience and expiry.", "JWKS is cached for one hour."],
+      "evidence": [{ "path": "backend/app/security/token_guard.py", "lines": "14-88" }],
+      "paths": ["backend/app/security/**"]
+    },
+    {
+      "id": "orders-routes", "zone": "zs-api", "kind": "route-group", "level": 3,
+      "title": "/v1/orders", "sub": ["list · get · create · cancel"],
+      "role": "Order endpoints.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/routers/orders.py", "lines": "1-96" }],
+      "paths": ["backend/app/routers/orders.py"]
+    },
+    {
+      "id": "quotes-routes", "zone": "zs-api", "kind": "route-group", "level": 3,
+      "title": "/v1/quotes", "sub": ["GET rate quote"],
+      "role": "Carrier rate quotes.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/routers/quotes.py", "lines": "1-40" }],
+      "paths": ["backend/app/routers/quotes.py"]
+    },
+    {
+      "id": "shipments-routes", "zone": "zs-api", "kind": "route-group", "level": 3,
+      "title": "/v1/shipments", "sub": ["tracking · label URL · relabel"],
+      "role": "Shipment status, label download links and label jobs.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "1-120" }],
+      "paths": ["backend/app/routers/shipments.py"]
+    },
+    {
+      "id": "webhook-routes", "zone": "zs-api", "kind": "route-group", "level": 3,
+      "title": "/hooks/carrier/{code}", "sub": ["carrier callbacks", "outside the token guard"],
+      "role": "Receives tracking callbacks from carriers.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/routers/carrier_hooks.py", "lines": "1-54" }],
+      "paths": ["backend/app/routers/carrier_hooks.py"]
+    },
+    {
+      "id": "reports-routes", "zone": "zs-api", "kind": "route-group", "level": 3,
+      "title": "/v1/reports", "sub": ["volume · on-time rate"],
+      "role": "Read-only analytics endpoints.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/routers/reports.py", "lines": "1-62" }],
+      "paths": ["backend/app/routers/reports.py"]
+    },
+    {
+      "id": "order-service", "zone": "zs-api", "kind": "module", "level": 3,
+      "title": "services/ordering.py", "sub": ["place_order · cancel_order"],
+      "role": "Order placement: stock reservation, order and shipment rows in one transaction.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "20-180" }],
+      "paths": ["backend/app/services/ordering.py"]
+    },
+    {
+      "id": "rating-service", "zone": "zs-api", "kind": "module", "level": 3,
+      "title": "services/rating.py", "sub": ["quote_all_carriers", "10 min quote cache"],
+      "role": "Collects rates from every active carrier.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/services/rating.py", "lines": "1-110" }],
+      "paths": ["backend/app/services/rating.py"]
+    },
+    {
+      "id": "tracking-service", "zone": "zs-api", "kind": "module", "level": 3,
+      "title": "services/tracking_ingest.py", "sub": ["ingest(events)"],
+      "role": "Maps carrier events onto parcels.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/services/tracking_ingest.py", "lines": "1-84" }],
+      "paths": ["backend/app/services/tracking_ingest.py"]
+    },
+    {
+      "id": "carrier-adapter", "zone": "zs-api", "kind": "module", "level": 3,
+      "title": "integrations/carrier_client.py", "sub": ["httpx · 8 s timeout"],
+      "role": "One client for every carrier, shared by the API and the worker.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/integrations/carrier_client.py", "lines": "1-130" }],
+      "paths": ["backend/app/integrations/**"]
+    },
+    {
+      "id": "repo-layer", "zone": "zs-api", "kind": "module", "level": 3,
+      "title": "db/repositories.py", "sub": ["SQLAlchemy 2 · sessions"],
+      "role": "All reads and writes of the operational DB.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/db/repositories.py", "lines": "1-210" }, { "path": "backend/app/db/tables.py", "lines": "1-160" }],
+      "paths": ["backend/app/db/**"]
+    },
+    {
+      "id": "worker-service", "zone": "zs-worker", "kind": "app", "level": 2,
+      "title": "Background worker", "sub": ["Celery-style · 2 queues"],
+      "role": "Runs label jobs and the nightly analytics rollup.",
+      "facts": [],
+      "evidence": [{ "path": "backend/worker/celery_app.py", "lines": "1-40" }],
+      "paths": ["backend/worker/**"]
+    },
+    {
+      "id": "label-renderer", "zone": "zs-worker", "kind": "job", "level": 3,
+      "title": "tasks/label_renderer.py", "sub": ["render_label(shipment_id)", "max 5 retries"],
+      "role": "Buys a label per parcel from the carrier and stores the PDF.",
+      "facts": [],
+      "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "1-102" }],
+      "paths": ["backend/worker/tasks/label_renderer.py"]
+    },
+    {
+      "id": "analytics-rollup", "zone": "zs-worker", "kind": "job", "level": 3,
+      "title": "tasks/analytics_rollup.py", "sub": ["rebuild_views()"],
+      "role": "Rebuilds the analytics views from the operational DB.",
+      "facts": [],
+      "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "1-77" }],
+      "paths": ["backend/worker/tasks/analytics_rollup.py"]
+    },
+    {
+      "id": "beat-schedule", "zone": "zs-worker", "kind": "job", "level": 3,
+      "title": "schedule.py", "sub": ["02:00 UTC rollup"],
+      "role": "Periodic task schedule.",
+      "facts": [],
+      "evidence": [{ "path": "backend/worker/schedule.py", "lines": "1-20" }],
+      "paths": ["backend/worker/schedule.py"]
+    },
+    {
+      "id": "ops-db", "zone": "zd-stores", "kind": "store", "level": 2,
+      "title": "freight.sqlite3", "sub": ["operational DB", "WAL mode"],
+      "role": "Orders, shipments, parcels, stock and tracking.",
+      "facts": ["Migrations are applied by the API at start."],
+      "evidence": [{ "path": "backend/app/db/engine.py", "lines": "1-30" }],
+      "paths": ["backend/migrations/**"]
+    },
+    {
+      "id": "analytics-db", "zone": "zd-stores", "kind": "store", "level": 2,
+      "title": "analytics.duckdb", "sub": ["2 views", "rebuilt nightly"],
+      "role": "Reporting views over a nightly snapshot of the operational DB.",
+      "facts": [],
+      "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "10-24" }],
+      "paths": []
+    },
+    {
+      "id": "redis-broker", "zone": "zp-cloud", "kind": "queue", "level": 2,
+      "title": "Redis", "sub": ["task broker", "quote cache"],
+      "role": "Managed Redis: task queues for the worker and a short-lived quote cache.",
+      "facts": [],
+      "evidence": [{ "path": "backend/worker/celery_app.py", "lines": "8-19" }, { "path": "backend/app/settings.py", "lines": "22-30" }],
+      "paths": []
+    },
+    {
+      "id": "label-bucket", "zone": "zp-cloud", "kind": "store", "level": 1,
+      "title": "Object storage · labels", "sub": ["private bucket", "presigned GET"],
+      "role": "Holds the shipping label PDFs.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/integrations/label_store.py", "lines": "1-48" }],
+      "paths": []
+    },
+    {
+      "id": "carrier-api", "zone": "zx-partners", "kind": "external", "level": 1,
+      "title": "Carrier tracking API", "sub": ["rates · labels · webhooks"],
+      "role": "The carriers' shared API for rates, label purchase and tracking callbacks.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/integrations/carrier_client.py", "lines": "1-30" }],
+      "paths": []
+    },
+    {
+      "id": "oidc-idp", "zone": "zx-partners", "kind": "external", "level": 1,
+      "title": "OIDC identity provider", "sub": ["authorize · token · JWKS"],
+      "role": "Signs users in and publishes signing keys.",
+      "facts": [],
+      "evidence": [{ "path": "backend/app/settings.py", "lines": "40-52" }],
+      "paths": []
+    },
+    {
+      "id": "gha-pipeline", "zone": "zr-release", "kind": "job", "level": 2,
+      "title": "GitHub Actions", "sub": ["ci.yml · release.yml"],
+      "role": "Tests on every push; builds and rolls out on a version tag.",
+      "facts": [],
+      "evidence": [{ "path": ".github/workflows/release.yml", "lines": "1-88" }, { "path": ".github/workflows/ci.yml", "lines": "1-45" }],
+      "paths": [".github/workflows/**"]
+    },
+    {
+      "id": "image-registry", "zone": "zr-release", "kind": "service", "level": 2,
+      "title": "Container registry", "sub": ["api and worker images"],
+      "role": "Stores versioned images.",
+      "facts": [],
+      "evidence": [{ "path": ".github/workflows/release.yml", "lines": "40-61" }],
+      "paths": []
+    },
+    {
+      "id": "runtime-host", "zone": "zr-release", "kind": "service", "level": 2,
+      "title": "Container hosting", "sub": ["api revision · worker revision"],
+      "role": "Runs the API and worker containers.",
+      "facts": [],
+      "evidence": [{ "path": "deploy/service.yaml", "lines": "1-70" }],
+      "paths": ["deploy/**"]
+    }
+  ],
+  "edges": [
+    { "id": "e-web-routes", "from": "web-app", "to": "ui-routes", "type": "call", "desc": "router provider", "evidence": [{ "path": "frontend/src/main.tsx", "lines": "10-22" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-routes-orders", "from": "ui-routes", "to": "orders-screen", "type": "call", "desc": "/orders", "evidence": [{ "path": "frontend/src/routes/AppRoutes.tsx", "lines": "20-28" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-routes-quotes", "from": "ui-routes", "to": "quote-panel", "type": "call", "desc": "/quotes", "evidence": [{ "path": "frontend/src/routes/AppRoutes.tsx", "lines": "30-36" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-routes-tracking", "from": "ui-routes", "to": "tracking-board", "type": "call", "desc": "/tracking", "evidence": [{ "path": "frontend/src/routes/AppRoutes.tsx", "lines": "38-44" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-orders-slice", "from": "orders-screen", "to": "freight-api-slice", "type": "call", "desc": "order hooks and submitOrder mutation", "evidence": [{ "path": "frontend/src/screens/orders/OrdersScreen.tsx", "lines": "30-52" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-quotes-slice", "from": "quote-panel", "to": "freight-api-slice", "type": "call", "desc": "getQuote query", "evidence": [{ "path": "frontend/src/screens/quotes/QuotePanel.tsx", "lines": "18-26" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-tracking-slice", "from": "tracking-board", "to": "freight-api-slice", "type": "call", "desc": "tracking query with pollingInterval 60 s", "evidence": [{ "path": "frontend/src/screens/tracking/TrackingBoard.tsx", "lines": "22-31" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-orders-prefs", "from": "orders-screen", "to": "local-prefs", "type": "persist", "desc": "column and filter preferences", "evidence": [{ "path": "frontend/src/state/persistPrefs.ts", "lines": "5-29" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-slice-oidc", "from": "freight-api-slice", "to": "oidc-client", "type": "call", "desc": "prepareHeaders reads the access token", "evidence": [{ "path": "frontend/src/services/freightApi.ts", "lines": "8-17" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-tracking-carrier-link", "from": "tracking-board", "to": "carrier-api", "type": "link", "label": "carrier page", "desc": "opens the carrier's public tracking page", "evidence": [{ "path": "frontend/src/screens/tracking/carrierLinks.ts", "lines": "1-25" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-web-ingress", "from": "web-app", "to": "ingress-gw", "type": "static", "label": "bundle", "desc": "GET /, /assets/*", "evidence": [{ "path": "frontend/public/index.html", "lines": "1-18" }], "confidence": "inferred", "foundBy": "llm" },
+    { "id": "e-slice-ingress", "from": "freight-api-slice", "to": "ingress-gw", "type": "api", "label": "/v1 JSON", "desc": "HTTPS JSON with a bearer token", "evidence": [{ "path": "frontend/src/services/freightApi.ts", "lines": "5-7" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-oidc-idp", "from": "oidc-client", "to": "oidc-idp", "type": "auth", "label": "code + PKCE", "desc": "authorization code flow and refresh grant", "evidence": [{ "path": "frontend/src/auth/oidcClient.ts", "lines": "12-48" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-ingress-guard", "from": "ingress-gw", "to": "token-guard", "type": "api", "label": "/v1/*", "desc": "forwarded API requests", "evidence": [{ "path": "infra/ingress/routes.yaml", "lines": "10-20" }], "confidence": "inferred", "foundBy": "llm" },
+    { "id": "e-ingress-hooks", "from": "ingress-gw", "to": "webhook-routes", "type": "api", "label": "/hooks/*", "desc": "forwarded carrier callbacks, no session", "evidence": [{ "path": "infra/ingress/routes.yaml", "lines": "22-30" }], "confidence": "inferred", "foundBy": "llm" },
+    { "id": "e-guard-jwks", "from": "token-guard", "to": "oidc-idp", "type": "auth", "label": "JWKS", "desc": "fetch signing keys, cached 1 h", "evidence": [{ "path": "backend/app/security/token_guard.py", "lines": "30-52" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-guard-orders", "from": "token-guard", "to": "orders-routes", "type": "call", "desc": "Depends(require_user)", "evidence": [{ "path": "backend/app/routers/orders.py", "lines": "12-14" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-guard-quotes", "from": "token-guard", "to": "quotes-routes", "type": "call", "desc": "Depends(require_user)", "evidence": [{ "path": "backend/app/routers/quotes.py", "lines": "9-11" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-guard-shipments", "from": "token-guard", "to": "shipments-routes", "type": "call", "desc": "Depends(require_user)", "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "15-17" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-guard-reports", "from": "token-guard", "to": "reports-routes", "type": "call", "desc": "Depends(require_role('analyst'))", "evidence": [{ "path": "backend/app/routers/reports.py", "lines": "10-12" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-orders-service", "from": "orders-routes", "to": "order-service", "type": "call", "desc": "place_order, cancel_order", "evidence": [{ "path": "backend/app/routers/orders.py", "lines": "40-71" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-quotes-rating", "from": "quotes-routes", "to": "rating-service", "type": "call", "desc": "quote_all_carriers", "evidence": [{ "path": "backend/app/routers/quotes.py", "lines": "20-34" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-shipments-queue", "from": "shipments-routes", "to": "redis-broker", "type": "queue", "label": "render_label", "desc": "enqueue a label job; the response does not wait", "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "80-92" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-shipments-bucket", "from": "shipments-routes", "to": "label-bucket", "type": "api", "label": "presign", "desc": "presigned GET for a label download", "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "95-118" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-shipments-repo", "from": "shipments-routes", "to": "repo-layer", "type": "call", "desc": "shipment and tracking reads", "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "30-60" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-hooks-tracking", "from": "webhook-routes", "to": "tracking-service", "type": "call", "desc": "ingest(events)", "evidence": [{ "path": "backend/app/routers/carrier_hooks.py", "lines": "30-48" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-ordering-repo", "from": "order-service", "to": "repo-layer", "type": "call", "desc": "one session per order placement", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "40-150" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-ordering-queue", "from": "order-service", "to": "redis-broker", "type": "queue", "label": "render_label", "desc": "enqueue the first label job after commit", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "152-160" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-tracking-repo", "from": "tracking-service", "to": "repo-layer", "type": "call", "desc": "parcel lookup and event inserts", "evidence": [{ "path": "backend/app/services/tracking_ingest.py", "lines": "20-70" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-rating-adapter", "from": "rating-service", "to": "carrier-adapter", "type": "call", "desc": "rate(carrier, request) per carrier", "evidence": [{ "path": "backend/app/services/rating.py", "lines": "40-72" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-rating-cache", "from": "rating-service", "to": "redis-broker", "type": "cache", "label": "quote cache", "desc": "GET/SET quote:<hash>, 10 min", "evidence": [{ "path": "backend/app/services/rating.py", "lines": "20-38" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-adapter-carrier", "from": "carrier-adapter", "to": "carrier-api", "type": "api", "label": "rates · labels", "desc": "HTTPS JSON, 8 s timeout", "evidence": [{ "path": "backend/app/integrations/carrier_client.py", "lines": "40-118" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-repo-ops", "from": "repo-layer", "to": "ops-db", "type": "sql", "desc": "SQLAlchemy sessions on the SQLite file", "evidence": [{ "path": "backend/app/db/engine.py", "lines": "8-24" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-reports-analytics", "from": "reports-routes", "to": "analytics-db", "type": "sql", "label": "read only", "desc": "SELECT from the reporting views", "evidence": [{ "path": "backend/app/routers/reports.py", "lines": "20-58" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-carrier-webhook", "from": "carrier-api", "to": "ingress-gw", "type": "event", "label": "tracking callback", "desc": "POST /hooks/carrier/{code} per batch of events", "evidence": [{ "path": "backend/app/routers/carrier_hooks.py", "lines": "1-12" }], "confidence": "external", "foundBy": "llm", "async": true },
+    { "id": "e-broker-labels", "from": "redis-broker", "to": "label-renderer", "type": "queue", "desc": "deliver render_label, at least once", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "1-12" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-labels-adapter", "from": "label-renderer", "to": "carrier-adapter", "type": "call", "desc": "purchase_label per parcel", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "30-55" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-labels-bucket", "from": "label-renderer", "to": "label-bucket", "type": "persist", "label": "PUT PDF", "desc": "labels/<shipment>/<parcel>.pdf", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "57-70" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-labels-ops", "from": "label-renderer", "to": "ops-db", "type": "sql", "desc": "UPDATE parcels and shipments", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "72-96" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-beat-broker", "from": "beat-schedule", "to": "redis-broker", "type": "event", "label": "02:00 UTC", "desc": "nightly tick enqueues the rollup", "evidence": [{ "path": "backend/worker/schedule.py", "lines": "6-14" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-broker-rollup", "from": "redis-broker", "to": "analytics-rollup", "type": "queue", "desc": "deliver rebuild_views", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "1-9" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-rollup-ops", "from": "analytics-rollup", "to": "ops-db", "type": "pull", "label": "snapshot", "desc": "ATTACH the operational DB read-only", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "26-34" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-rollup-analytics", "from": "analytics-rollup", "to": "analytics-db", "type": "sql", "label": "rebuild", "desc": "CREATE OR REPLACE VIEW ×2", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "36-70" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-api-ops", "from": "api-service", "to": "ops-db", "type": "sql", "desc": "container-level: the API owns the operational DB and its migrations", "evidence": [{ "path": "backend/app/app_factory.py", "lines": "30-44" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-api-broker", "from": "api-service", "to": "redis-broker", "type": "queue", "desc": "container-level: the API produces worker tasks", "evidence": [{ "path": "backend/app/settings.py", "lines": "22-30" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-worker-broker", "from": "worker-service", "to": "redis-broker", "type": "queue", "desc": "container-level: the worker consumes tasks", "evidence": [{ "path": "backend/worker/celery_app.py", "lines": "8-19" }], "confidence": "verified", "foundBy": "static", "async": true },
+    { "id": "e-gha-registry", "from": "gha-pipeline", "to": "image-registry", "type": "deploy", "desc": "push api and worker images tagged with the version", "evidence": [{ "path": ".github/workflows/release.yml", "lines": "40-61" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-gha-host", "from": "gha-pipeline", "to": "runtime-host", "type": "deploy", "desc": "roll out a new revision", "evidence": [{ "path": ".github/workflows/release.yml", "lines": "63-88" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-host-registry", "from": "runtime-host", "to": "image-registry", "type": "deploy", "desc": "pull images for the revision", "evidence": [{ "path": "deploy/service.yaml", "lines": "12-20" }], "confidence": "inferred", "foundBy": "llm" },
+    { "id": "e-host-api", "from": "runtime-host", "to": "api-service", "type": "deploy", "desc": "runs the API container", "evidence": [{ "path": "deploy/service.yaml", "lines": "22-44" }], "confidence": "verified", "foundBy": "static" },
+    { "id": "e-host-worker", "from": "runtime-host", "to": "worker-service", "type": "deploy", "desc": "runs the worker container", "evidence": [{ "path": "deploy/service.yaml", "lines": "46-70" }], "confidence": "verified", "foundBy": "static" }
+  ],
+  "entities": [
+    {
+      "id": "customers", "store": "ops-db", "name": "customers", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "name", "type": "TEXT", "provenance": "declared" },
+        { "name": "email", "type": "TEXT", "provenance": "declared" },
+        { "name": "created_at", "type": "TIMESTAMP", "provenance": "declared" }
+      ],
+      "indexes": [{ "name": "ux_customers_email", "fields": ["email"], "unique": true }],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "10-22" }]
+    },
+    {
+      "id": "warehouses", "store": "ops-db", "name": "warehouses", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "code", "type": "TEXT", "provenance": "declared" },
+        { "name": "city", "type": "TEXT", "provenance": "declared" }
+      ],
+      "indexes": [],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "24-32" }]
+    },
+    {
+      "id": "orders", "store": "ops-db", "name": "orders", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "customer_id", "type": "INTEGER", "provenance": "declared", "fk": { "entity": "customers", "field": "id" } },
+        { "name": "warehouse_id", "type": "INTEGER", "provenance": "declared", "fk": { "entity": "warehouses", "field": "id" } },
+        { "name": "status", "type": "TEXT", "provenance": "declared" },
+        { "name": "placed_at", "type": "TIMESTAMP", "provenance": "declared" }
+      ],
+      "indexes": [{ "name": "ix_orders_customer", "fields": ["customer_id"] }],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "34-48" }]
+    },
+    {
+      "id": "order_lines", "store": "ops-db", "name": "order_lines", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "order_id", "type": "INTEGER", "provenance": "declared", "fk": { "entity": "orders", "field": "id" } },
+        { "name": "sku", "type": "TEXT", "provenance": "declared" },
+        { "name": "quantity", "type": "INTEGER", "provenance": "declared" }
+      ],
+      "indexes": [],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "50-60" }]
+    },
+    {
+      "id": "stock_levels", "store": "ops-db", "name": "stock_levels", "kind": "table",
+      "fields": [
+        { "name": "warehouse_id", "type": "INTEGER", "pk": true, "provenance": "declared", "fk": { "entity": "warehouses", "field": "id" } },
+        { "name": "sku", "type": "TEXT", "pk": true, "provenance": "declared" },
+        { "name": "on_hand", "type": "INTEGER", "provenance": "declared" },
+        { "name": "reserved", "type": "INTEGER", "provenance": "declared" }
+      ],
+      "indexes": [],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "62-72" }]
+    },
+    {
+      "id": "carriers", "store": "ops-db", "name": "carriers", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "code", "type": "TEXT", "provenance": "declared" },
+        { "name": "name", "type": "TEXT", "provenance": "declared" },
+        { "name": "active", "type": "BOOLEAN", "provenance": "declared" }
+      ],
+      "indexes": [{ "name": "ux_carriers_code", "fields": ["code"], "unique": true }],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "74-84" }]
+    },
+    {
+      "id": "shipments", "store": "ops-db", "name": "shipments", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "order_id", "type": "INTEGER", "provenance": "declared", "fk": { "entity": "orders", "field": "id" } },
+        { "name": "carrier_id", "type": "INTEGER", "nullable": true, "provenance": "declared", "fk": { "entity": "carriers", "field": "id" } },
+        { "name": "service_level", "type": "TEXT", "provenance": "declared" },
+        { "name": "status", "type": "TEXT", "provenance": "declared" }
+      ],
+      "indexes": [],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "86-100" }]
+    },
+    {
+      "id": "parcels", "store": "ops-db", "name": "parcels", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "shipment_id", "type": "INTEGER", "provenance": "declared", "fk": { "entity": "shipments", "field": "id" } },
+        { "name": "weight_kg", "type": "REAL", "provenance": "declared" },
+        { "name": "tracking_number", "type": "TEXT", "nullable": true, "provenance": "declared" },
+        { "name": "last_status", "type": "TEXT", "nullable": true, "provenance": "declared" },
+        { "name": "label_key", "type": "TEXT", "nullable": true, "provenance": "observed", "evidence": [{ "path": "backend/migrations/versions/0007_parcel_label_key.py", "lines": "12-18" }] },
+        { "name": "carrier_ref", "type": "TEXT", "nullable": true, "provenance": "inferred" }
+      ],
+      "indexes": [{ "name": "ix_parcels_tracking", "fields": ["tracking_number"] }],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "102-118" }]
+    },
+    {
+      "id": "tracking_events", "store": "ops-db", "name": "tracking_events", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "INTEGER", "pk": true, "provenance": "declared" },
+        { "name": "parcel_id", "type": "INTEGER", "provenance": "declared", "fk": { "entity": "parcels", "field": "id" } },
+        { "name": "carrier_code", "type": "TEXT", "provenance": "declared" },
+        { "name": "event_code", "type": "TEXT", "provenance": "declared" },
+        { "name": "occurred_at", "type": "TIMESTAMP", "provenance": "declared" },
+        { "name": "raw_payload", "type": "TEXT", "nullable": true, "provenance": "observed" }
+      ],
+      "indexes": [],
+      "evidence": [{ "path": "backend/app/db/tables.py", "lines": "120-134" }]
+    },
+    {
+      "id": "daily_shipment_volume", "store": "analytics-db", "name": "daily_shipment_volume", "kind": "view",
+      "fields": [
+        { "name": "ship_date", "type": "DATE", "provenance": "observed" },
+        { "name": "warehouse_id", "type": "BIGINT", "provenance": "observed" },
+        { "name": "carrier_id", "type": "BIGINT", "provenance": "observed" },
+        { "name": "parcel_count", "type": "BIGINT", "provenance": "observed" }
+      ],
+      "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "36-52" }]
+    },
+    {
+      "id": "carrier_on_time_rate", "store": "analytics-db", "name": "carrier_on_time_rate", "kind": "view",
+      "fields": [
+        { "name": "carrier_id", "type": "BIGINT", "provenance": "observed" },
+        { "name": "iso_week", "type": "VARCHAR", "provenance": "observed" },
+        { "name": "on_time_pct", "type": "DOUBLE", "provenance": "observed" }
+      ],
+      "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "54-70" }]
+    },
+    {
+      "id": "shipping_labels", "store": "label-bucket", "name": "labels/", "kind": "collection",
+      "fields": [
+        { "name": "object_key", "type": "string", "pk": true, "provenance": "inferred" },
+        { "name": "content_type", "type": "string", "provenance": "inferred" }
+      ],
+      "evidence": [{ "path": "backend/app/integrations/label_store.py", "lines": "10-30" }]
+    }
+  ],
+  "relations": [
+    { "from": { "entity": "orders", "field": "customer_id" }, "to": { "entity": "customers", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "orders", "field": "warehouse_id" }, "to": { "entity": "warehouses", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "order_lines", "field": "order_id" }, "to": { "entity": "orders", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "stock_levels", "field": "warehouse_id" }, "to": { "entity": "warehouses", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "shipments", "field": "order_id" }, "to": { "entity": "orders", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "shipments", "field": "carrier_id" }, "to": { "entity": "carriers", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "parcels", "field": "shipment_id" }, "to": { "entity": "shipments", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "tracking_events", "field": "parcel_id" }, "to": { "entity": "parcels", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "declared" },
+    { "from": { "entity": "tracking_events", "field": "carrier_code" }, "to": { "entity": "carriers", "field": "code" }, "cardinality": "1-n", "kind": "name-convention", "provenance": "inferred" },
+    { "from": { "entity": "order_lines", "field": "sku" }, "to": { "entity": "stock_levels", "field": "sku" }, "cardinality": "n-m", "kind": "name-convention", "provenance": "inferred" },
+    { "from": { "entity": "daily_shipment_volume", "field": "warehouse_id" }, "to": { "entity": "warehouses", "field": "id" }, "cardinality": "1-n", "kind": "name-convention", "provenance": "inferred" },
+    { "from": { "entity": "daily_shipment_volume", "field": "carrier_id" }, "to": { "entity": "carriers", "field": "id" }, "cardinality": "1-n", "kind": "name-convention", "provenance": "inferred" },
+    { "from": { "entity": "carrier_on_time_rate", "field": "carrier_id" }, "to": { "entity": "carriers", "field": "id" }, "cardinality": "1-n", "kind": "name-convention", "provenance": "inferred" },
+    { "from": { "entity": "parcels", "field": "label_key" }, "to": { "entity": "shipping_labels", "field": "object_key" }, "cardinality": "1-1", "kind": "join", "provenance": "observed" }
+  ],
+  "access": [
+    { "node": "order-service", "entity": "orders", "ops": "CRU", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "60-120" }] },
+    { "node": "order-service", "entity": "order_lines", "ops": "CRUD", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "60-120" }] },
+    { "node": "order-service", "entity": "stock_levels", "ops": "RU", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "70-95" }] },
+    { "node": "order-service", "entity": "customers", "ops": "R", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "44-52" }] },
+    { "node": "order-service", "entity": "shipments", "ops": "C", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "122-140" }] },
+    { "node": "order-service", "entity": "parcels", "ops": "C", "evidence": [{ "path": "backend/app/services/ordering.py", "lines": "122-140" }] },
+    { "node": "rating-service", "entity": "carriers", "ops": "R", "evidence": [{ "path": "backend/app/services/rating.py", "lines": "40-48" }] },
+    { "node": "shipments-routes", "entity": "shipments", "ops": "R", "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "30-60" }] },
+    { "node": "shipments-routes", "entity": "tracking_events", "ops": "R", "evidence": [{ "path": "backend/app/routers/shipments.py", "lines": "62-78" }] },
+    { "node": "tracking-service", "entity": "parcels", "ops": "RU", "evidence": [{ "path": "backend/app/services/tracking_ingest.py", "lines": "20-40" }] },
+    { "node": "tracking-service", "entity": "tracking_events", "ops": "C", "evidence": [{ "path": "backend/app/services/tracking_ingest.py", "lines": "42-70" }] },
+    { "node": "label-renderer", "entity": "parcels", "ops": "RU", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "72-88" }] },
+    { "node": "label-renderer", "entity": "shipments", "ops": "U", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "90-96" }] },
+    { "node": "label-renderer", "entity": "shipping_labels", "ops": "C", "evidence": [{ "path": "backend/worker/tasks/label_renderer.py", "lines": "57-70" }] },
+    { "node": "analytics-rollup", "entity": "shipments", "ops": "R", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "26-34" }] },
+    { "node": "analytics-rollup", "entity": "tracking_events", "ops": "R", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "26-34" }] },
+    { "node": "analytics-rollup", "entity": "daily_shipment_volume", "ops": "CD", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "36-52" }] },
+    { "node": "analytics-rollup", "entity": "carrier_on_time_rate", "ops": "CD", "evidence": [{ "path": "backend/worker/tasks/analytics_rollup.py", "lines": "54-70" }] },
+    { "node": "reports-routes", "entity": "daily_shipment_volume", "ops": "R", "evidence": [{ "path": "backend/app/routers/reports.py", "lines": "20-38" }] },
+    { "node": "reports-routes", "entity": "carrier_on_time_rate", "ops": "R", "evidence": [{ "path": "backend/app/routers/reports.py", "lines": "40-58" }] }
+  ],
+  "sequences": [
+    {
+      "id": "place-order", "title": "Place an order",
+      "summary": "A dispatcher submits an order. The API verifies the token, reserves stock line by line, writes order, lines and shipment in one transaction, and queues the label job.",
+      "participants": [
+        { "id": "pc", "label": "Orders screen", "sub": "frontend", "zone": "zb-web", "node": "orders-screen" },
+        { "id": "pq", "label": "freightApi", "sub": "RTK Query", "zone": "zb-web", "node": "freight-api-slice" },
+        { "id": "pg", "label": "Ingress gateway", "sub": "TLS", "zone": "zg-ingress", "node": "ingress-gw" },
+        { "id": "pt", "label": "Token guard", "sub": "JWT verify", "zone": "zs-api", "node": "token-guard" },
+        { "id": "po", "label": "/v1/orders", "sub": "router", "zone": "zs-api", "node": "orders-routes" },
+        { "id": "ps", "label": "ordering.py", "sub": "service", "zone": "zs-api", "node": "order-service" },
+        { "id": "pd", "label": "freight.sqlite3", "sub": "operational DB", "zone": "zd-stores", "node": "ops-db" },
+        { "id": "pb", "label": "Redis", "sub": "broker", "zone": "zp-cloud", "node": "redis-broker" }
+      ],
+      "steps": [
+        { "m": ["pc", "pq"], "k": "call", "t": "submitOrder(draft)", "d": "", "r": ["frontend/src/screens/orders/OrdersScreen.tsx:30-52"] },
+        { "m": ["pq", "pg"], "k": "api", "t": "POST /v1/orders", "d": "Bearer token attached by prepareHeaders.", "r": ["frontend/src/services/freightApi.ts:8-17"] },
+        { "m": ["pg", "pt"], "k": "api", "t": "forward + Authorization header", "d": "", "r": ["infra/ingress/routes.yaml:10-20"] },
+        { "m": ["pt", "pt"], "k": "auth", "t": "verify signature, issuer, audience, expiry", "d": "", "r": ["backend/app/security/token_guard.py:54-80"] },
+        { "frag": "alt", "t": "token invalid or expired" },
+        { "m": ["pt", "pq"], "k": "api", "t": "401 Unauthorized", "d": "", "r": [], "ret": "401" },
+        { "frag": "else", "t": "token valid" },
+        { "m": ["pt", "po"], "k": "call", "t": "create_order(payload, principal)", "d": "", "r": ["backend/app/routers/orders.py:40-56"] },
+        { "m": ["po", "ps"], "k": "call", "t": "place_order(draft)", "d": "", "r": ["backend/app/services/ordering.py:40-60"] },
+        { "m": ["ps", "pd"], "k": "sql", "t": "BEGIN IMMEDIATE", "d": "", "r": ["backend/app/services/ordering.py:62"] },
+        { "frag": "loop", "t": "each order line" },
+        { "m": ["ps", "pd"], "k": "sql", "t": "UPDATE stock_levels SET reserved = reserved + :qty", "d": "", "r": ["backend/app/services/ordering.py:70-95"] },
+        { "frag": "opt", "t": "on_hand - reserved < qty" },
+        { "m": ["ps", "po"], "k": "call", "t": "OutOfStock → ROLLBACK → 409", "d": "", "r": ["backend/app/services/ordering.py:96-104"], "ret": "409" },
+        { "frag": "end", "t": "" },
+        { "frag": "end", "t": "" },
+        { "m": ["ps", "pd"], "k": "sql", "t": "INSERT orders, order_lines, shipments, parcels · COMMIT", "d": "", "r": ["backend/app/services/ordering.py:106-150"] },
+        { "m": ["ps", "pb"], "k": "queue", "t": "enqueue render_label(shipment_id)", "d": "After commit, so a rolled-back order never queues a label.", "r": ["backend/app/services/ordering.py:152-160"] },
+        { "m": ["po", "pq"], "k": "api", "t": "201 {order_id}", "d": "", "r": [], "ret": "201" },
+        { "frag": "end", "t": "" },
+        { "note": ["pc", "pd"], "t": "Stock is reserved in the same transaction as the order; a 401 or 409 reserves nothing.", "tone": "info" }
+      ]
+    },
+    {
+      "id": "rate-quote", "title": "Rate quote",
+      "summary": "The quote panel asks for rates. A cached answer is returned for ten minutes; otherwise every active carrier is asked in turn.",
+      "participants": [
+        { "id": "pk", "label": "Quote panel", "sub": "frontend", "zone": "zb-web", "node": "quote-panel" },
+        { "id": "pq", "label": "freightApi", "sub": "RTK Query", "zone": "zb-web", "node": "freight-api-slice" },
+        { "id": "pr", "label": "/v1/quotes", "sub": "router", "zone": "zs-api", "node": "quotes-routes" },
+        { "id": "pn", "label": "rating.py", "sub": "service", "zone": "zs-api", "node": "rating-service" },
+        { "id": "pb", "label": "Redis", "sub": "quote cache", "zone": "zp-cloud", "node": "redis-broker" },
+        { "id": "pa", "label": "carrier_client.py", "sub": "adapter", "zone": "zs-api", "node": "carrier-adapter" },
+        { "id": "pz", "label": "Carrier tracking API", "sub": "rates", "zone": "zx-partners", "node": "carrier-api" }
+      ],
+      "steps": [
+        { "m": ["pk", "pq"], "k": "call", "t": "getQuote({origin, dest, weight})", "d": "", "r": ["frontend/src/screens/quotes/QuotePanel.tsx:18-26"] },
+        { "m": ["pq", "pr"], "k": "api", "t": "GET /v1/quotes?origin=&dest=&weight=", "d": "Through the gateway and the token guard (see Place an order).", "r": [] },
+        { "m": ["pr", "pn"], "k": "call", "t": "quote_all_carriers(request)", "d": "", "r": ["backend/app/routers/quotes.py:20-34"] },
+        { "m": ["pn", "pb"], "k": "cache", "t": "GET quote:<hash>", "d": "", "r": ["backend/app/services/rating.py:20-28"] },
+        { "frag": "alt", "t": "cached, younger than 10 min" },
+        { "m": ["pb", "pn"], "k": "cache", "t": "cached quotes", "d": "", "r": [], "ret": "quotes" },
+        { "frag": "else", "t": "miss" },
+        { "frag": "loop", "t": "each active carrier, one after another" },
+        { "m": ["pn", "pa"], "k": "call", "t": "rate(carrier, request)", "d": "", "r": ["backend/app/services/rating.py:40-72"] },
+        { "m": ["pa", "pz"], "k": "api", "t": "POST /rates", "d": "8 s timeout per call.", "r": ["backend/app/integrations/carrier_client.py:40-66"], "i": "NF-04" },
+        { "m": ["pz", "pa"], "k": "api", "t": "rate card", "d": "", "r": [], "ret": "rates" },
+        { "frag": "end", "t": "" },
+        { "m": ["pn", "pb"], "k": "cache", "t": "SET quote:<hash> EX 600", "d": "", "r": ["backend/app/services/rating.py:30-38"] },
+        { "frag": "end", "t": "" },
+        { "m": ["pr", "pq"], "k": "api", "t": "200 [quotes]", "d": "", "r": [], "ret": "200" },
+        { "note": ["pn", "pz"], "t": "On a miss, quote latency is the sum of every carrier's response time.", "tone": "warn", "i": "NF-04" }
+      ]
+    },
+    {
+      "id": "label-job", "title": "Label generation via the queue",
+      "summary": "A queued job buys one label per parcel from the carrier, stores each PDF in object storage and records the key on the parcel.",
+      "participants": [
+        { "id": "ph", "label": "/v1/shipments", "sub": "router", "zone": "zs-api", "node": "shipments-routes" },
+        { "id": "pb", "label": "Redis", "sub": "broker", "zone": "zp-cloud", "node": "redis-broker" },
+        { "id": "pl", "label": "label_renderer.py", "sub": "worker task", "zone": "zs-worker", "node": "label-renderer" },
+        { "id": "pz", "label": "Carrier tracking API", "sub": "labels", "zone": "zx-partners", "node": "carrier-api" },
+        { "id": "pf", "label": "Object storage", "sub": "labels/", "zone": "zp-cloud", "node": "label-bucket" },
+        { "id": "pd", "label": "freight.sqlite3", "sub": "operational DB", "zone": "zd-stores", "node": "ops-db" }
+      ],
+      "steps": [
+        { "m": ["ph", "pb"], "k": "queue", "t": "enqueue render_label(shipment_id)", "d": "Relabel requests take this path too.", "r": ["backend/app/routers/shipments.py:80-92"] },
+        { "note": ["ph"], "t": "The HTTP response does not wait for the label.", "tone": "info" },
+        { "m": ["pb", "pl"], "k": "queue", "t": "deliver task (at least once)", "d": "", "r": ["backend/worker/tasks/label_renderer.py:1-12"] },
+        { "frag": "loop", "t": "each parcel in the shipment" },
+        { "m": ["pl", "pz"], "k": "api", "t": "POST /labels (purchase)", "d": "", "r": ["backend/worker/tasks/label_renderer.py:30-55"] },
+        { "m": ["pz", "pl"], "k": "api", "t": "label PDF + tracking number", "d": "", "r": [], "ret": "label" },
+        { "m": ["pl", "pf"], "k": "persist", "t": "PUT labels/<shipment>/<parcel>.pdf", "d": "", "r": ["backend/worker/tasks/label_renderer.py:57-70"] },
+        { "m": ["pl", "pd"], "k": "sql", "t": "UPDATE parcels SET label_key, tracking_number", "d": "", "r": ["backend/worker/tasks/label_renderer.py:72-88"] },
+        { "frag": "end", "t": "" },
+        { "frag": "alt", "t": "carrier error or timeout" },
+        { "m": ["pl", "pb"], "k": "queue", "t": "retry the task with backoff (max 5)", "d": "", "r": ["backend/worker/tasks/label_renderer.py:98-102"], "i": "NF-03" },
+        { "frag": "else", "t": "every parcel labelled" },
+        { "m": ["pl", "pd"], "k": "sql", "t": "UPDATE shipments SET status = 'labelled'", "d": "", "r": ["backend/worker/tasks/label_renderer.py:90-96"] },
+        { "frag": "end", "t": "" },
+        { "note": ["pl", "pd"], "t": "A retry starts the loop again from the first parcel.", "tone": "warn", "i": "NF-03" }
+      ]
+    },
+    {
+      "id": "carrier-webhook", "title": "Carrier webhook tracking update",
+      "summary": "Carriers post batches of tracking events. The API maps each event onto a parcel and records it; the tracking board picks the change up on its next poll.",
+      "participants": [
+        { "id": "pz", "label": "Carrier tracking API", "sub": "webhooks", "zone": "zx-partners", "node": "carrier-api" },
+        { "id": "pg", "label": "Ingress gateway", "sub": "/hooks/*", "zone": "zg-ingress", "node": "ingress-gw" },
+        { "id": "pw", "label": "/hooks/carrier/{code}", "sub": "router", "zone": "zs-api", "node": "webhook-routes" },
+        { "id": "pi", "label": "tracking_ingest.py", "sub": "service", "zone": "zs-api", "node": "tracking-service" },
+        { "id": "pd", "label": "freight.sqlite3", "sub": "operational DB", "zone": "zd-stores", "node": "ops-db" },
+        { "id": "pv", "label": "Tracking board", "sub": "frontend", "zone": "zb-web", "node": "tracking-board" }
+      ],
+      "steps": [
+        { "m": ["pz", "pg"], "k": "event", "t": "POST /hooks/carrier/{code} [events]", "d": "", "r": ["backend/app/routers/carrier_hooks.py:1-12"] },
+        { "m": ["pg", "pw"], "k": "api", "t": "forward (no bearer token)", "d": "", "r": ["infra/ingress/routes.yaml:22-30"] },
+        { "m": ["pw", "pw"], "k": "call", "t": "parse the payload", "d": "", "r": ["backend/app/routers/carrier_hooks.py:14-28"], "i": "NF-01" },
+        { "m": ["pw", "pi"], "k": "call", "t": "ingest(events)", "d": "", "r": ["backend/app/routers/carrier_hooks.py:30-48"] },
+        { "frag": "loop", "t": "each event in the batch" },
+        { "m": ["pi", "pd"], "k": "sql", "t": "SELECT parcel BY tracking_number", "d": "", "r": ["backend/app/services/tracking_ingest.py:20-30"] },
+        { "frag": "opt", "t": "parcel found" },
+        { "m": ["pi", "pd"], "k": "sql", "t": "INSERT tracking_events", "d": "", "r": ["backend/app/services/tracking_ingest.py:42-56"], "i": "NF-02" },
+        { "m": ["pi", "pd"], "k": "sql", "t": "UPDATE parcels SET last_status", "d": "", "r": ["backend/app/services/tracking_ingest.py:58-70"] },
+        { "frag": "end", "t": "" },
+        { "frag": "end", "t": "" },
+        { "m": ["pw", "pz"], "k": "api", "t": "202 Accepted", "d": "", "r": [], "ret": "202" },
+        { "m": ["pv", "pg"], "k": "api", "t": "GET /v1/shipments/{id}/tracking (every 60 s)", "d": "", "r": ["frontend/src/screens/tracking/TrackingBoard.tsx:22-31"] },
+        { "note": ["pv"], "t": "Nothing is pushed to the browser; the board sees the update on its next poll.", "tone": "info" }
+      ]
+    },
+    {
+      "id": "nightly-rollup", "title": "Nightly analytics refresh",
+      "summary": "At 02:00 UTC the worker rebuilds the reporting views in the analytics file from a read-only snapshot of the operational DB.",
+      "participants": [
+        { "id": "ps", "label": "schedule.py", "sub": "beat", "zone": "zs-worker", "node": "beat-schedule" },
+        { "id": "pb", "label": "Redis", "sub": "broker", "zone": "zp-cloud", "node": "redis-broker" },
+        { "id": "pu", "label": "analytics_rollup.py", "sub": "worker task", "zone": "zs-worker", "node": "analytics-rollup" },
+        { "id": "pd", "label": "freight.sqlite3", "sub": "operational DB", "zone": "zd-stores", "node": "ops-db" },
+        { "id": "pv", "label": "analytics.duckdb", "sub": "views", "zone": "zd-stores", "node": "analytics-db" },
+        { "id": "pr", "label": "/v1/reports", "sub": "router", "zone": "zs-api", "node": "reports-routes" }
+      ],
+      "steps": [
+        { "m": ["ps", "pb"], "k": "event", "t": "02:00 UTC tick → enqueue rebuild_views", "d": "", "r": ["backend/worker/schedule.py:6-14"] },
+        { "m": ["pb", "pu"], "k": "queue", "t": "deliver rebuild_views", "d": "", "r": ["backend/worker/tasks/analytics_rollup.py:1-9"] },
+        { "m": ["pu", "pv"], "k": "sql", "t": "open the analytics file read-write", "d": "", "r": ["backend/worker/tasks/analytics_rollup.py:10-24"] },
+        { "m": ["pu", "pd"], "k": "pull", "t": "ATTACH the operational DB (READ_ONLY)", "d": "", "r": ["backend/worker/tasks/analytics_rollup.py:26-34"] },
+        { "m": ["pu", "pv"], "k": "sql", "t": "CREATE OR REPLACE VIEW daily_shipment_volume, carrier_on_time_rate", "d": "", "r": ["backend/worker/tasks/analytics_rollup.py:36-70"] },
+        { "frag": "opt", "t": "a report request arrives during the rebuild" },
+        { "m": ["pr", "pv"], "k": "sql", "t": "SELECT … FROM carrier_on_time_rate", "d": "", "r": ["backend/app/routers/reports.py:40-58"], "i": "NF-05" },
+        { "m": ["pv", "pr"], "k": "sql", "t": "file lock conflict → 503", "d": "", "r": [], "ret": "error" },
+        { "frag": "end", "t": "" },
+        { "note": ["pu", "pv"], "t": "The worker writes the same analytics file that the API reads.", "tone": "warn", "i": "NF-05" }
+      ]
+    },
+    {
+      "id": "sign-in", "title": "Sign in",
+      "summary": "The console signs the user in with the OIDC authorization code flow and PKCE; the API verifies each bearer token against the provider's published keys.",
+      "participants": [
+        { "id": "pc", "label": "Freight console", "sub": "SPA", "zone": "zb-web", "node": "web-app" },
+        { "id": "po", "label": "OIDC client", "sub": "in memory", "zone": "zb-web", "node": "oidc-client" },
+        { "id": "pi", "label": "OIDC identity provider", "sub": "authorize · token", "zone": "zx-partners", "node": "oidc-idp" },
+        { "id": "pg", "label": "Ingress gateway", "sub": "TLS", "zone": "zg-ingress", "node": "ingress-gw" },
+        { "id": "pt", "label": "Token guard", "sub": "JWT verify", "zone": "zs-api", "node": "token-guard" }
+      ],
+      "steps": [
+        { "m": ["pc", "po"], "k": "call", "t": "no session → login()", "d": "", "r": ["frontend/src/routes/AppRoutes.tsx:50-64"] },
+        { "m": ["po", "pi"], "k": "auth", "t": "redirect: authorization code + PKCE", "d": "", "r": ["frontend/src/auth/oidcClient.ts:12-30"] },
+        { "m": ["pi", "po"], "k": "auth", "t": "callback with code", "d": "", "r": [], "ret": "code" },
+        { "m": ["po", "pi"], "k": "auth", "t": "exchange code for tokens", "d": "", "r": ["frontend/src/auth/oidcClient.ts:32-48"] },
+        { "m": ["pi", "po"], "k": "auth", "t": "id, access and refresh tokens", "d": "", "r": [], "ret": "tokens" },
+        { "note": ["po"], "t": "Tokens are held in memory only.", "tone": "info" },
+        { "m": ["pc", "pg"], "k": "api", "t": "first /v1 call with a bearer token", "d": "", "r": [] },
+        { "m": ["pg", "pt"], "k": "api", "t": "forward", "d": "", "r": [] },
+        { "frag": "opt", "t": "JWKS not cached, or key id unknown" },
+        { "m": ["pt", "pi"], "k": "auth", "t": "GET /.well-known/jwks.json", "d": "", "r": ["backend/app/security/token_guard.py:30-52"] },
+        { "frag": "end", "t": "" },
+        { "m": ["pt", "pt"], "k": "auth", "t": "verify signature, iss, aud, exp", "d": "", "r": ["backend/app/security/token_guard.py:54-80"] },
+        { "frag": "alt", "t": "access token expired" },
+        { "m": ["pt", "pc"], "k": "api", "t": "401", "d": "", "r": [], "ret": "401" },
+        { "m": ["po", "pi"], "k": "auth", "t": "refresh grant, then retry", "d": "", "r": ["frontend/src/auth/oidcClient.ts:50-68"] },
+        { "frag": "else", "t": "valid" },
+        { "m": ["pt", "pc"], "k": "api", "t": "200", "d": "", "r": [], "ret": "200" },
+        { "frag": "end", "t": "" }
+      ]
+    },
+    {
+      "id": "release", "title": "Build and deploy",
+      "summary": "A version tag runs the tests, pushes both images to the registry and rolls out a new revision of the API and the worker.",
+      "participants": [
+        { "id": "pe", "label": "Engineer", "sub": "tag v*", "zone": "zr-release" },
+        { "id": "pa", "label": "GitHub Actions", "sub": "release.yml", "zone": "zr-release", "node": "gha-pipeline" },
+        { "id": "pr", "label": "Container registry", "sub": "images", "zone": "zr-release", "node": "image-registry" },
+        { "id": "ph", "label": "Container hosting", "sub": "revisions", "zone": "zr-release", "node": "runtime-host" },
+        { "id": "px", "label": "API container", "sub": "FastAPI", "zone": "zs-api", "node": "api-service" },
+        { "id": "pw", "label": "Worker container", "sub": "tasks", "zone": "zs-worker", "node": "worker-service" }
+      ],
+      "steps": [
+        { "m": ["pe", "pa"], "k": "deploy", "t": "push tag v*", "d": "", "r": [".github/workflows/release.yml:1-10"] },
+        { "m": ["pa", "pa"], "k": "deploy", "t": "lint, pytest, vitest", "d": "", "r": [".github/workflows/release.yml:12-38"] },
+        { "frag": "alt", "t": "tests fail" },
+        { "note": ["pa"], "t": "The run stops; nothing is pushed.", "tone": "info" },
+        { "frag": "else", "t": "tests pass" },
+        { "m": ["pa", "pr"], "k": "deploy", "t": "push api and worker images", "d": "", "r": [".github/workflows/release.yml:40-61"] },
+        { "m": ["pa", "ph"], "k": "deploy", "t": "roll out a new revision", "d": "", "r": [".github/workflows/release.yml:63-88"] },
+        { "m": ["ph", "pr"], "k": "deploy", "t": "pull images", "d": "", "r": ["deploy/service.yaml:12-20"] },
+        { "m": ["ph", "px"], "k": "deploy", "t": "start the API revision (runs migrations)", "d": "", "r": ["deploy/service.yaml:22-44"] },
+        { "m": ["ph", "pw"], "k": "deploy", "t": "start the worker revision", "d": "", "r": ["deploy/service.yaml:46-70"] },
+        { "frag": "end", "t": "" },
+        { "note": ["pe", "pw"], "t": "Migrations run when the API starts, before the worker restarts.", "tone": "warn" }
+      ]
+    }
+  ],
+  "views": [
+    { "id": "system-context", "title": "System context", "zones": ["zb-web", "zg-ingress", "zs-backend", "zd-stores", "zp-cloud", "zx-partners", "zr-release"] },
+    {
+      "id": "api-components", "title": "API components",
+      "zones": ["zg-ingress", "zs-api", "zd-stores", "zp-cloud", "zx-partners"],
+      "nodes": ["ingress-gw", "token-guard", "orders-routes", "quotes-routes", "shipments-routes", "webhook-routes", "reports-routes", "order-service", "rating-service", "tracking-service", "carrier-adapter", "repo-layer", "ops-db", "analytics-db", "redis-broker", "label-bucket", "carrier-api", "oidc-idp"]
+    },
+    {
+      "id": "web-components", "title": "Web components",
+      "zones": ["zb-web", "zg-ingress", "zx-partners"],
+      "nodes": ["web-app", "ui-routes", "orders-screen", "quote-panel", "tracking-board", "freight-api-slice", "oidc-client", "local-prefs", "ingress-gw", "oidc-idp", "carrier-api"]
+    },
+    {
+      "id": "worker-components", "title": "Worker components",
+      "zones": ["zs-worker", "zp-cloud", "zd-stores", "zx-partners"],
+      "nodes": ["worker-service", "label-renderer", "analytics-rollup", "beat-schedule", "redis-broker", "label-bucket", "ops-db", "analytics-db", "carrier-adapter", "carrier-api"]
+    },
+    {
+      "id": "release-topology", "title": "Release topology",
+      "zones": ["zr-release", "zs-backend", "zp-cloud"],
+      "nodes": ["gha-pipeline", "image-registry", "runtime-host", "api-service", "worker-service", "redis-broker", "label-bucket"]
+    },
+    {
+      "id": "trust-zones", "title": "Trust zones",
+      "zones": ["zb-web", "zg-ingress", "zs-backend", "zp-cloud", "zx-partners"],
+      "nodes": ["web-app", "oidc-client", "ingress-gw", "token-guard", "webhook-routes", "carrier-api", "oidc-idp", "redis-broker", "label-bucket"]
+    }
+  ]
+}
