@@ -1076,7 +1076,7 @@
     {
       "id": "P3",
       "title": "Deterministic pre-scan for the v1 stacks",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "prescan.mjs partitions a repo into at most 8 areas and extracts routes, ORM entities, migrations and client calls for the Python, TS frontend and Node backend stacks, tested on small fixture repos, at 0 tokens.",
       "testGate": [
@@ -1085,8 +1085,8 @@
       "blockedBy": [
         "P1"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "74e5701583841e08503dfc51d4ae75fa002bf3aa",
+      "branch": "audit/p3-deterministic-pre-scan-for-the",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -1099,7 +1099,7 @@
         {
           "id": "P3.1",
           "title": "prescan.mjs core: inventory, stack detection, area partitioning, generic recipe",
-          "status": "pending",
+          "status": "in_progress",
           "description": "prescan is the 0-token first step of /archmap:build (design sections 6 and 8). Write the core; stack extractors come in\nP3.2-P3.4 as plug-ins with a common interface (detect(inventory) -> bool, extract(files, read) -> fragment).\nCLI: node scripts/prescan.mjs <repoDir> [--scope <path>] [--out <file>] -> JSON\n{schemaVersion, repo, commit (git rev-parse HEAD), stacks[], areas[{id, title, globs[], files, stacks[]}],\n sources[{kind: sqlite|duckdb|..., path, status: found|skipped, reason?}], extracts{<stackId>: fragment}}.\n- Inventory: `git ls-files -co --exclude-standard`; skip vendored/generated dirs (node_modules, dist, build, .venv, ...),\n  binaries and files over a size cap.\n- Partition into <= 8 areas along app/package boundaries (monorepo workspaces, top-level apps, backend vs frontend),\n  merging small leftovers. Areas are what the explorer agents get one each.\n- Generic recipe: entry points, top-level dirs, Dockerfiles/compose and CI files listed as hints for any stack.\n- DB files (*.sqlite, *.db, *.duckdb) are only LISTED here; introspection happens later and never reads rows.\n- Deterministic: sorted everywhere, no timestamps in output.\nFixture repos live under tests/fixtures/repos/ and are tiny and FICTIONAL (repo is public). Build test repos with\n`git init` in os.tmpdir() from those fixture trees.",
           "files": [
             "scripts/prescan.mjs",
@@ -1126,16 +1126,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T22:10:40Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T22:14:59Z.e2e60e",
+            "status": "passed",
+            "at": "2026-10-28T22:14:59Z"
+          }
         },
         {
           "id": "P3.2",
@@ -1261,7 +1267,9 @@
           "verifiedBy": []
         }
       ],
-      "area": "prescan"
+      "area": "prescan",
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-28T22:10:40Z"
     },
     {
       "id": "P4",

@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/prescan-core.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T22:14:48Z",
+    "basis": "`node --test tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/prescan-core.test.mjs first (7 cases pc1-pc7, fixture repos built with git init in os.tmpdir(), all fictional); first run was red: scripts/prescan.mjs did not exist (ERR_MODULE_NOT_FOUND / non-zero exit in every case). Then implemented scripts/prescan.mjs (CLI + exported prescan(), loadExtractors(); plug-in extractors loaded from scripts/lib/prescan/stacks/*.mjs, each {id, detect(inventory), extract(files, read)}; exit 2 on usage/non-git dir), scripts/lib/prescan/inventory.mjs (git ls-files -co --exclude-standard -z, skip vendored dirs/binaries/lockfiles/minified/over 512KiB, DB files only listed as sources, never opened), scripts/lib/prescan/partition.mjs (<=8 areas, top-level dirs + container/workspace expansion, monolith opening, small-leftover merge, smallest-pair merge to the cap; disjoint globs dir/**, dir/*, *), scripts/lib/prescan/generic.mjs (stack detection python/ts-frontend/node-backend from manifests+deps, workspace containers, generic recipe: entryPoints, topLevelDirs, containers, ci, manifests under extracts.generic). Output sorted by code unit, no timestamps, JSON.stringify(...,2)+newline. Ran `node --test tests/prescan-core.test.mjs`: 7/7 pass; full `node --test`: 79 tests, 79 pass, exit 0. No fixture files added under tests/fixtures (repos are built in the test) because that path is outside the task files. Dependants: docs/design.md names prescan.mjs by basename and its section 6/8 description (CLI, <=8 areas, 0 tokens) still matches; the other four files have no tracked dependants.",
+    "descriptive": "prescan.mjs core now inventories a git repo, detects the v1 stacks, partitions it into at most 8 disjoint areas, lists DB files and emits deterministic JSON with plug-in points for the P3.2-P3.4 extractors."
+  },
+  "testsAdded": [
+    "tests/prescan-core.test.mjs: 7 cases - git ls-files/.gitignore/vendored/binary filtering, stack detection, <=8 disjoint covering areas, wide repo cap and workspace split, sqlite/duckdb sources and generic hints, byte-identical output with --out/--scope/exit 2, plug-in extractor interface"
+  ],
+  "casesAdded": [
+    [
+      "pc1",
+      "pc2",
+      "pc3",
+      "pc5",
+      "pc6"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:14a406d2851f52c2c697007858041cbaea7c89b593fcd79e8e816aef56b5aa65\",\"dirtyDigest\":\"sha256:e49914755bfab7582ba600ed46653f637410b262525fe20dc777bdd608b0ed68\",\"dirtyPaths\":{\"scripts/lib/prescan/generic.mjs\":\"f2322395c2e94ec3\",\"scripts/lib/prescan/inventory.mjs\":\"0615f0650204026a\",\"scripts/lib/prescan/partition.mjs\":\"48e40c3492adc523\",\"scripts/prescan.mjs\":\"0127c5b93665ffe8\",\"tests/prescan-core.test.mjs\":\"b8122e290887ad3b\"},\"head\":\"74e5701\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/generic.mjs\",\"scripts/lib/prescan/inventory.mjs\",\"scripts/lib/prescan/partition.mjs\",\"scripts/prescan.mjs\",\"tests/prescan-core.test.mjs\"],\"scopeDigest\":\"sha256:7ab28e342ac0ff4d11b4fa351c7836d9cd7b34e7e7ed4588ad6e1298b3a534db\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
