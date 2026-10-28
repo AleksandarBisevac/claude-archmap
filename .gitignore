@@ -9,3 +9,5 @@ node_modules/
 .claude/state/
 .claude/logs/
 .claude/usage/
+.venv/
+tests/visual/out/

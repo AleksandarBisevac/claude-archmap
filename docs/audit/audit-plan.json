@@ -645,7 +645,7 @@
         {
           "id": "P2.4",
           "title": "Viewer v1 views: ER, CRUD matrix, lineage, search, path finder, deployment and trust",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add the v1 views to the ported viewer (design section 7 \"New in v1\"), all driven by the embedded model + layout:\n- ER tab: entity cards with field rows, PK/FK markers, crow's-foot cardinality, provenance styling (declared / observed /\n  inferred), using the ER layout and per-field ports from layout.mjs.\n- CRUD matrix tab (nodes x entities, ops letters), click-through to the node or entity.\n- Lineage path highlight from an entity through access rows and edges.\n- Search (nodes, edges, entities, sequences) and a path finder: BFS between two nodes, path highlighted. Keep the BFS and\n  other pure logic in exported functions so node:test can test them without a browser.\n- Deployment and trust views from model.views, trust boundaries as dashed enclosures.\n- Global Issues switch (internal mode only) hides badges, flags, issue rows and step dots.\n- Evidence chips link to repoUrl/blob/<commit>/<path>#L<a>-L<b>.\nNo external URLs; keep the repo-wide denylist test green; do not open .private/reference/ for this task.",
           "files": [
             "assets/viewer/viewer.js",
@@ -675,25 +675,42 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b69638df68a5",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Rewrote assets/viewer/viewer.js into (1) pure exported-for-test functions (findPath BFS, lineageOf, searchModel, crudMatrix/crudHtml, erScene/erMarkup/crowFoot/relationKeys, evidenceUrl/evidenceChipHtml, viewRole, trustBoundaries/crossesTrust) that go to module.exports when no `document` exists, and (2) the DOM: tabbed panels (Graph, ER, CRUD matrix, Sequences, Deployment, Trust, Issues-in-issue-builds), generic graph panes (architecture, deployment and trust views split by view.kind or id/title regex), trust view with dashed enclosures per top-level zone and haloed boundary-crossing edges, ER cards from layout.er with per-field ports, PK/FK markers, crow's-foot ends and declared/observed/inferred styling, CRUD matrix with click-through, entity lineage pinned in the graph, header search over nodes/edges/entities/sequences, path-finder with pinned shortest-path highlight, evidence chips repoUrl/blob/<commit>/<path>#L<a>-L<b>. The Issues switch still hides badges/flags/issue rows/step dots (ER badges use .bdg). template.html: new header search, tab nav, panels, path bar; render.mjs placeholders and ISSUES/SWITCH regions untouched. viewer.css: tab, search, path/pin, trust, ER, CRUD styles. Added tests/viewer.test.mjs (6 cases, loading viewer.js from the rendered golden HTML). Checked in headless Chrome (file URL, each tab dumped/screenshot, interaction probe for path finder, search, CRUD cell, lineage, ER select, Issues switch; clean build tab walk): no console/window errors. Ran `node --test tests/viewer.test.mjs` (6 pass) and `node --test` (72 pass, 0 fail). Dependants: scripts/render.mjs still correct (uses template placeholders {{TITLE}}/{{CSS}}/{{THEME}}/{{MODE}}/{{DATA}}/{{JS}} and the ISSUES/SWITCH regions, all kept; render.test r1-r8 pass, including no-URL and clean-has-no-issues); viewer.css dependants (render.mjs, design.md) still correct, fixed --rel/--zone/--sev tokens unchanged; docs/design.md section 7 still correct, the v1 items it lists are now implemented (note: deployment/trust views are recognised by optional view.kind else id/title, since the schema has no view kind). Playwright was not available (not installed); screenshots were taken with headless Google Chrome, which hung on repeated CLI runs, so I used a perl alarm wrapper. A pkill of Chrome was refused by the permission classifier and was not retried.",
+            "descriptive": "The viewer now has ER, CRUD matrix, lineage, search, path finder, deployment and trust views, all model-driven and with pure logic tested in node:test."
           },
           "startedAt": "2026-10-28T18:54:16Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T19:09:48Z",
+          "verifiedBy": [
+            "v1: rendered golden HTML has tab buttons and panels for graph, er, crud, sequences, deployment, trust (issues only in issue builds), search and path finder present",
+            "v2: ER markup draws every golden entity with PK/FK markers and prov-* classes on entities, fields and relations, crow's-foot helpers",
+            "v3: CRUD matrix has one td.cell per golden access row with node/entity/ops, header click-through buttons, duplicate pairs merged",
+            "v4: evidence chips/URLs match repoUrl/blob/commit/path#La-Lb for all golden evidence, plain code without repo, unsafe repoUrl refused, no URL literals in shipped script",
+            "v5: BFS findPath is shortest vs a Floyd-Warshall reference over all golden node pairs, with valid edges, directed mode, null for unconnected",
+            "v6 (extra): search over nodes/edges/entities/sequences, entity lineage, trust crossing and boundary enclosures"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T19:09:47Z.6b37b2",
             "status": "passed",
             "at": "2026-10-28T19:09:47Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "b69638df68a5",
+            "at": "2026-10-28T19:09:48Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task (expectRedFirst false): tests were added after the implementation to lock the behaviour; no red owed and no -- command given to the helper",
+            "at": "n/a"
           }
         },
         {
           "id": "P2.5",
           "title": "Visual check of the golden render with Playwright",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Design section 10 \"Visual\": Playwright screenshots of every tab (light and dark, desktop and 400 px) of the golden render,\nwith no console errors. Use the project skill webapp-testing (Python Playwright).\n- Python Playwright is not installed globally. Use a gitignored venv at .venv/ (add `.venv/` and `tests/visual/out/` to\n  .gitignore): python3 -m venv .venv && .venv/bin/pip install playwright. Chromium browsers are already in the local\n  ms-playwright cache; only run `playwright install chromium` if launch fails.\n- tests/visual/screenshots.py: run `node scripts/layout.mjs` + `node scripts/render.mjs` on tests/fixtures/golden into a\n  temp dir, then drive the HTML over file:// (offline; also assert no network request leaves the page). Screenshots go to\n  tests/visual/out/ (gitignored). Exit 1 on any console error, page error or failed/external request.\n- This check is local, not part of `node --test` and not in CI (no browser there). tests/visual/README.md says how to run it.\n- Run it, look at the screenshots yourself (Read the PNGs), and report anything visibly broken: overlapping nodes, edges\n  through cards, unreadable dark mode, clipped panels at 400 px. Fix real rendering bugs in assets/viewer/ only if small;\n  otherwise report them for a follow-up task.",
           "files": [
             "tests/visual/screenshots.py",
@@ -720,16 +737,22 @@
           "dependsOn": [
             "P2.4"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T19:09:48Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T19:12:46Z.1a3e41",
+            "status": "passed",
+            "at": "2026-10-28T19:12:46Z"
+          }
         }
       ],
       "area": [

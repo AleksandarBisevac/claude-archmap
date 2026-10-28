@@ -1,0 +1,24 @@
+{
+  "gates": {
+    ".venv/bin/python tests/visual/screenshots.py": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "Task mode is regression with expectRedFirst false: a local browser script locking the behaviour of an already-built render; no fix was made, so no red was owed.",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Created .venv (gitignored) with Python Playwright; added .venv/ and tests/visual/out/ to .gitignore. tests/visual/screenshots.py runs node scripts/layout.mjs then render.mjs (clean and internal) on tests/fixtures/golden into a temp dir, opens each over file:// in headless Chromium with color_scheme light/dark at 1440x900 and 400x800, clicks every visible #navlist tab and saves full-page PNGs to tests/visual/out/ (52 screenshots: 6 tabs clean + 7 tabs internal, x2 themes x2 sizes). It fails on console errors, pageerrors, requestfailed and any request not file:/data:/blob:/about:; prints 'PASS vs1 ...' / 'FAIL vs1 ...'. Run: exit 0, 52 screenshots, 0 errors. node --test: 72 pass, 0 fail. I did not run a negative test (injected console error) to see the script exit 1, so the failure path is unverified. I Read 9 of the PNGs (internal graph light desktop, graph dark 400, ER dark desktop, CRUD light 400, sequences dark 400, deployment light desktop, trust dark desktop, issues light 400): dark mode is readable, ER, CRUD, issues and deployment look right, no overlapping nodes seen. FINDINGS for follow-up (none fixed, not small): (1) Graph, Deployment and Trust SVGs render at fixed scale inside .fig-scroll, so at 1440 px they are clipped on the right (need horizontal scroll; zones and edges run off the edge) and have no fit-to-width. (2) At 400 px the Graph tab's initial view shows a large blank area with only the Delivery pipeline zone visible at the left edge; the real diagram is off-screen right/below, so the first impression on mobile is an empty canvas. (3) Sequence diagrams at 400 px are cropped on the right (only the first 3 lifelines visible) and the alt/loop frame bodies have large empty gaps; this is also horizontal scroll. (4) Trust tab: long relation edges run around the outer edge of the backend boundary and cross large empty zone interiors; legible but sparse. Dependants: tests/visual/README.md is a new file; the 5 files naming README.md by basename (audit.config.json, review-scan.test.mjs, node skill rules, docs/design.md) refer to other READMEs/generic mentions and are unaffected. .gitignore gained two lines; audit.config.json and tests/review-scan.test.mjs name it by basename and are unaffected (node --test green, which includes review-scan). screenshots.py has no dependants.",
+    "descriptive": "Adds a local Playwright visual check of the golden render (52 screenshots, no console errors or external requests) and reports graph-fit and 400 px clipping issues for a follow-up viewer task."
+  },
+  "testsAdded": [
+    "tests/visual/screenshots.py: builds the golden render (clean and internal), opens it over file:// in headless Chromium, screenshots every tab in light and dark at 1440 px and 400 px, and exits non-zero on any console error, page error, failed or external request."
+  ],
+  "casesAdded": [
+    "vs1"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:53a908f29181b9546d2f2981bbb74bd11c035a85427c7deb9c0a6797d48be5d1\",\"dirtyDigest\":\"sha256:e996729fdedf69585d0b3f66356c3db37973934fe08b97f70917f363a9e98ea3\",\"dirtyPaths\":{\".gitignore\":\"2be03e4a6a4b6dac\",\"tests/visual/README.md\":\"54807a3fd4e0022a\",\"tests/visual/screenshots.py\":\"34d54d2b7e952aaf\"},\"head\":\"b69638d\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\".gitignore\",\"tests/visual/README.md\",\"tests/visual/screenshots.py\"],\"scopeDigest\":\"sha256:0f6ebe20d39e870ff048ea3cda5fac21528c30b81f809d86e52e1673c55f5666\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
