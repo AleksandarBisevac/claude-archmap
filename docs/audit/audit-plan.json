@@ -515,7 +515,7 @@
         {
           "id": "P2.2",
           "title": "Vendor elkjs 0.12.0 and write layout.mjs",
-          "status": "in_progress",
+          "status": "done",
           "description": "1. Vendor elkjs 0.12.0 exactly (released 2026-07-17; newer versions are under two weeks old and are NOT allowed):\n   `npm pack elkjs@0.12.0` in a temp dir, copy lib/elk.bundled.js to assets/viewer/elk.bundled.js unmodified. Record in\n   assets/viewer/ELK-NOTICE.md: package, version, source URL, the sha256 of the copied file, and that it is used under\n   EPL-2.0 (the package is dual \"EPL-2.0 OR GPL-3.0-or-later\"; we elect EPL-2.0), with the EPL-2.0 notice text / link\n   and the Eclipse copyright line from the package. No package.json dependency: the repo stays zero-npm-deps.\n2. scripts/layout.mjs (Node >= 18 ESM): reads architecture.model.json (+ optional architecture.layout.json as seeds), runs\n   ELK layered with compound zones (zone.parent nesting), deterministic options (fixed seeds, sorted inputs), and writes\n   architecture.layout.json: {schemaVersion, graph:{nodes:{id:{x,y,w,h,pinned?}}, zones:{...}, edges:{id:{sections}}},\n   er:{entities:{id:{x,y,w,h}}, relations:{...}}}. Seeds: previous positions are fed back so only new or changed nodes move\n   (\"park\" new nodes near their zone, design 14.3). Pinned nodes (layout `pinned: true`) never move. ER view uses one port\n   per field row so relation edges attach to the right rows.\n   CLI: node scripts/layout.mjs <model.json> [--layout <layout.json>] [--out <file>]; exit 0 / 1 / 2 like validate.mjs.\nValidate the model with the exported validate() first and refuse an invalid one.",
           "files": [
             "assets/viewer/elk.bundled.js",
@@ -545,25 +545,38 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "90809f022614",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Vendored elkjs 0.12.0 (npm pack elkjs@0.12.0; lib/elk.bundled.js copied unmodified to assets/viewer/elk.bundled.js, sha256 1222e44f953ce7746af23801e723708f8e6f436b8b377a6a5fc7552f34a307b3, 1609707 bytes; 0.12.1 published today was NOT used). assets/viewer/ELK-NOTICE.md records package, version, source URL, sha256, EPL-2.0 election (dual EPL-2.0 OR GPL-3.0-or-later), the EPL notice text/link and the Kiel University copyright lines found in the file. No package.json added. scripts/layout.mjs (Node>=18 ESM, loads the vendored bundle via createRequire): exports layoutModel(model,{layout}) and LAYOUT_SCHEMA_VERSION; CLI `node scripts/layout.mjs <model.json> [--layout f] [--out f]` validates with the exported validate() first (invalid -> exit 1, nothing written), exit 2 for usage/unreadable/bad-schemaVersion seed/layout failure; --out defaults to --layout else architecture.layout.json beside the model; a missing --layout file is treated as no seed with a stderr note. Fresh layout: ELK layered, RIGHT, ORTHOGONAL, randomSeed 1, inputs sorted by id, zones as compound nodes (zone.parent nesting, padding top 36), deterministic text-metric node sizes. Output {schemaVersion:1, graph:{nodes,zones,edges:{id:{sections}}}, er:{entities (with extra ports:{field:{x,y,side}}), relations keyed 'from.entity.field->to.entity.field'}} in absolute graph coords. Seeded layout: unchanged-size seeded nodes keep their position, pinned (pinned:true) nodes keep exact x,y and the flag, new/resized nodes are parked by a deterministic grid ring search next to their zone (no overlap with nodes or foreign zones), zone boxes are recomputed but a seed box that still holds its members is kept, seed edge routes are kept if endpoints still sit on the node borders else re-routed by a simple orthogonal router; re-running on its own output is byte-identical. ER: one ELK port per field row (FIXED_POS, WEST for target-only fields else EAST), relation edges attach to field ports. Tests: tests/layout.test.mjs l1-l8. Verified: `node --test tests/layout.test.mjs` 8/8 pass; `node --test` 58/58 pass, exit 0; CLI run on the golden model: 51/51 edge endpoints on node borders, in-place seeded re-run byte-identical (cmp). Red first: the tests were written before scripts/layout.mjs existed and all 8 failed with ERR_MODULE_NOT_FOUND (module import error, not an assertion) before implementation. Dependants: archmap-review SKILL.md line 43 (imports may be the vendored assets/viewer/elk.bundled.js) - still correct, layout.mjs imports it by relative require and adds no package.json; scan.mjs lines 70-71 exclude elk.bundled.js from own-code/shipped scans by basename - still correct, file name unchanged; its IMPORT_SPEC regex accepts the relative require. docs/design.md names layout.mjs and elk.bundled.js (+EPL notice) in its repo layout and step 2 - still correct, file names and the described behaviour (layered, compound zones, field ports, seeds, pins) match. ELK-NOTICE.md and tests/layout.test.mjs: no tracked dependants.",
+            "descriptive": "Adds vendored elkjs 0.12.0 and a deterministic, seeded, pin-honouring layout.mjs that lays out zones, nodes, edges and ER field ports into architecture.layout.json."
           },
           "startedAt": "2026-10-28T18:33:39Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T18:39:29Z",
+          "verifiedBy": [
+            "tests/layout.test.mjs: determinism (module and CLI byte-identical), node/zone containment and no overlap, zone nesting, edge routing, seeded re-layout stability + fixed point + parking, pinned positions, ER field-row ports and relation attachment, CLI exit codes and seed file"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T18:39:28Z.6c8869",
             "status": "passed",
             "at": "2026-10-28T18:39:28Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "90809f022614",
+            "at": "2026-10-28T18:39:29Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T18:39:13Z",
+            "basis": "`node --test tests/layout.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /dangling-ref/. Input:; run without CLAUDE_PROJECT_DIR; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P2.3",
           "title": "Port the viewer core and write render.mjs (clean, internal, shared)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Port the viewer core from the single HTML file in .private/reference/ (design section 7), CODE ONLY:\n- relation table ET, zone table ZN, addMarkers, roundedPath; renderGraph (zones, nodes, edge labels, issue badges);\n  focusNode / focusEdge / select / renderDetail; legend chips that toggle relation types and the zone key; renderSeq +\n  setStep (numbered steps, fragments, notes, issue dots, prev/next and arrow keys); the light/dark CSS token system as is.\n- Replace the reference's hand-placed coordinates and edgeGeom anchors with architecture.layout.json positions and ELK\n  routed edge sections. Everything is driven by the embedded model + layout; nothing is hard-coded.\nANONYMITY (repo is PUBLIC, absolute): copy no data, labels, titles, comments, sample text, ids or names from the reference;\nonly generic rendering logic and CSS. Rename anything domain-specific. Do not name the reference file anywhere. P2.1's\nrepo-wide denylist test must stay green.\nFonts: no external font URLs (the output is offline); use a system font stack, overridable by archmap.theme.json.\nscripts/render.mjs: node scripts/render.mjs <model.json> --layout <layout.json> [--issues <issues.json>]\n[--theme <theme.json>] [--mode clean|internal|shared] [--out <file>]. Inlines template, CSS, JS, model, layout (and issues\nper mode) into one HTML. clean = default, physically contains no issues; internal = full issues with detail and the global\nIssues switch; shared = calibrated summary/impact/fix only. Validate inputs with validate() first.\nTheme: archmap-theme.schema.json allows fonts, chrome and accent only; relation, zone and severity colours are fixed,\ncolour-blind-safe with dash patterns (D10).",
           "files": [
             "assets/viewer/template.html",
@@ -592,16 +605,22 @@
           "dependsOn": [
             "P2.2"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T18:39:30Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T18:53:23Z.23342e",
+            "status": "passed",
+            "at": "2026-10-28T18:53:23Z"
+          }
         },
         {
           "id": "P2.4",

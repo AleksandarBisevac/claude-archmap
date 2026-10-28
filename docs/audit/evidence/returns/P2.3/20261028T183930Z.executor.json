@@ -1,0 +1,40 @@
+{
+  "gates": {
+    "node --test tests/render.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T18:52:53Z",
+    "basis": "`node --test tests/render.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "New: scripts/render.mjs (CLI + exports checkInputs, renderHtml, issuesFor, stripIssueRefs, unplacedNodes, MODES). It validates the model and issues with validate(), the theme with the theme schema and a CSS-safety check (rejects ; { } < > backslash, comments, newlines), and the layout shape (schemaVersion 1, finite x/y/w/h). Exit 1 means invalid input and nothing is written; exit 2 means usage (unknown --mode; internal/shared without --issues or without an explicit --out, so issue builds are never dropped into the analysed repo). It inlines template + CSS + JS + JSON blocks #archmap-model/#archmap-layout/#archmap-issues in a single replace pass. JSON escapes < > & U+2028/2029. clean cuts the <!--ISSUES--> and <!--SWITCH--> template regions and strips steps[].i from the embedded model. shared drops issue.detail and has no Issues switch (internal-only, per archmap-review SKILL.md section 4). The theme becomes one `:root:root:root{...}` block covering only fonts.sans/mono, chrome bg/surface/text/muted/border and accent; any other key is ignored. New: assets/viewer/template.html, viewer.css, viewer.js, a generic port of the reference viewer core: relation table REL (12 types, dash and width per type), zone kinds, addMarkers, roundedPath, renderGraph (zones, nodes, edge labels, node and edge issue badges), focusNode/focusEdge/select/renderDetail (facts, connections, evidence chips linked to repoUrl/blob/<commit> only for http(s) URLs, issues), legend chips toggling types, zone key, model.views as tabs projected from the single layout, renderSeq/setStep (numbered steps, fragments, notes, issue dots, prev/next, arrow keys), an issues list with severity filter and show-on-diagram, the Issues switch (body.issues-off), and the light/dark token system renamed to --rel-*/--zone-*/--sev-* with system font stacks. Edge geometry comes from ELK sections in the layout, with a straight side-to-side fallback when the layout lacks the edge. No URL literal in shipped viewer code: the SVG namespace is read from the inline <svg>. Tests: tests/render.test.mjs has 8 cases r1-r8, `node --test tests/render.test.mjs` gives pass 8 / fail 0. Extra checks (not gates): headless Chromium (Playwright's cached chrome-headless-shell, --dump-dom with --enable-logging) on golden internal/shared/clean renders drew 34 nodes and 13 sequence messages, 0 CONSOLE lines in each. The probe page proved that logging does surface console errors. The Issues switch shows in internal only. Screenshots of desktop internal and 400px dark clean looked correct. A denylist self-scan of my 5 files over the 14 terms found 0 hits (terms not printed). The full `node --test` gate and the denylist test were not run (runsGate own-tests). Dependants: tests/review-scan.test.mjs still correct, since it only uses the path scripts/render.mjs as content in a synthetic repo. .claude/skills/archmap-review/SKILL.md still correct, and this change was brought in line with it: switch internal-only, no http(s) in assets/viewer, fixed colours not themeable. docs/design.md still correct: it only names render.mjs/template.html/viewer.js/viewer.css and the clean/internal/shared modes, which this implements. One note: the planned /archmap:render command uses --internal/--shared, which will map to --mode. The test file was edited after implementing for three reasons: two regexes with catastrophic backtracking (60 s) were replaced; r4 was flipped to expect no switch in shared after reading SKILL.md section 4; and the r1 URL allowance was tightened to none.",
+    "descriptive": "render.mjs now builds clean, internal and shared self-contained offline HTML from model + ELK layout (+ issues per mode, + fonts/chrome/accent theme), with a generic, model-driven port of the viewer core."
+  },
+  "testsAdded": [
+    "r1 every mode renders one self-contained HTML: no external script/link/@import/@font-face/remote url()/src/href, no fetch/XHR/import()/WebSocket, no URL in template/CSS/JS",
+    "r2 clean (and the default mode) carries no issue id/title/summary/impact/fix/detail, no issues block, no Issues switch, no steps[].i",
+    "r3 internal embeds the full issues incl. detail and the Issues switch",
+    "r4 shared embeds sev/category/title/anchor/summary/impact/fix for every issue, never detail, and no switch",
+    "r5 embedded model and layout round-trip (clean differs only by steps[].i), including a hostile model string with </script>, <!--, U+2028/2029",
+    "r6 theme applies fonts/chrome/accent, ignores out-of-contract keys, and leaves every --rel-*/--zone-*/--sev-* declaration byte-identical (each golden edge type, zone kind, severity has one)",
+    "r7 invalid model, issues, schema-invalid theme or CSS-breaking theme value -> exit 1 and no file; unknown mode or internal without --issues -> exit 2",
+    "r8 same inputs give byte-identical HTML in every mode"
+  ],
+  "casesAdded": [
+    [
+      "r1",
+      "r2",
+      "r3",
+      "r4",
+      "r5",
+      "r6",
+      "r7",
+      "r8"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:5318891ad3e609da5f8c0a408bacff9f120ef2b049d677c7e8c4febd85959300\",\"dirtyDigest\":\"sha256:41baf69144d13a8f950ac526407b239d81f5d1a3589e06931a5e1ff6d0998a1a\",\"dirtyPaths\":{\"assets/viewer/template.html\":\"0e2e1636000a638c\",\"assets/viewer/viewer.css\":\"9b0bb2fa309a94b2\",\"assets/viewer/viewer.js\":\"8585b1fc2c0f45f6\",\"scripts/render.mjs\":\"ff161d2f3660c879\",\"tests/render.test.mjs\":\"424bfd966e69dfd3\"},\"head\":\"90809f0\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/template.html\",\"assets/viewer/viewer.css\",\"assets/viewer/viewer.js\",\"scripts/render.mjs\",\"tests/render.test.mjs\"],\"scopeDigest\":\"sha256:3baf121ffeff8009dd1c6b2f801faf488e864b3a82e8ee9cbc7fb5d25ad13efd\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

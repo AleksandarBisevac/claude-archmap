@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="generator" content="archmap">
+<title>{{TITLE}}</title>
+<style>
+{{CSS}}
+</style>
+{{THEME}}
+</head>
+<body data-mode="{{MODE}}">
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1 id="title"></h1>
+    <div class="toprow">
+<!--SWITCH-->
+      <label class="iswitch"><input type="checkbox" id="issues-switch" checked> Issues</label>
+<!--/SWITCH-->
+    </div>
+  </div>
+</header>
+
+<nav class="sections" aria-label="Sections">
+  <div class="wrap">
+    <ul id="navlist">
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#sequences">Sequences</a></li>
+<!--ISSUES-->
+      <li class="issues-only"><a href="#issues">Issues</a></li>
+<!--/ISSUES-->
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <section class="block" id="architecture">
+    <div class="wrap">
+      <div class="shead">
+        <h2>Architecture</h2>
+        <p>Arrows point from caller to callee; their colour and dash show the kind of relation. Box colour shows the zone. Hover over a component to isolate its connections, click it for details.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Diagram view" id="viewtabs"></div>
+          <div class="legend" id="legend" aria-label="Relation types: click to show or hide"></div>
+        </div>
+        <div class="zonekey" id="zonekey"></div>
+        <figure>
+          <div class="fig-scroll"><svg id="arch" role="group" aria-label="Architecture diagram"></svg></div>
+          <figcaption id="archcap"></figcaption>
+        </figure>
+        <div class="detail" id="detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="sequences">
+    <div class="wrap">
+      <div class="shead">
+        <h2>Sequence diagrams</h2>
+        <p>Runtime flows, numbered in the order they happen. Click a message, or use the arrow keys, to read what it does and where it lives in the code. Dashed arrows are responses.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Sequence" id="seqtabs"></div>
+          <div class="seq-controls">
+            <button class="btn" id="seqprev" aria-label="Previous step">&larr; Prev</button>
+            <button class="btn" id="seqnext" aria-label="Next step">Next &rarr;</button>
+          </div>
+        </div>
+        <p class="seq-summary" id="seqsum"></p>
+        <figure>
+          <div class="fig-scroll" id="seqscroll"><svg id="seq" role="group" aria-label="Sequence diagram" tabindex="0"></svg></div>
+        </figure>
+        <div class="stepbox" id="stepbox" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+<!--ISSUES-->
+
+  <section class="block issues-only" id="issues">
+    <div class="wrap">
+      <div class="shead">
+        <h2>Issues</h2>
+        <p>Architecture-level findings, ranked by severity. Each is anchored to a component, relation, entity or sequence step.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Filter by severity" id="sevtabs">
+            <button class="tab" role="tab" data-sev="all" aria-selected="true">All</button>
+            <button class="tab" role="tab" data-sev="high" aria-selected="false">High</button>
+            <button class="tab" role="tab" data-sev="med" aria-selected="false">Medium</button>
+            <button class="tab" role="tab" data-sev="low" aria-selected="false">Low</button>
+          </div>
+          <div class="tally" id="tally"></div>
+        </div>
+        <div class="findings" id="findings"></div>
+      </div>
+    </div>
+  </section>
+<!--/ISSUES-->
+</main>
+
+<footer>
+  <div class="wrap"><p id="foot"></p></div>
+</footer>
+
+{{DATA}}
+<script>
+{{JS}}
+</script>
+</body>
+</html>
