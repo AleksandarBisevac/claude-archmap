@@ -44,8 +44,10 @@
             "severity": "low",
             "file": "scripts/validate.mjs:132-135",
             "issue": "Referential integrity does not check sequences[].participants[].zone. The model schema (schema/archmap-model.schema.json participant.zone, design section 5 participants[{..., zone, node?}]) makes it a zone id, but checkIntegrity only resolves participant.node (line 133). A dangling participant zone validates clean. P1.2's description lists only 'sequence participant node', so this is a gap in the spec as well as the code, not a contradiction of a task clause.",
-            "resolution": "Add ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone') beside the node check, with a case in tests/validate.test.mjs and a golden-model run to confirm every participant zone in tests/fixtures/golden/architecture.model.json resolves (a script run found none dangling).",
-            "fixTask": "P1.4-hma"
+            "resolution": "fixed in P1.4-hma (24a467bc1cf4): Add ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone') beside the node check, with a case in tests/validate.test.mjs and a golden-model run to confirm every participant zone in tests/fixtures/golden/architecture.model.json resolves (a script run found none dangling).",
+            "fixTask": "P1.4-hma",
+            "commit": "24a467bc1cf4",
+            "status": "fixed"
           },
           {
             "id": "P1-R2",
@@ -56,7 +58,7 @@
             "fixTask": "P1.5-hma"
           }
         ],
-        "outcome": "[findings: 2 - 0 high, 0 med, 2 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 2 - 0 high, 0 med, 2 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -256,7 +258,7 @@
         {
           "id": "P1.4-hma",
           "title": "fix P1-R1: Referential integrity does not check sequences[].participants[].zo...",
-          "status": "in_progress",
+          "status": "done",
           "description": "Referential integrity does not check sequences[].participants[].zone. The model schema (schema/archmap-model.schema.json participant.zone, design section 5 participants[{..., zone, node?}]) makes it a zone id, but checkIntegrity only resolves participant.node (line 133). A dangling participant zone validates clean. P1.2's description lists only 'sequence participant node', so this is a gap in the spec as well as the code, not a contradiction of a task clause.\n\nResolution asked: Add ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone') beside the node check, with a case in tests/validate.test.mjs and a golden-model run to confirm every participant zone in tests/fixtures/golden/architecture.model.json resolves (a script run found none dangling).",
           "files": [
             "scripts/validate.mjs",
@@ -281,14 +283,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "24a467bc1cf4",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added ref(zones, p.zone, `/sequences/${i}/participants/${j}/zone`, 'zone') beside the participant node check in scripts/validate.mjs (checkIntegrity). Added case v22 to tests/validate.test.mjs: a resolving zone validates clean; a dangling zone yields dangling-ref at /sequences/0/participants/0/zone and a resolving sibling yields none. Golden run: `node scripts/validate.mjs tests/fixtures/golden/architecture.model.json` exit 0 'OK: no findings'; script check found 44 participants with a zone, 0 dangling, so the golden fixture needed no edit. `node --test` full: 43 pass, 0 fail. Dependants: tests/golden.test.mjs and tests/validate.test.mjs still correct (golden validates clean, all other cases pass); schema/archmap-issues.schema.json, tests/schema.test.mjs, docs/design.md, README.md, schema/archmap-model.schema.json only reference validate.mjs or the fixture by name and are unaffected since no schema or fixture changed; tests/fixtures/golden/architecture.model.json unchanged and still correct because every participant zone resolves. Did not read .private/.",
+            "descriptive": "Validator now rejects dangling sequence participant zones, closing the P1-R1 referential-integrity gap."
           },
           "startedAt": "2026-10-28T13:29:54Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T13:30:49Z",
+          "verifiedBy": [
+            "v22: dangling participant zone is reported at its pointer, a resolving zone validates clean"
+          ],
           "notes": [
             {
               "at": "2026-10-28T13:29:53Z",
@@ -311,12 +315,24 @@
             "runId": "2026-10-28T13:30:48Z.0ffae1",
             "status": "passed",
             "at": "2026-10-28T13:30:48Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "24a467bc1cf4",
+            "at": "2026-10-28T13:30:49Z",
+            "basis": "a fix task for P1-R1, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-10-28T13:30:37Z",
+            "basis": "`node --test tests/validate.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P1.5-hma",
           "title": "fix P1-R2: tests/schema.test.mjs carries its own second JSON Schema interpret...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "tests/schema.test.mjs carries its own second JSON Schema interpreter (check) alongside scripts/lib/jsonschema.mjs, added one task later. s5, s7, s8, s9, s10, s11 and s12 assert schema behaviour through the test's copy, not through the interpreter validate.mjs ships. The two can drift: for example check() on an unknown type throws a TypeError where validateSchema throws a clear error, and check() ignores $ref inside oneOf the same way only by coincidence. A schema change that the shipped interpreter rejects could still pass these tests.\n\nResolution asked: Replace check() with validateSchema from scripts/lib/jsonschema.mjs (error list is empty means valid), so the schema tests exercise the interpreter the validator uses. The keyword-subset walk (KEYWORDS) can stay.",
           "files": [
             "tests/schema.test.mjs"
@@ -337,14 +353,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T13:30:49Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -359,7 +375,13 @@
           ],
           "fixes": [
             "P1-R2"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T13:31:34Z.6ea83a",
+            "status": "passed",
+            "at": "2026-10-28T13:31:34Z"
+          }
         }
       ],
       "area": "model",

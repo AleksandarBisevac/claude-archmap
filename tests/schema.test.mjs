@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { validateSchema } from '../scripts/lib/jsonschema.mjs';
 
 // Case ids (s1, s2, ...) lead every title so the suite prints them first.
 const load = (name) =>
@@ -30,42 +31,8 @@ function walk(node, visit, path = '#') {
   }
 }
 
-// Minimal interpreter of the same subset, to prove the schemas say what we mean.
-function check(schema, value, root = schema) {
-  if (schema.$ref) {
-    const target = schema.$ref.replace(/^#\/\$defs\//, '');
-    return check(root.$defs[target], value, root);
-  }
-  if (schema.const !== undefined && JSON.stringify(schema.const) !== JSON.stringify(value)) return false;
-  if (schema.enum && !schema.enum.some((e) => JSON.stringify(e) === JSON.stringify(value))) return false;
-  if (schema.type) {
-    const ok = {
-      object: (v) => v !== null && typeof v === 'object' && !Array.isArray(v),
-      array: Array.isArray,
-      string: (v) => typeof v === 'string',
-      integer: Number.isInteger,
-      number: (v) => typeof v === 'number',
-      boolean: (v) => typeof v === 'boolean',
-    }[schema.type];
-    if (!ok(value)) return false;
-  }
-  if (typeof value === 'string') {
-    if (schema.minLength !== undefined && value.length < schema.minLength) return false;
-    if (schema.pattern && !new RegExp(schema.pattern).test(value)) return false;
-  }
-  if (Array.isArray(value)) {
-    if (schema.minItems !== undefined && value.length < schema.minItems) return false;
-    if (schema.items && !value.every((v) => check(schema.items, v, root))) return false;
-  }
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    for (const r of schema.required ?? []) if (!(r in value)) return false;
-    for (const [k, sub] of Object.entries(schema.properties ?? {})) {
-      if (k in value && !check(sub, value[k], root)) return false;
-    }
-  }
-  if (schema.oneOf && schema.oneOf.filter((s) => check(s, value, root)).length !== 1) return false;
-  return true;
-}
+// Schema behaviour is asserted through the interpreter validate.mjs ships, never a copy of it.
+const check = (schema, value, root = schema) => validateSchema(schema, value, root).length === 0;
 
 const ev = [{ path: 'backend/app/main.py', lines: '10-20' }];
 const validModel = () => ({
@@ -255,4 +222,21 @@ test('s12 theme schema themes fonts, chrome and accent only', () => {
   }));
   assert.ok(!check(theme, { accent: 'blue' }), 'accent must be a hex colour');
   assert.ok(!check(theme, { fonts: 'Inter' }), 'fonts must be an object');
+});
+
+test('s13 schema tests run through the shipped interpreter, reporting pointers and rejecting unknown types', () => {
+  const noEv = validModel();
+  delete noEv.nodes[0].evidence;
+  const errs = validateSchema(model, noEv);
+  assert.ok(errs.some((e) => e.keyword === 'required' && e.pointer === '/nodes/0/evidence'), JSON.stringify(errs));
+  const badEnum = validModel();
+  badEnum.edges[0].type = 'telepathy';
+  assert.ok(validateSchema(model, badEnum).some((e) => e.keyword === 'enum' && e.pointer === '/edges/0/type'));
+  assert.throws(() => validateSchema({ type: 'telepathy' }, 1), /unsupported type: telepathy/);
+  // Every type the shipped schemas declare is one the shipped interpreter understands.
+  for (const [name, s] of [['model', model], ['issues', issues], ['theme', theme]]) {
+    walk(s, (n, path) => {
+      if (n.type !== undefined) assert.doesNotThrow(() => validateSchema({ type: n.type }, null), `${name} ${path}`);
+    });
+  }
 });

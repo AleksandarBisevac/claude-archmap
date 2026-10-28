@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test tests/schema.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression mode, expectRedFirst false: fix applied then s13 added to lock the behaviour",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Removed the local check() interpreter from tests/schema.test.mjs; check is now a one-line wrapper over validateSchema from scripts/lib/jsonschema.mjs (errors.length === 0, same (schema,value,root) signature so s5,s7-s12 callers are unchanged). KEYWORDS/walk kept. Added s13: asserts shipped interpreter reports required/enum errors with JSON pointers (/nodes/0/evidence, /edges/0/type), throws 'unsupported type' on unknown type, and that every type in the three schemas is supported by it. node --test tests/schema.test.mjs: 13/13 pass; full node --test: 44/44 pass, exit 0.",
+    "descriptive": "Schema tests now exercise the same JSON Schema interpreter validate.mjs ships, so the two can no longer drift."
+  },
+  "testsAdded": [
+    "s13: schema tests go through validateSchema; pointer/keyword reporting, unknown type throws, all schema types supported"
+  ],
+  "casesAdded": [
+    "s13"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:bb0d33d9148d12cbd5fedcc75fb84808b350c7f1c6d3d92c1fcaf88bc0ab58a8\",\"dirtyDigest\":\"sha256:7bbdeb0db10efda46533c892dc1a530728249d9290acd981bb36ddbd9da36156\",\"dirtyPaths\":{\"tests/schema.test.mjs\":\"c81fea84a9dd9644\"},\"head\":\"24a467b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/schema.test.mjs\"],\"scopeDigest\":\"sha256:46ac2a4320a0a9780d1d5816a8ce12fadf7b2afc0959e211e80a8609e3421ca9\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
