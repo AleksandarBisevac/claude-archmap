@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AleksandarBisevac/claude-archmap/schema/archmap-model.schema.json",
+  "title": "archmap model",
+  "description": "docs/architecture/architecture.model.json. Readers tolerate unknown keys; removing or renaming a key needs a major version.",
+  "type": "object",
+  "required": ["meta", "zones", "nodes", "edges"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schemaVersion", "project", "commit", "generatedAt", "profile", "sources", "coverage"],
+      "properties": {
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "project": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "minLength": 1 },
+        "generatedAt": { "type": "string", "minLength": 1 },
+        "repoUrl": { "type": "string" },
+        "profile": { "enum": ["max", "balanced", "economy"] },
+        "sources": { "type": "array", "items": { "type": "object" } },
+        "coverage": { "type": "object" }
+      }
+    },
+    "zones": { "type": "array", "items": { "$ref": "#/$defs/zone" } },
+    "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+    "entities": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
+    "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
+    "access": { "type": "array", "items": { "$ref": "#/$defs/access" } },
+    "sequences": { "type": "array", "items": { "$ref": "#/$defs/sequence" } },
+    "views": { "type": "array", "items": { "$ref": "#/$defs/view" } }
+  },
+  "$defs": {
+    "idList": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "evidence": {
+      "type": "object",
+      "required": ["path", "lines"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "lines": { "type": "string", "pattern": "^[0-9]+(-[0-9]+)?$" }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "required": ["id", "kind", "label"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["browser", "edge", "service", "data", "external", "platform", "delivery"] },
+        "label": { "type": "string" },
+        "parent": { "type": "string" },
+        "outside": { "type": "boolean" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "zone", "kind", "title", "paths", "level", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "zone": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "sub": { "$ref": "#/$defs/idList" },
+        "role": { "type": "string" },
+        "facts": { "$ref": "#/$defs/idList" },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } },
+        "paths": { "$ref": "#/$defs/idList" },
+        "level": { "type": "integer", "enum": [1, 2, 3] },
+        "locked": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["id", "from", "to", "type", "desc", "evidence", "confidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": ["api", "static", "auth", "pull", "sql", "cache", "persist", "call", "link", "deploy", "event", "queue"]
+        },
+        "label": { "type": "string" },
+        "desc": { "type": "string" },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } },
+        "confidence": { "enum": ["verified", "inferred", "external"] },
+        "foundBy": { "enum": ["static", "llm", "introspection"] },
+        "async": { "type": "boolean" }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["name", "type", "provenance"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string" },
+        "pk": { "type": "boolean" },
+        "fk": {
+          "type": "object",
+          "required": ["entity", "field"],
+          "properties": {
+            "entity": { "type": "string", "minLength": 1 },
+            "field": { "type": "string", "minLength": 1 }
+          }
+        },
+        "nullable": { "type": "boolean" },
+        "provenance": { "enum": ["declared", "observed", "inferred"] },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": ["id", "store", "name", "kind", "fields"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "store": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["table", "view", "collection", "dataset"] },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+        "indexes": { "type": "array" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["entity", "field"],
+      "properties": {
+        "entity": { "type": "string", "minLength": 1 },
+        "field": { "type": "string", "minLength": 1 }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["from", "to", "cardinality", "kind", "provenance"],
+      "properties": {
+        "from": { "$ref": "#/$defs/endpoint" },
+        "to": { "$ref": "#/$defs/endpoint" },
+        "cardinality": { "enum": ["1-1", "1-n", "n-m"] },
+        "kind": { "enum": ["fk", "join", "name-convention"] },
+        "provenance": { "enum": ["declared", "observed", "inferred"] }
+      }
+    },
+    "access": {
+      "type": "object",
+      "required": ["node", "entity", "ops"],
+      "properties": {
+        "node": { "type": "string", "minLength": 1 },
+        "entity": { "type": "string", "minLength": 1 },
+        "ops": { "type": "string", "minLength": 1, "pattern": "^(?!.*(.).*\\1)[CRUD]+$" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "participant": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "sub": { "type": "string" },
+        "zone": { "type": "string" },
+        "node": { "type": "string" }
+      }
+    },
+    "stepMessage": {
+      "type": "object",
+      "required": ["m", "k", "t", "d", "r"],
+      "properties": {
+        "m": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
+        "k": { "type": "string", "minLength": 1 },
+        "t": { "type": "string" },
+        "d": { "type": "string" },
+        "r": { "type": "array", "items": { "type": "string" } },
+        "ret": { "type": "string" },
+        "i": { "type": "string" }
+      }
+    },
+    "stepFragment": {
+      "type": "object",
+      "required": ["frag", "t"],
+      "properties": {
+        "frag": { "enum": ["alt", "else", "opt", "loop", "end"] },
+        "t": { "type": "string" }
+      }
+    },
+    "stepNote": {
+      "type": "object",
+      "required": ["note", "t", "tone"],
+      "properties": {
+        "note": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "t": { "type": "string" },
+        "tone": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sequence": {
+      "type": "object",
+      "required": ["id", "title", "participants", "steps"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "participants": { "type": "array", "items": { "$ref": "#/$defs/participant" } },
+        "steps": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/stepMessage" },
+              { "$ref": "#/$defs/stepFragment" },
+              { "$ref": "#/$defs/stepNote" }
+            ]
+          }
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "nodes": { "$ref": "#/$defs/idList" },
+        "zones": { "$ref": "#/$defs/idList" }
+      }
+    }
+  }
+}

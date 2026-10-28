@@ -13,21 +13,26 @@
     "commit": {
       "type": "feat",
       "coauthor": "Claude Opus 5.5 <noreply@anthropic.com>"
+    },
+    "evidenceSince": {
+      "at": "2026-10-28T12:16:32Z",
+      "runId": "2026-10-28T12:16:32Z.14ab0b",
+      "basis": "the first run this plan recorded; work completed before it could not carry evidence"
     }
   },
   "phases": [
     {
       "id": "P1",
       "title": "Model schemas, validator and golden fixture",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "JSON Schemas for model, issues and theme; validate.mjs rejects dangling ids and missing evidence and checks evidence paths at meta.commit; an anonymised golden model validates.",
       "testGate": [
         "node --test"
       ],
       "blockedBy": [],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "eda8d36c60e8783483e107ad2eec68c484732f99",
+      "branch": "audit/p1-model-schemas-validator-and-go",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -36,8 +41,142 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
-      "area": "model"
+      "tasks": [
+        {
+          "id": "P1.1",
+          "title": "JSON Schemas for the model, issues and theme files",
+          "status": "in_progress",
+          "description": "Write the three JSON Schemas (draft 2020-12) that define archmap's file contracts, following docs/design.md section 5 exactly.\n\n- schema/archmap-model.schema.json: meta (schemaVersion, project, commit, generatedAt, repoUrl, profile, sources, coverage),\n  zones, nodes, edges, entities (fields with provenance declared|observed|inferred), relations (cardinality 1-1|1-n|n-m,\n  kind fk|join|name-convention), access (ops is a non-empty subset of \"CRUD\"), sequences (step grammar: message {m,k,t,d,r,ret?,i?},\n  fragment {frag: alt|else|opt|loop|end, t}, note {note, t, tone}), views. Edge type enum: api, static, auth, pull, sql, cache,\n  persist, call, link, deploy, event, queue. Edge confidence: verified|inferred|external. Optional edge \"foundBy\":\n  static|llm|introspection (design section 14.3). Evidence item: {path, lines} where lines is \"N\" or \"N-M\".\n- schema/archmap-issues.schema.json: {id, sev high|med|low, category security|data|reliability|performance|design|docs, title,\n  anchor (exactly one of node|edge|entity|step), summary, impact, fix, detail?, evidence, source archmap|audit, track?}.\n- schema/archmap-theme.schema.json: fonts, chrome and accent only. Relation, zone and severity colours are fixed (D10) and must\n  NOT be themeable.\n\nRules: readers tolerate unknown keys, so do not set additionalProperties:false on objects (compatibility, design section 5).\nEvidence is required (minItems 1) on nodes and edges. Keep to a small keyword subset that validate.mjs (next task) will\ninterpret without npm deps: type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf, $ref to\nlocal $defs. No format, no if/then, no remote $ref.\nReferential checks (dangling ids) are NOT expressible here; they belong to validate.mjs.",
+          "files": [
+            "schema/archmap-model.schema.json",
+            "schema/archmap-issues.schema.json",
+            "schema/archmap-theme.schema.json",
+            "tests/schema.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/schema.test.mjs: each schema parses, declares draft 2020-12 $schema and an $id, and its required keys, enums and $defs match docs/design.md section 5"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "test-driven-development",
+            "writing-javascript"
+          ],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-28T12:13:47Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T12:16:32Z.14ab0b",
+            "status": "passed",
+            "at": "2026-10-28T12:16:32Z"
+          }
+        },
+        {
+          "id": "P1.2",
+          "title": "validate.mjs: schema subset, referential integrity and evidence checks",
+          "status": "pending",
+          "description": "Implement scripts/validate.mjs (Node >= 18, ESM, zero npm deps) and a tiny JSON Schema subset interpreter in\nscripts/lib/jsonschema.mjs that supports exactly the keywords P1.1's schemas use (type, required, properties, items, enum,\nconst, pattern, minItems, minLength, oneOf, local $ref). Unknown keys in data are allowed.\n\nCLI: node scripts/validate.mjs <model.json> [--issues <issues.json>] [--repo <dir>] [--json]\nChecks, each finding with a JSON pointer and a stable code:\n1. Schema: the model against schema/archmap-model.schema.json, the issues file against archmap-issues.schema.json.\n2. Referential integrity: node.zone, zone.parent, edge.from/to, entity.store (a node id), field.fk and relations\n   entity/field pairs, access.node/entity, sequence participant node and step m[] ids, note ids, view filters,\n   issue anchors (node|edge|entity|\"<seqId>:<stepIndex>\"), step i (issue id, only when --issues is given). Duplicate ids.\n3. Evidence (design section 14.3, borrowed from show-me): with --repo, for each evidence {path, lines} run\n   `git -C <repo> cat-file -e <meta.commit>:<path>` and check the line range is within the file at that commit\n   (git show). Without --repo the check is skipped and the output says so - it is never a silent pass.\nExport a validate(model, {issues, repo}) function returning {ok, findings[]} so later scripts (merge, render) reuse it.\nOutput: human-readable by default, --json for machines. Exit 0 valid, 1 findings, 2 usage or unreadable input.\nUse small inline fixtures and a throwaway git repo created in os.tmpdir() in the tests; do not depend on P1.3's golden model.",
+          "files": [
+            "scripts/validate.mjs",
+            "scripts/lib/jsonschema.mjs",
+            "tests/validate.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/validate.test.mjs: accepts a minimal valid model; rejects dangling zone/node/entity/participant/issue-anchor ids, missing evidence, malformed lines ranges and ops outside CRUD; with --repo and meta.commit, reports evidence paths missing at that commit and line ranges past end of file; exit codes 0 valid / 1 findings / 2 usage"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [
+            "test-driven-development",
+            "writing-javascript"
+          ],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P1.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P1.3",
+          "title": "Anonymised golden model fixture derived from the private reference",
+          "status": "pending",
+          "description": "Hand-write the golden fixture: an archmap model of the reference app, a FastAPI + React + DuckDB dashboard that pulls\nfrom an upstream data platform. Derive it from the single HTML file in .private/reference/, which you may READ but\nmust never copy, quote or name in any tracked file - not even its filename. THIS REPO IS PUBLIC.\n\nAnonymisation rules (all mandatory):\n- Use a fictional project name (\"Northwind Insights\"), fictional org, and generic repo paths (backend/app/..., frontend/src/...).\n  Keep the architecture's shape: zones, the node set, the typed edges, the entities and fields, the 7 sequences and the step grammar.\n- The upstream data platform, the SSO proxy, the lab-notebook vendor and any client product, site or table names become\n  generic names (\"Upstream data platform\", \"Corporate SSO proxy\", \"External lab notebook\"). No client names, people,\n  hostnames, URLs, dataset ids, RIDs or env var values.\n- meta.repoUrl is https://example.invalid/northwind-insights; meta.commit is a fixed fake sha.\n- Evidence keeps the {path, lines} shape with the anonymised paths. The golden test therefore runs validate WITHOUT --repo.\n- issues.json: do NOT carry over the reference's issues. Write 6-8 synthetic, generic issues, one per category, anchored to\n  fixture ids, each as class + consequence + fix only - no reproduction steps, no exploit detail, empty or generic `detail`.\n- Before finishing, grep every file you wrote against .private/anonymise-denylist.txt and report zero hits.\nThe fixture is the ground truth P2's renderer will be compared against, so it must be rich: all zone kinds the reference\nuses, C4 levels 1-3, async edges, CRUD access rows, name-convention relations with provenance inferred.",
+          "files": [
+            "tests/fixtures/golden/architecture.model.json",
+            "tests/fixtures/golden/issues.json",
+            "tests/golden.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/golden.test.mjs: the golden model and issues validate with validate.mjs; the model has >= 3 sequences, entities with observed fields, evidence on every node and edge; no fixture file contains any term from .private/anonymise-denylist.txt (case-insensitive), and the test reports a visible skip when that file is absent, as in CI"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [
+            "test-driven-development",
+            "writing-javascript"
+          ],
+          "risk": "high",
+          "blockedBy": [],
+          "dependsOn": [
+            "P1.2"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
+      "area": "model",
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-28T12:13:47Z"
     },
     {
       "id": "P2",
@@ -257,6 +396,37 @@
       "area": "release"
     }
   ],
-  "fileIndex": {},
+  "fileIndex": {
+    "schema/archmap-model.schema.json": [
+      "P1.1"
+    ],
+    "schema/archmap-issues.schema.json": [
+      "P1.1"
+    ],
+    "schema/archmap-theme.schema.json": [
+      "P1.1"
+    ],
+    "tests/schema.test.mjs": [
+      "P1.1"
+    ],
+    "scripts/validate.mjs": [
+      "P1.2"
+    ],
+    "scripts/lib/jsonschema.mjs": [
+      "P1.2"
+    ],
+    "tests/validate.test.mjs": [
+      "P1.2"
+    ],
+    "tests/fixtures/golden/architecture.model.json": [
+      "P1.3"
+    ],
+    "tests/fixtures/golden/issues.json": [
+      "P1.3"
+    ],
+    "tests/golden.test.mjs": [
+      "P1.3"
+    ]
+  },
   "bugs": []
 }

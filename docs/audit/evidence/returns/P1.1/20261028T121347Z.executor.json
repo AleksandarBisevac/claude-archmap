@@ -1,0 +1,38 @@
+{
+  "gates": {
+    "node --test tests/schema.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-28T12:16:18Z",
+    "basis": "`node --test tests/schema.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests/schema.test.mjs first (12 cases s1-s12, with a small interpreter for the agreed keyword subset), then saw it fail because the schema files were missing. I then wrote schema/archmap-model.schema.json, archmap-issues.schema.json and archmap-theme.schema.json (draft 2020-12, each with an $id). The only keywords they use are type, required, properties, items, enum, const, pattern, minItems, minLength, oneOf and local $defs refs. None sets additionalProperties. Evidence has minItems 1 on nodes, edges and issues, and lines matches ^[0-9]+(-[0-9]+)?$. access.ops matches ^(?!.*(.).*\\1)[CRUD]+$, a non-empty subset with no repeats. Steps are a oneOf of message, fragment and note. An issue anchor is a oneOf of four single-key shapes. The theme declares only fonts, chrome and accent. Decisions the design left open: the model requires meta, zones, nodes and edges, and the other arrays are optional. The issues file root is {schemaVersion?, issues:[...]}, with the issue shape in $defs.issue. Theme accent is a #rrggbb string. I used the interpreter in the test only to check the schemas; it is not a dependency. The `writing-javascript` skill the brief lists does not exist (Unknown skill), so only test-driven-development was invoked. Dependants: docs/design.md names the three schema files by basename only, so it is still correct. Nothing imports tests/schema.test.mjs.",
+    "descriptive": "Adds the three archmap JSON Schemas (model, issues, theme) and a 12-case test suite that locks them to design section 5."
+  },
+  "testsAdded": [
+    "12 cases in tests/schema.test.mjs. They check that each schema parses, declares draft 2020-12 and an $id, and that its required keys, enums and $defs match design section 5. They also check evidence minItems, the lines pattern, the ops subset, the step grammar, issue anchors and theme scope, and that no schema sets additionalProperties or uses a keyword outside the subset."
+  ],
+  "casesAdded": [
+    [
+      "s1",
+      "s2",
+      "s3",
+      "s4",
+      "s5",
+      "s6",
+      "s7",
+      "s8",
+      "s9",
+      "s10",
+      "s11",
+      "s12"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:5e1e526439dcba6b93989bedc81dba4ec6e328c09f6d09da55dd93740ec25bfa\",\"dirtyDigest\":\"sha256:ceff8ce2a2038b89c0f7e691b7caa19c4b90effb6a965d40ca084a093f68105a\",\"dirtyPaths\":{\"schema/archmap-issues.schema.json\":\"68b3140d3f80cce0\",\"schema/archmap-model.schema.json\":\"b033292e46e2b487\",\"schema/archmap-theme.schema.json\":\"8a05603e3f2fbef7\",\"tests/schema.test.mjs\":\"3067dac7ac404ac1\"},\"head\":\"eda8d36\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"schema/archmap-issues.schema.json\",\"schema/archmap-model.schema.json\",\"schema/archmap-theme.schema.json\",\"tests/schema.test.mjs\"],\"scopeDigest\":\"sha256:e69cc6bb5a0982ba205d698ecc2a12b85917972da2623d9bdd4dad3d6e68cbea\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

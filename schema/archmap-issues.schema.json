@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AleksandarBisevac/claude-archmap/schema/archmap-issues.schema.json",
+  "title": "archmap issues overlay",
+  "description": "~/.claude/archmap/<repo-slug>/issues.json, kept outside the repo. Readers tolerate unknown keys. Whether step ids dangle is checked by validate.mjs, not here.",
+  "type": "object",
+  "required": ["issues"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["path", "lines"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "lines": { "type": "string", "pattern": "^[0-9]+(-[0-9]+)?$" }
+      }
+    },
+    "anchorNode": {
+      "type": "object",
+      "required": ["node"],
+      "properties": { "node": { "type": "string", "minLength": 1 } }
+    },
+    "anchorEdge": {
+      "type": "object",
+      "required": ["edge"],
+      "properties": { "edge": { "type": "string", "minLength": 1 } }
+    },
+    "anchorEntity": {
+      "type": "object",
+      "required": ["entity"],
+      "properties": { "entity": { "type": "string", "minLength": 1 } }
+    },
+    "anchorStep": {
+      "type": "object",
+      "required": ["step"],
+      "properties": { "step": { "type": "string", "minLength": 1 } }
+    },
+    "issue": {
+      "type": "object",
+      "required": ["id", "sev", "category", "title", "anchor", "summary", "impact", "fix", "evidence", "source"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "sev": { "enum": ["high", "med", "low"] },
+        "category": { "enum": ["security", "data", "reliability", "performance", "design", "docs"] },
+        "title": { "type": "string", "minLength": 1 },
+        "anchor": {
+          "oneOf": [
+            { "$ref": "#/$defs/anchorNode" },
+            { "$ref": "#/$defs/anchorEdge" },
+            { "$ref": "#/$defs/anchorEntity" },
+            { "$ref": "#/$defs/anchorStep" }
+          ]
+        },
+        "summary": { "type": "string" },
+        "impact": { "type": "string" },
+        "fix": { "type": "string" },
+        "detail": { "type": "string" },
+        "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } },
+        "source": { "enum": ["archmap", "audit"] },
+        "track": { "type": "string" }
+      }
+    }
+  }
+}
