@@ -1,0 +1,40 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "assets/viewer/viewer.js:492-516",
+      "issue": "Fit is now the default for every figure, so at 400 px the wide graph, ER and sequence drawings are shown whole but with very small text (the executor's own caveat). check_figures asserts only no clipping, fill >= 60% of the viewBox and a Fit/100% control; it does not assert a minimum legible scale, so the 'readable at 400 px' half of the P2-R1 resolution rests on the 100% button and a reader looking at the PNGs.",
+      "resolution": "Carry as a low item: optionally have the narrow-viewport default open at a floor scale (for example min-width of about 60% of the natural width) or add a minimum effective font-size assertion to check_figures. No new fix round is owed."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Scan (archmap-review scan.mjs, ff2ab96..fcf1736) returned 0 leads; the denylist was checked. P2.6-2vu: the task asked for fit-to-width or a scale control on graph, deployment, trust, ER and sequence figures, plus a view that shows the diagram at 400 px. setFigureScale is called from renderGraph (graph/deployment/trust), drawEr and renderSeq, defaults to Fit (inline min-width 0 overrides the CSS 980/760 floors) and inserts one Fit/100% control per figure. The control is guarded by the .fig-scale querySelector, so the repeated draws do not duplicate it. The claim matches the diff. P2.7-2vu: the change handler now calls showTab('graph') when the switch is unchecked and curTab === 'issues'. This is exactly the resolution asked, and curTab and showTab exist at viewer.js:596-598. P2.8-2vu: the task asked to exercise the failure path and consider the shared build. The diff makes warnings fail, renders shared as well, adds --inject-fault and a vs2 child run that requires exit 1 plus the three named faults on stderr. A child crash would fail vs2 because its stderr lacks the strings. The claim matches the diff. Phase desired outcome (model-driven viewer, shared render built and screenshot-checked, no console errors) is served by these three fixes. Process note: P2.8's README edit was made through a Bash heredoc, not the Edit tool, as the claim itself says. The content is correct. No clause was left open by a request (phase.request is absent), so no task is charged with an open-choice finding.",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "could-not-prove",
+    "redFirstBasis": "P2.6-2vu's filed redFirst is could-not-prove: the `.venv/bin/python tests/visual/screenshots.py` run at HEAD exited 1, but no tally or error reader matched, so a crash cannot be told from an assertion failure. This holds, and it is the weakest of the three. The outcome text says 'Red before fix', which the basis does not support beyond the exit code. P2.7-2vu and P2.8-2vu are not-attempted (no case to prove red by; regression), both with stated bases. I did not run vs1 or vs2 myself.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test`, which runs the whole project (tests/*.test.mjs), and the recorded runs report NO OVERLAP with the tasks' files. The tests this phase added (check_figures, vs1, vs2) are in tests/visual/screenshots.py, a local-only Playwright script that no gate command selects. So the question has no bounded set to ask about."
+  },
+  "verdict": "findings",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P2.6-2vu",
+      "commit": "c8499ff6d92d"
+    },
+    {
+      "id": "P2.7-2vu",
+      "commit": "313b09b68e5f"
+    },
+    {
+      "id": "P2.8-2vu",
+      "commit": "fcf17369b950"
+    }
+  ]
+}

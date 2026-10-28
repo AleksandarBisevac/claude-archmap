@@ -452,7 +452,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P2-R1",
@@ -479,20 +479,43 @@
             "severity": "low",
             "file": "assets/viewer/viewer.js:62-69",
             "issue": "viewRole picks deployment and trust views by regex on view id and title (/trust|boundar/, /deploy|release|topolog|infra/) because the model schema has no view kind (schema/archmap-model.schema.json:212-221). The task said 'from model.views' and left open how a view is marked deployment or trust. A graph view titled e.g. 'Infrastructure API' or 'Release notes service' is silently moved out of the Graph tab. The synthesizer that writes views has no documented contract for this.",
-            "resolution": "Add an optional, additive 'kind' (graph|deployment|trust) to the view definition in the schema and design section 5, keep the regex only as a fallback, and have the synthesizer set it."
+            "resolution": "Add an optional, additive 'kind' (graph|deployment|trust) to the view definition in the schema and design section 5, keep the regex only as a fallback, and have the synthesizer set it.",
+            "status": "carried",
+            "carriedTo": "BUG-1-2vu"
           },
           {
             "id": "P2-R4",
             "severity": "low",
             "file": "tests/visual/screenshots.py:51-53",
             "issue": "The failure path of the visual check was never exercised: the executor says it ran no negative test, so exit 1 on a console error, page error or external request is unproven. Only console messages of type 'error' are collected, so warnings never fail it. No shared-mode render is covered, although shared is one of the three modes the phase builds.",
-            "resolution": "Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build().",
-            "fixTask": "P2.8-2vu"
+            "resolution": "fixed in P2.8-2vu (fcf17369b950): Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build().",
+            "fixTask": "P2.8-2vu",
+            "commit": "fcf17369b950",
+            "status": "fixed"
+          },
+          {
+            "id": "P2-R5",
+            "severity": "low",
+            "file": "assets/viewer/viewer.js:492-516",
+            "issue": "Fit is now the default for every figure, so at 400 px the wide graph, ER and sequence drawings are shown whole but with very small text (the executor's own caveat). check_figures asserts only no clipping, fill >= 60% of the viewBox and a Fit/100% control; it does not assert a minimum legible scale, so the 'readable at 400 px' half of the P2-R1 resolution rests on the 100% button and a reader looking at the PNGs.",
+            "resolution": "Carry as a low item: optionally have the narrow-viewport default open at a floor scale (for example min-width of about 60% of the natural width) or add a minimum effective font-size assertion to check_figures. No new fix round is owed.",
+            "status": "carried",
+            "carriedTo": "BUG-2-2vu"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 2 with a recorded fix commit]"
+        "outcome": "phase review filed at head fcf17369b950 [findings: 5 - 0 high, 1 med, 4 low; 3 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P2/fcf17369b950989e1b99e9dd26bdc3b66b473e3b.reviewer.json",
+            "sha256": "5f87e53e2abab2b3b41d4ec79c8055985fe7c1a9cd6fd181e38b6665a9ae84e5"
+          },
+          {
+            "return": "returns/P2/ff2ab96aa89ec8f74e377a5db88536a35bdf1500.reviewer.json",
+            "sha256": "8395e125f30073051b7e13f93d29bfd12606dfef3fa774ee62363ce1cad11c8d"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P2 delivers vendored elkjs 0.12.0 + layout.mjs, render.mjs (clean/internal/shared), the ported viewer with ER/CRUD/lineage/search/deployment/trust views, a repo-wide denylist test and a Playwright visual check with a proven failure path. Review findings R1, R2, R4 fixed (P2.6-P2.8); R3 and R5 carried to BUG-1-2vu and BUG-2-2vu. Reviewer answers accepted: Owner: accept both - the P2.5 gap is covered by the R1 fix task; slice 1 cannot-tell only reflects its narrow slice. Gate banner accepted: Owner accepted: node --test runs every P2 test file (layout, render, viewer, denylist); NO OVERLAP only reflects that the runner prints no paths. Visual check passed vs1/vs2 locally.",
       "tasks": [
         {
           "id": "P2.1",
@@ -540,9 +563,14 @@
             "at": "2026-10-28T18:33:36Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "8c503afae3d0",
-            "at": "2026-10-28T18:33:38Z"
+            "at": "2026-10-28T22:05:34Z",
+            "return": "returns/P2/ff2ab96aa89ec8f74e377a5db88536a35bdf1500.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The executor filed redFirst not-attempted: 'regression mode, expectRedFirst false: the task adds a repo-wide guard test, no production code changed'. That holds, because the mode owes no red. d2 is a scanner self-check whose function is defined in the same file, and it asserts a specific hit list, so it could fail. I did not see it fail.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "The task's tests.gate is the single literal `node --test`, which runs the whole project, so the question does not reach it. The brief marks this answer as computed."
           },
           "redFirst": {
             "status": "not-attempted",
@@ -599,9 +627,14 @@
             "at": "2026-10-28T18:39:28Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "90809f022614",
-            "at": "2026-10-28T18:39:29Z"
+            "at": "2026-10-28T22:05:34Z",
+            "return": "returns/P2/ff2ab96aa89ec8f74e377a5db88536a35bdf1500.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/layout.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /dangling-ref/. Input:; run without CLAUDE_PROJECT_DIR; no ignored dependency directory linked from the project root; no .npmrc to carry or drop (the red-first helper's block in returns/P2.2/20261028T183339Z.executor.json, at 2026-10-28T18:39:13Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-28T18:39:13Z",
@@ -668,9 +701,14 @@
             "at": "2026-10-28T18:53:23Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "c39136462d79",
-            "at": "2026-10-28T18:54:16Z"
+            "at": "2026-10-28T22:05:34Z",
+            "return": "returns/P2/ff2ab96aa89ec8f74e377a5db88536a35bdf1500.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/render.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; no .npmrc to carry or drop (the red-first helper's block in returns/P2.3/20261028T183930Z.executor.json, at 2026-10-28T18:52:53Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-28T18:52:53Z",
@@ -734,9 +772,14 @@
             "at": "2026-10-28T19:09:47Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "b69638df68a5",
-            "at": "2026-10-28T19:09:48Z"
+            "at": "2026-10-28T22:05:34Z",
+            "return": "returns/P2/ff2ab96aa89ec8f74e377a5db88536a35bdf1500.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The manifest records tests.mode regression and expectRedFirst false for P2.4, and the executor filed not-attempted with that basis. That holds: the mode owes no red-first. Nothing was run red, so the added tests were never seen failing.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "status": "not-attempted",
@@ -793,9 +836,14 @@
             "at": "2026-10-28T19:12:46Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "ff2ab96aa89e",
-            "at": "2026-10-28T19:12:46Z"
+            "at": "2026-10-28T22:05:34Z",
+            "return": "returns/P2/ff2ab96aa89ec8f74e377a5db88536a35bdf1500.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The manifest records tests.mode regression and expectRedFirst false for P2.5, and the executor filed not-attempted. That holds: the mode owes no red-first. The script's non-zero exit was never seen, so it has not been shown that it can fail.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "status": "not-attempted",
@@ -946,7 +994,7 @@
         {
           "id": "P2.8-2vu",
           "title": "fix P2-R4: The failure path of the visual check was never exercised: the exec...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The failure path of the visual check was never exercised: the executor says it ran no negative test, so exit 1 on a console error, page error or external request is unproven. Only console messages of type 'error' are collected, so warnings never fail it. No shared-mode render is covered, although shared is one of the three modes the phase builds.\n\nResolution asked: Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build().",
           "files": [
             "tests/visual/README.md",
@@ -970,14 +1018,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "fcf17369b950",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "tests/visual/screenshots.py: (1) console messages of type 'warning' now fail as well as 'error' (CONSOLE_FAILS); (2) build() also renders the shared mode (with golden issues.json), so clean, internal and shared are all checked (80 screenshots, 0 errors; the real page emits no warnings); (3) new --inject-fault mode plants console.error, console.warn and an Image request to http://injected-external.invalid/ via add_init_script (clean, desktop, light, no screenshots); (4) failure_path() runs the script as a child with --inject-fault and requires exit code 1 and stderr naming the console error, console warning and external request; prints 'PASS vs2 ...'. Default run does vs1 then vs2 and exits 0 only if both pass. Observed: child exit 1 with ERROR lines for console error, console warning, external request, request failed. Full run exit 0 (PASS vs1, PASS vs2). node --test: 72 pass, 0 fail, exit 0. Also edited tests/visual/README.md (the dependant) via a python heredoc in Bash rather than the Edit tool: the shared render, warnings failing, and the vs2 failure path are documented; the plan gate did not refuse any write. Dependant tests/visual/README.md: changed - now describes three modes, warnings, and the --inject-fault vs2 check. Names build/main/node reported as used elsewhere are only matches in .agents/skills/node docs, unrelated to this script's functions.",
+            "descriptive": "The visual check's failure path is now proven (exit 1 on injected console error/warning and external request) and the shared render is covered."
           },
           "startedAt": "2026-10-28T19:19:07Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T19:22:25Z",
+          "verifiedBy": [
+            "vs2: the script re-runs itself with --inject-fault and asserts exit 1 plus stderr naming an injected console error, console warning and external request"
+          ],
           "notes": [
             {
               "at": "2026-10-28T19:15:33Z",
@@ -996,6 +1046,17 @@
             "runId": "2026-10-28T19:22:25Z.5257e8",
             "status": "passed",
             "at": "2026-10-28T19:22:25Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "fcf17369b950",
+            "at": "2026-10-28T19:22:25Z",
+            "basis": "a fix task for P2-R4, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task (expectRedFirst false): the corrected behaviour is locked after the change; the new case vs2 passes by running the script with injected faults and observing exit 1.",
+            "at": "n/a"
           }
         }
       ],
@@ -1004,7 +1065,12 @@
         "layout"
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-28T18:32:36Z"
+      "startedAt": "2026-10-28T18:32:36Z",
+      "testEvidence": {
+        "runId": "2026-10-28T19:23:59Z.f2a069",
+        "status": "passed",
+        "at": "2026-10-28T19:23:59Z"
+      }
     },
     {
       "id": "P3",
@@ -1489,5 +1555,44 @@
       "P3.4"
     ]
   },
-  "bugs": []
+  "bugs": [
+    {
+      "id": "BUG-1-2vu",
+      "title": "Viewer picks deployment/trust views by name regex, not a schema field",
+      "status": "open",
+      "severity": "low",
+      "reportedAt": "2026-10-28T19:22:40Z",
+      "reportedBy": null,
+      "description": "Carried from P2 review finding P2-R3. viewRole in assets/viewer/viewer.js chooses the deployment and trust renderers by regex on a view's id and title (/trust|boundar/, /deploy|release|topolog|infra/), because model.views has no kind. A view named outside those words gets the plain projection. Fix: add an optional, additive `kind` enum (graph|deployment|trust|...) to model.views in the schema, validate.mjs and docs/design.md section 5; the viewer uses kind when present and keeps the regex only as a fallback.",
+      "repro": null,
+      "expected": null,
+      "actual": null,
+      "files": [
+        "assets/viewer/viewer.js",
+        "schema/archmap-model.schema.json"
+      ],
+      "taskId": null,
+      "fixedIn": null,
+      "notes": null
+    },
+    {
+      "id": "BUG-2-2vu",
+      "title": "Fitted figures are illegibly small at narrow widths",
+      "status": "open",
+      "severity": "low",
+      "reportedAt": "2026-10-28T19:23:50Z",
+      "reportedBy": null,
+      "description": "Carried from the P2 re-review (finding on assets/viewer/viewer.js:492-516). Fit is the default for every figure, so at 400 px wide graph, ER and sequence drawings show whole but with very small text; legibility rests on the 100% button. Fix: when the fit scale falls below a legibility floor (e.g. 0.5), open at a readable scale with horizontal scroll and keep Fit one click away; have check_figures assert a minimum effective font size as well as no clipping.",
+      "repro": null,
+      "expected": null,
+      "actual": null,
+      "files": [
+        "assets/viewer/viewer.js",
+        "tests/visual/screenshots.py"
+      ],
+      "taskId": null,
+      "fixedIn": null,
+      "notes": null
+    }
+  ]
 }
