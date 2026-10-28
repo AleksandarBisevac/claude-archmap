@@ -1,0 +1,17 @@
+{
+  "name": "archmap-dev",
+  "description": "Local development marketplace for archmap. Add with `/plugin marketplace add <path-to-this-repo>`; the published listing is in the quality-gates marketplace.",
+  "owner": {
+    "name": "Aleksandar Bisevac",
+    "email": "alek.bisevac@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "archmap",
+      "source": "./",
+      "description": "Evidence-backed, incrementally updated architecture maps: application graph, ER, sequences, CRUD matrix and lineage in one offline HTML viewer.",
+      "category": "documentation",
+      "strict": true
+    }
+  ]
+}

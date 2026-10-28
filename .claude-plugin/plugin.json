@@ -1,0 +1,22 @@
+{
+  "name": "archmap",
+  "version": "0.1.0",
+  "description": "Evidence-backed architecture maps for any repo: an interactive, offline HTML viewer with a C4-style application graph, an ER diagram, sequence diagrams, a CRUD matrix and data lineage, built from one model the agent writes and a tested renderer draws. It updates incrementally from git diffs and keeps a stable layout. An optional issues overlay can be switched off.",
+  "author": {
+    "name": "Aleksandar Bisevac",
+    "email": "alek.bisevac@gmail.com"
+  },
+  "homepage": "https://github.com/AleksandarBisevac/claude-archmap",
+  "repository": "https://github.com/AleksandarBisevac/claude-archmap",
+  "license": "MIT",
+  "keywords": [
+    "architecture",
+    "diagrams",
+    "c4",
+    "er-diagram",
+    "sequence-diagrams",
+    "documentation",
+    "data-lineage",
+    "crud-matrix"
+  ]
+}

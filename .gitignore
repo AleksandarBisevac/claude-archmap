@@ -1,0 +1,7 @@
+# Private brief, reference artifact and eval ground truth — never committed.
+.private/
+node_modules/
+.DS_Store
+*.log
+# Local Claude Code settings.
+.claude/settings.local.json
