@@ -469,8 +469,10 @@
             "severity": "low",
             "file": "assets/viewer/viewer.js:1116",
             "issue": "Turning the Issues switch off while the Issues tab is active hides the Issues panel and its nav tab (viewer.css:338 hides .issues-only) but does not leave the tab. curTab stays 'issues', so the page shows a blank content area until the user finds another tab.",
-            "resolution": "In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph').",
-            "fixTask": "P2.7-2vu"
+            "resolution": "fixed in P2.7-2vu (313b09b68e5f): In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph').",
+            "fixTask": "P2.7-2vu",
+            "commit": "313b09b68e5f",
+            "status": "fixed"
           },
           {
             "id": "P2-R3",
@@ -488,7 +490,7 @@
             "fixTask": "P2.8-2vu"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 1 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 2 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -877,7 +879,7 @@
         {
           "id": "P2.7-2vu",
           "title": "fix P2-R2: Turning the Issues switch off while the Issues tab is active hides...",
-          "status": "in_progress",
+          "status": "done",
           "description": "Turning the Issues switch off while the Issues tab is active hides the Issues panel and its nav tab (viewer.css:338 hides .issues-only) but does not leave the tab. curTab stays 'issues', so the page shows a blank content area until the user finds another tab.\n\nResolution asked: In the change handler, when the switch is unchecked and curTab === 'issues', call showTab('graph').",
           "files": [
             "assets/viewer/viewer.js"
@@ -898,13 +900,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "313b09b68e5f",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "assets/viewer/viewer.js: the #issues-switch change handler now also calls showTab('graph') when the switch is unchecked and curTab === 'issues'. node --check viewer.js exit 0; node --test exit 0, 72 pass 0 fail. Dependants: viewer.css (.issues-only / body.issues-off hiding) still correct, class toggle unchanged; scripts/render.mjs still correct, it inlines viewer.js unchanged in interface; tests/viewer.test.mjs still correct, passes 72/72 (no test of the handler since the task adds none and the handler is DOM-only); docs/design.md still correct, no documented behaviour changed. Not verified in a browser.",
+            "descriptive": "Turning the Issues switch off while on the Issues tab now returns to the graph tab instead of leaving a blank page."
           },
           "startedAt": "2026-10-28T19:18:35Z",
-          "completedAt": null,
+          "completedAt": "2026-10-28T19:19:07Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -928,14 +930,26 @@
             "runId": "2026-10-28T19:19:06Z.2c29cd",
             "status": "passed",
             "at": "2026-10-28T19:19:06Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "313b09b68e5f",
+            "at": "2026-10-28T19:19:07Z",
+            "basis": "a fix task for P2-R2, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "tests.expectRedFirst is false on this tdd task: it names no case to prove a red by, so no red-first proof is owed",
+            "at": "2026-10-28T19:18:59Z"
           }
         },
         {
           "id": "P2.8-2vu",
           "title": "fix P2-R4: The failure path of the visual check was never exercised: the exec...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The failure path of the visual check was never exercised: the executor says it ran no negative test, so exit 1 on a console error, page error or external request is unproven. Only console messages of type 'error' are collected, so warnings never fail it. No shared-mode render is covered, although shared is one of the three modes the phase builds.\n\nResolution asked: Run the script once against a render with an injected console.error and an external request and confirm exit 1. Consider adding the shared build to build().",
           "files": [
+            "tests/visual/README.md",
             "tests/visual/screenshots.py"
           ],
           "tests": {
@@ -954,14 +968,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-28T19:19:07Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -976,7 +990,13 @@
           ],
           "fixes": [
             "P2-R4"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-28T19:22:25Z.5257e8",
+            "status": "passed",
+            "at": "2026-10-28T19:22:25Z"
+          }
         }
       ],
       "area": [
@@ -1420,7 +1440,8 @@
       "P2.8-2vu"
     ],
     "tests/visual/README.md": [
-      "P2.5"
+      "P2.5",
+      "P2.8-2vu"
     ],
     ".gitignore": [
       "P2.5"

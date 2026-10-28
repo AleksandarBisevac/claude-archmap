@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test": "pass",
+    ".venv/bin/python tests/visual/screenshots.py": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task (expectRedFirst false): the corrected behaviour is locked after the change; the new case vs2 passes by running the script with injected faults and observing exit 1.",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "tests/visual/screenshots.py: (1) console messages of type 'warning' now fail as well as 'error' (CONSOLE_FAILS); (2) build() also renders the shared mode (with golden issues.json), so clean, internal and shared are all checked (80 screenshots, 0 errors; the real page emits no warnings); (3) new --inject-fault mode plants console.error, console.warn and an Image request to http://injected-external.invalid/ via add_init_script (clean, desktop, light, no screenshots); (4) failure_path() runs the script as a child with --inject-fault and requires exit code 1 and stderr naming the console error, console warning and external request; prints 'PASS vs2 ...'. Default run does vs1 then vs2 and exits 0 only if both pass. Observed: child exit 1 with ERROR lines for console error, console warning, external request, request failed. Full run exit 0 (PASS vs1, PASS vs2). node --test: 72 pass, 0 fail, exit 0. Also edited tests/visual/README.md (the dependant) via a python heredoc in Bash rather than the Edit tool: the shared render, warnings failing, and the vs2 failure path are documented; the plan gate did not refuse any write. Dependant tests/visual/README.md: changed - now describes three modes, warnings, and the --inject-fault vs2 check. Names build/main/node reported as used elsewhere are only matches in .agents/skills/node docs, unrelated to this script's functions.",
+    "descriptive": "The visual check's failure path is now proven (exit 1 on injected console error/warning and external request) and the shared render is covered."
+  },
+  "testsAdded": [
+    "vs2: the script re-runs itself with --inject-fault and asserts exit 1 plus stderr naming an injected console error, console warning and external request"
+  ],
+  "casesAdded": [
+    "vs2"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:d26cb019b64b7bf91c1137c24fad945aa6207a84fbafcca0b6f12c2b730bee20\",\"dirtyDigest\":\"sha256:ec57df11097c29e61b5eafe92dd49b25fab189fa8a3db72ba0756581085665c6\",\"dirtyPaths\":{\"tests/visual/README.md\":\"b7a3b635cb10c299\",\"tests/visual/screenshots.py\":\"eb12d75cea6b0eed\"},\"head\":\"313b09b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/visual/screenshots.py\"],\"scopeDigest\":\"sha256:9fb120b09ae22218574e06e370ea817b069501fd3e5f643a7b86c432983b78f8\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
