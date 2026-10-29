@@ -3626,7 +3626,7 @@
     {
       "id": "P7",
       "title": "Exporters",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "export.mjs writes Mermaid flowchart, erDiagram and sequenceDiagram, PlantUML, Markdown and SVG from the golden model, and PNG when headless Chromium is present.",
       "testGate": [
@@ -3636,8 +3636,8 @@
         "P1",
         "P2"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "6bdef838fc439f74d38878afc61028b6ed8aec99",
+      "branch": "audit/p7-exporters",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -3646,8 +3646,249 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
-      "area": "export"
+      "tasks": [
+        {
+          "id": "P7.1",
+          "title": "export.mjs CLI and Mermaid exporters",
+          "status": "in_progress",
+          "description": "Implement scripts/export.mjs (docs/design.md section 9 step 7, section 4). CLI: node scripts/export.mjs <model.json> <format> [--view <id>] [--layout <layout.json>] [--out <path>]; formats mermaid|plantuml|md|svg|png (this task implements mermaid; the others are refused with exit 2 'not yet implemented' until their tasks land). The model is validated first through validate.mjs; an invalid model is refused, exit 1, nothing written. mermaid writes a flowchart per view (nodes grouped in subgraphs by zone, edges labelled with their type and label; --view selects one view, else all views), an erDiagram of entities (fields with type, PK/FK markers, relations with cardinality mapped to crow's-foot), and a sequenceDiagram per sequence (participants; m steps as messages, ret steps as dashed replies, frag alt/else/opt/loop/end as blocks, notes). Exports are ALWAYS clean: no issue ids, step i refs or issue text ever appear in any output. Every label taken from the model is escaped for Mermaid syntax so model text cannot break or inject into the diagram; ids are sanitised to Mermaid-safe identifiers, collision-free. Default output directory docs/architecture/exports/ beside the model's directory, files named <view-id>.flowchart.mmd, er.mmd, <sequence-id>.sequence.mmd; --out overrides (a directory). Output is deterministic: the same model gives byte-identical files. Export pure functions (toMermaidFlowchart, toMermaidER, toMermaidSequence) for later tasks. Exit 0 ok, 1 invalid model, 2 usage or unreadable input. Node >= 18, ESM, zero npm deps, header comment in the style of render.mjs.",
+          "files": [
+            "scripts/export.mjs",
+            "tests/export.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/export.test.mjs: on the golden model, mermaid writes one flowchart per view, er.mmd and one sequence file per sequence into the default exports dir; flowchart groups nodes by zone in subgraphs and labels every edge; erDiagram carries PK/FK and cardinality; sequenceDiagram renders alt/else/end, loop, opt, notes and dashed returns; no output contains any issue id from the golden issues.json or a step i ref; a label with quotes, brackets, pipes, semicolons and newlines is escaped; two runs are byte-identical; --view unknown exits 2; an invalid model exits 1 and writes nothing"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T14:14:49Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:21:25Z.ba046c",
+            "status": "passed",
+            "at": "2026-10-29T14:21:25Z"
+          }
+        },
+        {
+          "id": "P7.2",
+          "title": "PlantUML exporter",
+          "status": "pending",
+          "description": "Add the plantuml format to scripts/export.mjs, reusing P7.1's CLI, validation, view selection, output directory and clean-only rule. Writes per view a component diagram (@startuml/@enduml; zones as packages or rectangles, nodes as components, edges as arrows labelled with type and label, async edges dashed), er.puml with entities as entity blocks (fields, PK/FK markers) and relations with crow's-foot cardinality, and per sequence <id>.sequence.puml (participants, messages, dashed returns, alt/else/opt/loop/end groups, notes). Files <view-id>.component.puml, er.puml, <sequence-id>.sequence.puml. All model text escaped for PlantUML so it cannot break or inject; aliases sanitised and collision-free. No issue data ever appears. Deterministic output. Export pure functions toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence.",
+          "files": [
+            "scripts/export.mjs",
+            "tests/export.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/export.test.mjs: on the golden model, plantuml writes one component file per view, er.puml and one sequence file per sequence, each starting @startuml and ending @enduml; zones, labelled edges, PK/FK, cardinality, alt/else/end and returns appear; no issue id or step i ref appears; hostile label text is escaped; two runs are byte-identical"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P7.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P7.3",
+          "title": "Markdown summary exporter",
+          "status": "pending",
+          "description": "Add the md format to scripts/export.mjs: one summary.md (or <view-id>.md with --view) describing the model for a wiki or PR: project, commit and generatedAt from meta; zones; nodes per zone with kind, role and facts; an edges table (from, to, type, label, confidence); entities with field tables (name, type, PK/FK, nullable); relations; a CRUD matrix table from access[] (nodes as rows, entities as columns); sequences each with summary and an embedded mermaid sequenceDiagram block from toMermaidSequence; and evidence as path:lines, linked to repoUrl/blob/<commit>/<path>#L<a>-L<b> when meta.repoUrl is set. Markdown table cells escape pipes and newlines. Clean only: no issue data. Deterministic output, ordering by id.",
+          "files": [
+            "scripts/export.mjs",
+            "tests/export.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/export.test.mjs: on the golden model, md writes summary.md with sections for zones, nodes, edges, entities, CRUD matrix and sequences; the CRUD matrix has one row per accessing node and the golden ops; each sequence embeds a mermaid block; evidence links use repoUrl/blob/<commit>; a pipe in a label does not break a table row; no issue id appears; two runs are byte-identical"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P7.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P7.4",
+          "title": "Static SVG exporter",
+          "status": "pending",
+          "description": "Add the svg format to scripts/export.mjs: a standalone SVG per view (<view-id>.svg) and er.svg, drawn from the model and its layout file (--layout, default architecture.layout.json beside the model; when missing, compute it in memory with layout.mjs's exported function without writing it). Graph: zone enclosures, node boxes with title and kind, edges from the layout's routed sections with arrowheads, coloured by the fixed relation palette the viewer uses (design D10, take the colours from assets/viewer so they stay in one place or document the shared table). ER: entity cards with field rows, PK/FK markers and relation lines. The SVG is offline and self-contained: no external href, font url, script or foreignObject; text is XML-escaped; system font stack. Deterministic: same model and layout give byte-identical SVG (coordinates rounded). Clean only. Export pure functions toSvgGraph, toSvgER.",
+          "files": [
+            "scripts/export.mjs",
+            "tests/export.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/export.test.mjs: on the golden model and a computed layout, svg writes one parseable SVG per view and er.svg; each contains a rect per node in the view and a path per edge; no href to http(s), no <script>, no <foreignObject>, no @import or url(; a label containing < & \" is escaped; two runs are byte-identical; no issue id appears"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P7.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P7.5",
+          "title": "PNG via headless Chromium when present",
+          "status": "pending",
+          "description": "Add the png format to scripts/export.mjs: rasterise each SVG from the svg format to <name>.png with a headless Chrome/Chromium found at CHROME_PATH or the platform's known install paths (macOS app bundles, linux google-chrome/chromium/chromium-browser on PATH, Windows Program Files). Spawn it with execFile/spawn and an argument array, never a shell, with a timeout, a throwaway --user-data-dir under os.tmpdir() removed afterwards, and --headless --disable-gpu --screenshot --window-size from the SVG's size; load the SVG from a temp file:// path. No browser found: print one clear line naming CHROME_PATH and exit 3, writing nothing. Browser failure or timeout: exit 2 with the message. Export findChromium() for tests. Tests must not require a browser: the detection and argument building are unit-tested, and the real rasterise test skips (t.skip) when findChromium() returns null.",
+          "files": [
+            "scripts/export.mjs",
+            "tests/export.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/export.test.mjs: findChromium honours CHROME_PATH and returns null when CHROME_PATH points nowhere and no known path exists (paths injected); png with no browser exits 3, prints one line naming CHROME_PATH and writes nothing; the spawn args are an array with --headless and a temp user-data-dir and no shell; when a browser is present (else skipped) png writes a file starting with the PNG signature"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P7.4"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P7.6",
+          "title": "/archmap:export command, README and CHANGELOG",
+          "status": "pending",
+          "description": "Write commands/export.md in the style of commands/render.md: description, argument-hint 'mermaid|plantuml|svg|png|md [--view v]', allowed-tools Bash, Read, disable-model-invocation: true; script only; requires docs/architecture/architecture.model.json else stop and say to run /archmap:build; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs\" docs/architecture/architecture.model.json $ARGUMENTS with --layout docs/architecture/architecture.layout.json when it exists; reports files written and the exit code, explaining exit 1 invalid model, 2 usage/unreadable, 3 no Chromium for png. Exports are clean (no issues) by design; say so. Update README's command table entry if needed and add an Unreleased entry to CHANGELOG.md. Keep tests/commands.test.mjs passing and extend it for export.md.",
+          "files": [
+            "commands/export.md",
+            "README.md",
+            "CHANGELOG.md",
+            "tests/commands.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/commands.test.mjs: commands/export.md has the frontmatter keys description, argument-hint, allowed-tools and disable-model-invocation true, invokes scripts/export.mjs through ${CLAUDE_PLUGIN_ROOT}, names all five formats and the exit codes 1, 2 and 3"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test",
+              "claude plugin validate ."
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P7.2",
+            "P7.3",
+            "P7.4",
+            "P7.5"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
+      "area": "export",
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-29T14:14:49Z"
     },
     {
       "id": "P8",
@@ -4585,7 +4826,8 @@
     ],
     "tests/commands.test.mjs": [
       "P5.4",
-      "P6.4"
+      "P6.4",
+      "P7.6"
     ],
     "tests/e2e.test.mjs": [
       "P5.5",
@@ -4635,6 +4877,29 @@
     ],
     "docs/design.md": [
       "BF1.1"
+    ],
+    "scripts/export.mjs": [
+      "P7.1",
+      "P7.2",
+      "P7.3",
+      "P7.4",
+      "P7.5"
+    ],
+    "tests/export.test.mjs": [
+      "P7.1",
+      "P7.2",
+      "P7.3",
+      "P7.4",
+      "P7.5"
+    ],
+    "commands/export.md": [
+      "P7.6"
+    ],
+    "README.md": [
+      "P7.6"
+    ],
+    "CHANGELOG.md": [
+      "P7.6"
     ]
   },
   "bugs": [

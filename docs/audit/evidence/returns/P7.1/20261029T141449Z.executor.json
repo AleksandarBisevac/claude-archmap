@@ -1,0 +1,38 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test (full suite, 240 tests, run once for confidence)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:21:09Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/export.mjs (CLI + pure functions toMermaidFlowchart(model, viewId), toMermaidER(model), toMermaidSequence(model, seqId), mermaidFiles). Validates via validate.mjs first (exit 1, nothing written, not even the exports dir); plantuml/md/svg/png and unknown formats exit 2 'not yet implemented'; --view unknown exits 2; default dir is <model dir>/exports; --out is a directory (created). Flowchart: LR, zones as nested subgraphs (z_ prefix), nodes n_ prefix, edges labelled 'type' or 'type: label'. ER: PK/FK markers (FK from field.fk or relations), 1-n puts many on the from side (matching viewer.js manyEnds), n-m '}o--o{', 1-1 '||--||'. Sequence: participants, ->> calls, -->> for steps with ret, alt/else/opt/loop/end blocks (stray end/else dropped, open blocks closed), Note over. Escaping: one-pass numeric entity codes (#NN;) for quote # & ; < > [ ] { } | backslash backtick %, newline to <br/>; ids sanitised with prefixes and collision suffixes (so 'end' is never an id); file names sanitised (no traversal, collision-free). Issue ids / steps[].i are never read. Tests: tests/export.test.mjs, 12 cases x1-x12, all pass; full node --test 240/240 pass. Dependants: tests/skill.test.mjs still correct (asserts SKILL.md still marks export.mjs 'not yet built'; SKILL.md untouched and full suite is green); docs/design.md and skills/architecture-map/SKILL.md unchanged and still correct (they describe export.mjs as planned/not yet built; later tasks update them). Note: --layout is accepted and ignored for text formats. No adjacent files touched.",
+    "descriptive": "export.mjs now writes clean, deterministic, injection-safe Mermaid flowcharts, erDiagrams and sequenceDiagrams from the golden model."
+  },
+  "testsAdded": [
+    "tests/export.test.mjs: 12 cases covering file set, zone subgraphs + edge labels, ER PK/FK/cardinality, sequence blocks/returns/notes, no issue ids, escaping/injection, determinism, --view, invalid model, unimplemented formats and usage, --out, id and file-name sanitising"
+  ],
+  "casesAdded": [
+    [
+      "x1",
+      "x2",
+      "x3",
+      "x4",
+      "x5",
+      "x6",
+      "x7",
+      "x8",
+      "x9",
+      "x10",
+      "x11",
+      "x12"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:da6a412355f689e2156b96b55855da28df6a16484220406c460190b2a1bdddc1\",\"dirtyDigest\":\"sha256:9bcaf3fc233ef2f6c0a850e6203967dd1321b53f18bed5e1d8f357eea2fa031f\",\"dirtyPaths\":{\"scripts/export.mjs\":\"4c091e59bbd9f09f\",\"tests/export.test.mjs\":\"8c19953e6672a184\"},\"head\":\"6bdef83\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:079153df38682a983bf85df01d5cc2d763bd0add8e1ab67aaf6f9b86ce7eb15e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
