@@ -1,0 +1,7 @@
+[
+  { "id": "G1", "sev": "high", "category": "security", "anchor": "n-gateway", "keywords": ["session token", "unsigned"] },
+  { "id": "G2", "sev": "high", "category": "data", "anchor": "e-invoice", "keywords": ["orphan", "foreign key"] },
+  { "id": "G3", "sev": "med", "category": "reliability", "anchor": "n-mailer", "keywords": ["retry", "timeout"] },
+  { "id": "G4", "sev": "med", "category": "performance", "anchor": "n-search", "keywords": ["n+1", "unindexed"] },
+  { "id": "G5", "sev": "low", "category": "docs", "anchor": "n-gateway", "keywords": ["readme"] }
+]

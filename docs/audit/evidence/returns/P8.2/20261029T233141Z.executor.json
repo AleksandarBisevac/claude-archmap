@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/evals.test.mjs": "pass",
+    "node --test (full, 282 tests)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T23:33:28Z",
+    "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added skills/architecture-map/evals/score-recall.mjs (ESM, zero deps, match rule documented in header: same category AND (anchor equals hint OR keyword substring, case-insensitive, in title/summary/impact/fix/detail/evidence paths); greedy one-to-one pairing, anchor matches first; recall over high+med only; --json; exit 0 at >=0.6 (integer comparison), 1 below, 2 usage/unreadable/malformed/no high+med refs). Added synthetic fixtures tests/fixtures/evals/ground-truth.json (G1-G5) and issues.json (I-1..I-6), and cases e6-e14 in tests/evals.test.mjs (imports extended). node --test full: 282 pass, 0 fail. Dependants: tests/fixtures/evals/issues.json shares only a basename with the listed schema/script/test files; it is schema-shaped but none of them reads this path, so still correct. score-recall.mjs and ground-truth.json have no dependants; evals.test.mjs only grew by appended cases (e1-e5 unchanged and green).",
+    "descriptive": "Issue-recall scorer for the skill evals with deterministic output and a 60 percent pass threshold, tested on a synthetic non-client ground truth."
+  },
+  "testsAdded": [
+    "e6-e14 in tests/evals.test.mjs: expected recall 0.75 on fixtures, matched pairs and misses, low severity ignored, noise does not raise recall, 60 percent boundary, category required, one-to-one pairing, exit 2 on bad input, byte-identical output and documented header"
+  ],
+  "casesAdded": [
+    [
+      "e6",
+      "e7",
+      "e8",
+      "e9",
+      "e10",
+      "e11",
+      "e12",
+      "e13",
+      "e14"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ab5b88bc6d9a9eea2a8aef8d5da0ce9325423123071f82037ad56e68c5204691\",\"dirtyDigest\":\"sha256:6cdf319cc96ddbf9cfe51bf8b2fc27ec6d346c82de587c80f9365f354d880c6d\",\"dirtyPaths\":{\"skills/architecture-map/evals/score-recall.mjs\":\"1e2216a3cab2dbef\",\"tests/evals.test.mjs\":\"12d93c0156575536\",\"tests/fixtures/evals/ground-truth.json\":\"ee9fc45b714a9d5e\",\"tests/fixtures/evals/issues.json\":\"88901e80b8d01812\"},\"head\":\"5165892\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/score-recall.mjs\",\"tests/evals.test.mjs\",\"tests/fixtures/evals/ground-truth.json\",\"tests/fixtures/evals/issues.json\"],\"scopeDigest\":\"sha256:138d84ac4802e5cf8b57559d7b8e04e0319be8e7c4794d5a9273b43ba3da32b1\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

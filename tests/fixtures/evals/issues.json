@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1",
+  "issues": [
+    {
+      "id": "I-1", "sev": "high", "category": "security", "title": "Gateway trusts the caller",
+      "anchor": { "node": "n-gateway" },
+      "summary": "The gateway forwards requests without checking who sends them.",
+      "impact": "Anything that can reach it is exposed.",
+      "fix": "Verify identity at the gateway.",
+      "evidence": [{ "path": "src/gateway/app.js", "lines": "10-20" }], "source": "archmap"
+    },
+    {
+      "id": "I-2", "sev": "high", "category": "data", "title": "Invoices can lose their customer",
+      "anchor": { "entity": "e-ledger" },
+      "summary": "Deleting a customer leaves an orphan invoice row behind.",
+      "impact": "Totals drift from the ledger.",
+      "fix": "Declare the link and cascade the delete.",
+      "evidence": [{ "path": "src/db/schema.js", "lines": "40-48" }], "source": "archmap"
+    },
+    {
+      "id": "I-3", "sev": "med", "category": "reliability", "title": "Mail sending gives up silently",
+      "anchor": { "edge": "n-orders->n-mailer" },
+      "summary": "A failed send is dropped and never attempted again; the Retry policy is missing.",
+      "impact": "Customers miss receipts.",
+      "fix": "Queue the send and attempt it again later.",
+      "evidence": [{ "path": "src/mail/send.js", "lines": "5-30" }], "source": "archmap"
+    },
+    {
+      "id": "I-4", "sev": "med", "category": "design", "title": "Search mixes concerns",
+      "anchor": { "node": "n-search" },
+      "summary": "The search module issues an n+1 query per hit and formats output.",
+      "impact": "Hard to change.",
+      "fix": "Split query from presentation.",
+      "evidence": [{ "path": "src/search/index.js", "lines": "1-80" }], "source": "archmap"
+    },
+    {
+      "id": "I-5", "sev": "low", "category": "docs", "title": "The readme is stale",
+      "anchor": { "node": "n-gateway" },
+      "summary": "The readme describes routes that no longer exist.",
+      "impact": "New people lose time.",
+      "fix": "Rewrite the routes section.",
+      "evidence": [{ "path": "README.md", "lines": "1-20" }], "source": "archmap"
+    },
+    {
+      "id": "I-6", "sev": "high", "category": "performance", "title": "Unrelated finding",
+      "anchor": { "node": "n-batch" },
+      "summary": "Nightly batch holds a lock for an hour.",
+      "impact": "Writers stall.",
+      "fix": "Chunk the batch.",
+      "evidence": [{ "path": "src/batch/run.js", "lines": "9-12" }], "source": "archmap"
+    }
+  ]
+}

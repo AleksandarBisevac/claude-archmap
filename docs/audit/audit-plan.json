@@ -4331,7 +4331,7 @@
         {
           "id": "P8.1",
           "title": "Eval set and harness for skill-creator",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write skills/architecture-map/evals/evals.json in skill-creator's format for the five evals of docs/design.md section 10 (1 build on eval repo A, FastAPI + React + DuckDB; 2 the same build with --issues; 3 update after a scripted change, new route + new column, in a temp worktree; 4 build on eval repo B, Hono + Drizzle monorepo; 5 build on eval repo C, Next + Drizzle admin API). Each eval has a prompt, expected_output and objectively checkable assertions (model validates via validate.mjs; every node has evidence; >= 3 sequences; eval 1 entities carry observed fields when duckdb is available, else meta.sources records the skip; eval 2 clean HTML has no issue ids; eval 3 only affected nodes change, pins survive, meta.commit advances; eval 4 Drizzle entities have declared fields and FKs, BullMQ edges async, each app a container). Repo locations are NEVER written into tracked files: the eval prompts reference env vars ARCHMAP_EVAL_REPO_A/B/C, and eval workspaces live outside the repo under <home>/.claude/archmap/evals/. Add skills/architecture-map/evals/README.md explaining how to set the env vars and run the evals with skill-creator (with-skill vs without-skill, owner review in eval-viewer/generate_review.py). Key-component checklists and the issue ground truth stay in .private/ and are referenced only by path relative to .private. No client or repo name appears in any tracked file (tests/denylist.test.mjs must stay green).",
           "files": [
             "skills/architecture-map/evals/evals.json",
@@ -4356,25 +4356,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "51658926c28e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added skills/architecture-map/evals/evals.json (5 evals, skill-creator format; checkable statements are in the field `expectations`, which is skill-creator's schema name for what the task calls assertions; each eval has 7-8), skills/architecture-map/evals/README.md (env vars ARCHMAP_EVAL_REPO_A/B/C, workspace .claude/archmap/evals/ under the home directory, with-skill vs without-skill, generate_review.py, balanced vs max on eval 1), and tests/evals.test.mjs (e1-e5). Prompts reference only the env vars (A for evals 1-3, B for 4, C for 5), carry no machine path; .private checklists and ground truth are referenced as .private/reference/<file> relative to the archmap checkout. Full `node --test` run: 273 pass, 0 fail (denylist test d1 included). I also grepped the new files against every term of .private/anonymise-denylist.txt (no term printed): no hits, which matters because the new files were untracked and d1 reads only git ls-files. Dependants: README.md and the tests listed are unaffected because nothing references the new files by path; the two paths .private/reference/eval-{a,b,c}-*.md named in expectations do not exist yet and are for the owner to create, as the brief says ground truth stays private. The files evals.json/README.md/evals.test.mjs were last declared by blocked tasks P8.3/P8.4/P8.6; I did not touch those tasks.",
+            "descriptive": "The skill-creator eval set (5 evals) and its runbook now exist with no repo location or client name in tracked files, locked by a 5-case test."
           },
           "startedAt": "2026-10-29T23:29:08Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T23:31:41Z",
+          "verifiedBy": [
+            "tests/evals.test.mjs: evals.json parses with exactly five evals ids 1-5 each with prompt, expected_output and at least three assertions; prompts carry no absolute or home-relative path and reference only ARCHMAP_EVAL_REPO_A/B/C (mapping A,A,A,B,C); no machine path and .private referenced only relative; README names the three env vars, workspace directory, generate_review.py, without-skill; the path detector itself is proven on good and bad samples"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T23:31:39Z.7140c1",
             "status": "passed",
             "at": "2026-10-29T23:31:39Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "51658926c28e",
+            "at": "2026-10-29T23:31:41Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T23:30:58Z",
+            "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P8.2",
           "title": "Issue-recall scorer",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add skills/architecture-map/evals/score-recall.mjs: node score-recall.mjs <issues.json> <ground-truth.json> [--json]. Ground truth is a list of reference issues {id, sev: high|med|low, category, anchor hint, keywords[]} kept in .private (never tracked). A reference issue counts as recalled when some produced issue matches it on category plus anchor or keyword overlap (document the rule in the header). Prints recall over high+med reference issues, the matched pairs and the misses; exits 0 when recall >= 0.6, 1 below, 2 usage or unreadable input. Deterministic; Node >= 18, ESM, zero deps. Tests use a synthetic, non-client ground truth fixture under tests/fixtures/evals/.",
           "files": [
             "skills/architecture-map/evals/score-recall.mjs",
@@ -4400,16 +4413,22 @@
           "dependsOn": [
             "P8.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T23:31:41Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T23:33:42Z.e21c71",
+            "status": "passed",
+            "at": "2026-10-29T23:33:42Z"
+          }
         },
         {
           "id": "P8.3",
