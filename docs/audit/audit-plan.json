@@ -2245,7 +2245,7 @@
         {
           "id": "P5.2",
           "title": "usage.mjs: per-phase token and duration ledger",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/usage.mjs (docs/design.md D11, §8 'The usage ledger takes tokens and duration from subagent completion notifications'). The orchestrator records one row per step: node scripts/usage.mjs add <ledger.jsonl> --phase <prescan|explorer|introspection|merge|synthesizer|reviewer|layout|render> [--label area] [--agent name] [--model m] [--tokens n] [--duration-ms n]; scripts that cost 0 tokens are recorded with tokens 0. node scripts/usage.mjs print <ledger.jsonl> [--json] prints a table per phase (rows, tokens, duration) and a total; a missing figure is shown as unknown, never as 0, and the total says how many rows were unknown. Ledger lives in the work directory, not in the repo. Deterministic output for the same ledger. Exit 0 ok, 2 usage or unreadable ledger. Node >= 18, ESM, zero deps.",
           "files": [
             "scripts/usage.mjs",
@@ -2269,25 +2269,43 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "317a1a07e280",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/usage.mjs (add/print subcommands, JSONL ledger, rows with fixed key order and no timestamps; print groups by phase in pipeline order, figures missing from a row are omitted and printed as unknown with a '+ N unknown' suffix and a note line, never summed as 0; --json gives {phases,total} with null for fully-unknown figures; exit 2 on usage errors or unreadable/invalid ledger). Added tests/usage.test.mjs with 6 cases (u1-u6). Test written first and seen failing (script absent, exit status 1 vs 2), then green: 6/6 pass; full `node --test` 155 pass 0 fail. Dependants: docs/design.md D11/section 8 still correct (CLI and flags implemented exactly as described). skills/architecture-map/SKILL.md section 9 (line ~179) still says 'usage.mjs is not yet built' - now stale; outside this task's files, left unchanged and should be updated by the command/skill task.",
+            "descriptive": "Usage ledger script prints per-phase tokens and duration, with unknown figures kept distinct from 0."
           },
           "startedAt": "2026-10-29T08:45:44Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T08:53:28Z",
+          "verifiedBy": [
+            "u1 add appends JSONL rows incl. 0-token script",
+            "u2 print groups by phase with totals",
+            "u3 missing tokens print unknown and count in total",
+            "u4 json stable",
+            "u5 empty ledger",
+            "u6 usage errors exit 2"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T08:53:27Z.19edc5",
             "status": "passed",
             "at": "2026-10-29T08:53:27Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "317a1a07e280",
+            "at": "2026-10-29T08:53:28Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T08:50:08Z",
+            "basis": "`node --test tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but no test was collected or none reached an assertion: AssertionError [ERR_ASSERTION]:  -> 1; HEAD's own tests on HEAD's code are not green (no tally or error reader matched its output, so no line of it is quoted as decisive) - the command is already red (or unreadable) at HEAD - narrow it to the task's cases; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P5.3",
           "title": "diffmap.mjs: changed files to affected areas, nodes, dependents, entities and sequences",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement scripts/diffmap.mjs (docs/design.md Req 'update on command', §6 update step 1, §10 'diffmap maps changed files to the right nodes'). CLI: node scripts/diffmap.mjs <model.json> [--repo <dir>] [--since <sha>] [--json]; export a pure diffmap(model, changes) plus the git reader. Changes = git diff --name-status from meta.commit (or --since) to HEAD, plus untracked files from git ls-files -o --exclude-standard; renames count as delete plus add; git is run with execFileSync, never a shell. Map each file to areas (meta.coverage globs), nodes (paths globs, then evidence paths) and entities (evidence paths); add dependents: nodes one edge away from an affected node, and sequences whose participants or steps touch an affected node; list uncovered new files no area owns. Report {base, head, behind (commit count), files, areas, nodes, dependents, entities, sequences, uncovered}, all sorted; human output is a short summary. Exit 0 ok (also when nothing is affected), 2 usage, unknown base commit or not a git repo. scripts/lib/glob.mjs: a small dependency-free matcher for the globs prescan emits (**, *, ?, dir/**) with its own tests; leave prescan untouched. Tests build a throwaway git repo in a temp dir. Node >= 18, ESM, zero deps.",
           "files": [
             "scripts/diffmap.mjs",
@@ -2311,16 +2329,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T08:53:29Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T08:57:09Z.d0959e",
+            "status": "passed",
+            "at": "2026-10-29T08:57:09Z"
+          }
         },
         {
           "id": "P5.4",

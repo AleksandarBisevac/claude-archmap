@@ -1,0 +1,47 @@
+{
+  "gates": {
+    "node --test tests/diffmap.test.mjs tests/glob.test.mjs": "pass",
+    "node --test (full suite, 173 tests)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T08:56:51Z",
+    "basis": "`node --test tests/diffmap.test.mjs tests/glob.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/glob.mjs (globToRegExp, matchGlob, matchAny: **, **/ zero-dir, *, ?, dir/** subtree, escaping, ./ and backslash normalisation) and scripts/diffmap.mjs (pure diffmap(model, changes), readGitChanges via execFileSync: git diff --name-status -z --no-renames --relative base HEAD + ls-files -o --exclude-standard; rev-list --count for behind; CLI <model.json> [--repo] [--since] [--json]; exit 2 on usage, unreadable model, no meta.commit, unknown base, non-git dir). Mapping: areas by meta.coverage globs; nodes by paths globs or evidence path equal to file; entities by evidence incl. field evidence; dependents = nodes one edge away (either direction) not themselves affected; sequences when a participant (node ?? id) or a step m/r/note ref is an affected node; uncovered = new (A or untracked) files no area owns. Prescan untouched. Tests: tests/glob.test.mjs 6 cases (g1-g6), tests/diffmap.test.mjs 12 cases (d1-d12) in throwaway temp git repos; the model file is kept outside the repo. Full node --test: 173 pass, 0 fail. Dependants: docs/design.md and skills/architecture-map/SKILL.md mention diffmap.mjs by basename; still correct, since the CLI signature and report keys follow design.md section 6 and the new --repo/--since/--json flags are additive.",
+    "descriptive": "diffmap.mjs maps git changes since meta.commit to areas, nodes, dependents, entities, sequences and uncovered new files, backed by a dependency-free glob matcher."
+  },
+  "testsAdded": [
+    "tests/diffmap.test.mjs: temp git repo cases for area+node+dependents, entity evidence, evidence-only node, sequences, uncovered (committed and untracked), ignored/deleted files, renames, behind and --since, empty result exit 0, human summary, exit 2 cases, pure function determinism",
+    "tests/glob.test.mjs: double-star, star, question mark, dir/**, literal escaping/normalisation, matchAny"
+  ],
+  "casesAdded": [
+    [
+      "d1",
+      "d2",
+      "d3",
+      "d4",
+      "d5",
+      "d6",
+      "d7",
+      "d8",
+      "d9",
+      "d10",
+      "d11",
+      "d12"
+    ],
+    [
+      "g1",
+      "g2",
+      "g3",
+      "g4",
+      "g5",
+      "g6"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:9859252dd11592f20c111d67d3dba46493cbd9cb72eb4cad3359893035701d29\",\"dirtyDigest\":\"sha256:3fe80542421cc7b40b2c96f54cb6d4e0cf52cddc0aa814a62bffa246e7547228\",\"dirtyPaths\":{\"scripts/diffmap.mjs\":\"13d20b68f6d0bedd\",\"scripts/lib/glob.mjs\":\"a0ab2004a872d209\",\"tests/diffmap.test.mjs\":\"3095ebf78bb45d4f\",\"tests/glob.test.mjs\":\"a191bca0a0d8b327\"},\"head\":\"317a1a0\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/diffmap.mjs\",\"scripts/lib/glob.mjs\",\"tests/diffmap.test.mjs\",\"tests/glob.test.mjs\"],\"scopeDigest\":\"sha256:21b5308b7ffff07b599507132b0c1d0b1c99ca319f9aa5041b4c7950cf2620bb\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
