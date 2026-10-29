@@ -56,7 +56,7 @@ def build(tmp):
 # legibility floor, in which case the figure opens at the floor scale and scrolls sideways, with Fit one click away.
 # The drawing fills its viewBox (no mostly blank canvas), a scale control (Fit / 100%) is present, and the smallest
 # text on the figure is MIN_FONT_PX or more once the svg scale is applied (effective = computed font-size * svg px per user unit).
-MIN_FONT_PX = 4.5  # the smallest drawn text is about 9.6 user units; at the 0.5 floor that is 4.8px
+MIN_FONT_PX = 8  # a legibility requirement, not the implementation's output: the smallest drawn text (about 9.5 user units) must draw at 8px or more; the 8.5 / 9.5 floor in viewer.js draws it at about 8.5px, and the svg width is rounded to whole px, so 8 leaves that rounding room
 FIGURE_JS = """() => [...document.querySelectorAll('.fig-scroll')].filter(f => f.offsetParent !== null).map(f => {
   const svg = f.querySelector('svg'), r = svg.getBoundingClientRect(), fr = f.getBoundingClientRect();
   const vb = svg.viewBox.baseVal, bb = svg.getBBox();

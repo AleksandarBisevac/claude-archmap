@@ -1,0 +1,23 @@
+{
+  "gates": {
+    ".venv/bin/python tests/visual/screenshots.py": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task, expectRedFirst false: the threshold was raised to a real figure and the already-fixed implementation (BF1.5 floor 8.5/9.5) satisfies it. For information, at MIN_FONT_PX = 8.5 the run failed with 12 errors (narrow er/ersvg and sequences/seq, 8.49px effective printed as 8.5 because viewer.js rounds the svg width to whole px), so the check does bite; I set 8 instead of editing the implementation.",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "tests/visual/screenshots.py: MIN_FONT_PX 4.5 -> 8, comment rewritten (no longer cites the 0.5 floor; states it is a legibility requirement, that the 8.5/9.5 floor in viewer.js draws the smallest text (9.5 user units) at about 8.5px, and that 8 leaves room for the whole-px svg width rounding). Tried 8.5 first: failed 12 errors (8.49px effective). With 8: .venv/bin/python tests/visual/screenshots.py exit 0, PASS vs1 (80 screenshots, 0 errors, 1440 and 400 px, light and dark, clean/internal/shared), PASS vs2. Dependant tests/visual/README.md: grep for MIN_FONT/floor/4.5/4.8 found nothing, so still correct. Other names listed (build, main, run, node) are in .agents/skills/node docs and unrelated to this change. node --test not run (own-tests mode, nothing of its own).",
+    "descriptive": "The visual legibility check now requires 8px smallest text instead of 4.5px, and passes at 400px against the BF1.5 floor."
+  },
+  "testsAdded": [
+    "vs1 in tests/visual/screenshots.py now asserts smallest effective svg text >= 8px (was 4.5px) at 400px and 1440px; threshold is no longer tuned to the implementation"
+  ],
+  "casesAdded": [
+    "vs1"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:e35a81a062f5a6b0ae01460ae85ed1b21166b6a23e310799b27a036d18724299\",\"dirtyDigest\":\"sha256:d6112f3cc22e57b186a99d0fe861079bb62b2c2b207f5ac8a066b215b9832a2d\",\"dirtyPaths\":{\"tests/visual/screenshots.py\":\"80fdac0114774e39\"},\"head\":\"cde36f8\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/visual/screenshots.py\"],\"scopeDigest\":\"sha256:1be6e8f16e36d000581b7087a9e2a42d7ca15961d5e5b9222dd0b94303e1d2d1\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
