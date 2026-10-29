@@ -1,0 +1,28 @@
+{
+  "findings": [],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome: 'fitted figures stay legible at 400 px'. BF1.5 replaces the fixed FIG_MIN_SCALE = 0.5 with MIN_FONT_PX / SMALLEST_FIG_FONT = 8.5 / 9.5 = 0.895 (viewer.js:22-24), which is the resolution the task asked for ('Derive the floor from a minimum drawn font size... MIN_FONT_PX of about 8 to 9'). I read figureScale and applyFigureScale in the tree: floor mode sets svg minWidth to round(natW * FIG_MIN_SCALE), so the smallest svg text (.msg .numt 9.5 in viewer.css:208) draws at about 8.5 px, and Fit/100% remain. v8 now asserts floor x smallest font >= MIN_FONT_PX and parses viewer.css to keep SMALLEST_FIG_FONT honest; I checked the regex against the svg text rules in viewer.css (154,155,157,165,196,197,200,208,209,218) and all are covered, none below 9.5. BF1.6 raises tests/visual/screenshots.py MIN_FONT_PX from 4.5 to 8, a real legibility figure rather than the implementation's output, as the task asked. The executors' claims match the diffs. Small gaps, neither a finding: the filed claim that the visual check ran (80 screenshots, 0 errors) is the executor's own and I did not rerun it (python/playwright, outside what I may run). BF1.5 edited tests/viewer.test.mjs outside its declared files, which the claim states openly. The request was not saved and no open choices were recorded, so I could not ask where a task chose something the request left open.",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Both fix tasks filed redFirst not-attempted: BF1.5 'tests.expectRedFirst is false on this tdd task: it names no case to prove a red by'; BF1.6 'regression task, expectRedFirst false'. The mode owes none. BF1.6 also notes that MIN_FONT_PX = 8.5 failed with 12 errors, which is information only and not a recorded red.",
+    "inheritedTests": "none-found",
+    "inheritedTestsBasis": "tests.gate for both tasks is `node --test`, which selects the tests/*.test.mjs files. I read v8 in tests/viewer.test.mjs, the only gate test that reaches figureScale/FIG_MIN_SCALE. It asserts numeric floor bounds and the figureScale results, so it would fail if the floor were deleted. I did not audit the rest of the 228-test suite beyond that, since it does not touch this behaviour. The gate named none of either task's files (NO OVERLAP for BF1.5 and BF1.6). tests/visual/screenshots.py (the BF1.6 test) is a python/playwright script that `node --test` does not select, so the recorded gate does not exercise it."
+  },
+  "verdict": "clean",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "BF1.5-4w0",
+      "commit": "cde36f89e405"
+    },
+    {
+      "id": "BF1.6-4w0",
+      "commit": "fe5ade97daa9"
+    }
+  ]
+}
