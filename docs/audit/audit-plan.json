@@ -3702,7 +3702,7 @@
     {
       "id": "BF1",
       "title": "Bugfix batch 1",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "BUG-1-2vu, BUG-2-2vu, BUG-3-2zy and BUG-4-vcu are fixed: views carry an optional kind the viewer uses, fitted figures stay legible at 400 px, the explorer coverage glob rule is documented, and issues.mjs import-audit never reads outside the project (symlinks included), cites only relevant lines, the catalogue lists all counts and merge works on a first build.",
       "testGate": [
@@ -3711,7 +3711,7 @@
       "blockedBy": [],
       "baseRef": "1e2bf1239c9db52c575ece5a30f449d97497e382",
       "branch": "audit/bf1-bugfix-batch-1",
-      "mergedAt": null,
+      "mergedAt": "2026-10-29T14:10:12Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -4159,7 +4159,8 @@
         "runId": "2026-10-29T14:10:10Z.fd6c19",
         "status": "passed",
         "at": "2026-10-29T14:10:10Z"
-      }
+      },
+      "mergedHead": "c65e36f851bc73b7d728b7b86cdb77b4617c0201"
     }
   ],
   "fileIndex": {
