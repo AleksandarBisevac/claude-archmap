@@ -626,7 +626,7 @@ export function toMarkdown(model, viewId) {
     out.push(
       ...mdTable(
         ['From', 'To', 'Type', 'Label', 'Confidence'],
-        edges.map((e) => [cell(e.from), cell(e.to), cell(e.type), cell(e.desc), cell(e.confidence)]),
+        edges.map((e) => [cell(e.from), cell(e.to), cell(e.type), cell(e.label), cell(e.confidence)]),
       ),
     );
   out.push('');

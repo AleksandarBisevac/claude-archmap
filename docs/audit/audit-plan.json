@@ -3659,8 +3659,10 @@
             "severity": "med",
             "file": "scripts/export.mjs:403",
             "issue": "contradicts task clause 'All model text escaped for PlantUML so it cannot break or inject': toPlantUmlER emits the field name unquoted as the first token of a line (`  ${pesc(f.name)} : type`), and PUML_UNSAFE (line 313) does not escape '@' or '!'. A field named `@enduml` ends the diagram, and one named `!include /etc/passwd` or `!includeurl http://...` becomes a preprocessor directive when someone renders the .puml (file read / network fetch). PlantUML trims leading whitespace before recognising bookends and directives (from my knowledge of its parser; not run here). The file header (lines 47-49) claims 'no model text can start a line, a directive or a macro'. x18 (tests/export.test.mjs ~line 474) only tries `we ird\"; name\\n@enduml`, where the newline turns into a literal \\n, so a name that BEGINS with @ or ! is untested; its own `t.startsWith('!')` / '@' line checks would catch it if fed.",
-            "resolution": "Add '@' and '!' to PUML_UNSAFE (so they become <U+0040> / <U+0021>), or emit the field name quoted. Extend x18 with `ent.fields[1].name = '@enduml'` and `'!include /etc/passwd'` (as the entire name) so the existing per-line assertions cover it.",
-            "fixTask": "P7.8-5ye"
+            "resolution": "fixed in P7.8-5ye (3d6df046644f): Add '@' and '!' to PUML_UNSAFE (so they become <U+0040> / <U+0021>), or emit the field name quoted. Extend x18 with `ent.fields[1].name = '@enduml'` and `'!include /etc/passwd'` (as the entire name) so the existing per-line assertions cover it.",
+            "fixTask": "P7.8-5ye",
+            "commit": "3d6df046644f",
+            "status": "fixed"
           },
           {
             "id": "P7-R3",
@@ -3671,7 +3673,7 @@
             "fixTask": "P7.9-5ye"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 3 med, 0 low; 1 with a recorded fix commit]"
+        "outcome": "[findings: 3 - 0 high, 3 med, 0 low; 2 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -4115,7 +4117,7 @@
         {
           "id": "P7.8-5ye",
           "title": "fix P7-R2: contradicts task clause 'All model text escaped for PlantUML so it...",
-          "status": "in_progress",
+          "status": "done",
           "description": "contradicts task clause 'All model text escaped for PlantUML so it cannot break or inject': toPlantUmlER emits the field name unquoted as the first token of a line (`  ${pesc(f.name)} : type`), and PUML_UNSAFE (line 313) does not escape '@' or '!'. A field named `@enduml` ends the diagram, and one named `!include /etc/passwd` or `!includeurl http://...` becomes a preprocessor directive when someone renders the .puml (file read / network fetch). PlantUML trims leading whitespace before recognising bookends and directives (from my knowledge of its parser; not run here). The file header (lines 47-49) claims 'no model text can start a line, a directive or a macro'. x18 (tests/export.test.mjs ~line 474) only tries `we ird\"; name\\n@enduml`, where the newline turns into a literal \\n, so a name that BEGINS with @ or ! is untested; its own `t.startsWith('!')` / '@' line checks would catch it if fed.\n\nResolution asked: Add '@' and '!' to PUML_UNSAFE (so they become <U+0040> / <U+0021>), or emit the field name quoted. Extend x18 with `ent.fields[1].name = '@enduml'` and `'!include /etc/passwd'` (as the entire name) so the existing per-line assertions cover it.",
           "files": [
             "scripts/export.mjs",
@@ -4139,14 +4141,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "3d6df046644f",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added '@' and '!' to PUML_UNSAFE in scripts/export.mjs (comment updated), so they render as <U+0040>/<U+0021> everywhere pesc is used, including the unquoted ER field name. Added test x18b in tests/export.test.mjs feeding whole field names '@enduml', '!include /etc/passwd', '!includeurl http://evil.example/x.puml' and '  @startuml' and asserting only two @ bookend lines and no line starting with '!'. Full `node --test`: 267 pass, 0 fail. Dependants: tests/export.test.mjs, tests/commands.test.mjs, tests/skill.test.mjs, CHANGELOG.md, commands/export.md, skills/architecture-map/SKILL.md, docs/design.md all still correct: they reference the exporter by path/import/name and no output format or API changed except that two more characters are escaped in PlantUML text; full suite green. I added a new case x18b rather than extending x18 in place, so the hostile whole-name cases are separately labelled.",
+            "descriptive": "PlantUML ER output can no longer be broken or made to include files/URLs by a field name starting with @ or !."
           },
           "startedAt": "2026-10-29T14:52:15Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:54:53Z",
+          "verifiedBy": [
+            "x18b: field names beginning with @ or ! (@enduml, !include, !includeurl, leading-space @startuml) stay inert in toPlantUmlER"
+          ],
           "notes": [
             {
               "at": "2026-10-29T14:49:52Z",
@@ -4165,12 +4169,24 @@
             "runId": "2026-10-29T14:54:52Z.f7a7ae",
             "status": "passed",
             "at": "2026-10-29T14:54:52Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "3d6df046644f",
+            "at": "2026-10-29T14:54:53Z",
+            "basis": "a fix task for P7-R2: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:54:25Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome failed on system-context.svg: Teardown watchdog expired; recording dump and terminating.; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P7.9-5ye",
           "title": "fix P7-R3: contradicts task clause 'an edges table (from, to, type, label, co...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "contradicts task clause 'an edges table (from, to, type, label, confidence)': the Label column is filled from `e.desc` (the long description), and the edge's `label` field, which the Mermaid and PlantUML exporters label edges with, is never read. Edges that carry a short label (18 of 51 in the golden model, e.g. 'carrier page') show a sentence instead, and x20 (tests/export.test.mjs:601) asserts `e.desc`, so it locks the divergence in.\n\nResolution asked: Fill the Label column from `e.label` (falling back to empty), optionally add a separate Description column for `desc`; update x20 to match.",
           "files": [
             "scripts/export.mjs",
@@ -4192,14 +4208,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T14:54:53Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -4214,7 +4230,13 @@
           ],
           "fixes": [
             "P7-R3"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:57:25Z.64b842",
+            "status": "passed",
+            "at": "2026-10-29T14:57:25Z"
+          }
         }
       ],
       "area": "export",

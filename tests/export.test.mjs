@@ -610,7 +610,7 @@ test('x20 md writes one summary.md with the meta header and sections for zones, 
   const body = rows.slice(2);
   const sorted = model.edges.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
   assert.equal(body.length, sorted.length);
-  sorted.forEach((e, i) => assert.deepEqual(body[i], [e.from, e.to, e.type, e.desc ?? '', e.confidence].map((c) => String(c).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\|/g, '\\|')), e.id));
+  sorted.forEach((e, i) => assert.deepEqual(body[i], [e.from, e.to, e.type, e.label ?? '', e.confidence].map((c) => String(c).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\|/g, '\\|')), e.id));
   // entities: a field table each (name, type, key, nullable); relations listed
   const ent = section(text, 'Entities').join('\n');
   for (const e of model.entities) {
@@ -624,6 +624,22 @@ test('x20 md writes one summary.md with the meta header and sections for zones, 
   for (const r of model.relations) assert.ok(rel.includes(r.from.entity) && rel.includes(r.to.entity) && rel.includes(r.cardinality));
   // the CLI lists the file it wrote
   assert.match(run([p.file, 'md']).stdout, /summary\.md/);
+});
+
+test('x20b the edges table Label column shows the short label, never the long description', () => {
+  const { text } = mdOf(model);
+  const body = tableRows(section(text, 'Edges')).slice(2);
+  const byKey = new Map(body.map((r) => [`${r[0]}>${r[1]}>${r[2]}`, r]));
+  const labelled = model.edges.filter((e) => e.label && e.desc && e.label !== e.desc);
+  assert.ok(labelled.length > 0, 'golden model has edges with both label and desc');
+  const unlabelled = model.edges.filter((e) => !e.label && e.desc);
+  for (const e of labelled) {
+    const rows = body.filter((r) => r[0] === e.from && r[1] === e.to && r[2] === e.type);
+    assert.ok(rows.some((r) => r[3] === e.label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\|/g, '\\|')), `label of ${e.id}`);
+    assert.ok(!rows.some((r) => r[3] === e.desc), `desc not in Label column of ${e.id}`);
+  }
+  for (const e of unlabelled) assert.ok(body.some((r) => r[0] === e.from && r[1] === e.to && r[3] === ''), `empty label of ${e.id}`);
+  assert.ok(byKey.size > 0);
 });
 
 test('x21 the CRUD matrix has one row per accessing node, one column per accessed entity and the golden ops', () => {
@@ -677,7 +693,7 @@ test('x23 evidence is path:lines, linked to repoUrl/blob/<commit>/<path>#La-Lb w
 
 test('x24 pipes and newlines in cell text are escaped, so a table row never breaks', () => {
   const m = clone(model);
-  m.edges[0].desc = 'a|b\nc | d';
+  m.edges[0].label = 'a|b\nc | d';
   m.nodes[0].facts = ['fact | with pipe\nand newline'];
   m.entities[0].fields[1].name = 'we|rd';
   const { text } = mdOf(m);
