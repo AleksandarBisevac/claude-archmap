@@ -170,3 +170,21 @@ test('s10 hooks/hooks.json holds one SessionStart command hook running scripts/s
   assert.equal(h.type, 'command');
   assert.equal(h.command, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs"');
 });
+
+/** NODE_OPTIONS that preload a module making process.stdout.write throw: an unexpected, non-usage failure. */
+function crashingStdout() {
+  const d = mkdtempSync(join(tmpdir(), 'archmap-stale-crash-'));
+  put(d, 'crash.cjs', "process.stdout.write = () => { throw new Error('boom-unexpected'); };\n");
+  return `--require ${join(d, 'crash.cjs')}`;
+}
+
+test('s11 check mode exits 2 and prints the error when an unexpected exception is thrown, while hook mode stays silent with exit 0', () => {
+  const { dir } = staleRepo();
+  const NODE_OPTIONS = crashingStdout();
+  const c = run(['--check', '--project', dir], { env: { NODE_OPTIONS } });
+  assert.equal(c.status, 2, `check mode must report an error, not 0: ${c.err}`);
+  assert.match(c.err, /boom-unexpected/);
+  const h = run([], { cwd: tmpdir(), env: { CLAUDE_PROJECT_DIR: dir, NODE_OPTIONS } });
+  assert.equal(h.status, 0);
+  assert.equal(h.out, '');
+});

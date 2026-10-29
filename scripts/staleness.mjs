@@ -165,6 +165,7 @@ async function main(argv) {
       console.error(`staleness.mjs: ${e.message}`);
       return 2;
     }
+    // Any other failure is a crashed check, not a fresh map: let the direct-run handler report it with exit 2.
     throw e;
   }
 }
@@ -177,5 +178,10 @@ const invokedDirectly = (() => {
   }
 })();
 if (invokedDirectly) {
-  main(process.argv.slice(2)).then((code) => { process.exit(code); }, () => { process.exit(0); });
+  const argv = process.argv.slice(2);
+  // Only hook mode (no --check) always exits 0; a check that crashes prints the error and exits 2.
+  const onReject = argv.includes('--check')
+    ? (e) => { try { console.error(`staleness.mjs: ${e?.stack ?? e}`); } catch { /* nothing left to report to */ } process.exit(2); }
+    : () => { process.exit(0); };
+  main(argv).then((code) => { process.exit(code); }, onReject);
 }

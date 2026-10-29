@@ -2996,8 +2996,10 @@
             "severity": "low",
             "file": "tests/issues-overlay.test.mjs:135-137",
             "issue": "Test o5 (the clean render holds no issue text) renders clean WITHOUT --issues (renderTo omits the flag for 'clean'). The check passes trivially and cannot fail if `--mode clean --issues <overlay>` leaked issue text. renderHtml does drop issues in clean mode, so the behaviour is right today, but this test does not lock it in. It was green before the change, as the executor noted.",
-            "resolution": "Also render with `--issues OVERLAY --mode clean` and run the same no-issue-text assertions on that output.",
-            "fixTask": "P6.6-vcu"
+            "resolution": "fixed in P6.6-vcu (8f047bc0418a): Also render with `--issues OVERLAY --mode clean` and run the same no-issue-text assertions on that output.",
+            "fixTask": "P6.6-vcu",
+            "commit": "8f047bc0418a",
+            "status": "fixed"
           },
           {
             "id": "P6-R3",
@@ -3016,7 +3018,7 @@
             "fixTask": "P6.8-vcu"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 1 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 2 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -3334,7 +3336,7 @@
         {
           "id": "P6.6-vcu",
           "title": "fix P6-R2: Test o5 (the clean render holds no issue text) renders clean WITHO...",
-          "status": "in_progress",
+          "status": "done",
           "description": "Test o5 (the clean render holds no issue text) renders clean WITHOUT --issues (renderTo omits the flag for 'clean'). The check passes trivially and cannot fail if `--mode clean --issues <overlay>` leaked issue text. renderHtml does drop issues in clean mode, so the behaviour is right today, but this test does not lock it in. It was green before the change, as the executor noted.\n\nResolution asked: Also render with `--issues OVERLAY --mode clean` and run the same no-issue-text assertions on that output.",
           "files": [
             "tests/issues-overlay.test.mjs"
@@ -3357,14 +3359,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "8f047bc0418a",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "In tests/issues-overlay.test.mjs, renderTo gained an optional withIssues flag (default: true for non-clean modes, as before). Case o5 now renders clean twice: without --issues and with `--issues OVERLAY --mode clean`, and runs the same assertions on both outputs (no issue id/title/summary/impact/fix/detail text, no archmap-issues block, no issues-switch, no ZQDETAIL), labelling failures by render. node --test tests/issues-overlay.test.mjs: 7 tests, 7 pass, 0 fail. Full node --test not run (runsGate own-tests).",
+            "descriptive": "Test o5 now locks that a clean render stays free of issue text even when the overlay is passed with --mode clean."
           },
           "startedAt": "2026-10-29T13:17:17Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:17:59Z",
+          "verifiedBy": [
+            "o5 extended: the clean render is also produced with --issues OVERLAY --mode clean and gets the same no-issue-text assertions"
+          ],
           "notes": [
             {
               "at": "2026-10-29T13:16:09Z",
@@ -3383,12 +3387,23 @@
             "runId": "2026-10-29T13:17:58Z.dfac48",
             "status": "passed",
             "at": "2026-10-29T13:17:58Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "8f047bc0418a",
+            "at": "2026-10-29T13:17:59Z",
+            "basis": "a fix task for P6-R2, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task with expectRedFirst false: the renderer already drops issues in clean mode (per the finding), so the strengthened case is green at HEAD by design; it locks that behaviour",
+            "at": "n/a"
           }
         },
         {
           "id": "P6.7-vcu",
           "title": "fix P6-R3: In check mode an exception that is not a UsageError is rethrown (l...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "In check mode an exception that is not a UsageError is rethrown (line 168). The direct-run rejection handler (line 180) then calls process.exit(0), which reports 'fresh' for a crashed check. The task says check returns 0 fresh, 1 stale, 2 error. The hook-mode exit-0 rule was applied to check mode.\n\nResolution asked: Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode.",
           "files": [
             "scripts/staleness.mjs",
@@ -3410,14 +3425,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T13:17:59Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -3432,7 +3447,13 @@
           ],
           "fixes": [
             "P6-R3"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:35:45Z.a997cf",
+            "status": "passed",
+            "at": "2026-10-29T13:35:45Z"
+          }
         },
         {
           "id": "P6.8-vcu",

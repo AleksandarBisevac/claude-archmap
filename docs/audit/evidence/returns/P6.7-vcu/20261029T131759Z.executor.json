@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/staleness.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:35:25Z",
+    "basis": "`node --test tests/staleness.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: check mode must report an error, not 0:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/staleness.mjs: the direct-run block now picks the rejection handler by mode. With --check in argv, a rejection prints 'staleness.mjs: <stack>' to stderr and exits 2. Otherwise (hook mode) it still exits 0. checkMain/main are unchanged apart from a comment on the rethrow. tests/staleness.test.mjs: added s11, which preloads a --require module via NODE_OPTIONS that makes process.stdout.write throw a non-UsageError. It asserts check mode exits 2 with the message on stderr, and hook mode with the same preload exits 0 with empty stdout. I ran it before the fix and it failed (status 0). After the fix s11 passes. tests/staleness.test.mjs passes in full, and 'node --test' ran 219 tests, 219 pass, 0 fail. Dependants: hooks/hooks.json (hook mode still exits 0, unchanged), commands/check.md (documents exit 0 fresh/1 stale, still correct; exit 2 for errors was already the behaviour for usage errors), docs/design.md, skills/architecture-map/SKILL.md, tests/commands.test.mjs, tests/skill.test.mjs (all describe the script by path and exit codes that are unchanged; their tests pass in the full run). I did not open docs/design.md or SKILL.md.",
+    "descriptive": "A check that crashes unexpectedly now exits 2 with the error printed instead of falsely reporting fresh; hook mode still always exits 0."
+  },
+  "testsAdded": [
+    "s11: a non-usage exception in check mode exits 2 and prints the error; hook mode under the same fault stays silent with exit 0"
+  ],
+  "casesAdded": [
+    "s11"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:6984bb69411429a39ea4b87059c29839acc0988e3e886aea9966ff1fe1810110\",\"dirtyDigest\":\"sha256:ea2553b0b116e02445e52da1b18b8a1b07c0c1c0274a740b4d9bab6743ef450f\",\"dirtyPaths\":{\"scripts/staleness.mjs\":\"e1665bf059e39251\",\"tests/staleness.test.mjs\":\"24d1375f7a856a06\"},\"head\":\"8f047bc\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/staleness.mjs\",\"tests/staleness.test.mjs\"],\"scopeDigest\":\"sha256:2cce3f4cd8fc7daefce091ddbb4916ec693b62a9d90028289f63d7e498df8511\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
