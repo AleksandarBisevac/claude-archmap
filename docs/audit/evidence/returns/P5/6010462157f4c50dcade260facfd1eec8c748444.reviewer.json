@@ -1,0 +1,153 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "skills/architecture-map/SKILL.md:229",
+      "issue": "Update step 4 says to merge the synthesizer's touched elements 'with merge.mjs --synth as in build step 5'. Build step 5 (SKILL.md:144) runs merge.mjs with --previous and no --areas, and merge() then treats every area as affected (scripts/merge.mjs:141, affected = null; isOwned returns true for every element). In an update the fragments directory holds only the affected areas' fragments (step 2), so every node, edge, entity and access row of the unaffected areas is classed as owned, removed, and not re-added. An unlocked element in an untouched area is silently deleted (a locked or noted node is kept with a conflict). The e2e test (e3) covers the --areas merge but not this synth re-merge, so nothing catches it.",
+      "resolution": "In SKILL.md update step 4, give the exact command: the same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added. Optionally make merge.mjs refuse, or print a conflict, when --previous is given without --areas and the fragments dir lacks a fragment for an area listed in previous meta.coverage. Add an e2e case for the update-time synth merge."
+    },
+    {
+      "id": 2,
+      "severity": "med",
+      "file": "scripts/merge.mjs:141-150",
+      "issue": "In update mode an area named in --areas that has no fragment in the directory (an explorer failed, a typo, or the new area for 'uncovered' files is left out of --areas, so its fragment is filtered out at line 147) is handled silently. Everything the area owned is removed (nodePart/edgePart/entityPart.gone), its coverage and sources rows are dropped, and nothing replaces them. Only authored nodes survive, with a conflict. The result still validates, so exit 0 and a smaller model. SKILL.md:221 says only '--areas <a,b>' and never says that uncovered-file areas must be listed too.",
+      "resolution": "Report a conflict (and exit 1 under --strict) for every --areas entry with no fragment, and for every fragment in the directory whose area is not in --areas. Say in SKILL.md update step 3 that --areas must list the areas of the uncovered-file fragments as well."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "scripts/merge.mjs:73-110",
+      "issue": "merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib/glob.mjs for the same meta.coverage globs. The two disagree: merge's version appends (?:/.*)?$, so a bare directory glob such as 'src/api' owns the subtree, while lib/glob.mjs matches only the literal path. Explorers write coverage globs by hand, so for such a glob merge.mjs replaces the area's elements while diffmap.mjs never reports the area as changed. The update flow then skips the area, or the two scripts disagree on who owns what.",
+      "resolution": "Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy. If a bare directory should own its subtree, put that rule in lib/glob.mjs so both scripts share it, and add a glob test for it."
+    },
+    {
+      "id": 4,
+      "severity": "low",
+      "file": "scripts/merge.mjs:445-465",
+      "issue": "Model output is rebuilt from a fixed whitelist: meta keys (outMeta) and top-level keys (TOP_ORDER). Any other key in the --previous model is silently dropped on every merge, including unknown meta fields and unknown top-level arrays a newer schema might add. This conflicts with the additive-schema, readers-tolerate-unknown-keys rule (checklist 5) for a file users commit.",
+      "resolution": "Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "The phase delivers each part of the desired outcome. merge.mjs merges fragments and synthesizer output and keeps locked and notes, reporting conflicts. diffmap.mjs maps changed files to areas, nodes, dependents, entities and sequences. usage.mjs prints per-phase tokens and duration, with unknown figures never summed as 0. Commands build, update and render exist, and e2e.test.mjs runs the chain without the LLM. The export command is deferred to P7 by the P5.4 description itself. Two documented edges are not covered: the update-time synth re-merge (finding 1) and an --areas entry with no fragment (finding 2). Neither contradicts a task clause.",
+    "missing": [
+      "phase.request (absent in the brief)",
+      "phase.openChoices (absent in the brief)"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase mode owes no red-first; the per-task entries carry the individual answers (the helper computed could-not-prove for P5.1-P5.4, and P5.7-2zy is regression mode).",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is `node --test`, which selects the whole project's tests, so the question is not asked. P5.4's second gate step, `claude plugin validate .`, selects no tests."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P5.1",
+      "commit": "7cd1f81ff351",
+      "answer": "matches",
+      "note": "Each clause of the description is met. The CLI flags and the pure exported merge() are there. Identical elements are deduped, and colliding ids are renamed <id>-<area> with the references rewritten (edges, entity.store, fk, access, relations). meta is filled without inventing generatedAt. Update mode replaces only the affected areas' elements and keeps the ids of the rest. Synth merge is by id or key. Locked and noted nodes are kept, with a conflict on disagreement. The result goes through validate() and exit 1 writes nothing. Output is key-sorted. The claim describes the diff (15 cases, --strict, zones auto-created). Gaps outside the clauses are findings 2 and 4.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.1/20261029T083952Z.executor.json, at 2026-10-29T08:45:32Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P5.2",
+      "commit": "317a1a07e280",
+      "answer": "matches",
+      "note": "scripts/usage.mjs does `add` (a JSONL row with fixed key order and no timestamps) and `print [--json]` (a table per phase in pipeline order plus a total). A missing figure is omitted from the row and printed as unknown with a '+ N unknown' suffix, never as 0. Exit 2 on a usage error or an unreadable ledger. The claim is accurate. Its casesAdded lists u1-u4 though six cases were added, which is bookkeeping only.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but no test was collected or none reached an assertion: AssertionError [ERR_ASSERTION]:  -> 1; HEAD's own tests on HEAD's code are not green (no tally or error reader matched its output, so no line of it is quoted as decisive) - the command is already red (or unreadable) at HEAD - narrow it to the task's cases; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.2/20261029T084544Z.executor.json, at 2026-10-29T08:50:08Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P5.3",
+      "commit": "a9f73d454faf",
+      "answer": "matches",
+      "note": "diffmap() is pure. git runs through execFileSync with an argument array (diff --name-status -z --no-renames, ls-files -o --exclude-standard, rev-list --count). Areas come from coverage globs, nodes from paths or evidence, entities from evidence including field evidence, dependents one edge away, sequences from participants or step references, and uncovered lists new files no area owns. The report keys are sorted, and exit 0 also when nothing is affected. lib/glob.mjs supports **, *, ? and dir/**. The claim matches the diff. Finding 3 notes the glob semantics diverge from merge.mjs's private copy.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/diffmap.test.mjs tests/glob.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.3/20261029T085329Z.executor.json, at 2026-10-29T08:56:51Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P5.4",
+      "commit": "500f846e4d69",
+      "answer": "matches",
+      "note": "build.md and update.md are thin hand-offs to the skill with $ARGUMENTS. render.md is script-only with disable-model-invocation: true, creates the layout first when it is missing, and writes internal and shared output under <home>/.claude/archmap/<repo-slug>/. SKILL.md now invokes merge, diffmap and usage, and still marks staleness, issues and export as not yet built. The claim matches. Update step 4 in SKILL.md names the wrong merge invocation (finding 1).",
+      "missing": [],
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "The gate is `node --test` (the whole project) plus `claude plugin validate .`, which selects no tests. The first is a whole-project run, so the question is not asked.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: merge.mjs invoked via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.4/20261029T085710Z.executor.json, at 2026-10-29T08:59:21Z)"
+    },
+    {
+      "id": "P5.7-2zy",
+      "commit": "6010462157f4",
+      "answer": "matches",
+      "note": "tests/e2e.test.mjs runs prescan, merge, validate --repo, layout and render over a temp git copy of the fictional node-api repo. It asserts exit 0 and no issue text in the clean HTML. It then makes a scripted commit and runs diffmap. It re-merges with --previous and --areas and re-lays-out. It asserts that locked, notes and pinned survive, that unaffected positions are unchanged and that meta.commit advances. It also records a usage row per step. It uses only execFileSync and node:test, and nothing from the fixture repo is executed. The claim matches. It does not exercise the update-time synth merge (finding 1).",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The filed redFirst is {status: not-attempted, basis: regression mode, expectRedFirst false, scripts P5.1-P5.4 already exist}. The mode owes no red, so the word holds.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P5.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P5.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P5.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P5.4": [
+      "redFirst",
+      "redFirstBasis"
+    ],
+    "P5.7-2zy": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P5.1",
+      "commit": "7cd1f81ff351"
+    },
+    {
+      "id": "P5.2",
+      "commit": "317a1a07e280"
+    },
+    {
+      "id": "P5.3",
+      "commit": "a9f73d454faf"
+    },
+    {
+      "id": "P5.4",
+      "commit": "500f846e4d69"
+    },
+    {
+      "id": "P5.7-2zy",
+      "commit": "6010462157f4"
+    }
+  ]
+}

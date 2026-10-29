@@ -1,0 +1,18 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task (expectRedFirst false); no tests.add; the task asks for a documentation fix in SKILL.md",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Edited skills/architecture-map/SKILL.md Update flow step 4: the synth re-merge now gives the exact command (same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added) and states never to run it without --areas, with the reason (merge() treats every area as affected when --areas is absent, so unaffected areas' elements are removed). Not done: the optional merge.mjs refusal and the e2e case for the update-time synth merge (task is gate-only, files scope is SKILL.md only). Ran `node --test` from the project dir: exit 0, 184 pass, 0 fail. Dependants: tests/commands.test.mjs and tests/skill.test.mjs still correct (both pass in the full run; only prose and a code block in step 4 changed); .agents/skills/node/tile.json and skills-lock.json are matched by basename only and unaffected; docs/design.md is basename-only and describes no step-4 command text, unchanged and still correct.",
+    "descriptive": "Update step 4 of the architecture-map skill now tells the orchestrator to keep --areas when merging the synthesizer output, preventing silent deletion of unaffected areas' elements."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ce1c16350074601c23c83e5187530fc6f87609c2c220285dc6173a1b01aa858c\",\"dirtyDigest\":\"sha256:440de9aeae04de2ed8507d39ef3f5c44a4e39873e791488c2b20fddce0e04ec5\",\"dirtyPaths\":{\"skills/architecture-map/SKILL.md\":\"7c4c2d3ed8004940\"},\"head\":\"6010462\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/SKILL.md\"],\"scopeDigest\":\"sha256:d844e79c8400b3750e375f52c035c4e9cde5ef255210b38ed94f4cbf7477ba94\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -2182,7 +2182,41 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P5-R1",
+            "severity": "med",
+            "file": "skills/architecture-map/SKILL.md:229",
+            "issue": "Update step 4 says to merge the synthesizer's touched elements 'with merge.mjs --synth as in build step 5'. Build step 5 (SKILL.md:144) runs merge.mjs with --previous and no --areas, and merge() then treats every area as affected (scripts/merge.mjs:141, affected = null; isOwned returns true for every element). In an update the fragments directory holds only the affected areas' fragments (step 2), so every node, edge, entity and access row of the unaffected areas is classed as owned, removed, and not re-added. An unlocked element in an untouched area is silently deleted (a locked or noted node is kept with a conflict). The e2e test (e3) covers the --areas merge but not this synth re-merge, so nothing catches it.",
+            "resolution": "In SKILL.md update step 4, give the exact command: the same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added. Optionally make merge.mjs refuse, or print a conflict, when --previous is given without --areas and the fragments dir lacks a fragment for an area listed in previous meta.coverage. Add an e2e case for the update-time synth merge.",
+            "fixTask": "P5.8-2zy"
+          },
+          {
+            "id": "P5-R2",
+            "severity": "med",
+            "file": "scripts/merge.mjs:141-150",
+            "issue": "In update mode an area named in --areas that has no fragment in the directory (an explorer failed, a typo, or the new area for 'uncovered' files is left out of --areas, so its fragment is filtered out at line 147) is handled silently. Everything the area owned is removed (nodePart/edgePart/entityPart.gone), its coverage and sources rows are dropped, and nothing replaces them. Only authored nodes survive, with a conflict. The result still validates, so exit 0 and a smaller model. SKILL.md:221 says only '--areas <a,b>' and never says that uncovered-file areas must be listed too.",
+            "resolution": "Report a conflict (and exit 1 under --strict) for every --areas entry with no fragment, and for every fragment in the directory whose area is not in --areas. Say in SKILL.md update step 3 that --areas must list the areas of the uncovered-file fragments as well.",
+            "fixTask": "P5.9-2zy"
+          },
+          {
+            "id": "P5-R3",
+            "severity": "low",
+            "file": "scripts/merge.mjs:73-110",
+            "issue": "merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib/glob.mjs for the same meta.coverage globs. The two disagree: merge's version appends (?:/.*)?$, so a bare directory glob such as 'src/api' owns the subtree, while lib/glob.mjs matches only the literal path. Explorers write coverage globs by hand, so for such a glob merge.mjs replaces the area's elements while diffmap.mjs never reports the area as changed. The update flow then skips the area, or the two scripts disagree on who owns what.",
+            "resolution": "Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy. If a bare directory should own its subtree, put that rule in lib/glob.mjs so both scripts share it, and add a glob test for it.",
+            "fixTask": "P5.10-2zy"
+          },
+          {
+            "id": "P5-R4",
+            "severity": "low",
+            "file": "scripts/merge.mjs:445-465",
+            "issue": "Model output is rebuilt from a fixed whitelist: meta keys (outMeta) and top-level keys (TOP_ORDER). Any other key in the --previous model is silently dropped on every merge, including unknown meta fields and unknown top-level arrays a newer schema might add. This conflicts with the additive-schema, readers-tolerate-unknown-keys rule (checklist 5) for a file users commit.",
+            "resolution": "Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order.",
+            "fixTask": "P5.11-2zy"
+          }
+        ],
+        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -2516,7 +2550,7 @@
         {
           "id": "P5.7-2zy",
           "title": "End-to-end build and update over a fixture repo without the LLM (regression, fresh start)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Prove the script chain runs end to end (P5 outcome; docs/design.md §10 eval 3 shape, without agents). In a temp git copy of the fictional tests/fixtures/repos/node-api repo: run prescan.mjs; take hand-written fictional explorer fragments from tests/fixtures/e2e/ (as an explorer would return, evidence pointing at real fixture lines) plus a synthesizer object; merge.mjs -> validate.mjs --repo -> layout.mjs -> render.mjs, asserting each exit 0 and a clean archmap.html with no issue text. Then mark one node locked with notes and pin it in the layout, commit a scripted change (a new route file and a changed entity file), run diffmap.mjs and assert only the expected area/nodes/entity are affected, re-merge with --previous/--areas from an updated fixture fragment, re-layout seeded and re-render: locked, notes and pinned survive, unaffected nodes keep their positions, meta.commit advances to the new HEAD. usage.mjs records a row per step and prints. Uses only node:test and child_process execFileSync; nothing from the fixture repo is executed. Regression mode: the scripts already exist (P5.1-P5.4), so this task locks their combined behaviour in. A reviewed draft of the test (cases e1-e4) and its fixtures from the cancelled attempts is kept outside the repo in the session scratchpad; the dispatch prompt gives its path. Write them into tests/ within this attempt, fixing anything that does not match this description.",
           "files": [
             "tests/e2e.test.mjs",
@@ -2545,20 +2579,246 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "6010462157f4",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote the reviewed draft tests/e2e.test.mjs and tests/fixtures/e2e/ (fragments books/express/queues, synth.json, update/books.json) from the scratchpad into the repo unchanged after checking it against the task description (it already covers every point). node --test tests/e2e.test.mjs: 4 pass, 0 fail; full node --test: 184 pass, 0 fail, exit 0. Dependant scripts/lib/prescan/generic.mjs: still correct; it only names 'e2e' in a TEST_SEGMENT regex (line 91) that classifies path segments, and the new fixture dir does not change that code or its inputs.",
+            "descriptive": "End-to-end test locks in the no-LLM script chain: prescan, merge, validate --repo, layout, render, diffmap, update re-merge preserving locked/notes/pinned, and the usage ledger."
           },
           "startedAt": "2026-10-29T09:10:08Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T09:11:05Z",
+          "verifiedBy": [
+            "e1 chain exit 0 and clean HTML without issue text",
+            "e2 diffmap maps the scripted commit to the expected area, nodes, dependents, entity, sequence",
+            "e3 update re-merge keeps locked/notes/pinned, unaffected positions, meta.commit is new HEAD",
+            "e4 usage ledger row per step and printed totals"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T09:11:04Z.286b89",
             "status": "passed",
             "at": "2026-10-29T09:11:04Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "6010462157f4",
+            "at": "2026-10-29T09:11:05Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression mode, expectRedFirst false: scripts P5.1-P5.4 already exist; the test locks their combined behaviour in",
+            "at": "n/a"
           }
+        },
+        {
+          "id": "P5.8-2zy",
+          "title": "fix P5-R1: Update step 4 says to merge the synthesizer's touched elements 'wi...",
+          "status": "in_progress",
+          "description": "Update step 4 says to merge the synthesizer's touched elements 'with merge.mjs --synth as in build step 5'. Build step 5 (SKILL.md:144) runs merge.mjs with --previous and no --areas, and merge() then treats every area as affected (scripts/merge.mjs:141, affected = null; isOwned returns true for every element). In an update the fragments directory holds only the affected areas' fragments (step 2), so every node, edge, entity and access row of the unaffected areas is classed as owned, removed, and not re-added. An unlocked element in an untouched area is silently deleted (a locked or noted node is kept with a conflict). The e2e test (e3) covers the --areas merge but not this synth re-merge, so nothing catches it.\n\nResolution asked: In SKILL.md update step 4, give the exact command: the same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added. Optionally make merge.mjs refuse, or print a conflict, when --previous is given without --areas and the fragments dir lacks a fragment for an area listed in previous meta.coverage. Add an e2e case for the update-time synth merge.",
+          "files": [
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T09:13:43Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: skills/architecture-map/SKILL.md, every path the finding(s) P5-R1 name"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "no suite: skills/architecture-map/SKILL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/commands.test.mjs, tests/skill.test.mjs"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "gate-only, not tdd: every file P5-R1 names is a document (skills/architecture-map/SKILL.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P5-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T09:17:07Z.2e596e",
+            "status": "passed",
+            "at": "2026-10-29T09:17:07Z"
+          }
+        },
+        {
+          "id": "P5.9-2zy",
+          "title": "fix P5-R2: In update mode an area named in --areas that has no fragment in th...",
+          "status": "pending",
+          "description": "In update mode an area named in --areas that has no fragment in the directory (an explorer failed, a typo, or the new area for 'uncovered' files is left out of --areas, so its fragment is filtered out at line 147) is handled silently. Everything the area owned is removed (nodePart/edgePart/entityPart.gone), its coverage and sources rows are dropped, and nothing replaces them. Only authored nodes survive, with a conflict. The result still validates, so exit 0 and a smaller model. SKILL.md:221 says only '--areas <a,b>' and never says that uncovered-file areas must be listed too.\n\nResolution asked: Report a conflict (and exit 1 under --strict) for every --areas entry with no fragment, and for every fragment in the directory whose area is not in --areas. Say in SKILL.md update step 3 that --areas must list the areas of the uncovered-file fragments as well.",
+          "files": [
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: Report a conflict (and exit 1 under --strict) for every --areas entry with no fragment, and for every fragment in the directory whose area is not in --areas"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: scripts/merge.mjs, every path the finding(s) P5-R2 name"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            }
+          ],
+          "fixes": [
+            "P5-R2"
+          ]
+        },
+        {
+          "id": "P5.10-2zy",
+          "title": "fix P5-R3: merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib...",
+          "status": "pending",
+          "description": "merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib/glob.mjs for the same meta.coverage globs. The two disagree: merge's version appends (?:/.*)?$, so a bare directory glob such as 'src/api' owns the subtree, while lib/glob.mjs matches only the literal path. Explorers write coverage globs by hand, so for such a glob merge.mjs replaces the area's elements while diffmap.mjs never reports the area as changed. The update flow then skips the area, or the two scripts disagree on who owns what.\n\nResolution asked: Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy. If a bare directory should own its subtree, put that rule in lib/glob.mjs so both scripts share it, and add a glob test for it.",
+          "files": [
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: scripts/merge.mjs, every path the finding(s) P5-R3 name"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "the resolution of P5-R3 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "no test runner in this task's gate for the test P5-R3 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P5 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P5-R3"
+          ]
+        },
+        {
+          "id": "P5.11-2zy",
+          "title": "fix P5-R4: Model output is rebuilt from a fixed whitelist: meta keys (outMeta...",
+          "status": "pending",
+          "description": "Model output is rebuilt from a fixed whitelist: meta keys (outMeta) and top-level keys (TOP_ORDER). Any other key in the --previous model is silently dropped on every merge, including unknown meta fields and unknown top-level arrays a newer schema might add. This conflicts with the additive-schema, readers-tolerate-unknown-keys rule (checklist 5) for a file users commit.\n\nResolution asked: Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order.",
+          "files": [
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: scripts/merge.mjs, every path the finding(s) P5-R4 name"
+            },
+            {
+              "at": "2026-10-29T09:13:43Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            }
+          ],
+          "fixes": [
+            "P5-R4"
+          ]
         }
       ],
       "area": [
@@ -3010,7 +3270,8 @@
       "P4.4",
       "P4.6-w15",
       "P4.7-w15",
-      "P5.4"
+      "P5.4",
+      "P5.8-2zy"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -3031,10 +3292,16 @@
       "P4.5"
     ],
     "scripts/merge.mjs": [
-      "P5.1"
+      "P5.1",
+      "P5.9-2zy",
+      "P5.10-2zy",
+      "P5.11-2zy"
     ],
     "tests/merge.test.mjs": [
-      "P5.1"
+      "P5.1",
+      "P5.9-2zy",
+      "P5.10-2zy",
+      "P5.11-2zy"
     ],
     "tests/fixtures/merge/": [
       "P5.1"

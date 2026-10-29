@@ -226,7 +226,16 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
    reported, not resolved silently. Cross-area edges and access rows whose evidence sits in an affected area are
    replaced too, which is what step 4 refills.
 4. **Synthesizer only for touched edges and sequences**: pass it the list of affected ids. It returns only the touched or new elements with the same ids; you merge
-   them with `merge.mjs --synth` as in build step 5, then run validate.
+   them with the same `merge.mjs` call as step 3, with `--synth <work>/synth.json` added (keep `--areas <a,b>`):
+
+   ```sh
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/merge.mjs" <work>/fragments --previous docs/architecture/architecture.model.json --out docs/architecture/architecture.model.json \
+     --areas <a,b> --synth <work>/synth.json --commit "$(git rev-parse HEAD)" --generated-at <iso> --json
+   ```
+
+   Never run this without `--areas`: the fragments directory holds only the affected areas, and without `--areas`
+   `merge.mjs` treats every area as affected, so every unaffected area's elements would be classed as owned, removed and
+   not re-added. Then run validate.
 5. **Validate, layout, render.** Layout is seeded from the previous positions in `architecture.layout.json`. Set
    `meta.commit` to HEAD and `generatedAt` anew.
 6. **Issues**, only with `--issues`: re-review the affected anchors only and merge into the existing overlay.
