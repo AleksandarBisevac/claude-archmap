@@ -773,6 +773,14 @@ test('x28 svg writes one parseable SVG per view and er.svg, with a rect per node
     assert.deepEqual(edgePaths.map((a) => a['data-edge']).sort(), viewEdges(v).map((e) => e.id).sort(), `${v.id}: one path per edge`);
     for (const n of viewNodes(v)) assert.ok(svg.includes(`>${n.title.replace(/&/g, '&amp;')}<`), `${v.id}: title of ${n.id}`);
     for (const e of edgePaths) assert.match(e.d, /^M[-\d. ,LMCQ]+$/);
+    // each drawn zone enclosure is captioned with the zone's label (not its id); a long label may be cut with an ellipsis
+    const drawn = [...svg.matchAll(/<g class="zone" data-zone="([^"]*)">.*?<text [^>]*>([^<]*)<\/text><\/g>/g)];
+    for (const [, id, text] of drawn) {
+      const label = zoneById.get(id).label.replace(/&/g, '&amp;');
+      const want = text.endsWith('…') ? text.slice(0, -1) : text;
+      assert.ok(label.startsWith(want) && want.length >= 3, `${v.id}: zone ${id} is captioned with its label, got "${text}"`);
+    }
+    assert.ok(drawn.length > 0 || v.id !== 'system-context', `${v.id}: zone enclosures drawn`);
   }
   const er = readFileSync(join(p.exports, 'er.svg'), 'utf8');
   assertWellFormed(er, 'er');
@@ -808,7 +816,7 @@ test('x30 svg model text is XML-escaped: < & " in titles, kinds, entity and fiel
   const bad = 'A <b onload="x()">&amp; "q" \'s\' </text><script>1</script>';
   m.nodes[0].title = bad;
   m.nodes[0].kind = bad;
-  m.zones[0].title = bad;
+  m.zones[0].label = bad;
   m.entities[0].name = bad;
   m.entities[0].fields.push({ name: bad, type: bad, provenance: 'declared' });
   const lay = layoutOf(m);
@@ -821,6 +829,8 @@ test('x30 svg model text is XML-escaped: < & " in titles, kinds, entity and fiel
       assert.ok(!svg.includes('<script'), 'raw script');
     }
     assert.ok(outs.some((svg) => svg.includes('&lt;b onload=&quot;x()&quot;&gt;&amp;amp; &quot;q&quot;')), 'escaped text present');
+    // the zone caption is the zone's label, escaped, in the view that draws it
+    assert.ok(outs.some((svg) => new RegExp(`data-zone="${m.zones[0].id}"[^>]*>.*?<text [^>]*>[^<]*&lt;b onload`).test(svg)), 'escaped zone label present');
   });
 });
 const layoutOf = (m) => layoutModel(m);

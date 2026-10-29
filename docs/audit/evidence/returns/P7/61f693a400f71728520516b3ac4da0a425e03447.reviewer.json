@@ -1,0 +1,166 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "scripts/export.mjs:929",
+      "issue": "SVG zone enclosures are labelled with `z.title ?? z.id`, but the model schema's zone has `label` (required) and no `title` (schema/archmap-model.schema.json zone: id, kind, label, parent, outside). Every zone enclosure therefore shows its raw id (e.g. zb-web) instead of its label (e.g. 'Web client ...'), unlike the Mermaid and PlantUML exporters which use z.label. tests/export.test.mjs:811 sets `m.zones[0].title`, so x30 mirrors the wrong field and never exercises the real label text.",
+      "resolution": "Use `z.label ?? z.id` in toSvgGraph (line 929), and change x30 to set `m.zones[0].label` and assert the escaped text appears; add an assertion in x28 that each drawn zone's label text is present."
+    },
+    {
+      "id": 2,
+      "severity": "med",
+      "file": "scripts/export.mjs:403",
+      "issue": "contradicts task clause 'All model text escaped for PlantUML so it cannot break or inject': toPlantUmlER emits the field name unquoted as the first token of a line (`  ${pesc(f.name)} : type`), and PUML_UNSAFE (line 313) does not escape '@' or '!'. A field named `@enduml` ends the diagram, and one named `!include /etc/passwd` or `!includeurl http://...` becomes a preprocessor directive when someone renders the .puml (file read / network fetch). PlantUML trims leading whitespace before recognising bookends and directives (from my knowledge of its parser; not run here). The file header (lines 47-49) claims 'no model text can start a line, a directive or a macro'. x18 (tests/export.test.mjs ~line 474) only tries `we ird\"; name\\n@enduml`, where the newline turns into a literal \\n, so a name that BEGINS with @ or ! is untested; its own `t.startsWith('!')` / '@' line checks would catch it if fed.",
+      "resolution": "Add '@' and '!' to PUML_UNSAFE (so they become <U+0040> / <U+0021>), or emit the field name quoted. Extend x18 with `ent.fields[1].name = '@enduml'` and `'!include /etc/passwd'` (as the entire name) so the existing per-line assertions cover it."
+    },
+    {
+      "id": 3,
+      "severity": "med",
+      "file": "scripts/export.mjs:628",
+      "issue": "contradicts task clause 'an edges table (from, to, type, label, confidence)': the Label column is filled from `e.desc` (the long description), and the edge's `label` field, which the Mermaid and PlantUML exporters label edges with, is never read. Edges that carry a short label (18 of 51 in the golden model, e.g. 'carrier page') show a sentence instead, and x20 (tests/export.test.mjs:601) asserts `e.desc`, so it locks the divergence in.",
+      "resolution": "Fill the Label column from `e.label` (falling back to empty), optionally add a separate Description column for `desc`; update x20 to match."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Against desiredOutcome ('export.mjs writes Mermaid flowchart, erDiagram and sequenceDiagram, PlantUML, Markdown and SVG from the golden model, and PNG when headless Chromium is present'): the diff adds scripts/export.mjs with all five formats plus png, validated first through validate.mjs, deterministic, clean (steps[].i and issues never read), PNG exit 3 when no browser. The three findings are defects inside that outcome (SVG zone label field, PlantUML ER field-name escape gap, md edge Label column), not a change of scope. The archmap-review scan's two leads (the SVG xmlns URL and a test regex for 'shell: true') are false positives. No private-material, dependency, Node-18 or determinism problem found; child process uses execFile with an argument array.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "phase mode: the per-task red-first words are computed by the filing verb (all six executors' bases are could-not-prove, output carrying no test tally).",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "every task's tests.gate is `node --test`, which runs the whole project, so the question does not reach a bounded set; P7.6's second gate `claude plugin validate .` selects no test."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P7.1",
+      "commit": "34bee70696cc",
+      "answer": "matches",
+      "missing": [],
+      "note": "Description: CLI, validation-first (exit 1, nothing written), mermaid flowchart per view with zone subgraphs and labelled edges, erDiagram with PK/FK and crow's-foot, sequenceDiagram with alt/else/opt/loop/end, notes, dashed returns; clean; escaped; collision-free ids; default <model dir>/exports; deterministic; exit 0/1/2; pure functions exported. toMermaidFlowchart/ER/Sequence at export.mjs:152-304 do this and esc() (line 79) one-pass escapes. The claim describes the diff (its 'not yet implemented' note for later formats was true at that commit).",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.1/20261029T141449Z.executor.json, at 2026-10-29T14:21:09Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P7.2",
+      "commit": "c845ae75dcd1",
+      "answer": "diverges",
+      "missing": [],
+      "note": "Clause: 'All model text escaped for PlantUML so it cannot break or inject'. toPlantUmlER writes the field name unquoted at line start (export.mjs:403) and pesc does not escape '@' or '!', so a field named `@enduml` or `!include ...` is emitted as a bookend or directive (finding 2). Everything else (component/er/sequence files, async dashed, sanitised aliases, reserved words, pure functions) matches; the claim's 'no model text can start a line, a directive' overstates it.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: toPlantUmlComponent is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.2/20261029T142126Z.executor.json, at 2026-10-29T14:25:13Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P7.3",
+      "commit": "423d01c3a75d",
+      "answer": "diverges",
+      "missing": [],
+      "note": "Clause: 'an edges table (from, to, type, label, confidence)'. The Label column is populated from e.desc, not e.label (export.mjs:628; x20 asserts it), finding 3. The other clauses (summary.md / <view>.md, zones, nodes per zone, entity field tables, CRUD matrix, embedded mermaid sequences from toMermaidSequence, repoUrl/blob/<commit> evidence links, escaped cells, id ordering, clean) match; the claim's 'edges table (from,to,type,label,confidence)' names the header, not the content.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: format md is not yet implemented; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.3/20261029T142532Z.executor.json, at 2026-10-29T14:29:31Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P7.4",
+      "commit": "fcfdf94a25f0",
+      "answer": "matches",
+      "missing": [],
+      "note": "Standalone offline SVG per view and er.svg from the layout (--layout, beside the model, else layoutModel in memory), colours read from viewer.css, arrowheads, XML-escaped text, rounded coordinates, deterministic. One defect inside the clauses: zone enclosures use z.title (not in the schema) instead of z.label, so zone labels render as ids (finding 1, export.mjs:929, mirrored by x30 at tests/export.test.mjs:811). The claim describes the diff but does not mention zone labelling.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.4/20261029T142950Z.executor.json, at 2026-10-29T14:33:59Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P7.5",
+      "commit": "4feda49dfbc9",
+      "answer": "matches",
+      "missing": [],
+      "note": "findChromium (CHROME_PATH, macOS bundles, PATH on linux, Program Files) and chromiumArgs exported; rasterise uses execFile with an argument array, 30s timeout, throwaway --user-data-dir removed in finally, window size from the svg, file:// URL from pathToFileURL; no browser: one stderr line naming CHROME_PATH, exit 3, nothing written; browser failure: exit 2. Tests inject platform/env/exists, use a fake browser script, and the real-Chrome test calls t.skip when none (tests/export.test.mjs:971-973). The claim matches the diff.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: findChromium is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.5/20261029T143422Z.executor.json, at 2026-10-29T14:39:21Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P7.6",
+      "commit": "61f693a400f7",
+      "answer": "matches",
+      "missing": [],
+      "note": "commands/export.md has description, argument-hint, allowed-tools Bash, Read, disable-model-invocation true, requires the model else /archmap:build, runs export.mjs via ${CLAUDE_PLUGIN_ROOT} with $ARGUMENTS and --layout when the file exists, explains exits 1/2/3, states exports are clean. README row, CHANGELOG Unreleased entry, SKILL.md /archmap:export line, c9 and the flipped s7/s8 assertions are all in the diff. I did not re-run `claude plugin validate .`.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "the gate commands are `node --test` (whole project) and `claude plugin validate .` (validates the plugin manifest, selects no test); neither bounds a set of tests.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/commands.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: commands/export.md exists; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.6/20261029T143955Z.executor.json, at 2026-10-29T14:41:39Z)"
+    }
+  ],
+  "computedAnswers": {
+    "P7.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P7.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P7.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P7.4": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P7.5": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P7.6": [
+      "redFirst",
+      "redFirstBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P7.1",
+      "commit": "34bee70696cc"
+    },
+    {
+      "id": "P7.2",
+      "commit": "c845ae75dcd1"
+    },
+    {
+      "id": "P7.3",
+      "commit": "423d01c3a75d"
+    },
+    {
+      "id": "P7.4",
+      "commit": "fcfdf94a25f0"
+    },
+    {
+      "id": "P7.5",
+      "commit": "4feda49dfbc9"
+    },
+    {
+      "id": "P7.6",
+      "commit": "61f693a400f7"
+    }
+  ]
+}

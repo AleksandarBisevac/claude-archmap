@@ -1,0 +1,29 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:51:51Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome failed on system-context.svg: Teardown watchdog expired; recording dump and terminating.; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/export.mjs toSvgGraph zone caption now fit(z.label ?? z.id, ...) instead of z.title ?? z.id. tests/export.test.mjs: x30 now sets m.zones[0].label and asserts the escaped zone caption is present in the view drawing that zone; x28 asserts every drawn <g class=zone> caption is the zone's label (allowing an ellipsis cut). Red seen before the fix: x28 'zone zb-web is captioned with its label, got \"zb-web\"' and x30 'escaped zone label present' failed (35 pass, 2 fail); after the fix node --test tests/export.test.mjs 37/37 and full node --test 266/266 pass (exit 0). Dependants: tests/export.test.mjs (only the changed tests), tests/commands.test.mjs, tests/skill.test.mjs, CHANGELOG.md, commands/export.md, skills/architecture-map/SKILL.md, docs/design.md reference export.mjs by path/name only and are still correct: the CLI surface, flags and file names are unchanged; only the SVG zone caption text changed, and the full suite is green.",
+    "descriptive": "SVG zone enclosures now show the zone label instead of the raw id, matching Mermaid and PlantUML."
+  },
+  "testsAdded": [
+    "x28 extended: each drawn zone enclosure caption equals its label",
+    "x30 changed to set zones[0].label and assert the escaped zone label appears"
+  ],
+  "casesAdded": [
+    [
+      "x28",
+      "x30"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:a00cbc575a46baf80fe258c055e6c1c3dba9d3fd8215e103b9e82e53090f6a80\",\"dirtyDigest\":\"sha256:9cf643e35723e6d06c5ae2086e075700c355b83514dbb1068594d7f48d649bda\",\"dirtyPaths\":{\"scripts/export.mjs\":\"b7d2ff72b0205a63\",\"tests/export.test.mjs\":\"0405eece7cd92dfa\"},\"head\":\"61f693a\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:fd7c81c3c2a0b7d456445118c568bbb5d142de913f815b93ca9348db840ae74b\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

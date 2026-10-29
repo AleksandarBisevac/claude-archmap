@@ -926,7 +926,7 @@ export function toSvgGraph(model, layout, viewId) {
     grow(b, r.x + r.w, r.y + r.h);
     body.push(
       `<g class="zone" data-zone="${xesc(z.id)}"><rect x="${rnd(r.x)}" y="${rnd(r.y)}" width="${rnd(r.w)}" height="${rnd(r.h)}" rx="8" fill="${col}" fill-opacity="0.07" stroke="${col}" stroke-opacity="0.6" stroke-width="1.2"/>` +
-        `<text x="${rnd(r.x + 12)}" y="${rnd(r.y + 22)}" font-size="12" font-weight="600" fill="${col}">${xesc(fit(z.title ?? z.id, r.w - 24, 7.4))}</text></g>`,
+        `<text x="${rnd(r.x + 12)}" y="${rnd(r.y + 22)}" font-size="12" font-weight="600" fill="${col}">${xesc(fit(z.label ?? z.id,r.w - 24, 7.4))}</text></g>`,
     );
   }
   const nodes = scope.nodes.slice().sort(byId);
