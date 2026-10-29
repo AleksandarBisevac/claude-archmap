@@ -1,0 +1,29 @@
+{
+  "findings": [],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome: SKILL.md <=500 lines with references defining workflow/model contract/evidence/token rules, and three agents. The re-reviewed fixes: P4.7-w15 rewords Hard rule 1 (SKILL.md:17-18) to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' with the D1 point kept, matching the asked resolution and the executor claim. P4.8-w15 adds test s6 (tests/skill.test.mjs:71-110) whose staleClaims() scan covers agent/agents/explorer words, drops the blanket negation exclusion and strips only the specific allowed phrasings; it asserts 'the synthesizer writes the model, no review needed' is flagged, matching the task clause. P4.9-w15 changes the Python recipe to 'python3 -I -c' against the $tmp copy via sys.argv and states why (schema-introspection.md:12, 50-63), matching the asked resolution; the executor's grep claim holds (only the edited file mentions python -c). SKILL.md is 249 lines. The archmap-review mechanical scan over the phase diff returned no leads (denylist checked). One limit, not a finding: s6 scans line by line, so a stale claim wrapped across two lines would not be caught; this does not contradict the clause.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "P4.7-w15 and P4.9-w15 add no tests (gate-only). P4.8-w15 declares expectRedFirst false (regression: the stale line was already fixed at HEAD) and says it checked by hand that the new regex matches the pre-fix line. s6 feeds the scan synthetic stale lines inline and asserts they are flagged, so it is able to fail if the scan regresses; this is judged from reading, not from a seen red run.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test`, which runs the whole project's test suite, so the bound is not narrower than the project and the inherited-tests question is not asked."
+  },
+  "verdict": "clean",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P4.7-w15",
+      "commit": "20dbc7045f76"
+    },
+    {
+      "id": "P4.8-w15",
+      "commit": "f2003c8b019e"
+    },
+    {
+      "id": "P4.9-w15",
+      "commit": "d3187a9efe1e"
+    }
+  ]
+}

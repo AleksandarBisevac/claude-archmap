@@ -1513,7 +1513,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P4-R1",
@@ -1540,13 +1540,25 @@
             "severity": "med",
             "file": "skills/architecture-map/references/schema-introspection.md:52-56",
             "issue": "The 'project's own Python' recipe is `python3 -c \"import duckdb; ...\"` run from the analysed repo root. `python -c` puts the current directory first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. That breaks the same file's rule (line 12) and SKILL.md hard rule 3, 'never execute the scanned project's own code'. The example also hard-codes /tmp/copy.duckdb rather than the mktemp copy from the DuckDB section.",
-            "resolution": "Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened.",
-            "fixTask": "P4.9-w15"
+            "resolution": "fixed in P4.9-w15 (d3187a9efe1e): Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened.",
+            "fixTask": "P4.9-w15",
+            "commit": "d3187a9efe1e",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 2 med, 1 low; 2 with a recorded fix commit]"
+        "outcome": "phase review filed at head d3187a9efe1e [findings: 3 - 0 high, 2 med, 1 low; 3 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "sha256": "05475629d6d2cede094b1e6e739993bc208ad22e339c302d23bb14ef370c5d2e"
+          },
+          {
+            "return": "returns/P4/d3187a9efe1ed8c45c3f5111e507fd1804109839.reviewer.json",
+            "sha256": "b3e74c57a1326c429485ded345b79a3e7104d80dae15dca671e9568aca078d49"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P4 delivers skills/architecture-map/SKILL.md (249 lines) with nine references (model contract incl. explorer fragment contract, relation taxonomy, sequences, generic + three stack discovery recipes, read-only schema introspection, issues catalogue) and the archmap-explorer/synthesizer/reviewer agents with designed model/effort/tools; node --test and claude plugin validate . green. Review findings R1-R3 fixed (orchestrator-only model writes, tightened s6 claim scan, isolated python3 -I introspection on the temp copy); re-review clean. Open: claude plugin validate does not inspect agent frontmatter, so runtime acceptance of effort (design §13) remains unverified. Reviewer answers accepted: Accept (Recommended): accept P4.6-w15 as closed; the R1 fix task finishes the job.",
       "tasks": [
         {
           "id": "P4.1",
@@ -1597,9 +1609,14 @@
             "at": "2026-10-28T22:55:56Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2c336a5de599",
-            "at": "2026-10-28T22:55:56Z"
+            "at": "2026-10-29T07:11:35Z",
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed by the filing verb: the helper's throwaway run exited 1 with an ENOENT on a file read, and no test tally was collected. The same note says an assertion failure cannot be told from a crash. I do not upgrade it.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
           },
           "redFirst": {
             "at": "2026-10-28T22:55:41Z",
@@ -1658,9 +1675,14 @@
             "at": "2026-10-28T22:58:10Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "5867ef4d9129",
-            "at": "2026-10-28T22:58:10Z"
+            "at": "2026-10-29T07:11:35Z",
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed by the filing verb (could-not-prove); no run that reaches an assertion was recorded.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
           },
           "redFirst": {
             "at": "2026-10-28T22:58:01Z",
@@ -1716,9 +1738,14 @@
             "at": "2026-10-28T23:00:18Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "7a65c0098a4d",
-            "at": "2026-10-28T23:00:19Z"
+            "at": "2026-10-29T07:11:35Z",
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed by the filing verb (could-not-prove).",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
           },
           "redFirst": {
             "at": "2026-10-28T23:00:01Z",
@@ -1778,9 +1805,14 @@
             "at": "2026-10-28T23:02:10Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "22f58c6c1b99",
-            "at": "2026-10-28T23:02:10Z"
+            "at": "2026-10-29T07:11:35Z",
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed by the filing verb (could-not-prove).",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
           },
           "redFirst": {
             "at": "2026-10-28T23:02:01Z",
@@ -1838,9 +1870,14 @@
             "at": "2026-10-28T23:03:57Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2a4514332fae",
-            "at": "2026-10-28T23:03:58Z"
+            "at": "2026-10-29T07:11:35Z",
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed by the filing verb (could-not-prove).",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is `node --test` plus `claude plugin validate .`, both whole-project commands."
           },
           "redFirst": {
             "at": "2026-10-28T23:03:41Z",
@@ -1895,9 +1932,14 @@
             "at": "2026-10-28T23:05:19Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "b655bfc58e52",
-            "at": "2026-10-28T23:05:20Z"
+            "at": "2026-10-29T07:11:35Z",
+            "return": "returns/P4/b655bfc58e5221967e69803e11011f5c1354b280.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed by the filing verb. The helper's output did show 'AssertionError: no table row says an agent outputs the updated model', but the verb could not read a test tally, so the verb's could-not-prove stands.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
           },
           "redFirst": {
             "at": "2026-10-28T23:05:06Z",
@@ -2042,7 +2084,7 @@
         {
           "id": "P4.9-w15",
           "title": "fix P4-R3: The 'project's own Python' recipe is `python3 -c \"import duckdb; ....",
-          "status": "in_progress",
+          "status": "done",
           "description": "The 'project's own Python' recipe is `python3 -c \"import duckdb; ...\"` run from the analysed repo root. `python -c` puts the current directory first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. That breaks the same file's rule (line 12) and SKILL.md hard rule 3, 'never execute the scanned project's own code'. The example also hard-codes /tmp/copy.duckdb rather than the mktemp copy from the DuckDB section.\n\nResolution asked: Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened.",
           "files": [
             "skills/architecture-map/references/schema-introspection.md"
@@ -2063,13 +2105,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "d3187a9efe1e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Edited skills/architecture-map/references/schema-introspection.md. The 'project's own Python' recipe now runs `python3 -I -c` and the text explains why: plain `python -c` puts the cwd first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. The example now takes the DuckDB-section temp copy (`\"$tmp/app.duckdb\"`, passed via sys.argv) instead of hard-coded /tmp/copy.duckdb. The 'No shipped driver' rule (line 12) now says `python3 -I -c`. If the module is not importable under -I, skip and record it, and do not drop -I. Gate: this task adds no test, so there was nothing of its own to run and I ran none; the orchestrator's recorded `node --test` is the evidence. Dependants (tests/skill-discovery-refs.test.mjs, agents/archmap-explorer.md, agents/archmap-synthesizer.md, docs/design.md, SKILL.md, discovery-generic.md, stack-node-backend.md, stack-python-backend.md): all still correct. They refer to the file by basename. I ran grep for 'python -c', 'python3 -c' and 'copy.duckdb' across them, which exited 0, and the only hit was the edited file itself. The file's name, path and headings are unchanged, so basename references and any heading-based checks are unaffected. I did not run the discovery-refs test.",
+            "descriptive": "Python introspection recipe now runs isolated (-I) against the temp DuckDB copy, so a scanned repo's duckdb.py cannot be executed."
           },
           "startedAt": "2026-10-29T07:03:56Z",
-          "completedAt": null,
+          "completedAt": "2026-10-29T07:07:37Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -2093,6 +2135,16 @@
             "runId": "2026-10-29T07:07:37Z.fae60d",
             "status": "passed",
             "at": "2026-10-29T07:07:37Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "d3187a9efe1e",
+            "at": "2026-10-29T07:07:37Z",
+            "basis": "a fix task for P4-R3: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task, expectRedFirst false; no tests added"
           }
         }
       ],
@@ -2101,7 +2153,12 @@
         "agents"
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-28T22:54:22Z"
+      "startedAt": "2026-10-28T22:54:22Z",
+      "testEvidence": {
+        "runId": "2026-10-29T07:11:34Z.50f60b",
+        "status": "passed",
+        "at": "2026-10-29T07:11:34Z"
+      }
     },
     {
       "id": "P5",
