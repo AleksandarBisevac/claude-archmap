@@ -1,0 +1,82 @@
+{
+  "skill_name": "architecture-map",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Build an architecture map of the repository whose location is in the environment variable ARCHMAP_EVAL_REPO_A (it is a FastAPI backend with a React frontend and a DuckDB database). Read the variable with a shell, work from that directory, and run /archmap:build with the default balanced profile and without --issues. Leave the artifacts in docs/architecture of that repository, validate the model with validate.mjs, and finish with the token ledger.",
+      "expected_output": "docs/architecture/architecture.model.json, architecture.layout.json and a clean archmap.html exist, the model passes validate.mjs, covers the main backend, frontend and database components with evidence, carries at least three sequences, and its entities carry observed fields from DuckDB (or meta.sources records why introspection was skipped).",
+      "files": [],
+      "expectations": [
+        "validate.mjs exits 0 on docs/architecture/architecture.model.json, with no findings",
+        "Every node in the model has at least one evidence entry that names a file in the repository",
+        "The model has at least 3 sequences, each with at least 2 steps",
+        "When the duckdb CLI or a Python duckdb module is available, the database entities carry fields with provenance observed; otherwise meta.sources contains an entry that records the skipped introspection with a reason",
+        "The key components listed in the private checklist (.private/reference/eval-a-key-components.md, relative to the archmap repository) are each present as a node, matched by paths or name",
+        "The final report prints the token ledger and the profile is balanced",
+        "docs/architecture/archmap.html is self-contained: it has no external http or https script, stylesheet or font reference"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Build an architecture map of the repository whose location is in the environment variable ARCHMAP_EVAL_REPO_A with /archmap:build --issues. Keep the issues overlay and the internal HTML outside the repository, in the archmap evals workspace (the .claude/archmap/evals directory under the home directory), and tell me where they are. Validate the model and the issues file with validate.mjs and render both the clean and the internal HTML.",
+      "expected_output": "The same clean model as eval 1, plus an issues overlay and an internal HTML kept outside the repository. The clean docs/architecture/archmap.html carries no issue ids or issue text. The overlay recalls at least 60 percent of the high and medium issues of the private ground truth.",
+      "files": [],
+      "expectations": [
+        "validate.mjs exits 0 on the model with --issues pointing at the overlay",
+        "Every issue in the overlay anchors to an existing node, edge or entity id and carries evidence",
+        "The overlay and the internal HTML live outside the analysed repository, and git status in that repository shows no issues file",
+        "The clean docs/architecture/archmap.html contains no issue id from the overlay and no issue title (grep returns nothing)",
+        "The internal HTML contains the issues toggle and at least one issue id from the overlay",
+        "Against the private ground truth (.private/reference/eval-a-issues.md, relative to the archmap repository), the overlay matches at least 60 percent of the issues rated high or medium, matched by anchor and gist",
+        "Every issue carries a category from references/issues-catalog.md or is marked as outside the catalogue"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Take the repository whose location is in the environment variable ARCHMAP_EVAL_REPO_A and make a git worktree of it in a new temporary directory inside the archmap evals workspace (the .claude/archmap/evals directory under the home directory); never touch the original checkout. In the worktree, run /archmap:build, pin two nodes in architecture.layout.json, then make one scripted change and commit it: add one new HTTP route to the backend and add one new column to an existing table or entity. Then run /archmap:update and finish with the token ledger of both runs.",
+      "expected_output": "After the update only the nodes, entities and edges touched by the new route and the new column differ from the first build, the pinned nodes keep their positions, meta.commit equals the new HEAD, and the update spent far fewer tokens than the full build.",
+      "files": [],
+      "expectations": [
+        "diffmap.mjs, run before the update, lists the file of the new route and the file that declares the new column as affected, and reports no unrelated area",
+        "After the update the model contains a node or edge with evidence at the new route and a field for the new column on the matching entity",
+        "Comparing the model before and after, every node, entity and edge outside the affected areas is byte-identical, ids included",
+        "Both pinned nodes keep their pinned coordinates in architecture.layout.json",
+        "meta.commit of the updated model equals git rev-parse HEAD of the worktree, and differs from the first build's commit",
+        "validate.mjs exits 0 on the updated model",
+        "The update's total tokens in the ledger are below half the full build's total tokens",
+        "The original checkout has no new commit, no modified file and no docs/architecture change"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Build an architecture map of the repository whose location is in the environment variable ARCHMAP_EVAL_REPO_B (a Hono and Drizzle monorepo with several apps and a BullMQ queue). Work from that directory, run /archmap:build without --issues, validate the model with validate.mjs and render the clean HTML.",
+      "expected_output": "A valid model in which every application of the monorepo is a container, the Drizzle entities carry declared fields and foreign keys, and the BullMQ producer and consumer links are asynchronous edges.",
+      "files": [],
+      "expectations": [
+        "validate.mjs exits 0 on docs/architecture/architecture.model.json",
+        "Every node has at least one evidence entry that names a file in the repository",
+        "Each deployable app under the monorepo's apps directory appears as a container node with its own paths",
+        "Drizzle entities exist for the schema tables and carry fields with provenance declared",
+        "Foreign keys declared in the Drizzle schema appear as relations between the matching entities",
+        "Every edge that enqueues or consumes a BullMQ job has async set to true",
+        "The model has at least 3 sequences",
+        "The key components listed in the private checklist (.private/reference/eval-b-key-components.md, relative to the archmap repository) are each present"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Build an architecture map of the repository whose location is in the environment variable ARCHMAP_EVAL_REPO_C (a Next.js app with a Drizzle-backed admin API). Work from that directory, run /archmap:build without --issues, validate the model with validate.mjs and render the clean HTML.",
+      "expected_output": "A valid, evidence-backed model of the Next.js frontend, the admin API routes and the Drizzle entities, produced as a smaller second-round check of the same skill.",
+      "files": [],
+      "expectations": [
+        "validate.mjs exits 0 on docs/architecture/architecture.model.json",
+        "Every node has at least one evidence entry that names a file in the repository",
+        "The admin API route handlers appear as nodes or are covered by a node whose paths include them",
+        "Drizzle entities carry fields with provenance declared",
+        "The model has at least 3 sequences",
+        "The clean docs/architecture/archmap.html is self-contained and has no external http or https script, stylesheet or font reference",
+        "The key components listed in the private checklist (.private/reference/eval-c-key-components.md, relative to the archmap repository) are each present"
+      ]
+    }
+  ]
+}

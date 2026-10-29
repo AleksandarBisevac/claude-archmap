@@ -4309,7 +4309,7 @@
     {
       "id": "P8",
       "title": "Skill evals and trigger description",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "skill-creator evals 1-5 run with and without the skill and are reviewed by the owner; issue recall is at least 60 percent of high and medium reference issues; balanced is cheaper than max; the trigger description is optimised with run_loop.",
       "testGate": [],
@@ -4317,8 +4317,8 @@
         "P5",
         "P6"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "a8ee1776141ec0345693dfb8c1e0ed4f7a076694",
+      "branch": "audit/p8-skill-evals-and-trigger-descri",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -4331,7 +4331,7 @@
         {
           "id": "P8.1",
           "title": "Eval set and harness for skill-creator",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write skills/architecture-map/evals/evals.json in skill-creator's format for the five evals of docs/design.md section 10 (1 build on eval repo A, FastAPI + React + DuckDB; 2 the same build with --issues; 3 update after a scripted change, new route + new column, in a temp worktree; 4 build on eval repo B, Hono + Drizzle monorepo; 5 build on eval repo C, Next + Drizzle admin API). Each eval has a prompt, expected_output and objectively checkable assertions (model validates via validate.mjs; every node has evidence; >= 3 sequences; eval 1 entities carry observed fields when duckdb is available, else meta.sources records the skip; eval 2 clean HTML has no issue ids; eval 3 only affected nodes change, pins survive, meta.commit advances; eval 4 Drizzle entities have declared fields and FKs, BullMQ edges async, each app a container). Repo locations are NEVER written into tracked files: the eval prompts reference env vars ARCHMAP_EVAL_REPO_A/B/C, and eval workspaces live outside the repo under <home>/.claude/archmap/evals/. Add skills/architecture-map/evals/README.md explaining how to set the env vars and run the evals with skill-creator (with-skill vs without-skill, owner review in eval-viewer/generate_review.py). Key-component checklists and the issue ground truth stay in .private/ and are referenced only by path relative to .private. No client or repo name appears in any tracked file (tests/denylist.test.mjs must stay green).",
           "files": [
             "skills/architecture-map/evals/evals.json",
@@ -4354,16 +4354,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T23:29:08Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T23:31:39Z.7140c1",
+            "status": "passed",
+            "at": "2026-10-29T23:31:39Z"
+          }
         },
         {
           "id": "P8.2",
@@ -4555,7 +4561,9 @@
           "blockedReason": "Needs the eval repos, which are on the owner's other computer; set ARCHMAP_EVAL_REPO_A/B/C there and unblock."
         }
       ],
-      "area": "evals"
+      "area": "evals",
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-29T23:29:08Z"
     },
     {
       "id": "P9",

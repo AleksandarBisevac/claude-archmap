@@ -1,0 +1,30 @@
+{
+  "gates": {
+    "node --test tests/evals.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T23:30:58Z",
+    "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added skills/architecture-map/evals/evals.json (5 evals, skill-creator format; checkable statements are in the field `expectations`, which is skill-creator's schema name for what the task calls assertions; each eval has 7-8), skills/architecture-map/evals/README.md (env vars ARCHMAP_EVAL_REPO_A/B/C, workspace .claude/archmap/evals/ under the home directory, with-skill vs without-skill, generate_review.py, balanced vs max on eval 1), and tests/evals.test.mjs (e1-e5). Prompts reference only the env vars (A for evals 1-3, B for 4, C for 5), carry no machine path; .private checklists and ground truth are referenced as .private/reference/<file> relative to the archmap checkout. Full `node --test` run: 273 pass, 0 fail (denylist test d1 included). I also grepped the new files against every term of .private/anonymise-denylist.txt (no term printed): no hits, which matters because the new files were untracked and d1 reads only git ls-files. Dependants: README.md and the tests listed are unaffected because nothing references the new files by path; the two paths .private/reference/eval-{a,b,c}-*.md named in expectations do not exist yet and are for the owner to create, as the brief says ground truth stays private. The files evals.json/README.md/evals.test.mjs were last declared by blocked tasks P8.3/P8.4/P8.6; I did not touch those tasks.",
+    "descriptive": "The skill-creator eval set (5 evals) and its runbook now exist with no repo location or client name in tracked files, locked by a 5-case test."
+  },
+  "testsAdded": [
+    "tests/evals.test.mjs: evals.json parses with exactly five evals ids 1-5 each with prompt, expected_output and at least three assertions; prompts carry no absolute or home-relative path and reference only ARCHMAP_EVAL_REPO_A/B/C (mapping A,A,A,B,C); no machine path and .private referenced only relative; README names the three env vars, workspace directory, generate_review.py, without-skill; the path detector itself is proven on good and bad samples"
+  ],
+  "casesAdded": [
+    [
+      "e1",
+      "e2",
+      "e3",
+      "e4",
+      "e5"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:7dbcc942f2b1b1d93653a141f4f1246bb778f2cdce9f1c5d01b7abeace44f5a1\",\"dirtyDigest\":\"sha256:0712e22bb6f81ec6f12f8fb45c085a676608d321d54eec17a59d66dcde4ebb1d\",\"dirtyPaths\":{\"skills/architecture-map/evals/README.md\":\"2766dcd2a01f9bdf\",\"skills/architecture-map/evals/evals.json\":\"9e09f10d31a73a53\",\"tests/evals.test.mjs\":\"c6b8b64941fb7328\"},\"head\":\"a8ee177\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/README.md\",\"skills/architecture-map/evals/evals.json\",\"tests/evals.test.mjs\"],\"scopeDigest\":\"sha256:7931bfd45f4281df52f6f901e8ebb9469272babdd4a033e68d11fc5ffb5e7327\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
