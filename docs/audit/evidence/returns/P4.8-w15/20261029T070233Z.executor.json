@@ -1,0 +1,23 @@
+{
+  "gates": {
+    "node --test tests/skill.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task, expectRedFirst false: the stale SKILL.md line was already fixed at HEAD (P4.7-w15), the new case locks the corrected behaviour. Manually confirmed the new scan regex matches the pre-fix line 'The agents write only the model.' (commit 2a45143)."
+  },
+  "outcome": {
+    "technical": "Added tests/skill.test.mjs case s6 with a staleClaims() scan: considers lines naming agent(s)/synthesizer/reviewer/explorer, strips only the specific allowed phrasings ('only the orchestrator writes the model|architecture.model.json', 'no write tools', 'never/do not/does not/cannot/must not write|edit|rewrite|update|save'), then flags a write verb followed by 'the model'/architecture.model.json or the model followed by a passive write. No blanket negation exclusion. The case asserts 5 stale phrasings (including 'agents write the model' and 'the synthesizer writes the model, no review needed') are flagged, 4 legitimate lines (including the SKILL.md rule 1 line and the reviewer table row where 'The model' is an input) are not, and SKILL.md has no flagged line. node --test tests/skill.test.mjs: 6 pass 0 fail; full node --test: 134 pass 0 fail. s5 left unchanged.",
+    "descriptive": "The SKILL.md write-claim scan now catches 'agents write the model' and negation-laced lines instead of passing them."
+  },
+  "testsAdded": [
+    "s6: claim scan flags agent-worded and negation-laced 'writes the model' lines, passes the allowed phrasing, and SKILL.md carries none"
+  ],
+  "casesAdded": [
+    "s6"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:21eeed2bac996540b8937586cf49171f322d517c5e9ee7c5b25f2f10560cac1e\",\"dirtyDigest\":\"sha256:fefd3ed0a87b40dc2aad14fac7986b339baa77ec958775822cda41b2472ea6e4\",\"dirtyPaths\":{\"tests/skill.test.mjs\":\"368876e03a34d551\"},\"head\":\"20dbc70\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:50654608c3c626d7f5ee884dcd81115d8ebc1a5a0aee23f4057c2441f95c05fc\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

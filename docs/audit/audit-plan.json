@@ -1520,8 +1520,10 @@
             "severity": "med",
             "file": "skills/architecture-map/SKILL.md:17",
             "issue": "contradicts task clause P4.6-w15 ('only the orchestrator writes architecture.model.json'): Hard rule 1 still reads 'The agents write only the model', which says the agents write the model. The synthesizer and reviewer have no write tools (agents/archmap-synthesizer.md, agents/archmap-reviewer.md) and the explorer writes nothing. SKILL.md now states two opposite things, and the Hard rules are the part an orchestrator reads first.",
-            "resolution": "Reword rule 1 to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' Keep the D1 point (the model is the single source of truth).",
-            "fixTask": "P4.7-w15"
+            "resolution": "fixed in P4.7-w15 (20dbc7045f76): Reword rule 1 to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' Keep the D1 point (the model is the single source of truth).",
+            "fixTask": "P4.7-w15",
+            "commit": "20dbc7045f76",
+            "status": "fixed"
           },
           {
             "id": "P4-R2",
@@ -1540,7 +1542,7 @@
             "fixTask": "P4.9-w15"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 2 med, 1 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 3 - 0 high, 2 med, 1 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -1905,7 +1907,7 @@
         {
           "id": "P4.7-w15",
           "title": "fix P4-R1: contradicts task clause P4.6-w15 ('only the orchestrator writes ar...",
-          "status": "in_progress",
+          "status": "done",
           "description": "contradicts task clause P4.6-w15 ('only the orchestrator writes architecture.model.json'): Hard rule 1 still reads 'The agents write only the model', which says the agents write the model. The synthesizer and reviewer have no write tools (agents/archmap-synthesizer.md, agents/archmap-reviewer.md) and the explorer writes nothing. SKILL.md now states two opposite things, and the Hard rules are the part an orchestrator reads first.\n\nResolution asked: Reword rule 1 to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' Keep the D1 point (the model is the single source of truth).",
           "files": [
             "skills/architecture-map/SKILL.md"
@@ -1926,13 +1928,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "20dbc7045f76",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Reworded Hard rule 1 in skills/architecture-map/SKILL.md to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files. Model + renderer: the model is the single source of truth (D1).' File stays 249 lines (<=500). Ran `node --test` from project dir: 133 pass, 0 fail (exit 0). Dependants: tests/skill.test.mjs still correct (passes in the run above); .agents/skills/node/tile.json, skills-lock.json, docs/design.md reference the file by basename only and grep for the old phrase 'write only the model' finds nothing in tests, docs/design.md, skills-lock.json or .agents, so still correct.",
+            "descriptive": "SKILL.md Hard rule 1 now agrees with P4.6-w15: only the orchestrator writes the model."
           },
           "startedAt": "2026-10-29T07:01:55Z",
-          "completedAt": null,
+          "completedAt": "2026-10-29T07:02:33Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -1956,12 +1958,23 @@
             "runId": "2026-10-29T07:02:32Z.bf0ddf",
             "status": "passed",
             "at": "2026-10-29T07:02:32Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "20dbc7045f76",
+            "at": "2026-10-29T07:02:33Z",
+            "basis": "a fix task for P4-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task, expectRedFirst false; wording fix in SKILL.md, no test owed",
+            "at": "n/a"
           }
         },
         {
           "id": "P4.8-w15",
           "title": "fix P4-R2: s5 only inspects lines that name 'synthesizer' or 'reviewer' and c...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "s5 only inspects lines that name 'synthesizer' or 'reviewer' and carry no never/not/no/without word. The stale claim at SKILL.md:17 says 'agents', so s5 passes while the contradiction in finding 1 remains. The negation filter would also let a line such as 'the synthesizer writes the model, no review needed' through.\n\nResolution asked: Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing.",
           "files": [
             "tests/skill.test.mjs"
@@ -1982,14 +1995,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T07:02:33Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -2004,7 +2017,13 @@
           ],
           "fixes": [
             "P4-R2"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T07:03:55Z.754cb9",
+            "status": "passed",
+            "at": "2026-10-29T07:03:55Z"
+          }
         },
         {
           "id": "P4.9-w15",

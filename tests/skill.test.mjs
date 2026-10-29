@@ -67,3 +67,44 @@ test('s5 SKILL.md does not let the synthesizer or reviewer write architecture.mo
   assert.match(skill, /orchestrat\w*[^\n]*\bmerg\w*[^\n]*\bvalidate/i, 'orchestrator merges the returned object and runs validate');
   assert.match(skill, /only the orchestrat\w*[^\n]*(writes?|edits?)[^\n]*architecture\.model\.json/i, 'only the orchestrator writes the model');
 });
+
+// s6 (P4-R2): the claim scan must not be fooled by a stale line that says "agents" instead of a
+// role name, nor by a stray negation word elsewhere in the line. Only the specific allowed
+// phrasings are removed before a line is judged.
+const staleClaims = (lines) => {
+  const agentWord = /\bagents?\b|synthesizer|reviewer|explorer/i;
+  // a write verb followed by the model, or the model followed by a passive write ("is written by")
+  const verb = '(?:edits?|writes?|writing|rewrites?|updates?|saves?)';
+  const model = '(?:architecture\\.model\\.json|the model\\b)';
+  const claim = new RegExp(`\\b${verb}\\b[^|]*?${model}|${model}[^|]*?\\b(?:written|edited|updated|saved|rewritten)\\b`, 'i');
+  const allowed = [
+    /only the orchestrat\w*\s+(?:writes?|edits?)\s+(?:the model|`?architecture\.model\.json`?)/gi,
+    /\bno write tools\b/gi,
+    /\b(?:never|do not|does not|cannot|must not)\s+(?:write|edit|rewrite|update|save)\b/gi,
+  ];
+  return lines.filter((l) => {
+    if (!agentWord.test(l)) return false;
+    let rest = l;
+    for (const re of allowed) rest = rest.replace(re, ' ');
+    return claim.test(rest);
+  });
+};
+
+test('s6 the claim scan catches an "agents write the model" line and a negation-laced one, and SKILL.md has none', () => {
+  const stale = [
+    'Agents write the model and the orchestrator only validates it.',
+    'The agent edits architecture.model.json directly.',
+    'the synthesizer writes the model, no review needed',
+    'The reviewer updates the model; the orchestrator does not check it.',
+    'The model is written by the synthesizer agent.',
+  ];
+  assert.deepEqual(staleClaims(stale), stale, 'every stale phrasing is flagged');
+  const fine = [
+    '1. **Only the orchestrator writes the model.** Agents have no write tools for it and return JSON; scripts write HTML,',
+    'Agents never write architecture.model.json; they return JSON.',
+    'Writing or updating `sequences[]` (the synthesizer, step 5 of build).',
+    '| `archmap-reviewer` | Opus | The model and the issues catalogue | One JSON object; you write it as `issues.json` |',
+  ];
+  assert.deepEqual(staleClaims(fine), [], 'the allowed phrasing is not flagged');
+  assert.deepEqual(staleClaims(skill.split('\n')), [], 'SKILL.md carries no line that says an agent writes the model');
+});
