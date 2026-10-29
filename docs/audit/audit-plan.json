@@ -2189,7 +2189,7 @@
         {
           "id": "P5.1",
           "title": "merge.mjs: fragments + synthesizer output into the model, preserving user-authored fields",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/merge.mjs (docs/design.md §5, §6; contract in skills/architecture-map/references/model-schema.md 'Explorer fragment contract'). CLI: node scripts/merge.mjs <fragmentsDir> --out <model.json> [--previous <model.json>] [--synth <synth.json>] [--areas a,b] [--commit sha] [--project name] [--profile p]; export a pure merge() for tests. Fragments: concatenate nodes/edges/entities/access, dedupe identical ids, rename colliding ids deterministically and rewrite every reference (edges.from/to, access.node/entity, relations, fk targets), fill meta (schemaVersion, project, commit, generatedAt only when given, profile, coverage[area] from each fragment, sources incl. skipped tallies). Update mode (--previous + --areas): replace only the elements owned by the affected areas, keep the rest, keep ids stable. Synthesizer object (edges, sequences, access, relations, views, notes, conflicts): merged in place by id; conflicts returned/printed, never resolved silently. User-authored fields (node locked + notes, any notes) are never overwritten: a locked node keeps its authored content and a disagreement is reported as a conflict. The result is run through validate() and refused (exit 1, nothing written) when invalid. Deterministic: sorted output, byte-identical for the same inputs. Exit 0 ok, 1 invalid result or conflicts with --strict, 2 usage. Node >= 18, ESM, zero deps. Fixtures are small and fictional.",
           "files": [
             "scripts/merge.mjs",
@@ -2214,25 +2214,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "7cd1f81ff351",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/merge.mjs (pure exported merge() + CLI), tests/merge.test.mjs (15 cases m1..m8 incl. b/c variants) and fixtures under tests/fixtures/merge/ (build/{web,api,introspection}.json, update/frags/api.json, synth.json). Tests were drafted before merge.mjs existed and failed on the missing module (first red: import error, merge symbol introduced by this task). After implementation: node --test tests/merge.test.mjs 15/15 pass; full `node --test` 149/149 pass, exit 0. Design choices: fragments sorted by area; identical elements deduped, differing ones renamed <id>-<area> (-2.. if taken) with per-fragment reference rewrite (edge from/to, entity.store, fk.entity, access node/entity, relations); access rows dedupe on node+entity with ops unioned; zones used by nodes but undeclared are auto-created (fragments do not emit zones, schema requires them); generatedAt/commit/project never invented (flags --commit/--project/--generated-at, else taken from --previous); update mode owns elements whose first evidence path matches the previous meta.coverage globs of the --areas (cross-area synth edges/access with evidence in an affected area are replaced, so the synthesizer must rerun for them); user fields: locked node keeps authored content with a conflict if the new analysis differs, notes copied onto re-analysed nodes, a locked/noted node an explorer no longer reports is kept with a conflict; synth edges/sequences/views by id, access/relations by key, optional synth.nodes guarded by locked, notes and conflicts passed through; output key-sorted and element-sorted for byte-identical runs; validate() gate refuses with exit 1 and writes nothing; --strict with conflicts exits 1 and writes nothing; usage errors exit 2. Dependants: docs/design.md (§5/§6 describe merge behaviour) still correct - consistent with what was built; skills/architecture-map/SKILL.md step 4 still says merge.mjs is 'not yet built' - now stale, outside this task's files, left for the later task that wires commands/SKILL; the other tests/fixtures/merge dependants listed (LICENSE, viewer bundle, prescan libs, agents, review skill) match only by basename 'merge' and are unaffected.",
+            "descriptive": "merge.mjs now merges explorer fragments and synthesizer output into a validated, deterministic model while preserving locked and notes."
           },
           "startedAt": "2026-10-29T08:39:52Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T08:45:44Z",
+          "verifiedBy": [
+            "tests/merge.test.mjs: 15 cases covering fragment merge+validate+meta, id collision renames and reference rewrites (node/edge/entity), update mode area replacement, locked/notes preservation and conflicts, synthesizer merge by id, byte-identical runs, invalid result refused, usage/strict exit codes"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T08:45:43Z.924acb",
             "status": "passed",
             "at": "2026-10-29T08:45:43Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "7cd1f81ff351",
+            "at": "2026-10-29T08:45:44Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T08:45:32Z",
+            "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P5.2",
           "title": "usage.mjs: per-phase token and duration ledger",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement scripts/usage.mjs (docs/design.md D11, §8 'The usage ledger takes tokens and duration from subagent completion notifications'). The orchestrator records one row per step: node scripts/usage.mjs add <ledger.jsonl> --phase <prescan|explorer|introspection|merge|synthesizer|reviewer|layout|render> [--label area] [--agent name] [--model m] [--tokens n] [--duration-ms n]; scripts that cost 0 tokens are recorded with tokens 0. node scripts/usage.mjs print <ledger.jsonl> [--json] prints a table per phase (rows, tokens, duration) and a total; a missing figure is shown as unknown, never as 0, and the total says how many rows were unknown. Ledger lives in the work directory, not in the repo. Deterministic output for the same ledger. Exit 0 ok, 2 usage or unreadable ledger. Node >= 18, ESM, zero deps.",
           "files": [
             "scripts/usage.mjs",
@@ -2254,16 +2267,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T08:45:44Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T08:53:27Z.19edc5",
+            "status": "passed",
+            "at": "2026-10-29T08:53:27Z"
+          }
         },
         {
           "id": "P5.3",
