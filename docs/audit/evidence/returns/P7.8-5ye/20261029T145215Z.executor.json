@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:54:25Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome failed on system-context.svg: Teardown watchdog expired; recording dump and terminating.; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added '@' and '!' to PUML_UNSAFE in scripts/export.mjs (comment updated), so they render as <U+0040>/<U+0021> everywhere pesc is used, including the unquoted ER field name. Added test x18b in tests/export.test.mjs feeding whole field names '@enduml', '!include /etc/passwd', '!includeurl http://evil.example/x.puml' and '  @startuml' and asserting only two @ bookend lines and no line starting with '!'. Full `node --test`: 267 pass, 0 fail. Dependants: tests/export.test.mjs, tests/commands.test.mjs, tests/skill.test.mjs, CHANGELOG.md, commands/export.md, skills/architecture-map/SKILL.md, docs/design.md all still correct: they reference the exporter by path/import/name and no output format or API changed except that two more characters are escaped in PlantUML text; full suite green. I added a new case x18b rather than extending x18 in place, so the hostile whole-name cases are separately labelled.",
+    "descriptive": "PlantUML ER output can no longer be broken or made to include files/URLs by a field name starting with @ or !."
+  },
+  "testsAdded": [
+    "x18b: field names beginning with @ or ! (@enduml, !include, !includeurl, leading-space @startuml) stay inert in toPlantUmlER"
+  ],
+  "casesAdded": [
+    "x18b"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:c343f547648d7b983946e3c37f7a752e74911ffeb15378a97c08fe3e5ee95fea\",\"dirtyDigest\":\"sha256:9cf643e35723e6d06c5ae2086e075700c355b83514dbb1068594d7f48d649bda\",\"dirtyPaths\":{\"scripts/export.mjs\":\"eb4afb8381caf7ba\",\"tests/export.test.mjs\":\"76bcd677be1ba4f3\"},\"head\":\"4e04f53\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:711ab2e3ba4ed0fb51efd85c9816de7d76a9eb4b44ce4258acccbe5bd7c29e92\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

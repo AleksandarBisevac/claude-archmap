@@ -307,10 +307,11 @@ export function toMermaidSequence(model, sequenceId) {
 // PlantUML
 
 // Characters that could end a token, open a comment, a link, an inline diagram, an embedded image or a
-// macro call, or mean something to the creole renderer. Each becomes <U+XXXX>, which PlantUML draws as the
+// macro call, or mean something to the creole renderer. `@` and `!` start a bookend or a preprocessor
+// directive (`@enduml`, `!include`), and a field name is the first token of its line. Each becomes <U+XXXX>, which PlantUML draws as the
 // character itself. Line breaks become the two characters \n (a PlantUML line break inside a label), or a
 // space where a label must stay on one line. One pass, so an emitted code is never escaped again.
-const PUML_UNSAFE = /\r\n|[\n\r\u0085\u2028\u2029]|[\u0000-\u001f\u007f]|["'#&;<>[\]{}|\\%]/g;
+const PUML_UNSAFE = /\r\n|[\n\r\u0085\u2028\u2029]|[\u0000-\u001f\u007f]|["'#&;<>[\]{}|\\%@!]/g;
 function pesc(s, { br = '\\n' } = {}) {
   return str(s).replace(PUML_UNSAFE, (c) => {
     if (/^(\r\n|[\n\r\u0085\u2028\u2029])$/.test(c)) return br;

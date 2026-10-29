@@ -3649,8 +3649,10 @@
             "severity": "med",
             "file": "scripts/export.mjs:929",
             "issue": "SVG zone enclosures are labelled with `z.title ?? z.id`, but the model schema's zone has `label` (required) and no `title` (schema/archmap-model.schema.json zone: id, kind, label, parent, outside). Every zone enclosure therefore shows its raw id (e.g. zb-web) instead of its label (e.g. 'Web client ...'), unlike the Mermaid and PlantUML exporters which use z.label. tests/export.test.mjs:811 sets `m.zones[0].title`, so x30 mirrors the wrong field and never exercises the real label text.",
-            "resolution": "Use `z.label ?? z.id` in toSvgGraph (line 929), and change x30 to set `m.zones[0].label` and assert the escaped text appears; add an assertion in x28 that each drawn zone's label text is present.",
-            "fixTask": "P7.7-5ye"
+            "resolution": "fixed in P7.7-5ye (4e04f532d55f): Use `z.label ?? z.id` in toSvgGraph (line 929), and change x30 to set `m.zones[0].label` and assert the escaped text appears; add an assertion in x28 that each drawn zone's label text is present.",
+            "fixTask": "P7.7-5ye",
+            "commit": "4e04f532d55f",
+            "status": "fixed"
           },
           {
             "id": "P7-R2",
@@ -3669,7 +3671,7 @@
             "fixTask": "P7.9-5ye"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 3 med, 0 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 3 - 0 high, 3 med, 0 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -4043,7 +4045,7 @@
         {
           "id": "P7.7-5ye",
           "title": "fix P7-R1: SVG zone enclosures are labelled with `z.title ?? z.id`, but the m...",
-          "status": "in_progress",
+          "status": "done",
           "description": "SVG zone enclosures are labelled with `z.title ?? z.id`, but the model schema's zone has `label` (required) and no `title` (schema/archmap-model.schema.json zone: id, kind, label, parent, outside). Every zone enclosure therefore shows its raw id (e.g. zb-web) instead of its label (e.g. 'Web client ...'), unlike the Mermaid and PlantUML exporters which use z.label. tests/export.test.mjs:811 sets `m.zones[0].title`, so x30 mirrors the wrong field and never exercises the real label text.\n\nResolution asked: Use `z.label ?? z.id` in toSvgGraph (line 929), and change x30 to set `m.zones[0].label` and assert the escaped text appears; add an assertion in x28 that each drawn zone's label text is present.",
           "files": [
             "scripts/export.mjs",
@@ -4067,14 +4069,17 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "4e04f532d55f",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/export.mjs toSvgGraph zone caption now fit(z.label ?? z.id, ...) instead of z.title ?? z.id. tests/export.test.mjs: x30 now sets m.zones[0].label and asserts the escaped zone caption is present in the view drawing that zone; x28 asserts every drawn <g class=zone> caption is the zone's label (allowing an ellipsis cut). Red seen before the fix: x28 'zone zb-web is captioned with its label, got \"zb-web\"' and x30 'escaped zone label present' failed (35 pass, 2 fail); after the fix node --test tests/export.test.mjs 37/37 and full node --test 266/266 pass (exit 0). Dependants: tests/export.test.mjs (only the changed tests), tests/commands.test.mjs, tests/skill.test.mjs, CHANGELOG.md, commands/export.md, skills/architecture-map/SKILL.md, docs/design.md reference export.mjs by path/name only and are still correct: the CLI surface, flags and file names are unchanged; only the SVG zone caption text changed, and the full suite is green.",
+            "descriptive": "SVG zone enclosures now show the zone label instead of the raw id, matching Mermaid and PlantUML."
           },
           "startedAt": "2026-10-29T14:49:52Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:52:15Z",
+          "verifiedBy": [
+            "x28 extended: each drawn zone enclosure caption equals its label",
+            "x30 changed to set zones[0].label and assert the escaped zone label appears"
+          ],
           "notes": [
             {
               "at": "2026-10-29T14:49:52Z",
@@ -4093,12 +4098,24 @@
             "runId": "2026-10-29T14:52:13Z.8e0aa8",
             "status": "passed",
             "at": "2026-10-29T14:52:13Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "4e04f532d55f",
+            "at": "2026-10-29T14:52:15Z",
+            "basis": "a fix task for P7-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:51:51Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome failed on system-context.svg: Teardown watchdog expired; recording dump and terminating.; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P7.8-5ye",
           "title": "fix P7-R2: contradicts task clause 'All model text escaped for PlantUML so it...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "contradicts task clause 'All model text escaped for PlantUML so it cannot break or inject': toPlantUmlER emits the field name unquoted as the first token of a line (`  ${pesc(f.name)} : type`), and PUML_UNSAFE (line 313) does not escape '@' or '!'. A field named `@enduml` ends the diagram, and one named `!include /etc/passwd` or `!includeurl http://...` becomes a preprocessor directive when someone renders the .puml (file read / network fetch). PlantUML trims leading whitespace before recognising bookends and directives (from my knowledge of its parser; not run here). The file header (lines 47-49) claims 'no model text can start a line, a directive or a macro'. x18 (tests/export.test.mjs ~line 474) only tries `we ird\"; name\\n@enduml`, where the newline turns into a literal \\n, so a name that BEGINS with @ or ! is untested; its own `t.startsWith('!')` / '@' line checks would catch it if fed.\n\nResolution asked: Add '@' and '!' to PUML_UNSAFE (so they become <U+0040> / <U+0021>), or emit the field name quoted. Extend x18 with `ent.fields[1].name = '@enduml'` and `'!include /etc/passwd'` (as the entire name) so the existing per-line assertions cover it.",
           "files": [
             "scripts/export.mjs",
@@ -4120,14 +4137,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T14:52:15Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -4142,7 +4159,13 @@
           ],
           "fixes": [
             "P7-R2"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:54:52Z.f7a7ae",
+            "status": "passed",
+            "at": "2026-10-29T14:54:52Z"
+          }
         },
         {
           "id": "P7.9-5ye",
