@@ -3650,7 +3650,7 @@
         {
           "id": "P7.1",
           "title": "export.mjs CLI and Mermaid exporters",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/export.mjs (docs/design.md section 9 step 7, section 4). CLI: node scripts/export.mjs <model.json> <format> [--view <id>] [--layout <layout.json>] [--out <path>]; formats mermaid|plantuml|md|svg|png (this task implements mermaid; the others are refused with exit 2 'not yet implemented' until their tasks land). The model is validated first through validate.mjs; an invalid model is refused, exit 1, nothing written. mermaid writes a flowchart per view (nodes grouped in subgraphs by zone, edges labelled with their type and label; --view selects one view, else all views), an erDiagram of entities (fields with type, PK/FK markers, relations with cardinality mapped to crow's-foot), and a sequenceDiagram per sequence (participants; m steps as messages, ret steps as dashed replies, frag alt/else/opt/loop/end as blocks, notes). Exports are ALWAYS clean: no issue ids, step i refs or issue text ever appear in any output. Every label taken from the model is escaped for Mermaid syntax so model text cannot break or inject into the diagram; ids are sanitised to Mermaid-safe identifiers, collision-free. Default output directory docs/architecture/exports/ beside the model's directory, files named <view-id>.flowchart.mmd, er.mmd, <sequence-id>.sequence.mmd; --out overrides (a directory). Output is deterministic: the same model gives byte-identical files. Export pure functions (toMermaidFlowchart, toMermaidER, toMermaidSequence) for later tasks. Exit 0 ok, 1 invalid model, 2 usage or unreadable input. Node >= 18, ESM, zero npm deps, header comment in the style of render.mjs.",
           "files": [
             "scripts/export.mjs",
@@ -3674,25 +3674,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "34bee70696cc",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/export.mjs (CLI + pure functions toMermaidFlowchart(model, viewId), toMermaidER(model), toMermaidSequence(model, seqId), mermaidFiles). Validates via validate.mjs first (exit 1, nothing written, not even the exports dir); plantuml/md/svg/png and unknown formats exit 2 'not yet implemented'; --view unknown exits 2; default dir is <model dir>/exports; --out is a directory (created). Flowchart: LR, zones as nested subgraphs (z_ prefix), nodes n_ prefix, edges labelled 'type' or 'type: label'. ER: PK/FK markers (FK from field.fk or relations), 1-n puts many on the from side (matching viewer.js manyEnds), n-m '}o--o{', 1-1 '||--||'. Sequence: participants, ->> calls, -->> for steps with ret, alt/else/opt/loop/end blocks (stray end/else dropped, open blocks closed), Note over. Escaping: one-pass numeric entity codes (#NN;) for quote # & ; < > [ ] { } | backslash backtick %, newline to <br/>; ids sanitised with prefixes and collision suffixes (so 'end' is never an id); file names sanitised (no traversal, collision-free). Issue ids / steps[].i are never read. Tests: tests/export.test.mjs, 12 cases x1-x12, all pass; full node --test 240/240 pass. Dependants: tests/skill.test.mjs still correct (asserts SKILL.md still marks export.mjs 'not yet built'; SKILL.md untouched and full suite is green); docs/design.md and skills/architecture-map/SKILL.md unchanged and still correct (they describe export.mjs as planned/not yet built; later tasks update them). Note: --layout is accepted and ignored for text formats. No adjacent files touched.",
+            "descriptive": "export.mjs now writes clean, deterministic, injection-safe Mermaid flowcharts, erDiagrams and sequenceDiagrams from the golden model."
           },
           "startedAt": "2026-10-29T14:14:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:21:26Z",
+          "verifiedBy": [
+            "tests/export.test.mjs: 12 cases covering file set, zone subgraphs + edge labels, ER PK/FK/cardinality, sequence blocks/returns/notes, no issue ids, escaping/injection, determinism, --view, invalid model, unimplemented formats and usage, --out, id and file-name sanitising"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T14:21:25Z.ba046c",
             "status": "passed",
             "at": "2026-10-29T14:21:25Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "34bee70696cc",
+            "at": "2026-10-29T14:21:26Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:21:09Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P7.2",
           "title": "PlantUML exporter",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add the plantuml format to scripts/export.mjs, reusing P7.1's CLI, validation, view selection, output directory and clean-only rule. Writes per view a component diagram (@startuml/@enduml; zones as packages or rectangles, nodes as components, edges as arrows labelled with type and label, async edges dashed), er.puml with entities as entity blocks (fields, PK/FK markers) and relations with crow's-foot cardinality, and per sequence <id>.sequence.puml (participants, messages, dashed returns, alt/else/opt/loop/end groups, notes). Files <view-id>.component.puml, er.puml, <sequence-id>.sequence.puml. All model text escaped for PlantUML so it cannot break or inject; aliases sanitised and collision-free. No issue data ever appears. Deterministic output. Export pure functions toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence.",
           "files": [
             "scripts/export.mjs",
@@ -3716,16 +3729,22 @@
           "dependsOn": [
             "P7.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T14:21:26Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:25:31Z.3581d6",
+            "status": "passed",
+            "at": "2026-10-29T14:25:31Z"
+          }
         },
         {
           "id": "P7.3",

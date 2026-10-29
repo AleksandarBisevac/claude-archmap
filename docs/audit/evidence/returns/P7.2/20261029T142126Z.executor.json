@@ -1,0 +1,39 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:25:13Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: toPlantUmlComponent is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/export.mjs: added plantuml format. New pure exports toPlantUmlComponent (zones as nested packages, nodes as components, edges 'a --> b : type: label', queue/event edges dashed ..>), toPlantUmlER (entity blocks, fields with <<PK>>/<<FK>>, crow's-foot relations), toPlantUmlSequence (participants, -> calls, --> returns, alt/else/opt/loop/end, note over), plus plantUmlFiles; CLI reuses validation, --view, --out, exports dir; 'plantuml' moved into IMPLEMENTED; OK line now names the format. PlantUML escaping pesc(): newlines become literal \\n and quote, apostrophe, <, >, %, #, &, ;, |, brackets, braces and backslash become <U+XXXX> so no model text can start a line, a directive, a comment, a macro, link or image. Aliases via idAllocator (n_/z_/p_ prefixes; ER aliases unprefixed with a new optional reserved-word set). Issue data is never read. tests/export.test.mjs: x10 no longer lists plantuml as unimplemented; added x13-x19. Ran node --test tests/export.test.mjs (19 pass) and node --test (247 pass, 0 fail), both exit 0. Red first: x13-x19 failed before the implementation (7 failures, 12 passing) before any code was written. Dependants: tests/skill.test.mjs, docs/design.md and skills/architecture-map/SKILL.md mention export.mjs only as 'not yet built' / by basename - still correct, the task does not complete export.mjs (md/svg/png remain).",
+    "descriptive": "export.mjs now writes PlantUML component, ER and sequence diagrams with injection-safe escaping and collision-free aliases."
+  },
+  "testsAdded": [
+    "x13 file set and bookends + --view",
+    "x14 component packages, labelled edges, dashed async",
+    "x15 ER blocks, PK/FK, cardinality",
+    "x16 sequence participants/messages/returns/fragments/notes",
+    "x17 no issue data, byte-identical runs",
+    "x18 hostile text escaped",
+    "x19 aliases collision-free, safe file names"
+  ],
+  "casesAdded": [
+    [
+      "x13",
+      "x14",
+      "x15",
+      "x16",
+      "x17",
+      "x18",
+      "x19"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:48ec54191092f08392f20efdbb5107cc0f192167c5b6722afbea9af795ea6780\",\"dirtyDigest\":\"sha256:9cf643e35723e6d06c5ae2086e075700c355b83514dbb1068594d7f48d649bda\",\"dirtyPaths\":{\"scripts/export.mjs\":\"570803538159b8d1\",\"tests/export.test.mjs\":\"44a4027c1b5c2452\"},\"head\":\"34bee70\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:9ec32bd6fa66746fe776ebfc87b8f7a60ed49e6774fe90ae0a9b4e57d8ca6a9e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
