@@ -3716,7 +3716,25 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "BF1-R1",
+            "severity": "med",
+            "file": "assets/viewer/viewer.js:214",
+            "issue": "BUG-2-2vu is reduced, not fixed. FIG_MIN_SCALE = 0.5 only stops the text shrinking below half size, and half size is still illegible. The svg text sizes are fixed in user units in viewer.css: .node .nt 12.5, .node .ns 10.5, .elabel 10.5, .msg .mt 11, .participant .ps 10, .msg .numt 9.5, .bdt 10. At 0.5 these draw at about 6.3, 5.3, 5.3, 5.5, 5, 4.8 and 5 px. The executor's own measurement is 4.8 px for the smallest text, and the desktop trust figure already drew at 4.9 px at scale 0.51. The default state a reader sees at 400 px is therefore still 5 px text, and legibility still rests on the 100% button. This is exactly the bug's stated symptom. The 'legible 0.5 scale' wording in the filed outcome is not borne out. The task clause did say 'about 0.5', so the diff follows the clause. The phase desired outcome 'fitted figures stay legible at 400 px' is not met.",
+            "resolution": "Derive the floor from a minimum drawn font size instead of a fixed 0.5. Pick MIN_FONT_PX of about 8 to 9, a common minimum for readable screen text. Set FIG_MIN_SCALE = MIN_FONT_PX / smallestUserFont, where the smallest is 9.5 (or raise the smallest svg text sizes in viewer.css to 11 or more). That gives a floor of about 0.85 to 0.95, so a narrow panel opens at roughly natural size and scrolls sideways, with Fit still one click away. Alternatively keep 0.5 but raise the svg text sizes so the smallest is at least 9 / 0.5 = 18 user units. Update v8 (tests/viewer.test.mjs) so it asserts the floor times the smallest font is at least MIN_FONT_PX, not just 'floor is about 0.5'.",
+            "fixTask": "BF1.5-4w0"
+          },
+          {
+            "id": "BF1-R2",
+            "severity": "med",
+            "file": "tests/visual/screenshots.py:329",
+            "issue": "MIN_FONT_PX = 4.5 was lowered from 5.0 after the check failed, to match the 0.5 floor ('4.8px at the 0.5 floor'). The assertion therefore encodes the current output rather than a legibility requirement, and it can only fail if the figure gets worse than it is. A figure at the floor with 5 px text passes as 'legible'. This is a threshold tuned to pass, not a check that the bug is fixed.",
+            "resolution": "Set MIN_FONT_PX to a real legibility figure (about 8 to 9) and fix the floor or the svg font sizes until the local run passes at 400 px, as in finding 1. Do not lower the threshold to fit the implementation. Rerun tests/visual/screenshots.py and report the result.",
+            "fixTask": "BF1.6-4w0"
+          }
+        ],
+        "outcome": "[findings: 2 - 0 high, 2 med, 0 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -3901,7 +3919,7 @@
         {
           "id": "BF1.4",
           "title": "Fix BUG-4-vcu: issues.mjs import-audit follow-ups: symlink guard, weak line match, catalogue counts",
-          "status": "in_progress",
+          "status": "done",
           "description": "Bug BUG-4-vcu (P6 second review). Repro: symlink tests/x -> a file outside the project, an audit finding naming tests/x without lines; run issues.mjs import-audit --project <dir>. Expected: files outside the project are never opened, even via symlink; cited lines are relevant; docs list all five counts. Actual: the symlink target is read; generic two-word matches are accepted; the catalogue lists four counts. Fix: (1) compare realpathSync of the file with realpathSync of the project root before stat/read and skip anything outside; (2) tighten findLine to whole-word matches and require 3 distinct words, or 2 when the entry has fewer than 4 candidate words; (3) make merge --existing optional (absent or missing file = empty overlay) and import-audit tolerate a missing --existing file, then simplify SKILL.md's first-build block accordingly; (4) references/issues-catalog.md lists skipped-no-lines among the counts and states the no-guessed-lines rule.",
           "files": [
             "scripts/issues.mjs",
@@ -3927,21 +3945,141 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "61959cbd358a",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/issues.mjs: readFile in importCmd now compares realpathSync(file) against realpathSync(project root) before stat/read, skipping anything outside (symlinks included); findLine counts whole-word matches only (split into word set) and needs 3 distinct words, or 2 when the entry has <4 candidate words; new existingIssues() helper makes --existing optional/missing-file = empty overlay for merge and import-audit (invalid JSON still exit 2); merge usage text updated. SKILL.md first-build block simplified (mkdir/printf removed, --existing described as optional). issues-catalog.md lists skipped-no-lines in the counts and states the no-guessed-lines/whole-word rule and the outside-project skip. Tests: added i12, i13, i14 to tests/issues.test.mjs; first run before the fix showed 3 fail/11 pass, after fix 14/14; full `node --test` 228 pass 0 fail. Dependants: tests/issues-overlay.test.mjs, tests/skill.test.mjs, tests/skill-issues-catalog.test.mjs, tests/agents.test.mjs, tests/commands.test.mjs, docs/design.md, archmap-reviewer.md, skills-lock.json, node tile.json - still correct: CLI contract only loosened (merge --existing optional), full suite green; docs/design.md and archmap-reviewer.md not edited and not contradicted (no statement of requiring --existing seen by running tests only; not manually re-read).",
+            "descriptive": "issues.mjs import-audit never reads outside the project (symlinks included), cites only whole-word relevant lines, first-build merge/import work without an existing overlay, and docs list all five counts."
           },
           "startedAt": "2026-10-29T13:48:50Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:51:16Z",
+          "verifiedBy": [
+            "i12 symlink to outside file skipped as skipped-no-lines (inner symlink still read)",
+            "i13 whole-word and 3/2-distinct-word line matching",
+            "i14 merge without --existing and import-audit with missing --existing treat overlay as empty"
+          ],
           "bugId": "BUG-4-vcu",
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T13:51:15Z.6b84e7",
             "status": "passed",
             "at": "2026-10-29T13:51:15Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "61959cbd358a",
+            "at": "2026-10-29T13:51:16Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:50:47Z",
+            "basis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: merge needs --existing, --incoming and --model; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
+        },
+        {
+          "id": "BF1.5-4w0",
+          "title": "fix BF1-R1: BUG-2-2vu is reduced, not fixed. FIG_MIN_SCALE = 0.5 only stops t...",
+          "status": "in_progress",
+          "description": "BUG-2-2vu is reduced, not fixed. FIG_MIN_SCALE = 0.5 only stops the text shrinking below half size, and half size is still illegible. The svg text sizes are fixed in user units in viewer.css: .node .nt 12.5, .node .ns 10.5, .elabel 10.5, .msg .mt 11, .participant .ps 10, .msg .numt 9.5, .bdt 10. At 0.5 these draw at about 6.3, 5.3, 5.3, 5.5, 5, 4.8 and 5 px. The executor's own measurement is 4.8 px for the smallest text, and the desktop trust figure already drew at 4.9 px at scale 0.51. The default state a reader sees at 400 px is therefore still 5 px text, and legibility still rests on the 100% button. This is exactly the bug's stated symptom. The 'legible 0.5 scale' wording in the filed outcome is not borne out. The task clause did say 'about 0.5', so the diff follows the clause. The phase desired outcome 'fitted figures stay legible at 400 px' is not met.\n\nResolution asked: Derive the floor from a minimum drawn font size instead of a fixed 0.5. Pick MIN_FONT_PX of about 8 to 9, a common minimum for readable screen text. Set FIG_MIN_SCALE = MIN_FONT_PX / smallestUserFont, where the smallest is 9.5 (or raise the smallest svg text sizes in viewer.css to 11 or more). That gives a floor of about 0.85 to 0.95, so a narrow panel opens at roughly natural size and scrolls sideways, with Fit still one click away. Alternatively keep 0.5 but raise the svg text sizes so the smallest is at least 9 / 0.5 = 18 user units. Update v8 (tests/viewer.test.mjs) so it asserts the floor times the smallest font is at least MIN_FONT_PX, not just 'floor is about 0.5'.",
+          "files": [
+            "assets/viewer/viewer.js",
+            "tests/viewer.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T14:00:43Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T14:00:42Z",
+              "text": "scope: assets/viewer/viewer.js, every path the finding(s) BF1-R1 name"
+            },
+            {
+              "at": "2026-10-29T14:00:42Z",
+              "text": "no suite: assets/viewer/viewer.js - no test sits beside it and no test file names it; name the one that tests it with `scope --files`, none was guessed"
+            },
+            {
+              "at": "2026-10-29T14:00:42Z",
+              "text": "no tests.add clause for BF1-R1: no test file is named, placed or mapped for it; name the case with `scope --tests-add \"<path>: <what it asserts>\"`"
+            }
+          ],
+          "fixes": [
+            "BF1-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:02:31Z.225218",
+            "status": "passed",
+            "at": "2026-10-29T14:02:31Z"
+          }
+        },
+        {
+          "id": "BF1.6-4w0",
+          "title": "fix BF1-R2: MIN_FONT_PX = 4.5 was lowered from 5.0 after the check failed, to...",
+          "status": "pending",
+          "description": "MIN_FONT_PX = 4.5 was lowered from 5.0 after the check failed, to match the 0.5 floor ('4.8px at the 0.5 floor'). The assertion therefore encodes the current output rather than a legibility requirement, and it can only fail if the figure gets worse than it is. A figure at the floor with 5 px text passes as 'legible'. This is a threshold tuned to pass, not a check that the bug is fixed.\n\nResolution asked: Set MIN_FONT_PX to a real legibility figure (about 8 to 9) and fix the floor or the svg font sizes until the local run passes at 400 px, as in finding 1. Do not lower the threshold to fit the implementation. Rerun tests/visual/screenshots.py and report the result.",
+          "files": [
+            "tests/visual/screenshots.py"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/visual/screenshots.py: the case BF1-R2 asks for, locking the behaviour at HEAD"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T14:00:42Z",
+              "text": "scope: tests/visual/screenshots.py, every path the finding(s) BF1-R2 name"
+            },
+            {
+              "at": "2026-10-29T14:00:42Z",
+              "text": "no test runner in this task's gate for the test BF1-R2 asks for: the gate is ['test'], derived as the phase's testGate, wide -- no sibling task in BF1 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "BF1-R2"
+          ]
         }
       ],
       "area": [
@@ -4020,7 +4158,8 @@
       "P2.6-2vu",
       "P2.7-2vu",
       "BF1.1",
-      "BF1.2"
+      "BF1.2",
+      "BF1.5-4w0"
     ],
     "scripts/render.mjs": [
       "P2.3"
@@ -4031,13 +4170,15 @@
     "tests/viewer.test.mjs": [
       "P2.4",
       "BF1.1",
-      "BF1.2"
+      "BF1.2",
+      "BF1.5-4w0"
     ],
     "tests/visual/screenshots.py": [
       "P2.5",
       "P2.6-2vu",
       "P2.8-2vu",
-      "BF1.2"
+      "BF1.2",
+      "BF1.6-4w0"
     ],
     "tests/visual/README.md": [
       "P2.5",
@@ -4482,7 +4623,7 @@
     {
       "id": "BUG-4-vcu",
       "title": "issues.mjs import-audit follow-ups: symlink guard, weak line match, catalogue counts",
-      "status": "in_progress",
+      "status": "fixed",
       "severity": "low",
       "reportedAt": "2026-10-29T13:39:44Z",
       "reportedBy": null,
@@ -4492,7 +4633,7 @@
       "actual": "The symlink target is read; generic two-word matches are accepted; the catalogue lists four counts",
       "files": [],
       "taskId": "BF1.4",
-      "fixedIn": null,
+      "fixedIn": "61959cbd358a",
       "notes": null
     }
   ]

@@ -1,0 +1,122 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "assets/viewer/viewer.js:214",
+      "issue": "BUG-2-2vu is reduced, not fixed. FIG_MIN_SCALE = 0.5 only stops the text shrinking below half size, and half size is still illegible. The svg text sizes are fixed in user units in viewer.css: .node .nt 12.5, .node .ns 10.5, .elabel 10.5, .msg .mt 11, .participant .ps 10, .msg .numt 9.5, .bdt 10. At 0.5 these draw at about 6.3, 5.3, 5.3, 5.5, 5, 4.8 and 5 px. The executor's own measurement is 4.8 px for the smallest text, and the desktop trust figure already drew at 4.9 px at scale 0.51. The default state a reader sees at 400 px is therefore still 5 px text, and legibility still rests on the 100% button. This is exactly the bug's stated symptom. The 'legible 0.5 scale' wording in the filed outcome is not borne out. The task clause did say 'about 0.5', so the diff follows the clause. The phase desired outcome 'fitted figures stay legible at 400 px' is not met.",
+      "resolution": "Derive the floor from a minimum drawn font size instead of a fixed 0.5. Pick MIN_FONT_PX of about 8 to 9, a common minimum for readable screen text. Set FIG_MIN_SCALE = MIN_FONT_PX / smallestUserFont, where the smallest is 9.5 (or raise the smallest svg text sizes in viewer.css to 11 or more). That gives a floor of about 0.85 to 0.95, so a narrow panel opens at roughly natural size and scrolls sideways, with Fit still one click away. Alternatively keep 0.5 but raise the svg text sizes so the smallest is at least 9 / 0.5 = 18 user units. Update v8 (tests/viewer.test.mjs) so it asserts the floor times the smallest font is at least MIN_FONT_PX, not just 'floor is about 0.5'."
+    },
+    {
+      "id": 2,
+      "severity": "med",
+      "file": "tests/visual/screenshots.py:329",
+      "issue": "MIN_FONT_PX = 4.5 was lowered from 5.0 after the check failed, to match the 0.5 floor ('4.8px at the 0.5 floor'). The assertion therefore encodes the current output rather than a legibility requirement, and it can only fail if the figure gets worse than it is. A figure at the floor with 5 px text passes as 'legible'. This is a threshold tuned to pass, not a check that the bug is fixed.",
+      "resolution": "Set MIN_FONT_PX to a real legibility figure (about 8 to 9) and fix the floor or the svg font sizes until the local run passes at 400 px, as in finding 1. Do not lower the threshold to fit the implementation. Rerun tests/visual/screenshots.py and report the result."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "diverges",
+    "note": "BF1.1 (kind enum in schema, viewer uses kind first with the regex as fallback, docs updated), BF1.3 (one doc line in each file, locked by a4) and BF1.4 (realpath guard, whole-word findLine with the 3/2 threshold, optional --existing, catalogue lists five counts) each do what their description asked. BF1.2 does what its clause literally says ('about 0.5' floor, pure figureScale, Fit kept, font-size assertion). It does not achieve the bug's expected outcome or the phase desired outcome 'fitted figures stay legible at 400 px': the smallest text is still about 4.8 px at the floor, and the check's threshold was lowered to 4.5 px to pass. The BF1.2 claim 'open at a legible 0.5 scale' overstates the diff. Scan: archmap-review scan.mjs reported 0 leads. No dependency, determinism, offline or schema-compatibility problems found. Minor, not filed: viewRole lowercases kind while the schema enum is case-sensitive, so kind 'Trust' is rejected by validation but would be honoured if it reached the viewer.",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level review owes no red-first; per-task words are computed by the verb (could-not-prove for BF1.1 to BF1.4, because the helper output carries no test tally).",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal command `node --test`, which runs the whole project suite, so the question does not apply."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "BF1.1",
+      "commit": "12bc3ad91a57",
+      "answer": "matches",
+      "note": "Clause: 'add an optional, additive kind enum (graph, deployment, trust)'. schema/archmap-model.schema.json adds it, and validate.mjs interprets the schema so it needed no change. Clause: 'the viewer uses kind when present, regex only as fallback'. viewRole at viewer.js:75 now returns graph too. Docs are updated in design.md and model-schema.md. The claim is accurate: it says HEAD already honoured deployment and trust kind, and the diff changes one token. Existing models are unaffected.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/schema.test.mjs tests/viewer.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/BF1.1/20261029T134131Z.executor.json, at 2026-10-29T13:42:55Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "BF1.2",
+      "commit": "5aae798b4c14",
+      "answer": "diverges",
+      "note": "Clause: 'when the fit scale falls below a legibility floor (about 0.5), open at the floor scale with horizontal scroll and keep Fit one click away; pure function; check_figures asserts a minimum effective font size'. All of these are implemented (figureScale, FIG_MIN_SCALE, floor mode, Fit button, MIN_FONT_PX). The bug's stated purpose, text that is not illegibly small at 400 px, is not met: text draws at about 4.8 to 6.3 px at 0.5. The check's threshold was lowered from 5.0 to 4.5 to pass. The claim 'open at a legible 0.5 scale' does not describe the diff. See findings 1 and 2. v8 tests only the pure function, so the DOM path (applyFigureScale, ResizeObserver) is covered only by the local visual check.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/viewer.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: the legibility floor is about 0.5 (got undefined); run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/BF1.2/20261029T134323Z.executor.json, at 2026-10-29T13:47:14Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "BF1.3",
+      "commit": "d93657e7dec3",
+      "answer": "matches",
+      "note": "Clause: 'one line in each file stating a subtree is dir/** and a bare directory matches only that literal path'. agents/archmap-explorer.md:69 and model-schema.md:92 each add exactly one such line, and test a4 checks both. The claim matches the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: agents/archmap-explorer.md has a line naming dir/** and that a bare directory matches only its literal path; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/BF1.3/20261029T134735Z.executor.json, at 2026-10-29T13:48:37Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "BF1.4",
+      "commit": "61959cbd358a",
+      "answer": "matches",
+      "note": "(1) importCmd's readFile compares realpathSync(abs) against realpathSync(root) before stat or read, and a failing realpath returns null. (2) findLine splits each line into a whole-word set and requires 3 distinct words, or 2 when there are fewer than 4 candidate words. (3) existingIssues() makes --existing optional or missing-tolerant for merge and import-audit, and SKILL.md's first-build block is simplified. (4) issues-catalog.md lists skipped-no-lines and states the no-guessed-lines rule. The claim matches the diff, though its dependants note admits design.md and archmap-reviewer.md were not re-read.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: merge needs --existing, --incoming and --model; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/BF1.4/20261029T134850Z.executor.json, at 2026-10-29T13:50:47Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "BF1.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "BF1.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "BF1.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "BF1.4": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "BF1.1",
+      "commit": "12bc3ad91a57"
+    },
+    {
+      "id": "BF1.2",
+      "commit": "5aae798b4c14"
+    },
+    {
+      "id": "BF1.3",
+      "commit": "d93657e7dec3"
+    },
+    {
+      "id": "BF1.4",
+      "commit": "61959cbd358a"
+    }
+  ]
+}

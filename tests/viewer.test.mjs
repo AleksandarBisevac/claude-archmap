@@ -224,7 +224,16 @@ test('v7 a view picks its renderer from kind when present, and falls back to the
 
 test('v8 a figure that would fit below the legibility floor opens at the floor (scrolling), one that fits above it opens fitted, and Fit stays available', () => {
   const floor = V.FIG_MIN_SCALE;
-  assert.ok(floor >= 0.45 && floor <= 0.55, `the legibility floor is about 0.5 (got ${floor})`);
+  // The floor comes from a minimum drawn font, not a fixed 0.5: the smallest svg text at the floor is still readable.
+  assert.ok(V.MIN_FONT_PX >= 8 && V.MIN_FONT_PX <= 9, `the minimum drawn font is about 8-9 px (got ${V.MIN_FONT_PX})`);
+  assert.ok(floor * V.SMALLEST_FIG_FONT >= V.MIN_FONT_PX - 1e-9, `floor ${floor} x smallest font ${V.SMALLEST_FIG_FONT} is below ${V.MIN_FONT_PX} px`);
+  assert.ok(floor >= 0.85 && floor <= 0.95, `the legibility floor is about 0.85-0.95 (got ${floor})`);
+  // SMALLEST_FIG_FONT is honest: no svg text rule in viewer.css draws smaller than it.
+  const css = readFileSync(fileURLToPath(new URL('../assets/viewer/viewer.css', import.meta.url)), 'utf8');
+  const svgText = /\.(?:node \.(?:nt|ns)|elabel text|msg \.(?:mt|numt)|participant \.(?:pt|ps)|bdt|frag text|note text)\{[^}]*font-size:([\d.]+)px/g;
+  const sizes = [...css.matchAll(svgText)].map((m) => Number(m[1]));
+  assert.ok(sizes.length >= 8, `found the svg text size rules (got ${sizes.length})`);
+  assert.ok(Math.min(...sizes) >= V.SMALLEST_FIG_FONT, `an svg text rule draws at ${Math.min(...sizes)} user units, below ${V.SMALLEST_FIG_FONT}`);
   // A wide figure in a 400 px container: whole-drawing fit would be 400/1600 = 0.25, below the floor.
   const wide = V.figureScale(1600, 400);
   assert.equal(wide.fit, 0.25, 'the fit scale is still computed');
@@ -237,8 +246,8 @@ test('v8 a figure that would fit below the legibility floor opens at the floor (
     assert.ok(V.figureScale(nat, w).scale >= floor, `${nat} in ${w}: below the floor`);
   }
   // A figure that fits above the floor still opens fitted, with no scrolling.
-  const ok = V.figureScale(700, 400);
-  assert.equal(ok.scale, 400 / 700);
+  const ok = V.figureScale(420, 400);
+  assert.equal(ok.scale, 400 / 420);
   assert.equal(ok.fitted, true);
   assert.equal(ok.scrolls, false);
   // A figure narrower than its container is never enlarged.

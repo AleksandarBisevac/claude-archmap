@@ -1,0 +1,23 @@
+{
+  "gates": {
+    "test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "tests.expectRedFirst is false on this tdd task: it names no case to prove a red by, so no red-first proof is owed",
+    "at": "2026-10-29T14:01:56Z"
+  },
+  "outcome": {
+    "technical": "assets/viewer/viewer.js: FIG_MIN_SCALE is now MIN_FONT_PX / SMALLEST_FIG_FONT = 8.5 / 9.5 = 0.895, replacing the fixed 0.5. The operator chose this resolution, so the SVG fonts in viewer.css are unchanged. 9.5 is the .msg .numt size, the smallest svg text rule. MIN_FONT_PX and SMALLEST_FIG_FONT are exported next to FIG_MIN_SCALE for tests. The smallest text now draws at about 8.5 px at the floor. tests/viewer.test.mjs v8 was edited although it is outside the task's declared files, and the plan gate did not refuse the write. v8 now asserts MIN_FONT_PX is 8-9, floor x smallest font >= MIN_FONT_PX, and floor is 0.85-0.95. It also parses viewer.css and asserts no svg text rule is below SMALLEST_FIG_FONT, so that constant stays honest. The 'fits above the floor' sample changed from 700 in 400 (0.571, now below the floor) to 420 in 400. Commands run from the project dir: `node --test tests/viewer.test.mjs` gave 8 pass, 0 fail (exit 0). `node --test` gave 228 tests, 228 pass, 0 fail. Dependants: viewer.css is unchanged and still correct. render.mjs is unchanged and still correct, because it only inlines viewer.js. docs/design.md has no mention of the floor, so it is still correct. tests/viewer.test.mjs is changed as described. Not touched, outside scope: tests/visual/screenshots.py carries MIN_FONT_PX = 4.5 with a comment about the 0.5 floor and 4.8 px. It still passes, but its threshold and comment are now stale, and a follow-up could raise it to about 8.",
+    "descriptive": "Fitted figures now open at no less than about 0.89 scale, so the smallest SVG text draws at about 8.5 px or more, not about 5 px. A narrow panel scrolls sideways instead, and Fit stays one click away."
+  },
+  "testsAdded": [
+    "Updated v8 in tests/viewer.test.mjs to assert the floor times the smallest font is at least MIN_FONT_PX, the floor is 0.85-0.95, and no svg text rule in viewer.css is below SMALLEST_FIG_FONT."
+  ],
+  "casesAdded": [
+    "v8"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:b8a2ec55bbd09cf333b04eff332bd24b7b974a80a008cf269202415b2f5f4f13\",\"dirtyDigest\":\"sha256:37553e721d3adf30c63f67562ea4355394f1518540434fb3b15f366ce0ab2ef1\",\"dirtyPaths\":{\"assets/viewer/viewer.js\":\"1e032bb0eb5fa70b\",\"tests/viewer.test.mjs\":\"5181546ed3c4b6b4\"},\"head\":\"61959cb\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/viewer.js\"],\"scopeDigest\":\"sha256:955947247e43f15df30cba659daf0f193788f632224eaa090d7eb55c04ba1ee4\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

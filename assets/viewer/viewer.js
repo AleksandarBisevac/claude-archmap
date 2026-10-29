@@ -17,7 +17,11 @@ const num = v => Math.round(v * 100) / 100;
 /* Figure scale (pure): the smallest scale a figure opens at. Fitting a wide drawing to a narrow panel would shrink
    its text past reading, so below FIG_MIN_SCALE the figure opens at the floor and scrolls sideways; Fit stays one click away.
    naturalW is the drawing's width in px, availW the panel's. fit is the true whole-drawing scale (never above 1). */
-const FIG_MIN_SCALE = 0.5;
+// The floor is derived from a minimum drawn font, not a fixed fraction: the smallest svg text (SMALLEST_FIG_FONT user units, the
+// .msg .numt badge number in viewer.css) must still draw at MIN_FONT_PX or more, so the floor is MIN_FONT_PX / SMALLEST_FIG_FONT (~0.89).
+const MIN_FONT_PX = 8.5;
+const SMALLEST_FIG_FONT = 9.5;
+const FIG_MIN_SCALE = MIN_FONT_PX / SMALLEST_FIG_FONT;
 function figureScale(naturalW, availW){
   const nat = Math.max(1, naturalW), avail = Math.max(0, availW);
   const fit = Math.min(1, avail / nat);
@@ -349,7 +353,7 @@ if (typeof document === "undefined"){
   if (typeof module !== "undefined" && module && typeof module === "object") {
     module.exports = {findPath:findPath, lineageOf:lineageOf, searchModel:searchModel, crudMatrix:crudMatrix, crudHtml:crudHtml,
       erScene:erScene, erMarkup:erMarkup, crowFoot:crowFoot, manyEnds:manyEnds, relationKeys:relationKeys, evidenceUrl:evidenceUrl,
-      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust};
+      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, MIN_FONT_PX:MIN_FONT_PX, SMALLEST_FIG_FONT:SMALLEST_FIG_FONT, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust};
   }
   return;
 }
