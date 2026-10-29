@@ -1,0 +1,37 @@
+{
+  "gates": {
+    "node --test tests/staleness.test.mjs": "pass",
+    "node --test": "pass",
+    "claude plugin validate .": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T12:57:44Z",
+    "basis": "`node --test tests/staleness.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/staleness.mjs (hook mode + --check [--project] [--json]; imports diffmap/readGitChanges from diffmap.mjs; hook mode runs the comparison in a self-spawned child node process (--assess <dir>) killed after ARCHMAP_STALENESS_TIMEOUT_MS (default 5000) because a worker thread blocked in execFileSync could not be terminated promptly; always exit 0, silent on any error; check exit 0/1/2), hooks/hooks.json (one SessionStart command hook: node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\"), tests/staleness.test.mjs (10 cases). Stale line uses ASCII ' - ' as in the task text (design D12 shows an em dash). node --test tests/staleness.test.mjs: 10 pass, 0 fail; node --test: 199 pass, 0 fail; claude plugin validate .: passed. Dependants: docs/design.md D12/section 10 still correct (same line, hook path, exit codes; only the dash character differs from the example); skills/architecture-map/SKILL.md line 248 still says staleness.mjs is 'not yet built' - now outdated, outside this task's files, left for a later task.",
+    "descriptive": "SessionStart hook and /archmap:check backend: one-line staleness report, silent and exit 0 in hook mode, exit 0/1/2 in check mode."
+  },
+  "testsAdded": [
+    "10 cases in tests/staleness.test.mjs: no model, fresh, stale line, stdin/cwd project resolution, silent failures, git timeout, check 0/1/2 and --json, hooks.json shape"
+  ],
+  "casesAdded": [
+    [
+      "s1",
+      "s2",
+      "s3",
+      "s4",
+      "s5",
+      "s6",
+      "s7",
+      "s8",
+      "s9",
+      "s10"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:a9349e1afba354d779d1960f8ff2631423954a528b0a1cb1db8ec56682598ba5\",\"dirtyDigest\":\"sha256:78f0ea770a33834eaa72ca0c6522dba18cd638ba274de864dce3e7d838646006\",\"dirtyPaths\":{\"hooks/hooks.json\":\"8dd0ae616f479b6f\",\"scripts/staleness.mjs\":\"c0476021915adee6\",\"tests/staleness.test.mjs\":\"f97ea41c5d7c5550\"},\"head\":\"8d63f93\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"hooks/hooks.json\",\"scripts/staleness.mjs\",\"tests/staleness.test.mjs\"],\"scopeDigest\":\"sha256:a49927ea7d4c9233cf1ab2fe941e323d5faf302fa7fbdaeab70d91e1aae98c1e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

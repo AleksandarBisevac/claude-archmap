@@ -2964,7 +2964,7 @@
     {
       "id": "P6",
       "title": "Staleness hook, check and issues overlay",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "The SessionStart hook prints one line for a stale model, nothing otherwise, and always exits 0; /archmap:check returns 0 or 1; the reviewer and issues.mjs (with audit import, legacy findings included) write the overlay outside the repo, and the clean render contains no issue text.",
       "testGate": [
@@ -2973,8 +2973,8 @@
       "blockedBy": [
         "P5"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "8d63f9369d11c749eda75148e1ee73678cf54c9c",
+      "branch": "audit/p6-staleness-hook-check-and-issue",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -2983,11 +2983,178 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P6.1",
+          "title": "staleness.mjs and the SessionStart hook",
+          "status": "in_progress",
+          "description": "Implement scripts/staleness.mjs (docs/design.md D12, §10 'Hook'). Two modes. Hook mode (default; what hooks/hooks.json runs on SessionStart as node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\"): project dir from CLAUDE_PROJECT_DIR, else the cwd in the hook's stdin JSON, else process.cwd(); no docs/architecture/architecture.model.json -> print nothing; otherwise reuse diffmap (import its functions from scripts/diffmap.mjs, do not shell out to it) to compare meta.commit with HEAD and, when behind, print exactly one line, e.g. 'Architecture map is 12 commits behind (3 nodes, 1 entity affected) - run /archmap:update'; fresh -> nothing. Hook mode ALWAYS exits 0 and prints nothing on any error (not a git repo, unreadable or invalid model, unknown commit, timeout); it must stay fast (bounded git calls with a timeout) and never run the LLM. Check mode (--check [--project dir] [--json]): same comparison, prints the line or 'Architecture map is current', exit 0 fresh, 1 stale, 2 no model / usage / not a git repo. Node >= 18, ESM, zero deps. hooks/hooks.json follows the plugin hooks format with one SessionStart command hook.",
+          "files": [
+            "scripts/staleness.mjs",
+            "hooks/hooks.json",
+            "tests/staleness.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/staleness.test.mjs: in temp git repos, hook mode prints nothing and exits 0 with no model, prints nothing for a fresh model, prints exactly one line naming commits behind and affected node/entity counts for a stale model, and prints nothing with exit 0 on a corrupt model or non-git dir; check mode exits 0 fresh, 1 stale, 2 no model; hooks/hooks.json has one SessionStart command hook invoking scripts/staleness.mjs via ${CLAUDE_PLUGIN_ROOT}"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test",
+              "claude plugin validate ."
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T12:55:18Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T12:58:03Z.b27130",
+            "status": "passed",
+            "at": "2026-10-29T12:58:03Z"
+          }
+        },
+        {
+          "id": "P6.2",
+          "title": "issues.mjs: audit import, overlay merge and write outside the repo",
+          "status": "pending",
+          "description": "Implement scripts/issues.mjs (docs/design.md D2, D4, §5 issues file, §9 step 6; mapping rules in skills/architecture-map/references/issues-catalog.md 'Audit import'). Subcommands: (1) import-audit <audit-plan.json> --model <model.json> [--existing <issues.json>] -> issues with source 'audit', id 'audit-<sourceId>', track = source id, from bugs[] and phases[].review.findings[], including legacy string findings; anchor each by its file path to the node whose paths globs (scripts/lib/glob.mjs) or evidence own it, else skip it as unanchored; skip closed/fixed ones and line-level ones per the catalogue; print counts imported / skipped-fixed / skipped-unanchored / skipped-line-level. Reads only the plan file given, never other audit state. (2) merge --existing <issues.json> --incoming <reviewer.json> [--anchors a,b] -> merged overlay: incoming replaces issues on the listed anchors (all when no --anchors), others kept, ids stable, sorted, deterministic. (3) path [--project dir] prints <home>/.claude/archmap/<repo-slug>/ using the slug rule in SKILL.md 'Output locations'. Every subcommand that writes takes --out and REFUSES (exit 2, nothing written) an --out inside the analysed project's git working tree; it validates the result with validate() from scripts/validate.mjs (model + issues, dangling anchors included) and refuses an invalid one (exit 1). Fixtures: a small fictional audit plan with bugs, structured findings and legacy string findings, plus a fictional model. Node >= 18, ESM, zero deps.",
+          "files": [
+            "scripts/issues.mjs",
+            "tests/issues.test.mjs",
+            "tests/fixtures/issues/"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/issues.test.mjs: import-audit maps bugs, structured findings and legacy string findings to source audit issues with stable audit-<id> ids and track, anchors by file to the owning node, skips fixed, unanchored and line-level ones with counts; re-import is idempotent; merge replaces only the listed anchors; path follows the slug rule; an --out inside the repo is refused with nothing written; an issue anchored to a missing id is refused"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P6.3",
+          "title": "Shared-build calibration lint and the issues overlay end to end",
+          "status": "pending",
+          "description": "Add issues.mjs lint <issues.json> [--json] (docs/design.md D4 calibration; wording rules in references/issues-catalog.md): for shared builds, a security issue's summary, impact and fix must not carry internal specifics - repo paths or file names from its evidence, line numbers, URLs, hostnames or IPs, environment-variable-like NAMES_IN_CAPS, credential-like tokens - and every issue needs non-empty summary/impact/fix; findings exit 1, clean exit 0. Then lock in the overlay chain end to end with a fictional model and a fictional reviewer return: issues.mjs merge -> validate.mjs --issues -> render.mjs --mode internal and --mode shared (both --out outside the temp repo) and the clean render: the clean HTML contains no issue id, title, summary, impact, fix or detail text and no Issues switch; the shared HTML contains summary/impact/fix but no detail text; the internal HTML contains detail and the Issues switch; render refuses an internal/shared build without --out.",
+          "files": [
+            "scripts/issues.mjs",
+            "tests/issues-overlay.test.mjs",
+            "tests/fixtures/issues/"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/issues-overlay.test.mjs: lint flags a security summary carrying an evidence path, a line number, a URL and an ENV_NAME and passes a calibrated one; the merged overlay validates against the model; the clean render contains none of any issue's id or text and no Issues switch; the shared render has summary/impact/fix but no detail; the internal render has detail and the switch"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P6.2"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P6.4",
+          "title": "Commands check and issues; SKILL.md uses staleness and issues",
+          "status": "pending",
+          "description": "Write commands/check.md (/archmap:check; script only, disable-model-invocation: true; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\" --check and reports its line and exit code) and commands/issues.md (/archmap:issues [--import-audit] [--profile p]; thin hand-off to the architecture-map skill's issues step, like build.md). Frontmatter per docs/design.md §4 conventions. Update SKILL.md: staleness.mjs and issues.mjs now exist - replace their 'not yet built' notes with the real invocations (issues.mjs path for the overlay dir, import-audit when --import-audit, merge of the reviewer's return, lint before any --mode shared render or --publish of a shared build, write with --out under the overlay dir) and describe the SessionStart hook in one line. export.mjs stays marked not yet built (P7). SKILL.md stays <= 500 lines.",
+          "files": [
+            "commands/check.md",
+            "commands/issues.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/commands.test.mjs",
+            "tests/skill.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/commands.test.mjs: check.md and issues.md have description, argument-hint and allowed-tools frontmatter and check.md has disable-model-invocation: true; tests/skill.test.mjs: SKILL.md no longer marks staleness or issues as not yet built, invokes issues.mjs import-audit, merge and lint, and still marks export.mjs not yet built"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test",
+              "claude plugin validate ."
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P6.1",
+            "P6.2",
+            "P6.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
       "area": [
         "hooks",
         "issues"
-      ]
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-29T12:55:18Z"
     },
     {
       "id": "P7",
@@ -3404,13 +3571,15 @@
       "P4.7-w15",
       "P5.4",
       "P5.8-2zy",
-      "P5.9-2zy"
+      "P5.9-2zy",
+      "P6.4"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
       "P4.6-w15",
       "P4.8-w15",
-      "P5.4"
+      "P5.4",
+      "P6.4"
     ],
     "agents/archmap-explorer.md": [
       "P4.5"
@@ -3467,7 +3636,8 @@
       "P5.4"
     ],
     "tests/commands.test.mjs": [
-      "P5.4"
+      "P5.4",
+      "P6.4"
     ],
     "tests/e2e.test.mjs": [
       "P5.5",
@@ -3478,6 +3648,35 @@
       "P5.5",
       "P5.6-2zy",
       "P5.7-2zy"
+    ],
+    "scripts/staleness.mjs": [
+      "P6.1"
+    ],
+    "hooks/hooks.json": [
+      "P6.1"
+    ],
+    "tests/staleness.test.mjs": [
+      "P6.1"
+    ],
+    "scripts/issues.mjs": [
+      "P6.2",
+      "P6.3"
+    ],
+    "tests/issues.test.mjs": [
+      "P6.2"
+    ],
+    "tests/fixtures/issues/": [
+      "P6.2",
+      "P6.3"
+    ],
+    "tests/issues-overlay.test.mjs": [
+      "P6.3"
+    ],
+    "commands/check.md": [
+      "P6.4"
+    ],
+    "commands/issues.md": [
+      "P6.4"
     ]
   },
   "bugs": [
