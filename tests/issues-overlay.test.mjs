@@ -113,9 +113,9 @@ const OVERLAY = join(out, 'issues.json');
 const LAYOUT = writeJson(out, 'layout.json', await layoutModel(model));
 const merged = cli('issues', ['merge', '--existing', EXISTING, '--incoming', RETURN, '--model', MODEL, '--out', OVERLAY], proj);
 const overlay = existsSync(OVERLAY) ? JSON.parse(readFileSync(OVERLAY, 'utf8')) : { issues: [] };
-const renderTo = (mode, name) => {
+const renderTo = (mode, name, { withIssues = mode !== 'clean' } = {}) => {
   const dest = join(out, name);
-  const args = [MODEL, '--layout', LAYOUT, ...(mode === 'clean' ? [] : ['--issues', OVERLAY, '--mode', mode]), '--out', dest];
+  const args = [MODEL, '--layout', LAYOUT, ...(withIssues ? ['--issues', OVERLAY, '--mode', mode] : []), '--out', dest];
   const r = cli('render', args, proj);
   assert.equal(r.status, 0, `${mode}: ${r.err}`);
   return readFileSync(dest, 'utf8');
@@ -132,17 +132,23 @@ test('o4 merge of the reviewer return writes the overlay outside the repo, and i
   assert.deepEqual(readdirSync(proj).sort(), ['.git', 'a.txt']);
 });
 
-test('o5 the clean render contains no issue id, title, summary, impact, fix or detail and no Issues switch', () => {
+test('o5 the clean render, with or without --issues, contains no issue id, title, summary, impact, fix or detail and no Issues switch', () => {
   assert.ok(overlay.issues.length > 0);
-  const html = renderTo('clean', 'clean.html');
-  for (const i of overlay.issues) {
-    for (const t of texts(i, ['id', 'title', 'summary', 'impact', 'fix', 'detail'])) {
-      assert.ok(!html.includes(t), `clean build carries ${JSON.stringify(t)}`);
+  // Without the flag, and with the overlay handed to --mode clean: both must be free of issue text.
+  const renders = {
+    'clean, no --issues': renderTo('clean', 'clean.html'),
+    'clean, --issues overlay': renderTo('clean', 'clean-with-issues.html', { withIssues: true }),
+  };
+  for (const [label, html] of Object.entries(renders)) {
+    for (const i of overlay.issues) {
+      for (const t of texts(i, ['id', 'title', 'summary', 'impact', 'fix', 'detail'])) {
+        assert.ok(!html.includes(t), `${label}: clean build carries ${JSON.stringify(t)}`);
+      }
     }
+    assert.doesNotMatch(html, /id="archmap-issues"/, label);
+    assert.doesNotMatch(html, /id=["']issues-switch["']/, label);
+    assert.doesNotMatch(html, /ZQDETAIL/, label);
   }
-  assert.doesNotMatch(html, /id="archmap-issues"/);
-  assert.doesNotMatch(html, /id=["']issues-switch["']/);
-  assert.doesNotMatch(html, /ZQDETAIL/);
 });
 
 test('o6 the shared render carries summary, impact and fix of every issue, never the detail, and no Issues switch', () => {

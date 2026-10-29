@@ -1,0 +1,23 @@
+{
+  "gates": {
+    "node --test tests/issues-overlay.test.mjs": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task with expectRedFirst false: the renderer already drops issues in clean mode (per the finding), so the strengthened case is green at HEAD by design; it locks that behaviour",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "In tests/issues-overlay.test.mjs, renderTo gained an optional withIssues flag (default: true for non-clean modes, as before). Case o5 now renders clean twice: without --issues and with `--issues OVERLAY --mode clean`, and runs the same assertions on both outputs (no issue id/title/summary/impact/fix/detail text, no archmap-issues block, no issues-switch, no ZQDETAIL), labelling failures by render. node --test tests/issues-overlay.test.mjs: 7 tests, 7 pass, 0 fail. Full node --test not run (runsGate own-tests).",
+    "descriptive": "Test o5 now locks that a clean render stays free of issue text even when the overlay is passed with --mode clean."
+  },
+  "testsAdded": [
+    "o5 extended: the clean render is also produced with --issues OVERLAY --mode clean and gets the same no-issue-text assertions"
+  ],
+  "casesAdded": [
+    "o5"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:4bb3ecd1719aadfabbbd40ae8f08561e95f5db65483ced0df0bdca931569f2a5\",\"dirtyDigest\":\"sha256:f00aee67a075d58b97e56aaaf219ee33d745d577936959c7221f6b372956aac3\",\"dirtyPaths\":{\"tests/issues-overlay.test.mjs\":\"32a35cb49c5bf8cf\"},\"head\":\"290b2eb\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/issues-overlay.test.mjs\"],\"scopeDigest\":\"sha256:4ce5f77d1f0a31250cb562c57e23ce601c7dc64a7a797bb381ddacb7f0c85f4e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
