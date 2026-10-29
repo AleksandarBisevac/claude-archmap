@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/agents.test.mjs": "pass",
+    "node --test (full, informational)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:48:37Z",
+    "basis": "`node --test tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: agents/archmap-explorer.md has a line naming dir/** and that a bare directory matches only its literal path; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added case a4 to tests/agents.test.mjs (written before reading the docs; saw it FAIL: a4 red, a1-a3 green). Then added one line to agents/archmap-explorer.md (after the coverage fragment JSON block, before the size caps) and one line to skills/architecture-map/references/model-schema.md (after the coverage bullet) stating a subtree is written dir/** and a bare directory matches only that literal path. node --test tests/agents.test.mjs: a1-a4 pass; full node --test: 225 pass, 0 fail. Dependants: docs/design.md, scripts/merge.mjs, tests/skill-references.test.mjs, tests/agents.test.mjs, archmap-reviewer.md, archmap-synthesizer.md, SKILL.md only reference these files by name/path; the change is one added doc line each, no schema or behaviour change, so all still correct (full suite green).",
+    "descriptive": "The explorer and model-schema reference now document the dir/** versus bare-directory coverage glob rule, locked by test a4."
+  },
+  "testsAdded": [
+    "a4: both explorer agent and model-schema reference contain a line naming dir/** and that a bare directory matches only its literal path"
+  ],
+  "casesAdded": [
+    "a4"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:0258eba6a2c78be9b471651baa5068395352aab4ba4868db798ad1e09e515f11\",\"dirtyDigest\":\"sha256:d22b64241529933620bdff8ae5ab936a121e19200774ba17b9b9c571b5d9de24\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"33909323c7b1ac4d\",\"skills/architecture-map/references/model-schema.md\":\"b13b9eeb1a5bcddb\",\"tests/agents.test.mjs\":\"05e89980981873aa\"},\"head\":\"5aae798\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"skills/architecture-map/references/model-schema.md\",\"tests/agents.test.mjs\"],\"scopeDigest\":\"sha256:0198c91824e9117892883a6552ed3358518933b648489393ae75adc08a50679a\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

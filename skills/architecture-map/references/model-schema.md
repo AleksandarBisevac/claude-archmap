@@ -89,6 +89,7 @@ Rules:
   `type`, `desc`, `confidence`. The `id` strings are proposals; the merge script dedupes and renames on collision.
 - Edges may point at node ids owned by another fragment. Use the id the prescan or the area map gave you.
 - `coverage` lists the globs the explorer actually read. These become `meta.coverage[area]`.
+- A subtree in `coverage` is written `dir/**`; a bare directory glob such as `src/api` matches only that literal path, not the files under it (`merge.mjs` and `diffmap.mjs` match it that way).
 - `skipped` tallies what was seen and left out: `count` and short `reasons`. Never silently omit.
 - Do not emit `meta`, `zones`, `sequences`, `views`, `locked` or `notes`. The synthesizer owns those.
 - Do not emit an element without evidence, and do not guess lines: cite the lines you read.

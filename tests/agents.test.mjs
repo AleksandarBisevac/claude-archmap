@@ -75,3 +75,14 @@ test('a3 each body names its input and output contract and the references it rea
   assert.match(load('archmap-synthesizer').body, /3-7|3 to 7/);
   assert.match(load('archmap-reviewer').body, /\bdetail\b[^.\n]*internal/i);
 });
+
+test('a4 explorer and model-schema state that a subtree coverage glob is dir/** and a bare directory matches only itself', () => {
+  const docs = {
+    'agents/archmap-explorer.md': readFileSync(join(ROOT, 'agents/archmap-explorer.md'), 'utf8'),
+    'references/model-schema.md': readFileSync(join(ROOT, 'skills/architecture-map/references/model-schema.md'), 'utf8'),
+  };
+  for (const [name, text] of Object.entries(docs)) {
+    const line = text.split('\n').find((l) => /bare director/i.test(l) && /literal/i.test(l) && /\/\*\*/.test(l));
+    assert.ok(line, `${name} has a line naming dir/** and that a bare directory matches only its literal path`);
+  }
+});

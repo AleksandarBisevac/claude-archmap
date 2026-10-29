@@ -66,6 +66,7 @@ around it, and a reply that is not a single object is re-requested.
 }
 ```
 
+- Write a subtree in `coverage` as `dir/**` (for example `src/api/**`); a bare directory such as `src/api` matches only that literal path, not the files under it.
 - Size caps per fragment: about 40 nodes, 80 edges, 60 entities, 80 access rows. If the area needs more, map the most
   structural elements and report the rest in `skipped` so the caller can split the area.
 - `desc` and `role` are one sentence each. Excerpts of source never appear in the output: cite `{path, lines}` only.
