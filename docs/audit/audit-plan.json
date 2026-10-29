@@ -1497,7 +1497,7 @@
     {
       "id": "P4",
       "title": "architecture-map skill and agents",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "SKILL.md (500 lines or fewer) and its references define the workflow, model contract, evidence and token rules; archmap-explorer, archmap-synthesizer and archmap-reviewer agents pass claude plugin validate with their model and effort frontmatter.",
       "testGate": [
@@ -1509,7 +1509,7 @@
       ],
       "baseRef": "f323d1aaaa14e5903f22b439eb6e5711a57226d9",
       "branch": "audit/p4-architecture-map-skill-and-age",
-      "mergedAt": null,
+      "mergedAt": "2026-10-29T07:11:36Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -2158,7 +2158,8 @@
         "runId": "2026-10-29T07:11:34Z.50f60b",
         "status": "passed",
         "at": "2026-10-29T07:11:34Z"
-      }
+      },
+      "mergedHead": "bf8f613ec52ba529d517996d48ad11c528e91911"
     },
     {
       "id": "P5",
