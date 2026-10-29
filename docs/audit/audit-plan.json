@@ -3626,7 +3626,7 @@
     {
       "id": "P7",
       "title": "Exporters",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "export.mjs writes Mermaid flowchart, erDiagram and sequenceDiagram, PlantUML, Markdown and SVG from the golden model, and PNG when headless Chromium is present.",
       "testGate": [
@@ -3638,7 +3638,7 @@
       ],
       "baseRef": "6bdef838fc439f74d38878afc61028b6ed8aec99",
       "branch": "audit/p7-exporters",
-      "mergedAt": null,
+      "mergedAt": "2026-10-29T15:08:05Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -4303,7 +4303,8 @@
         "runId": "2026-10-29T15:08:02Z.469989",
         "status": "passed",
         "at": "2026-10-29T15:08:02Z"
-      }
+      },
+      "mergedHead": "6d0e3a4a95ec3c8aa1515db8bf5a0aeffdf1cdd9"
     },
     {
       "id": "P8",
