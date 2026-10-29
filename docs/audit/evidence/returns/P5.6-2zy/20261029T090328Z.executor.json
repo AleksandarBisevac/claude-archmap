@@ -1,0 +1,29 @@
+{
+  "gates": {
+    "node --test tests/e2e.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression mode, expectRedFirst false: the scripts (P5.1-P5.4) already exist, so the tests lock in existing behaviour and cannot be red first",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Reviewed the leftover tests/e2e.test.mjs (cases e1-e4) and tests/fixtures/e2e/ (synth.json, fragments/{express,books,queues}.json, update/books.json) from the cancelled P5.5 attempt against the task description; they match, so kept them. Only change: imported after and rmSync and added an after() hook that removes the temp repo copy. node --test tests/e2e.test.mjs: 4 of 4 pass. Full node --test: 184 of 184 pass, 0 fail. Fixtures hold no real-client material (grep for client/acme/secret hit only the generic word 'client' in a fictional summary). Dependants: tests/fixtures/e2e is named in scripts/lib/prescan/generic.mjs line 91, where e2e is one segment of the TEST_SEGMENT regex classifying test directories; still correct, the new fixtures sit under tests/ and that classifier is unchanged. tests/e2e.test.mjs has no tracked dependants.",
+    "descriptive": "End-to-end test locks in the no-LLM chain (prescan, merge, validate --repo, layout, render, diffmap, update re-merge, seeded re-layout, usage ledger): locked, notes, pinned and unaffected positions survive and meta.commit advances."
+  },
+  "testsAdded": [
+    "tests/e2e.test.mjs e1-e4: build chain exits 0 and clean HTML has no issue text; diffmap maps only the books area, nodes, dependents and entity after a scripted commit; update re-merge keeps locked, notes and pinned with unaffected positions unchanged and meta.commit equal to the new HEAD; usage ledger has a row per step with per-phase totals"
+  ],
+  "casesAdded": [
+    [
+      "e1",
+      "e2",
+      "e3",
+      "e4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f0222eafb5f6ac5c9a77474defac984bc1cca055f1f391bb8e03926613aac314\",\"dirtyDigest\":\"sha256:dd1ec7cf475506683592ba79cc2c0d51e36a3a3ad1bda344c99918da75f076fb\",\"dirtyPaths\":{\"tests/e2e.test.mjs\":\"34f0af3ccb21744a\",\"tests/fixtures/e2e/fragments/books.json\":\"675e62a3e6a8eb34\",\"tests/fixtures/e2e/fragments/express.json\":\"d112c96ea3ae91cb\",\"tests/fixtures/e2e/fragments/queues.json\":\"aae4cb2d9786246b\",\"tests/fixtures/e2e/synth.json\":\"3a879d86c4f83288\",\"tests/fixtures/e2e/update/books.json\":\"07a1c427f0f4a41b\"},\"head\":\"500f846\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/e2e.test.mjs\",\"tests/fixtures/e2e/\"],\"scopeDigest\":\"sha256:8045352ca67ff63a053f21daf359e76aaa19edbf1bcbe5edf45eafc952e44d7c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

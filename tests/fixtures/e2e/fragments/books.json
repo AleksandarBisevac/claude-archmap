@@ -1,0 +1,144 @@
+{
+  "area": "books",
+  "nodes": [
+    {
+      "id": "books-api",
+      "zone": "service",
+      "kind": "route-group",
+      "title": "Books API",
+      "paths": [
+        "src/books/**"
+      ],
+      "level": 2,
+      "role": "Nest controller serving the books routes.",
+      "evidence": [
+        {
+          "path": "src/books/books.controller.ts",
+          "lines": "5-46"
+        }
+      ]
+    },
+    {
+      "id": "library-db",
+      "zone": "data",
+      "kind": "store",
+      "title": "Library database",
+      "paths": [
+        "src/entities/**"
+      ],
+      "level": 1,
+      "role": "TypeORM tables for books and authors.",
+      "evidence": [
+        {
+          "path": "src/entities/book.entity.ts",
+          "lines": "4-21"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "books-use-db",
+      "from": "books-api",
+      "to": "library-db",
+      "type": "sql",
+      "desc": "Books controller reads the books table",
+      "evidence": [
+        {
+          "path": "src/books/books.controller.ts",
+          "lines": "7-10"
+        }
+      ],
+      "confidence": "inferred"
+    }
+  ],
+  "entities": [
+    {
+      "id": "books",
+      "store": "library-db",
+      "name": "books",
+      "kind": "table",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "provenance": "declared"
+        },
+        {
+          "name": "subtitle",
+          "type": "string",
+          "nullable": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "author_id",
+          "type": "number",
+          "provenance": "declared",
+          "fk": {
+            "entity": "authors",
+            "field": "id"
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "path": "src/entities/book.entity.ts",
+          "lines": "4-21"
+        }
+      ]
+    },
+    {
+      "id": "authors",
+      "store": "library-db",
+      "name": "authors",
+      "kind": "table",
+      "fields": [
+        {
+          "name": "id",
+          "type": "number",
+          "pk": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "provenance": "declared"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "src/entities/author.entity.ts",
+          "lines": "4-14"
+        }
+      ]
+    }
+  ],
+  "access": [
+    {
+      "node": "books-api",
+      "entity": "books",
+      "ops": "R",
+      "evidence": [
+        {
+          "path": "src/books/books.controller.ts",
+          "lines": "7-10"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    "src/main.ts",
+    "src/books/**",
+    "src/entities/**"
+  ],
+  "skipped": {
+    "count": 0,
+    "reasons": []
+  }
+}

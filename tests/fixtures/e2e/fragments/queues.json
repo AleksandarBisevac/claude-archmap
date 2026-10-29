@@ -1,0 +1,65 @@
+{
+  "area": "queues",
+  "nodes": [
+    {
+      "id": "email-queue",
+      "zone": "service",
+      "kind": "queue",
+      "title": "Email queue",
+      "paths": [
+        "src/queues/email.queue.ts",
+        "src/queues/email.producer.ts"
+      ],
+      "level": 2,
+      "role": "BullMQ queue and its producers.",
+      "evidence": [
+        {
+          "path": "src/queues/email.queue.ts",
+          "lines": "1-6"
+        }
+      ]
+    },
+    {
+      "id": "email-worker",
+      "zone": "service",
+      "kind": "job",
+      "title": "Email worker",
+      "paths": [
+        "src/queues/email.worker.ts"
+      ],
+      "level": 3,
+      "role": "Consumes the email queue.",
+      "evidence": [
+        {
+          "path": "src/queues/email.worker.ts",
+          "lines": "1-8"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "worker-pulls-queue",
+      "from": "email-worker",
+      "to": "email-queue",
+      "type": "queue",
+      "desc": "Worker consumes jobs",
+      "evidence": [
+        {
+          "path": "src/queues/email.worker.ts",
+          "lines": "8"
+        }
+      ],
+      "confidence": "verified"
+    }
+  ],
+  "entities": [],
+  "access": [],
+  "coverage": [
+    "src/queues/**"
+  ],
+  "skipped": {
+    "count": 0,
+    "reasons": []
+  }
+}

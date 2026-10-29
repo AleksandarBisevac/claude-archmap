@@ -1,0 +1,32 @@
+{
+  "gates": {
+    "node --test tests/e2e.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression mode, expectRedFirst false: scripts P5.1-P5.4 already exist; the test locks their combined behaviour in",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Wrote the reviewed draft tests/e2e.test.mjs and tests/fixtures/e2e/ (fragments books/express/queues, synth.json, update/books.json) from the scratchpad into the repo unchanged after checking it against the task description (it already covers every point). node --test tests/e2e.test.mjs: 4 pass, 0 fail; full node --test: 184 pass, 0 fail, exit 0. Dependant scripts/lib/prescan/generic.mjs: still correct; it only names 'e2e' in a TEST_SEGMENT regex (line 91) that classifies path segments, and the new fixture dir does not change that code or its inputs.",
+    "descriptive": "End-to-end test locks in the no-LLM script chain: prescan, merge, validate --repo, layout, render, diffmap, update re-merge preserving locked/notes/pinned, and the usage ledger."
+  },
+  "testsAdded": [
+    "e1 chain exit 0 and clean HTML without issue text",
+    "e2 diffmap maps the scripted commit to the expected area, nodes, dependents, entity, sequence",
+    "e3 update re-merge keeps locked/notes/pinned, unaffected positions, meta.commit is new HEAD",
+    "e4 usage ledger row per step and printed totals"
+  ],
+  "casesAdded": [
+    [
+      "e1",
+      "e2",
+      "e3",
+      "e4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f0222eafb5f6ac5c9a77474defac984bc1cca055f1f391bb8e03926613aac314\",\"dirtyDigest\":\"sha256:dd1ec7cf475506683592ba79cc2c0d51e36a3a3ad1bda344c99918da75f076fb\",\"dirtyPaths\":{\"tests/e2e.test.mjs\":\"34f0af3ccb21744a\",\"tests/fixtures/e2e/fragments/books.json\":\"675e62a3e6a8eb34\",\"tests/fixtures/e2e/fragments/express.json\":\"d112c96ea3ae91cb\",\"tests/fixtures/e2e/fragments/queues.json\":\"aae4cb2d9786246b\",\"tests/fixtures/e2e/synth.json\":\"3a879d86c4f83288\",\"tests/fixtures/e2e/update/books.json\":\"07a1c427f0f4a41b\"},\"head\":\"500f846\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/e2e.test.mjs\",\"tests/fixtures/e2e/\"],\"scopeDigest\":\"sha256:8045352ca67ff63a053f21daf359e76aaa19edbf1bcbe5edf45eafc952e44d7c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

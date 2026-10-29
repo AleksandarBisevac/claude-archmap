@@ -1,0 +1,47 @@
+{
+  "area": "express",
+  "nodes": [
+    {
+      "id": "orders-api",
+      "zone": "service",
+      "kind": "route-group",
+      "title": "Orders API",
+      "paths": [
+        "src/express/**"
+      ],
+      "level": 2,
+      "role": "Express app and the orders router.",
+      "evidence": [
+        {
+          "path": "src/express/app.ts",
+          "lines": "1-10"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "orders-calls-books",
+      "from": "orders-api",
+      "to": "books-api",
+      "type": "api",
+      "desc": "Orders app is mounted next to the books API",
+      "evidence": [
+        {
+          "path": "src/express/app.ts",
+          "lines": "8"
+        }
+      ],
+      "confidence": "inferred"
+    }
+  ],
+  "entities": [],
+  "access": [],
+  "coverage": [
+    "src/express/**"
+  ],
+  "skipped": {
+    "count": 0,
+    "reasons": []
+  }
+}

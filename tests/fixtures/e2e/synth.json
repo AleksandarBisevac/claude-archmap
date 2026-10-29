@@ -1,0 +1,52 @@
+{
+  "sequences": [
+    {
+      "id": "list-books",
+      "title": "List books",
+      "summary": "A client lists the books.",
+      "participants": [
+        {
+          "id": "o",
+          "label": "Orders API",
+          "node": "orders-api"
+        },
+        {
+          "id": "b",
+          "label": "Books API",
+          "node": "books-api"
+        }
+      ],
+      "steps": [
+        {
+          "m": [
+            "o",
+            "b"
+          ],
+          "k": "api",
+          "t": "GET /books",
+          "d": "Returns the books",
+          "r": [
+            "src/books/books.controller.ts:8"
+          ]
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "id": "system",
+      "title": "System",
+      "nodes": [
+        "orders-api",
+        "books-api",
+        "library-db",
+        "email-queue",
+        "email-worker"
+      ]
+    }
+  ],
+  "notes": [
+    "Fictional fixture model for the end-to-end test."
+  ],
+  "conflicts": []
+}

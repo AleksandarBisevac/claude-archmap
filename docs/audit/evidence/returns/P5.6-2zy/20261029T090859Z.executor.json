@@ -1,0 +1,29 @@
+{
+  "gates": {
+    "node --test tests/e2e.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression mode, expectRedFirst false: the scripts (P5.1-P5.4) already exist, so the tests lock in existing behaviour and cannot be red first",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Wrote the saved e2e.test.mjs (cases e1-e4) and fixtures under tests/fixtures/e2e/ (synth.json, fragments/{express,books,queues}.json, update/books.json) from the scratchpad into tests/, reviewed against the task description, no changes needed (the test already has an after() hook removing the temp repo). node --test tests/e2e.test.mjs: 4 of 4 pass, exit 0. Full node --test: exit 0, 184 tests, 184 pass, 0 fail. Fixtures are fictional; the only grep hit for 'secret' is the ISSUE_TEXT sentinel string. Dependants: tests/fixtures/e2e is named in scripts/lib/prescan/generic.mjs line 91, where e2e is one segment of the TEST_SEGMENT regex classifying test directories; still correct, the classifier is unchanged and the new fixtures sit under tests/. tests/e2e.test.mjs has no tracked dependants.",
+    "descriptive": "End-to-end build/update chain over the fixture repo (prescan, merge, validate, layout, render, diffmap, re-merge, usage) is now locked in without the LLM."
+  },
+  "testsAdded": [
+    "tests/e2e.test.mjs e1-e4: full chain exits 0 with clean HTML; diffmap affects only expected area/nodes/entity; update re-merge keeps locked/notes/pinned, unaffected positions, meta.commit at new HEAD; usage ledger row per step and printed totals"
+  ],
+  "casesAdded": [
+    [
+      "e1",
+      "e2",
+      "e3",
+      "e4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f0222eafb5f6ac5c9a77474defac984bc1cca055f1f391bb8e03926613aac314\",\"dirtyDigest\":\"sha256:dd1ec7cf475506683592ba79cc2c0d51e36a3a3ad1bda344c99918da75f076fb\",\"dirtyPaths\":{\"tests/e2e.test.mjs\":\"34f0af3ccb21744a\",\"tests/fixtures/e2e/fragments/books.json\":\"675e62a3e6a8eb34\",\"tests/fixtures/e2e/fragments/express.json\":\"d112c96ea3ae91cb\",\"tests/fixtures/e2e/fragments/queues.json\":\"aae4cb2d9786246b\",\"tests/fixtures/e2e/synth.json\":\"3a879d86c4f83288\",\"tests/fixtures/e2e/update/books.json\":\"07a1c427f0f4a41b\"},\"head\":\"500f846\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/e2e.test.mjs\",\"tests/fixtures/e2e/\"],\"scopeDigest\":\"sha256:8045352ca67ff63a053f21daf359e76aaa19edbf1bcbe5edf45eafc952e44d7c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
