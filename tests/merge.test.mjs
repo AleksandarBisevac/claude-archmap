@@ -389,3 +389,27 @@ test('m10b merge.mjs imports its matcher from lib/glob.mjs and keeps no glob tra
   assert.match(src, /from '\.\/lib\/glob\.mjs'/);
   assert.doesNotMatch(src, /function globToRegExp/);
 });
+
+test('m11 unknown top-level keys and unknown meta keys in --previous are carried through, appended after the known ones in sorted order', () => {
+  const prev = built().model;
+  prev.zeta = [{ id: 'z1' }];
+  prev.alpha = { note: 'from a newer schema' };
+  prev.meta.zzMeta = { keep: true };
+  prev.meta.aaMeta = 'x';
+  const r = merge({ fragments: buildFrags(), previous: prev, areas: ['api'], meta: {} });
+  assert.deepEqual(r.model.alpha, { note: 'from a newer schema' });
+  assert.deepEqual(r.model.zeta, [{ id: 'z1' }]);
+  assert.deepEqual(r.model.meta.zzMeta, { keep: true });
+  assert.equal(r.model.meta.aaMeta, 'x');
+  const top = Object.keys(r.model);
+  assert.deepEqual(top.slice(-2), ['alpha', 'zeta'], `unknown top-level keys last, sorted: ${top}`);
+  const meta = Object.keys(r.model.meta);
+  assert.deepEqual(meta.slice(-2), ['aaMeta', 'zzMeta'], `unknown meta keys last, sorted: ${meta}`);
+  // known keys keep their position ahead of the unknown ones
+  assert.ok(top.indexOf('nodes') < top.indexOf('alpha'));
+  // a second run over its own output is byte-identical
+  const again = merge({ fragments: buildFrags(), previous: r.model, areas: ['api'], meta: {} });
+  assert.equal(JSON.stringify(again.model), JSON.stringify(r.model));
+  // a fresh build (no previous) has nothing to carry
+  assert.equal('alpha' in built().model, false);
+});

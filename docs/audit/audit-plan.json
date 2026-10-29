@@ -2208,8 +2208,10 @@
             "severity": "low",
             "file": "scripts/merge.mjs:73-110",
             "issue": "merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib/glob.mjs for the same meta.coverage globs. The two disagree: merge's version appends (?:/.*)?$, so a bare directory glob such as 'src/api' owns the subtree, while lib/glob.mjs matches only the literal path. Explorers write coverage globs by hand, so for such a glob merge.mjs replaces the area's elements while diffmap.mjs never reports the area as changed. The update flow then skips the area, or the two scripts disagree on who owns what.",
-            "resolution": "Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy. If a bare directory should own its subtree, put that rule in lib/glob.mjs so both scripts share it, and add a glob test for it.",
-            "fixTask": "P5.10-2zy"
+            "resolution": "fixed in P5.10-2zy (fc130729729b): Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy. If a bare directory should own its subtree, put that rule in lib/glob.mjs so both scripts share it, and add a glob test for it.",
+            "fixTask": "P5.10-2zy",
+            "commit": "fc130729729b",
+            "status": "fixed"
           },
           {
             "id": "P5-R4",
@@ -2220,7 +2222,7 @@
             "fixTask": "P5.11-2zy"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 2 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 3 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -2754,7 +2756,7 @@
         {
           "id": "P5.10-2zy",
           "title": "fix P5-R3: merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib...",
-          "status": "in_progress",
+          "status": "done",
           "description": "merge.mjs keeps its own globToRegExp, while P5.3 added scripts/lib/glob.mjs for the same meta.coverage globs. The two disagree: merge's version appends (?:/.*)?$, so a bare directory glob such as 'src/api' owns the subtree, while lib/glob.mjs matches only the literal path. Explorers write coverage globs by hand, so for such a glob merge.mjs replaces the area's elements while diffmap.mjs never reports the area as changed. The update flow then skips the area, or the two scripts disagree on who owns what.\n\nResolution asked: Import matchGlob/matchAny from lib/glob.mjs in merge.mjs and delete the local copy. If a bare directory should own its subtree, put that rule in lib/glob.mjs so both scripts share it, and add a glob test for it.",
           "files": [
             "scripts/merge.mjs",
@@ -2778,14 +2780,17 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "fc130729729b",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote m10 and m10b in tests/merge.test.mjs first; saw both fail (m10: area with bare coverage glob 'api' still owned api/old.js under merge's local regex; m10b: source had local globToRegExp). Then deleted the local globToRegExp in scripts/merge.mjs, imported matchAny from ./lib/glob.mjs, and ownerTest now collects globs and calls matchAny. Chose the literal reading (bare directory glob does not own subtree; dir/** does) rather than adding a subtree rule to lib/glob.mjs, because lib/glob.mjs is outside this task's files and glob.mjs documents dir/** as the subtree form; merge and diffmap now agree. Header comment in merge.mjs notes this. node --test tests/merge.test.mjs: 19 pass, 0 fail; node --test full: 188 pass, 0 fail. Dependants: tests/merge.test.mjs still correct (updated with 2 new cases, existing 17 pass); SKILL.md, tests/e2e.test.mjs, docs/design.md reference merge.mjs by path/name only, its CLI and behavior for api/** style coverage unchanged, so still correct (e2e passes in the full run).",
+            "descriptive": "merge.mjs now uses the shared lib/glob.mjs matcher so merge and diffmap agree on area ownership."
           },
           "startedAt": "2026-10-29T09:25:41Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T09:27:32Z",
+          "verifiedBy": [
+            "m10: bare directory coverage glob does not own subtree in merge (matches lib/glob.mjs); api/** still does",
+            "m10b: merge.mjs imports from lib/glob.mjs and has no local globToRegExp"
+          ],
           "notes": [
             {
               "at": "2026-10-29T09:13:43Z",
@@ -2812,12 +2817,24 @@
             "runId": "2026-10-29T09:27:31Z.844867",
             "status": "passed",
             "at": "2026-10-29T09:27:31Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "fc130729729b",
+            "at": "2026-10-29T09:27:32Z",
+            "basis": "a fix task for P5-R3, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-10-29T09:27:06Z",
+            "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from '\\.\\/lib\\/glob\\.mjs'/. Input:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P5.11-2zy",
           "title": "fix P5-R4: Model output is rebuilt from a fixed whitelist: meta keys (outMeta...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Model output is rebuilt from a fixed whitelist: meta keys (outMeta) and top-level keys (TOP_ORDER). Any other key in the --previous model is silently dropped on every merge, including unknown meta fields and unknown top-level arrays a newer schema might add. This conflicts with the additive-schema, readers-tolerate-unknown-keys rule (checklist 5) for a file users commit.\n\nResolution asked: Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order.",
           "files": [
             "scripts/merge.mjs",
@@ -2839,14 +2856,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T09:27:33Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -2861,7 +2878,13 @@
           ],
           "fixes": [
             "P5-R4"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T09:29:04Z.2b259d",
+            "status": "passed",
+            "at": "2026-10-29T09:29:04Z"
+          }
         }
       ],
       "area": [

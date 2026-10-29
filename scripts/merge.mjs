@@ -373,6 +373,9 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     coverage,
   };
   for (const k of Object.keys(outMeta)) if (outMeta[k] === undefined) delete outMeta[k];
+  const META_KNOWN = new Set(['schemaVersion', 'project', 'commit', 'generatedAt', 'repoUrl', 'profile', 'sources', 'coverage']);
+  const unknownMeta = isObj(pm) ? Object.keys(pm).filter((k) => !META_KNOWN.has(k)).sort(cmp) : [];
+  for (const k of unknownMeta) outMeta[k] = clone(pm[k]);
 
   const vals = (m, sorter) => [...m.values()].sort(sorter);
   const model = {
@@ -389,12 +392,16 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     views: vals(views, byId),
   };
   for (const [k, v] of Object.entries(optional)) if (v.length) model[k] = v;
+  // Keys this version does not know (a newer schema's additions) ride through from --previous unchanged.
+  const TOP_KNOWN = new Set(['meta', 'zones', 'nodes', 'edges', 'entities', 'relations', 'access', 'sequences', 'views']);
+  const unknownTop = isObj(prev) ? Object.keys(prev).filter((k) => !TOP_KNOWN.has(k)).sort(cmp) : [];
+  for (const k of unknownTop) model[k] = clone(prev[k]);
 
   const META_ORDER = ['schemaVersion', 'project', 'commit', 'generatedAt', 'repoUrl', 'profile', 'sources', 'coverage'];
   const sorted = sortKeys(model);
-  sorted.meta = Object.fromEntries(META_ORDER.filter((k) => k in sorted.meta).map((k) => [k, sorted.meta[k]]));
+  sorted.meta = Object.fromEntries([...META_ORDER, ...unknownMeta].filter((k) => k in sorted.meta).map((k) => [k, sorted.meta[k]]));
   const TOP_ORDER = ['meta', 'zones', 'nodes', 'edges', 'entities', 'relations', 'access', 'sequences', 'views'];
-  const ordered = Object.fromEntries(TOP_ORDER.filter((k) => k in sorted).map((k) => [k, sorted[k]]));
+  const ordered = Object.fromEntries([...TOP_ORDER, ...unknownTop].filter((k) => k in sorted).map((k) => [k, sorted[k]]));
 
   const sortRenames = renames.sort((a, b) => cmp(a.kind, b.kind) || cmp(a.from, b.from) || cmp(a.area, b.area));
   return { model: ordered, conflicts, renames: sortRenames, notes, zonesCreated };

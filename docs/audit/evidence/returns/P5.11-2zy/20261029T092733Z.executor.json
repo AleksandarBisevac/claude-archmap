@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/merge.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T09:28:44Z",
+    "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/merge.mjs: unknown top-level keys and unknown meta keys from --previous are cloned through and appended after the known ones in sorted order (unknownTop/unknownMeta, appended to TOP_ORDER/META_ORDER). Added m11 in tests/merge.test.mjs (carry-through, order, idempotent second run, no carry on fresh build). Ran node --test tests/merge.test.mjs: 20 pass, 0 fail; full node --test: 189 pass, 0 fail, exit 0. Dependants: tests/merge.test.mjs, tests/e2e.test.mjs still correct (full suite green); skills/architecture-map/SKILL.md and docs/design.md (readers tolerate unknown keys, line 118) still correct - the change makes merge honour that rule; CLI/path unchanged.",
+    "descriptive": "merge no longer drops unknown top-level or meta keys from the previous model; they are carried through deterministically."
+  },
+  "testsAdded": [
+    "m11: unknown top-level and meta keys from previous are preserved, ordered last and sorted, stable on re-merge"
+  ],
+  "casesAdded": [
+    "m11"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:55bb08f081789b2d2432d9e3b67fde8cd6200fd71f2cbf5bb84e2915ea8f9ece\",\"dirtyDigest\":\"sha256:70208cf363119b5566bf0158ec30f787d47538faac470404c13d325b8fffebdf\",\"dirtyPaths\":{\"scripts/merge.mjs\":\"1ac28e28413fbbee\",\"tests/merge.test.mjs\":\"a6c7299273e810fb\"},\"head\":\"fc13072\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"tests/merge.test.mjs\"],\"scopeDigest\":\"sha256:99a46ec8b01246aebaeefe58fe9c732dbc2ea29515e4e516d26fc5129f28522b\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
