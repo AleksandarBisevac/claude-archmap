@@ -3768,7 +3768,7 @@
         {
           "id": "P7.3",
           "title": "Markdown summary exporter",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add the md format to scripts/export.mjs: one summary.md (or <view-id>.md with --view) describing the model for a wiki or PR: project, commit and generatedAt from meta; zones; nodes per zone with kind, role and facts; an edges table (from, to, type, label, confidence); entities with field tables (name, type, PK/FK, nullable); relations; a CRUD matrix table from access[] (nodes as rows, entities as columns); sequences each with summary and an embedded mermaid sequenceDiagram block from toMermaidSequence; and evidence as path:lines, linked to repoUrl/blob/<commit>/<path>#L<a>-L<b> when meta.repoUrl is set. Markdown table cells escape pipes and newlines. Clean only: no issue data. Deterministic output, ordering by id.",
           "files": [
             "scripts/export.mjs",
@@ -3794,25 +3794,45 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "423d01c3a75d",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/export.mjs: added toMarkdown(model, viewId) and markdownFiles(); md added to IMPLEMENTED; main dispatches md -> summary.md (or <view-id>.md with --view). Sections: meta header, zones, nodes per zone (kind/role/facts/evidence), edges table (from,to,type,label,confidence), entities with Name/Type/Key/Nullable field tables, relations, CRUD matrix from access[] (nodes rows x entities columns, ops merged) plus access evidence, sequences with summary, mermaid block from toMermaidSequence and step evidence. Evidence is path:lines linked to repoUrl/blob/<commit>/<path>#La-Lb when meta.repoUrl is set. Cells escape backslash, &, <, pipe and newline (<br>). Sorted by id; no issue data. tests/export.test.mjs: x10 no longer lists md as unimplemented; added x20-x27. Full `node --test`: 255 pass, 0 fail. Dependants: tests/skill.test.mjs s8 still correct (SKILL.md line 271 still says export.mjs not yet built, left unchanged as svg/png are pending); docs/design.md and SKILL.md basename mentions still correct.",
+            "descriptive": "export.mjs now writes a deterministic, clean Markdown summary (summary.md / <view>.md) with tables, CRUD matrix, embedded mermaid sequences and linked evidence."
           },
           "startedAt": "2026-10-29T14:25:32Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:29:49Z",
+          "verifiedBy": [
+            "x20 sections/meta/edges table/entity field tables/relations",
+            "x21 CRUD matrix rows, columns, golden ops",
+            "x22 mermaid block per sequence equals toMermaidSequence",
+            "x23 evidence links with repoUrl/blob/commit and plain without repoUrl",
+            "x24 pipe/newline escaping keeps rows intact",
+            "x25 no issue ids or step issue refs",
+            "x26 byte-identical runs and input-order independence",
+            "x27 --view and --out"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T14:29:48Z.84e3f4",
             "status": "passed",
             "at": "2026-10-29T14:29:48Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "423d01c3a75d",
+            "at": "2026-10-29T14:29:49Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:29:31Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: format md is not yet implemented; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P7.4",
           "title": "Static SVG exporter",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add the svg format to scripts/export.mjs: a standalone SVG per view (<view-id>.svg) and er.svg, drawn from the model and its layout file (--layout, default architecture.layout.json beside the model; when missing, compute it in memory with layout.mjs's exported function without writing it). Graph: zone enclosures, node boxes with title and kind, edges from the layout's routed sections with arrowheads, coloured by the fixed relation palette the viewer uses (design D10, take the colours from assets/viewer so they stay in one place or document the shared table). ER: entity cards with field rows, PK/FK markers and relation lines. The SVG is offline and self-contained: no external href, font url, script or foreignObject; text is XML-escaped; system font stack. Deterministic: same model and layout give byte-identical SVG (coordinates rounded). Clean only. Export pure functions toSvgGraph, toSvgER.",
           "files": [
             "scripts/export.mjs",
@@ -3836,16 +3856,22 @@
           "dependsOn": [
             "P7.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T14:29:50Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:34:20Z.70f749",
+            "status": "passed",
+            "at": "2026-10-29T14:34:20Z"
+          }
         },
         {
           "id": "P7.5",

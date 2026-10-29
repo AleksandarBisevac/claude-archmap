@@ -1,0 +1,33 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:33:59Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/export.mjs: added toSvgGraph(model, layout, viewId), toSvgER(model, layout) and svgFiles; svg is now an implemented format (png still exit 2). Output: <view-id>.svg per view plus er.svg. Graph draws zone enclosures, node rects (data-node) with title and kind, one path per edge (data-edge) from the layout's routed sections with a separate filled arrowhead path (data-arrow), coloured from the first :root block of assets/viewer/viewer.css (single source of --rel-*/--zone-*; dash and width table mirrors viewer.js REL, noted in a comment). ER draws entity cards (data-entity) with field rows, PK/FK markers, type, and relation paths (data-relation) with crow's feet. No href, url(, script, foreignObject, @import; XML-escaped text; system font stack; coordinates rounded to 2 decimals; byte-identical across runs. CLI: --layout, else architecture.layout.json beside the model, else layout.mjs layoutModel computed in memory (dynamic import, never written); main() became async. Nodes/entities the layout lacks are parked below the rest. tests/export.test.mjs: added x28-x31, removed svg from the x10 not-yet-implemented list (png remains). Ran node --test tests/export.test.mjs (31/31 pass) and the full node --test (259/259 pass). Dependants: tests/skill.test.mjs (basename) still passes in the full run; docs/design.md and skills/architecture-map/SKILL.md name export.mjs only as a command and are unchanged and still correct (SKILL.md line 271 still says 'not yet built', which was already stale from P7.1 and is outside this task's files).",
+    "descriptive": "export.mjs now writes standalone offline SVGs for each view and the ER diagram from the model and layout."
+  },
+  "testsAdded": [
+    "x28 per-view SVGs and er.svg: well-formed, rect per node/entity, path per edge/relation, self-contained",
+    "x29 relation palette read from viewer.css and an arrowhead per edge",
+    "x30 hostile < & \" text is XML-escaped",
+    "x31 determinism, --layout/beside-model/in-memory layout, no issue ids"
+  ],
+  "casesAdded": [
+    [
+      "x28",
+      "x29",
+      "x30",
+      "x31"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:71464ec6c80410b1fa4e9ecf2fea7baaecc4d1c6c1a441e613c96b8a154bab58\",\"dirtyDigest\":\"sha256:9cf643e35723e6d06c5ae2086e075700c355b83514dbb1068594d7f48d649bda\",\"dirtyPaths\":{\"scripts/export.mjs\":\"8ca7833d5e56de99\",\"tests/export.test.mjs\":\"b4a5fea94af80d7b\"},\"head\":\"423d01c\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:d126ed57bf6128786555c0d83f47311b8ee463a8ad5ff9fdc2a56770f8806055\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

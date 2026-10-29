@@ -19,7 +19,8 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 const tmp = mkdtempSync(join(tmpdir(), 'archmap-export-'));
 process.on('exit', () => rmSync(tmp, { recursive: true, force: true }));
 
-const { toMermaidFlowchart, toMermaidER, toMermaidSequence, toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence } = await import('../scripts/export.mjs');
+const { toMermaidFlowchart, toMermaidER, toMermaidSequence, toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence, toSvgGraph, toSvgER } = await import('../scripts/export.mjs');
+const { layoutModel } = await import('../scripts/layout.mjs');
 
 let seq = 0;
 const fresh = (name) => {
@@ -284,7 +285,7 @@ test('x9 an invalid model is refused: exit 1, nothing written', () => {
 
 test('x10 usage errors and formats not yet implemented exit 2 and write nothing', () => {
   const p = place(model);
-  for (const fmt of ['svg', 'png']) {
+  for (const fmt of ['png']) {
     const r = run([p.file, fmt]);
     assert.equal(r.status, 2, `${fmt}: ${r.stderr}`);
     assert.match(r.stderr, /not yet implemented/);
@@ -725,4 +726,135 @@ test('x27 md --view writes <view-id>.md for that view only and --out redirects i
   assert.equal(run([p.file, 'md', '--out', out]).status, 0);
   assert.deepEqual(files(out), ['summary.md']);
   assert.equal(run([p.file, 'md', '--view', 'nope']).status, 2);
+});
+
+// ---- svg ---------------------------------------------------------------------------------------------------------
+
+const layout = await layoutModel(model);
+const attrs = (tag) => Object.fromEntries([...tag.matchAll(/([\w:-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+const tagsOf = (svg, name) => [...svg.matchAll(new RegExp(`<${name}(?=[\\s/>])[^>]*>`, 'g'))].map((m) => m[0]);
+
+/** A minimal well-formedness check: balanced tags, quoted attributes, only the five named entities or numeric refs. */
+function assertWellFormed(svg, label) {
+  assert.ok(svg.startsWith('<svg '), `${label}: starts with <svg`);
+  assert.match(svg, /^<svg [^>]*xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, `${label}: svg namespace`);
+  assert.ok(!/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(svg), `${label}: bare ampersand`);
+  const stack = [];
+  const re = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+="[^"<]*")*)\s*(\/?)>|<[^>]*>|[^<]+/g;
+  for (const m of svg.matchAll(re)) {
+    if (!m[2]) {
+      assert.ok(!m[0].startsWith('<'), `${label}: malformed tag ${m[0].slice(0, 60)}`);
+      continue;
+    }
+    if (m[1]) assert.equal(stack.pop(), m[2], `${label}: unbalanced </${m[2]}>`);
+    else if (!m[4]) stack.push(m[2]);
+  }
+  assert.deepEqual(stack, [], `${label}: unclosed tags`);
+  assert.equal(svg.match(/<svg[\s>]/g).length, 1, `${label}: one svg element`);
+}
+
+function assertSelfContained(svg, label) {
+  assert.ok(!/href\s*=\s*"\s*(https?:)?\/\//i.test(svg), `${label}: external href`);
+  assert.ok(!/https?:\/\/(?!www\.w3\.org\/2000\/svg)/.test(svg), `${label}: external url`);
+  assert.ok(!/<script/i.test(svg), `${label}: script`);
+  assert.ok(!/<foreignObject/i.test(svg), `${label}: foreignObject`);
+  assert.ok(!/@import/i.test(svg), `${label}: @import`);
+  assert.ok(!/url\s*\(/i.test(svg), `${label}: url(`);
+  assert.ok(!/<[^>]*\son\w+\s*=/i.test(svg), `${label}: event handler`);
+}
+
+test('x28 svg writes one parseable SVG per view and er.svg, with a rect per node/entity and a path per edge/relation, self-contained', () => {
+  const p = place(model);
+  const r = run([p.file, 'svg']);
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  assert.deepEqual(files(p.exports), [...model.views.map((v) => `${v.id}.svg`), 'er.svg'].sort());
+  for (const v of model.views) {
+    const svg = readFileSync(join(p.exports, `${v.id}.svg`), 'utf8');
+    assertWellFormed(svg, v.id);
+    assertSelfContained(svg, v.id);
+    const nodeRects = tagsOf(svg, 'rect').map(attrs).filter((a) => a['data-node']);
+    assert.deepEqual(nodeRects.map((a) => a['data-node']).sort(), viewNodes(v).map((n) => n.id).sort(), `${v.id}: one rect per node`);
+    const edgePaths = tagsOf(svg, 'path').map(attrs).filter((a) => a['data-edge']);
+    assert.deepEqual(edgePaths.map((a) => a['data-edge']).sort(), viewEdges(v).map((e) => e.id).sort(), `${v.id}: one path per edge`);
+    for (const n of viewNodes(v)) assert.ok(svg.includes(`>${n.title.replace(/&/g, '&amp;')}<`), `${v.id}: title of ${n.id}`);
+    for (const e of edgePaths) assert.match(e.d, /^M[-\d. ,LMCQ]+$/);
+  }
+  const er = readFileSync(join(p.exports, 'er.svg'), 'utf8');
+  assertWellFormed(er, 'er');
+  assertSelfContained(er, 'er');
+  assert.deepEqual(
+    tagsOf(er, 'rect').map(attrs).filter((a) => a['data-entity']).map((a) => a['data-entity']).sort(),
+    model.entities.map((e) => e.id).sort(),
+  );
+  assert.equal(tagsOf(er, 'path').map(attrs).filter((a) => a['data-relation']).length, model.relations.length);
+  for (const e of model.entities) for (const f of e.fields) assert.ok(er.includes(`>${f.name}<`), `${e.id}.${f.name} row`);
+  assert.ok(er.includes('>PK<') && er.includes('>FK<'), 'PK and FK markers');
+});
+
+test('x29 svg edges use the viewer relation palette (assets/viewer/viewer.css) and carry an arrowhead each', () => {
+  const css = readFileSync(join(dirname(CLI), '..', 'assets', 'viewer', 'viewer.css'), 'utf8');
+  const root = css.slice(css.indexOf(':root{'), css.indexOf('}', css.indexOf(':root{')));
+  const palette = Object.fromEntries([...root.matchAll(/--rel-([a-z]+):\s*(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2].toLowerCase()]));
+  assert.ok(Object.keys(palette).length >= 12);
+  const v = model.views.find((x) => x.id === 'system-context') ?? model.views[0];
+  const svg = toSvgGraph(model, layout, v.id);
+  const paths = tagsOf(svg, 'path').map(attrs).filter((a) => a['data-edge']);
+  assert.ok(paths.length > 0);
+  const byEdge = new Map(model.edges.map((e) => [e.id, e]));
+  for (const a of paths) assert.equal(a.stroke.toLowerCase(), palette[byEdge.get(a['data-edge']).type] ?? palette.call, a['data-edge']);
+  // arrowheads are drawn as shapes, one per edge, in the edge colour (a marker would need url())
+  const heads = tagsOf(svg, 'path').map(attrs).filter((a) => a['data-arrow']);
+  assert.deepEqual(heads.map((a) => a['data-arrow']).sort(), paths.map((a) => a['data-edge']).sort());
+  for (const a of heads) assert.equal(a.fill.toLowerCase(), palette[byEdge.get(a['data-arrow']).type] ?? palette.call);
+});
+
+test('x30 svg model text is XML-escaped: < & " in titles, kinds, entity and field names cannot break out', () => {
+  const m = clone(model);
+  const bad = 'A <b onload="x()">&amp; "q" \'s\' </text><script>1</script>';
+  m.nodes[0].title = bad;
+  m.nodes[0].kind = bad;
+  m.zones[0].title = bad;
+  m.entities[0].name = bad;
+  m.entities[0].fields.push({ name: bad, type: bad, provenance: 'declared' });
+  const lay = layoutOf(m);
+  return lay.then((l) => {
+    const outs = [...m.views.map((v) => toSvgGraph(m, l, v.id)), toSvgER(m, l)];
+    for (const svg of outs) {
+      assertWellFormed(svg, 'hostile');
+      assertSelfContained(svg, 'hostile');
+      assert.ok(!svg.includes('<b onload'), 'raw markup');
+      assert.ok(!svg.includes('<script'), 'raw script');
+    }
+    assert.ok(outs.some((svg) => svg.includes('&lt;b onload=&quot;x()&quot;&gt;&amp;amp; &quot;q&quot;')), 'escaped text present');
+  });
+});
+const layoutOf = (m) => layoutModel(m);
+
+test('x31 svg is deterministic, honours --layout and computes the layout in memory when none exists, and carries no issue data', () => {
+  const p = place(model);
+  assert.equal(run([p.file, 'svg']).status, 0);
+  const a = readAll(p.exports);
+  assert.ok(!existsSync(join(p.dir, 'architecture.layout.json')), 'a missing layout is never written');
+  assert.equal(run([p.file, 'svg']).status, 0);
+  assert.deepEqual(readAll(p.exports), a);
+  const ids = issues.issues.map((i) => i.id);
+  for (const { f, text } of a) for (const id of ids) assert.ok(!text.includes(id), `${f} contains ${id}`);
+  // a layout file beside the model is used, and --layout points elsewhere
+  const moved = clone(layout);
+  const firstNode = Object.keys(moved.graph.nodes)[0];
+  moved.graph.nodes[firstNode].x += 7;
+  writeFileSync(join(p.dir, 'architecture.layout.json'), JSON.stringify(moved));
+  const out1 = join(fresh('svgout'), 'o');
+  assert.equal(run([p.file, 'svg', '--out', out1]).status, 0);
+  const view = model.views.find((v) => viewNodes(v).some((n) => n.id === firstNode));
+  assert.equal(readFileSync(join(out1, `${view.id}.svg`), 'utf8'), toSvgGraph(model, moved, view.id));
+  const other = join(fresh('lay'), 'l.json');
+  writeFileSync(other, JSON.stringify(layout));
+  const out2 = join(fresh('svgout'), 'o');
+  assert.equal(run([p.file, 'svg', '--layout', other, '--out', out2]).status, 0);
+  assert.equal(readFileSync(join(out2, `${view.id}.svg`), 'utf8'), toSvgGraph(model, layout, view.id));
+  assert.equal(toSvgGraph(model, layout, view.id), toSvgGraph(model, layout, view.id));
+  assert.equal(toSvgER(model, layout), toSvgER(model, layout));
+  assert.equal(run([p.file, 'svg', '--layout', join(tmp, 'nope.json')]).status, 2);
+  assert.equal(run([p.file, 'svg', '--view', 'nope']).status, 2);
 });

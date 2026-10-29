@@ -3,8 +3,8 @@
 //
 //   node scripts/export.mjs <model.json> <format> [--view <id>] [--layout <layout.json>] [--out <path>]
 //
-// Formats: mermaid | plantuml | md | svg | png. This build implements mermaid, plantuml and md; the others
-// are refused with exit 2 ("not yet implemented") until their tasks land.
+// Formats: mermaid | plantuml | md | svg | png. This build implements mermaid, plantuml, md and svg; png
+// is refused with exit 2 ("not yet implemented") until its task lands.
 //
 //   mermaid  one flowchart per view (nodes grouped in subgraphs by zone, every edge labelled with its type
 //            and label), an erDiagram of the entities (fields with type, PK/FK markers, crow's-foot
@@ -23,6 +23,15 @@
 //            mermaid block. Evidence is path:lines, linked to <repoUrl>/blob/<commit>/<path>#La-Lb when
 //            meta.repoUrl is set. Table cells escape pipes and newlines. Ordered by id.
 //
+//   svg      one standalone <view-id>.svg per view (zone enclosures, node boxes with title and kind, edges
+//            drawn along the layout's routed sections with an arrowhead each, coloured and dashed by relation
+//            type) and er.svg (entity cards with field rows, PK/FK markers, relation lines with crow's feet).
+//            Drawn from the model and its layout file: --layout, else architecture.layout.json beside the
+//            model, else computed in memory with layout.mjs and not written. Relation and zone colours are
+//            read from assets/viewer/viewer.css (design D10), so they stay in one place. Offline and
+//            self-contained: no href, font url, script, foreignObject or url(); text is XML-escaped; system
+//            font stack; coordinates rounded to 2 decimals.
+//
 // Exports are ALWAYS clean: no issue id, no step issue ref (steps[].i) and no issue text ever appears in
 // any output, because the exporters never read them. Every label taken from the model is escaped for
 // Mermaid (quotes, brackets, braces, pipes, semicolons, angle brackets, '#', '%' and newlines become numeric
@@ -36,19 +45,19 @@
 // The model is validated first (validate.mjs); an invalid model is refused and nothing is written.
 // Files go to <model dir>/exports/ (with the model in docs/architecture/ that is docs/architecture/exports/)
 // as <view-id>.flowchart.mmd, er.mmd and <sequence-id>.sequence.mmd (PlantUML: .component.puml, er.puml,
-// .sequence.puml); --out <dir> overrides the directory.
-// --layout is accepted for a uniform command line and is not needed by the text formats.
+// .sequence.puml; SVG: <view-id>.svg, er.svg); --out <dir> overrides the directory.
+// --layout is read by svg only (the text formats ignore it).
 // Output is deterministic: the same model gives byte-identical files.
 // Exit 0 ok, 1 the model is invalid (nothing is written), 2 usage or unreadable input.
 // Node >= 18, ESM, zero npm dependencies.
 
-import { readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, realpathSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
 
 export const FORMATS = ['mermaid', 'plantuml', 'md', 'svg', 'png'];
-const IMPLEMENTED = ['mermaid', 'plantuml', 'md'];
+const IMPLEMENTED = ['mermaid', 'plantuml', 'md', 'svg'];
 
 const list = (v) => (Array.isArray(v) ? v : []);
 const str = (v) => (typeof v === 'string' ? v : v === undefined || v === null ? '' : String(v));
@@ -702,6 +711,353 @@ export function markdownFiles(model, { view } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// SVG
+
+// Colours are the viewer's: the first :root block of assets/viewer/viewer.css (the light theme) is the one table
+// of fixed relation / zone colours (design D10), read here so they stay in one place. The dash pattern and
+// stroke width of each relation type mirror viewer.js REL (that table lives in a browser script and cannot be
+// imported; keep the two in step).
+const REL_STYLE = {
+  api: { dash: null, w: 2 },
+  static: { dash: '2 4', w: 1.7 },
+  auth: { dash: '7 4', w: 2 },
+  pull: { dash: null, w: 3.2 },
+  sql: { dash: null, w: 2 },
+  cache: { dash: null, w: 2 },
+  persist: { dash: '1.5 3.5', w: 2.2 },
+  call: { dash: null, w: 1.3 },
+  link: { dash: '8 3 2 3', w: 1.6 },
+  deploy: { dash: '10 5', w: 2 },
+  event: { dash: '4 2 1 2', w: 1.8 },
+  queue: { dash: '6 3', w: 2.4 },
+};
+const SVG_FONT = 'system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif';
+const SVG_MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,Liberation Mono,monospace';
+
+let paletteCache;
+function viewerPalette() {
+  if (paletteCache) return paletteCache;
+  const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'viewer', 'viewer.css');
+  let css;
+  try {
+    css = readFileSync(file, 'utf8');
+  } catch (e) {
+    throw new Error(`cannot read the viewer palette ${file}: ${e.code ?? e.message}`);
+  }
+  const start = css.indexOf(':root{');
+  const block = start < 0 ? '' : css.slice(start, css.indexOf('}', start));
+  const p = {};
+  for (const m of block.matchAll(/--([a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})\b/g)) p[m[1]] = m[2];
+  for (const k of ['surface', 'surface-2', 'fg', 'muted', 'line-2', 'rel-call']) {
+    if (!p[k]) throw new Error(`the viewer palette ${file} lacks --${k}`);
+  }
+  paletteCache = p;
+  return p;
+}
+
+/** Text for an XML text node or a double-quoted attribute: the five entities, no control characters. */
+function xesc(s) {
+  return str(s)
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f￾￿]/g, '')
+    .replace(/[\t\n\r\u0085\u2028\u2029]/g, ' ')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+/** Shorten text that would overflow a box of the given width at roughly `per` pixels per character. */
+function fit(s, width, per) {
+  const t = str(s);
+  const max = Math.max(3, Math.floor(width / per));
+  const chars = Array.from(t);
+  return chars.length <= max ? t : `${chars.slice(0, max - 1).join('')}…`;
+}
+const rnd = (v) => {
+  const r = Math.round(v * 100) / 100;
+  return Object.is(r, -0) ? 0 : r;
+};
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+const hasBox = (b) => b && finite(b.x) && finite(b.y) && finite(b.w) && finite(b.h);
+
+/** The routed points of an edge or relation: its sections' start, bend and end points, repeats dropped. */
+function sectionPoints(entry) {
+  const pts = [];
+  for (const sec of list(entry && entry.sections)) {
+    for (const q of [sec && sec.startPoint, ...list(sec && sec.bendPoints), sec && sec.endPoint]) {
+      if (!q || !finite(q.x) || !finite(q.y)) continue;
+      const last = pts[pts.length - 1];
+      if (!last || last[0] !== q.x || last[1] !== q.y) pts.push([q.x, q.y]);
+    }
+  }
+  return pts;
+}
+/** A polyline with rounded corners. */
+function roundedPath(pts, rad) {
+  let d = `M${rnd(pts[0][0])},${rnd(pts[0][1])}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i - 1];
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[i + 1];
+    const d1 = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const d2 = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const r = Math.min(rad, d1 / 2, d2 / 2);
+    d += ` L${rnd(x1 + ((x0 - x1) / d1) * r)},${rnd(y1 + ((y0 - y1) / d1) * r)} Q${rnd(x1)},${rnd(y1)} ${rnd(x1 + ((x2 - x1) / d2) * r)},${rnd(y1 + ((y2 - y1) / d2) * r)}`;
+  }
+  const last = pts[pts.length - 1];
+  return `${d} L${rnd(last[0])},${rnd(last[1])}`;
+}
+/** A filled triangle whose tip is p, arriving from q. */
+function arrowHead(p, q) {
+  const dx = p[0] - q[0];
+  const dy = p[1] - q[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const bx = p[0] - ux * 10;
+  const by = p[1] - uy * 10;
+  return `M${rnd(p[0])},${rnd(p[1])} L${rnd(bx - uy * 4.5)},${rnd(by + ux * 4.5)} L${rnd(bx + uy * 4.5)},${rnd(by - ux * 4.5)} Z`;
+}
+/** Crow's foot (many) or bar (one) at p, for a line arriving from q (the viewer's glyphs). */
+function crowFoot(p, q, many) {
+  const dx = q[0] - p[0];
+  const dy = q[1] - p[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  if (many) {
+    const bx = p[0] + ux * 12;
+    const by = p[1] + uy * 12;
+    return `M${rnd(bx + nx * 6)},${rnd(by + ny * 6)} L${rnd(p[0])},${rnd(p[1])} L${rnd(bx - nx * 6)},${rnd(by - ny * 6)}`;
+  }
+  const bx = p[0] + ux * 10;
+  const by = p[1] + uy * 10;
+  return `M${rnd(bx + nx * 6)},${rnd(by + ny * 6)} L${rnd(bx - nx * 6)},${rnd(by - ny * 6)}`;
+}
+
+/** Boxes for items the layout has no position for: a row below everything that has one. */
+function parkMissing(items, placed, size) {
+  const out = new Map(placed);
+  let bottom = 0;
+  for (const b of placed.values()) bottom = Math.max(bottom, b.y + b.h);
+  let x = 0;
+  const y = placed.size ? bottom + 40 : 0;
+  for (const it of items) {
+    if (out.has(it.id)) continue;
+    const { w, h } = size(it);
+    out.set(it.id, { x, y, w, h });
+    x += w + 24;
+  }
+  return out;
+}
+
+function svgDocument(bounds, body, desc) {
+  const pad = 24;
+  const x = rnd(bounds.x0 - pad);
+  const y = rnd(bounds.y0 - pad);
+  const w = rnd(bounds.x1 - bounds.x0 + 2 * pad);
+  const h = rnd(bounds.y1 - bounds.y0 + 2 * pad);
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${w}" height="${h}" role="img" font-family="${SVG_FONT}" font-size="12">`,
+    `<title>${xesc(desc)}</title>`,
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#FFFFFF"/>`,
+    ...body,
+    '</svg>',
+    '',
+  ].join('\n');
+}
+function boundsOf() {
+  return { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+}
+function grow(b, x, y) {
+  b.x0 = Math.min(b.x0, x);
+  b.y0 = Math.min(b.y0, y);
+  b.x1 = Math.max(b.x1, x);
+  b.y1 = Math.max(b.y1, y);
+}
+function settle(b) {
+  if (!Number.isFinite(b.x0)) return { x0: 0, y0: 0, x1: 400, y1: 120 };
+  return b;
+}
+
+/**
+ * Standalone SVG of one view (every node and zone when viewId is omitted), drawn from the model and the
+ * layout file's `graph` block (absolute coordinates). Nodes or zones the layout lacks are parked below the rest.
+ * @param {object} model a valid model
+ * @param {object} layout an architecture.layout.json content
+ * @param {string} [viewId]
+ * @returns {string}
+ */
+export function toSvgGraph(model, layout, viewId) {
+  let view;
+  if (viewId !== undefined) {
+    view = list(model.views).find((v) => v.id === viewId);
+    if (!view) throw new Error(`unknown view ${viewId}`);
+  }
+  const pal = viewerPalette();
+  const scope = viewScope(model, view);
+  const lg = (layout && layout.graph) || {};
+  const placedNodes = new Map();
+  for (const n of scope.nodes) if (hasBox(lg.nodes && lg.nodes[n.id])) placedNodes.set(n.id, lg.nodes[n.id]);
+  const nodeBox = parkMissing(scope.nodes, placedNodes, () => ({ w: 160, h: 56 }));
+  const zoneBox = new Map();
+  for (const z of scope.zones) if (hasBox(lg.zones && lg.zones[z.id])) zoneBox.set(z.id, lg.zones[z.id]);
+
+  const zones = new Map(list(model.zones).map((z) => [z.id, z]));
+  const depth = (z) => zoneChain(zones, z.id).length;
+  const drawnZones = scope.zones
+    .filter((z) => zoneBox.has(z.id))
+    .sort((a, b) => depth(a) - depth(b) || byId(a, b));
+  const b = boundsOf();
+  const body = [];
+  for (const z of drawnZones) {
+    const r = zoneBox.get(z.id);
+    const col = pal[`zone-${z.kind}`] ?? pal['line-2'];
+    grow(b, r.x, r.y);
+    grow(b, r.x + r.w, r.y + r.h);
+    body.push(
+      `<g class="zone" data-zone="${xesc(z.id)}"><rect x="${rnd(r.x)}" y="${rnd(r.y)}" width="${rnd(r.w)}" height="${rnd(r.h)}" rx="8" fill="${col}" fill-opacity="0.07" stroke="${col}" stroke-opacity="0.6" stroke-width="1.2"/>` +
+        `<text x="${rnd(r.x + 12)}" y="${rnd(r.y + 22)}" font-size="12" font-weight="600" fill="${col}">${xesc(fit(z.title ?? z.id, r.w - 24, 7.4))}</text></g>`,
+    );
+  }
+  const nodes = scope.nodes.slice().sort(byId);
+  for (const n of nodes) {
+    const r = nodeBox.get(n.id);
+    grow(b, r.x, r.y);
+    grow(b, r.x + r.w, r.y + r.h);
+    const col = pal[`zone-${(zones.get(n.zone) || {}).kind}`] ?? pal['line-2'];
+    body.push(
+      `<g class="node"><rect data-node="${xesc(n.id)}" x="${rnd(r.x)}" y="${rnd(r.y)}" width="${rnd(r.w)}" height="${rnd(r.h)}" rx="6" fill="${pal.surface}" stroke="${col}" stroke-width="1.4"/>` +
+        `<text x="${rnd(r.x + 12)}" y="${rnd(r.y + 24)}" font-size="13" font-weight="600" fill="${pal.fg}">${xesc(fit(n.title ?? n.id, r.w - 24, 7.6))}</text>` +
+        `<text x="${rnd(r.x + 12)}" y="${rnd(r.y + 42)}" font-size="11" fill="${pal.muted}">${xesc(fit(n.kind ?? '', r.w - 24, 6.4))}</text></g>`,
+    );
+  }
+  const edges = scope.edges.slice().sort(byId);
+  for (const e of edges) {
+    const type = REL_STYLE[e.type] ? e.type : 'call';
+    const st = REL_STYLE[type];
+    const col = pal[`rel-${type}`];
+    let pts = sectionPoints(lg.edges && lg.edges[e.id]);
+    if (pts.length < 2) {
+      const a = nodeBox.get(e.from);
+      const c = nodeBox.get(e.to);
+      pts = [
+        [a.x + a.w / 2, a.y + a.h / 2],
+        [c.x + c.w / 2, c.y + c.h / 2],
+      ];
+    }
+    for (const q of pts) grow(b, q[0], q[1]);
+    const dash = st.dash ? ` stroke-dasharray="${st.dash}"` : '';
+    body.push(
+      `<g class="edge"><path data-edge="${xesc(e.id)}" d="${roundedPath(pts, 8)}" fill="none" stroke="${col}" stroke-width="${st.w}"${dash} stroke-linejoin="round"/>` +
+        `<path data-arrow="${xesc(e.id)}" d="${arrowHead(pts[pts.length - 1], pts[pts.length - 2])}" fill="${col}" stroke="none"/></g>`,
+    );
+  }
+  return svgDocument(settle(b), body, `${str(model.meta && model.meta.project) || 'Architecture'} - ${str(view && (view.title ?? view.id)) || 'all components'}`);
+}
+
+/**
+ * Standalone SVG of the entity-relationship diagram, drawn from the model and the layout file's `er` block:
+ * entity cards with a field row each (PK / FK markers, type) and the relation lines with crow's-foot ends.
+ * @param {object} model a valid model
+ * @param {object} layout an architecture.layout.json content
+ * @returns {string}
+ */
+export function toSvgER(model, layout) {
+  const pal = viewerPalette();
+  const le = (layout && layout.er) || {};
+  const entities = list(model.entities).slice().sort(byId);
+  const placed = new Map();
+  for (const e of entities) if (hasBox(le.entities && le.entities[e.id])) placed.set(e.id, le.entities[e.id]);
+  const box = parkMissing(entities, placed, (e) => ({ w: 210, h: 36 + 22 * list(e.fields).length }));
+  const rels = list(model.relations);
+  const outgoing = new Set(rels.map((r) => `${r.from.entity}\u0000${r.from.field}`));
+  const b = boundsOf();
+  const body = [];
+  const rows = new Map(); // entity id -> field name -> [x, y] of the row's edge
+  for (const e of entities) {
+    const r = box.get(e.id);
+    const fields = list(e.fields);
+    grow(b, r.x, r.y);
+    grow(b, r.x + r.w, r.y + Math.max(r.h, 30 + 22 * fields.length));
+    const port = (le.entities && le.entities[e.id] && le.entities[e.id].ports) || {};
+    const rowAt = new Map();
+    const g = [
+      `<g class="entity"><rect data-entity="${xesc(e.id)}" x="${rnd(r.x)}" y="${rnd(r.y)}" width="${rnd(r.w)}" height="${rnd(r.h)}" rx="6" fill="${pal.surface}" stroke="${pal['line-2']}" stroke-width="1.2"/>`,
+      `<path d="M${rnd(r.x)},${rnd(r.y + 30)} L${rnd(r.x)},${rnd(r.y + 6)} Q${rnd(r.x)},${rnd(r.y)} ${rnd(r.x + 6)},${rnd(r.y)} L${rnd(r.x + r.w - 6)},${rnd(r.y)} Q${rnd(r.x + r.w)},${rnd(r.y)} ${rnd(r.x + r.w)},${rnd(r.y + 6)} L${rnd(r.x + r.w)},${rnd(r.y + 30)} Z" fill="${pal['surface-2']}" stroke="none"/>`,
+      `<text x="${rnd(r.x + 10)}" y="${rnd(r.y + 20)}" font-size="13" font-weight="600" fill="${pal.fg}">${xesc(fit(e.name ?? e.id, r.w - 20, 7.6))}</text>`,
+    ];
+    fields.forEach((f, i) => {
+      const y = r.y + 30 + 22 * i;
+      const p = port[f.name];
+      rowAt.set(f.name, finite(p && p.x) && finite(p && p.y) ? [r.x + p.x, r.y + p.y] : [r.x + r.w, y + 11]);
+      const fk = !!f.fk || outgoing.has(`${e.id}\u0000${f.name}`);
+      if (i > 0) g.push(`<path d="M${rnd(r.x)},${rnd(y)} L${rnd(r.x + r.w)},${rnd(y)}" fill="none" stroke="${pal['surface-2']}" stroke-width="1"/>`);
+      let tx = r.x + 10;
+      if (f.pk) {
+        g.push(`<text x="${rnd(tx)}" y="${rnd(y + 15)}" font-size="9" font-weight="700" fill="${pal['rel-deploy']}">PK</text>`);
+        tx += 20;
+      }
+      if (fk) {
+        g.push(`<text x="${rnd(r.x + 10 + (f.pk ? 20 : 0))}" y="${rnd(y + 15)}" font-size="9" font-weight="700" fill="${pal['rel-sql']}">FK</text>`);
+        tx += 20;
+      }
+      const room = r.w - (tx - r.x) - 10;
+      g.push(`<text x="${rnd(tx)}" y="${rnd(y + 15)}" font-size="11.5" font-family="${SVG_MONO}" fill="${pal.fg}">${xesc(fit(f.name, room * 0.6, 7))}</text>`);
+      if (f.type) g.push(`<text x="${rnd(r.x + r.w - 10)}" y="${rnd(y + 15)}" font-size="10.5" text-anchor="end" fill="${pal.muted}">${xesc(fit(f.type, room * 0.38, 6.2))}</text>`);
+    });
+    g.push('</g>');
+    rows.set(e.id, rowAt);
+    body.push(g.join(''));
+  }
+  const used = new Map();
+  for (const rel of rels) {
+    const base = `${rel.from.entity}.${rel.from.field}->${rel.to.entity}.${rel.to.field}`;
+    const n = (used.get(base) || 0) + 1;
+    used.set(base, n);
+    const key = n === 1 ? base : `${base}#${n}`;
+    const a = box.get(rel.from.entity);
+    const c = box.get(rel.to.entity);
+    if (!a || !c) continue;
+    let pts = sectionPoints(le.relations && le.relations[key]);
+    if (pts.length < 2) {
+      const pa = (rows.get(rel.from.entity) || new Map()).get(rel.from.field) || [a.x + a.w, a.y + a.h / 2];
+      const pc = (rows.get(rel.to.entity) || new Map()).get(rel.to.field) || [c.x, c.y + c.h / 2];
+      pts = [pa, pc];
+    }
+    for (const q of pts) grow(b, q[0], q[1]);
+    const manyFrom = rel.cardinality === '1-n' || rel.cardinality === 'n-m';
+    const manyTo = rel.cardinality === 'n-m';
+    const foot = `${crowFoot(pts[0], pts[1], manyFrom)} ${crowFoot(pts[pts.length - 1], pts[pts.length - 2], manyTo)}`;
+    const col = pal['rel-sql'];
+    const dash = rel.provenance === 'inferred' ? ' stroke-dasharray="4 3"' : '';
+    body.push(
+      `<g class="relation"><path data-relation="${xesc(key)}" d="${roundedPath(pts, 8)}" fill="none" stroke="${col}" stroke-width="1.5"${dash}/>` +
+        `<path class="foot" d="${foot}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g>`,
+    );
+  }
+  return svgDocument(settle(b), body, `${str(model.meta && model.meta.project) || 'Architecture'} - entities`);
+}
+
+/**
+ * Every SVG file for a model: [{name, text}], in a fixed order.
+ * @param {object} model a valid model
+ * @param {object} layout an architecture.layout.json content
+ * @param {{view?: string}} [opts] view = only that view's SVG
+ */
+export function svgFiles(model, layout, { view } = {}) {
+  const name = fileNamer();
+  if (view !== undefined) return [{ name: name(view, '.svg'), text: toSvgGraph(model, layout, view) }];
+  const files = [];
+  for (const v of list(model.views)) files.push({ name: name(v.id, '.svg'), text: toSvgGraph(model, layout, v.id) });
+  if (list(model.views).length === 0) files.push({ name: name('all', '.svg'), text: toSvgGraph(model, layout) });
+  if (list(model.entities).length) files.push({ name: 'er.svg', text: toSvgER(model, layout) });
+  return files;
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 
 const USAGE =
@@ -745,7 +1101,20 @@ function readJson(path, what) {
   }
 }
 
-function main(argv) {
+/** The layout svg draws from: --layout, else architecture.layout.json beside the model, else computed in memory (never written). */
+async function layoutFor(opts, model) {
+  if (opts.layout !== undefined) return readJson(opts.layout, 'layout');
+  const beside = join(dirname(opts.model), 'architecture.layout.json');
+  if (existsSync(beside)) return readJson(beside, 'layout');
+  const { layoutModel } = await import('./layout.mjs');
+  try {
+    return await layoutModel(model);
+  } catch (e) {
+    throw new UsageError(`cannot lay out the model: ${e.message}`);
+  }
+}
+
+async function main(argv) {
   try {
     const opts = parseArgs(argv);
     if (opts.help) {
@@ -763,7 +1132,12 @@ function main(argv) {
       const known = list(model.views).map((x) => x.id).join(', ') || 'none';
       throw new UsageError(`unknown view ${opts.view} (the model has: ${known})`);
     }
-    const files = { plantuml: plantUmlFiles, md: markdownFiles }[opts.format]?.(model, { view: opts.view }) ?? mermaidFiles(model, { view: opts.view });
+    let files;
+    if (opts.format === 'svg') {
+      files = svgFiles(model, await layoutFor(opts, model), { view: opts.view });
+    } else {
+      files = { plantuml: plantUmlFiles, md: markdownFiles }[opts.format]?.(model, { view: opts.view }) ?? mermaidFiles(model, { view: opts.view });
+    }
     const dir = opts.out ?? join(dirname(opts.model), 'exports');
     try {
       mkdirSync(dir, { recursive: true });
@@ -788,4 +1162,4 @@ const invokedDirectly = (() => {
     return false;
   }
 })();
-if (invokedDirectly) process.exitCode = main(process.argv.slice(2));
+if (invokedDirectly) process.exitCode = await main(process.argv.slice(2));
