@@ -332,3 +332,37 @@ test('m8 usage errors exit 2; --strict turns conflicts into exit 1 and writes no
   assert.equal(existsSync(out), false);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('m9 update mode reports an --areas entry with no fragment and a fragment whose area is not in --areas', () => {
+  const first = built().model;
+  const apiFrags = loadDir(join(FIX, 'update', 'frags'));
+  const text = (cs) => JSON.stringify(cs);
+  // clean: every listed area has a fragment and every fragment is listed
+  const clean = merge({ fragments: apiFrags, previous: first, areas: ['api'], meta: {} });
+  assert.equal(/\bapi\b/.test(text(clean.conflicts)), false, 'no area conflict when areas and fragments agree');
+  // an area named in --areas with no fragment: its elements would vanish silently
+  const missing = merge({ fragments: apiFrags, previous: first, areas: ['api', 'ghost'], meta: {} });
+  assert.ok(missing.conflicts.some((c) => /ghost/.test(JSON.stringify(c))), text(missing.conflicts));
+  // a fragment in the directory whose area is not in --areas: it would be dropped silently
+  const noise = frag('web', { nodes: [node('intruder', { zone: 'browser', evidence: ev('web/x.js') })] });
+  const extra = merge({ fragments: [...apiFrags, noise], previous: first, areas: ['api'], meta: {} });
+  assert.ok(extra.conflicts.some((c) => /web/.test(JSON.stringify(c))), text(extra.conflicts));
+  assert.equal(extra.model.nodes.some((n) => n.id === 'intruder'), false, 'still not merged');
+});
+
+test('m9b through the CLI an unmatched area is a conflict on stderr; --strict exits 1 and writes nothing', () => {
+  const dir = tmp();
+  const prevPath = join(dir, 'prev.json');
+  writeFileSync(prevPath, JSON.stringify(built().model));
+  const out = join(dir, 'out.json');
+  const args = [join(FIX, 'update', 'frags'), '--out', out, '--previous', prevPath, '--areas', 'api,ghost'];
+  const loose = cli(args);
+  assert.equal(loose.status, 0, loose.stderr);
+  assert.match(loose.stderr, /ghost/);
+  rmSync(out);
+  const strict = cli([...args, '--strict']);
+  assert.equal(strict.status, 1);
+  assert.match(strict.stderr, /ghost/);
+  assert.equal(existsSync(out), false);
+  rmSync(dir, { recursive: true, force: true });
+});

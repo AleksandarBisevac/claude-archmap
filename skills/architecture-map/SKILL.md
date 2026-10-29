@@ -222,7 +222,10 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
    ```
 
    Only the listed areas' fragments are read and only their elements are replaced; everything else keeps its ids.
-   `locked` and `notes` and layout `pinned` survive; a locked node keeps its authored content, and a `conflict` is
+   `--areas` must list every area that has a fragment in the directory, including the area of the fragment written for
+   the `uncovered` files, and every listed area must have a fragment (an explorer that failed leaves a hole). Either
+   mismatch is reported as a `conflict` and exits 1 under `--strict`; do not leave it unresolved, because an area named
+   without a fragment has its elements removed and nothing replaces them. `locked` and `notes` and layout `pinned` survive; a locked node keeps its authored content, and a `conflict` is
    reported, not resolved silently. Cross-area edges and access rows whose evidence sits in an affected area are
    replaced too, which is what step 4 refills.
 4. **Synthesizer only for touched edges and sequences**: pass it the list of affected ids. It returns only the touched or new elements with the same ids; you merge

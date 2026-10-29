@@ -22,6 +22,8 @@
 // other element, zone, relation, sequence and view is kept as it was, ids unchanged. Cross-area edges and
 // access rows whose evidence sits in an affected area are replaced too: rerun the synthesizer for them.
 // --previous without --areas treats every area as affected (full rebuild that still carries user fields).
+// --areas and the fragment directory must name the same areas: an --areas entry with no fragment, and a fragment
+// whose area is not in --areas, are each reported as a conflict (exit 1 under --strict).
 //
 // Synthesizer object (--synth): edges, sequences, views merge by id; access and relations by key; notes and
 // conflicts are passed through. Conflicts are reported and never resolved silently.
@@ -146,6 +148,22 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     .map((f, i) => ({ f, area: typeof f?.area === 'string' && f.area ? f.area : `fragment${i}` }))
     .filter((x) => isObj(x.f) && (!updateMode || affected.has(x.area)))
     .sort((a, b) => cmp(a.area, b.area) || cmp(canon(a.f), canon(b.f)));
+
+  // update mode: --areas and the fragment directory must name the same areas, or an area's elements vanish
+  // (listed, no fragment) or a fragment is dropped (present, not listed) with nothing said
+  if (updateMode) {
+    const present = new Set(fragments.filter(isObj).map((f, i) => (typeof f.area === 'string' && f.area ? f.area : `fragment${i}`)));
+    for (const a of [...affected].sort(cmp)) {
+      if (!present.has(a)) {
+        conflicts.push({ ids: [a], reason: `area '${a}' is in --areas but has no fragment; what it owned is removed and nothing replaces it` });
+      }
+    }
+    for (const a of [...present].sort(cmp)) {
+      if (!affected.has(a)) {
+        conflicts.push({ ids: [a], reason: `fragment of area '${a}' is not in --areas and was ignored; list it in --areas to merge it` });
+      }
+    }
+  }
 
   // --- the part of the previous model that stays
   const isOwned = prev ? ownerTest(updateMode ? [...affected] : null, prev.meta?.coverage) : () => false;

@@ -2188,8 +2188,10 @@
             "severity": "med",
             "file": "skills/architecture-map/SKILL.md:229",
             "issue": "Update step 4 says to merge the synthesizer's touched elements 'with merge.mjs --synth as in build step 5'. Build step 5 (SKILL.md:144) runs merge.mjs with --previous and no --areas, and merge() then treats every area as affected (scripts/merge.mjs:141, affected = null; isOwned returns true for every element). In an update the fragments directory holds only the affected areas' fragments (step 2), so every node, edge, entity and access row of the unaffected areas is classed as owned, removed, and not re-added. An unlocked element in an untouched area is silently deleted (a locked or noted node is kept with a conflict). The e2e test (e3) covers the --areas merge but not this synth re-merge, so nothing catches it.",
-            "resolution": "In SKILL.md update step 4, give the exact command: the same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added. Optionally make merge.mjs refuse, or print a conflict, when --previous is given without --areas and the fragments dir lacks a fragment for an area listed in previous meta.coverage. Add an e2e case for the update-time synth merge.",
-            "fixTask": "P5.8-2zy"
+            "resolution": "fixed in P5.8-2zy (eea8164350ca): In SKILL.md update step 4, give the exact command: the same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added. Optionally make merge.mjs refuse, or print a conflict, when --previous is given without --areas and the fragments dir lacks a fragment for an area listed in previous meta.coverage. Add an e2e case for the update-time synth merge.",
+            "fixTask": "P5.8-2zy",
+            "commit": "eea8164350ca",
+            "status": "fixed"
           },
           {
             "id": "P5-R2",
@@ -2216,7 +2218,7 @@
             "fixTask": "P5.11-2zy"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -2612,7 +2614,7 @@
         {
           "id": "P5.8-2zy",
           "title": "fix P5-R1: Update step 4 says to merge the synthesizer's touched elements 'wi...",
-          "status": "in_progress",
+          "status": "done",
           "description": "Update step 4 says to merge the synthesizer's touched elements 'with merge.mjs --synth as in build step 5'. Build step 5 (SKILL.md:144) runs merge.mjs with --previous and no --areas, and merge() then treats every area as affected (scripts/merge.mjs:141, affected = null; isOwned returns true for every element). In an update the fragments directory holds only the affected areas' fragments (step 2), so every node, edge, entity and access row of the unaffected areas is classed as owned, removed, and not re-added. An unlocked element in an untouched area is silently deleted (a locked or noted node is kept with a conflict). The e2e test (e3) covers the --areas merge but not this synth re-merge, so nothing catches it.\n\nResolution asked: In SKILL.md update step 4, give the exact command: the same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added. Optionally make merge.mjs refuse, or print a conflict, when --previous is given without --areas and the fragments dir lacks a fragment for an area listed in previous meta.coverage. Add an e2e case for the update-time synth merge.",
           "files": [
             "skills/architecture-map/SKILL.md"
@@ -2633,13 +2635,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "eea8164350ca",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Edited skills/architecture-map/SKILL.md Update flow step 4: the synth re-merge now gives the exact command (same merge.mjs call as step 3 with --areas <a,b> and --synth <work>/synth.json added) and states never to run it without --areas, with the reason (merge() treats every area as affected when --areas is absent, so unaffected areas' elements are removed). Not done: the optional merge.mjs refusal and the e2e case for the update-time synth merge (task is gate-only, files scope is SKILL.md only). Ran `node --test` from the project dir: exit 0, 184 pass, 0 fail. Dependants: tests/commands.test.mjs and tests/skill.test.mjs still correct (both pass in the full run; only prose and a code block in step 4 changed); .agents/skills/node/tile.json and skills-lock.json are matched by basename only and unaffected; docs/design.md is basename-only and describes no step-4 command text, unchanged and still correct.",
+            "descriptive": "Update step 4 of the architecture-map skill now tells the orchestrator to keep --areas when merging the synthesizer output, preventing silent deletion of unaffected areas' elements."
           },
           "startedAt": "2026-10-29T09:13:43Z",
-          "completedAt": null,
+          "completedAt": "2026-10-29T09:17:09Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -2663,16 +2665,28 @@
             "runId": "2026-10-29T09:17:07Z.2e596e",
             "status": "passed",
             "at": "2026-10-29T09:17:07Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "eea8164350ca",
+            "at": "2026-10-29T09:17:09Z",
+            "basis": "a fix task for P5-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task (expectRedFirst false); no tests.add; the task asks for a documentation fix in SKILL.md",
+            "at": "n/a"
           }
         },
         {
           "id": "P5.9-2zy",
           "title": "fix P5-R2: In update mode an area named in --areas that has no fragment in th...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "In update mode an area named in --areas that has no fragment in the directory (an explorer failed, a typo, or the new area for 'uncovered' files is left out of --areas, so its fragment is filtered out at line 147) is handled silently. Everything the area owned is removed (nodePart/edgePart/entityPart.gone), its coverage and sources rows are dropped, and nothing replaces them. Only authored nodes survive, with a conflict. The result still validates, so exit 0 and a smaller model. SKILL.md:221 says only '--areas <a,b>' and never says that uncovered-file areas must be listed too.\n\nResolution asked: Report a conflict (and exit 1 under --strict) for every --areas entry with no fragment, and for every fragment in the directory whose area is not in --areas. Say in SKILL.md update step 3 that --areas must list the areas of the uncovered-file fragments as well.",
           "files": [
             "scripts/merge.mjs",
-            "tests/merge.test.mjs"
+            "tests/merge.test.mjs",
+            "skills/architecture-map/SKILL.md"
           ],
           "tests": {
             "mode": "tdd",
@@ -2690,14 +2704,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T09:17:09Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -2712,7 +2726,13 @@
           ],
           "fixes": [
             "P5-R2"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T09:25:40Z.100406",
+            "status": "passed",
+            "at": "2026-10-29T09:25:40Z"
+          }
         },
         {
           "id": "P5.10-2zy",
@@ -3271,7 +3291,8 @@
       "P4.6-w15",
       "P4.7-w15",
       "P5.4",
-      "P5.8-2zy"
+      "P5.8-2zy",
+      "P5.9-2zy"
     ],
     "tests/skill.test.mjs": [
       "P4.4",

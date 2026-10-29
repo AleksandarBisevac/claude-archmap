@@ -1,0 +1,29 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/merge.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T09:24:32Z",
+    "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ghost/. Input:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/merge.mjs: in update mode, after the fragment filter, push a {ids:[area], reason} conflict for every --areas entry with no fragment and for every fragment area not in --areas (sorted, deterministic); --strict then exits 1 via the existing path and writes nothing. Header comment updated. skills/architecture-map/SKILL.md update step 3 now says --areas must list the uncovered-file fragment's area too and that mismatches are conflicts (SKILL.md is outside the declared files; the Edit was not refused by the plan gate). tests/merge.test.mjs: added m9 (library: clean, missing-fragment and extra-fragment cases; intruder still not merged) and m9b (CLI: stderr names the area, exit 0 loose, exit 1 and nothing written with --strict). Full node --test: 186 pass, 0 fail. Dependants: tests/merge.test.mjs still correct (existing m3/m3b/m6b/m8 pass unchanged; m3b's extra web fragment now yields a conflict but its model assertion holds); skills/architecture-map/SKILL.md changed (step 3 wording, as the task asks; step 4's keep --areas still correct); tests/e2e.test.mjs still correct (its update passes --areas books with a matching fragment, suite green); docs/design.md names merge.mjs by basename only and is still correct, its description of update mode is unchanged in substance (not edited).",
+    "descriptive": "Update-mode merge now flags an --areas entry with no fragment and an unlisted fragment as a conflict (exit 1 under --strict) instead of silently shrinking the model."
+  },
+  "testsAdded": [
+    "m9: library-level update merge reports conflicts for an --areas entry without a fragment and a fragment not in --areas, none when they agree",
+    "m9b: CLI reports the unmatched area on stderr; --strict exits 1 and writes nothing"
+  ],
+  "casesAdded": [
+    [
+      "m9",
+      "m9b"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:4b3e3b48e8e623092f3ca7b75021afd18db7c7ebaa9635e10e87c4fad7063fcf\",\"dirtyDigest\":\"sha256:69df541c87a8da1c184913cc3c676773850af202494a772c60375c681c1ae747\",\"dirtyPaths\":{\"scripts/merge.mjs\":\"11f6546f6d000672\",\"skills/architecture-map/SKILL.md\":\"9c8a8b93b15c5678\",\"tests/merge.test.mjs\":\"511e060d6654b785\"},\"head\":\"eea8164\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"tests/merge.test.mjs\"],\"scopeDigest\":\"sha256:e7d7273abbda53ae59c9086e8b104103c146f195e63ced038469ec7ad177e48c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
