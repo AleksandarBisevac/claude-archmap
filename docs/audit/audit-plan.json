@@ -4327,7 +4327,234 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P8.1",
+          "title": "Eval set and harness for skill-creator",
+          "status": "pending",
+          "description": "Write skills/architecture-map/evals/evals.json in skill-creator's format for the five evals of docs/design.md section 10 (1 build on eval repo A, FastAPI + React + DuckDB; 2 the same build with --issues; 3 update after a scripted change, new route + new column, in a temp worktree; 4 build on eval repo B, Hono + Drizzle monorepo; 5 build on eval repo C, Next + Drizzle admin API). Each eval has a prompt, expected_output and objectively checkable assertions (model validates via validate.mjs; every node has evidence; >= 3 sequences; eval 1 entities carry observed fields when duckdb is available, else meta.sources records the skip; eval 2 clean HTML has no issue ids; eval 3 only affected nodes change, pins survive, meta.commit advances; eval 4 Drizzle entities have declared fields and FKs, BullMQ edges async, each app a container). Repo locations are NEVER written into tracked files: the eval prompts reference env vars ARCHMAP_EVAL_REPO_A/B/C, and eval workspaces live outside the repo under <home>/.claude/archmap/evals/. Add skills/architecture-map/evals/README.md explaining how to set the env vars and run the evals with skill-creator (with-skill vs without-skill, owner review in eval-viewer/generate_review.py). Key-component checklists and the issue ground truth stay in .private/ and are referenced only by path relative to .private. No client or repo name appears in any tracked file (tests/denylist.test.mjs must stay green).",
+          "files": [
+            "skills/architecture-map/evals/evals.json",
+            "skills/architecture-map/evals/README.md",
+            "tests/evals.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/evals.test.mjs: evals.json parses, has exactly five evals with ids 1-5, each with a non-empty prompt, expected_output and at least three assertions; no eval prompt contains an absolute path or a home-relative path, and every repo reference is one of ARCHMAP_EVAL_REPO_A/B/C; README names the three env vars and the workspace directory outside the repo"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P8.2",
+          "title": "Issue-recall scorer",
+          "status": "pending",
+          "description": "Add skills/architecture-map/evals/score-recall.mjs: node score-recall.mjs <issues.json> <ground-truth.json> [--json]. Ground truth is a list of reference issues {id, sev: high|med|low, category, anchor hint, keywords[]} kept in .private (never tracked). A reference issue counts as recalled when some produced issue matches it on category plus anchor or keyword overlap (document the rule in the header). Prints recall over high+med reference issues, the matched pairs and the misses; exits 0 when recall >= 0.6, 1 below, 2 usage or unreadable input. Deterministic; Node >= 18, ESM, zero deps. Tests use a synthetic, non-client ground truth fixture under tests/fixtures/evals/.",
+          "files": [
+            "skills/architecture-map/evals/score-recall.mjs",
+            "tests/evals.test.mjs",
+            "tests/fixtures/evals/ground-truth.json",
+            "tests/fixtures/evals/issues.json"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/evals.test.mjs: on the synthetic fixtures score-recall reports the expected recall over high+med only, lists matched pairs and misses, exits 0 at or above 60 percent and 1 below; low-severity reference issues do not count; a produced issue matching nothing does not raise recall; malformed input exits 2; output is byte-identical across runs"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P8.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P8.3",
+          "title": "Run evals 1-5 with and without the skill (owner-run)",
+          "status": "blocked",
+          "description": "OWNER-RUN on the machine that has the eval repos; the executor must not fabricate results. With ARCHMAP_EVAL_REPO_A/B/C set, run skill-creator's eval loop over skills/architecture-map/evals/evals.json, with-skill and without-skill, workspaces under <home>/.claude/archmap/evals/. Score eval 2 with score-recall.mjs against the .private ground truth; the target is recall >= 60 percent of high and medium reference issues. The owner reviews every run in eval-viewer/generate_review.py. Record the outcome (pass/fail per assertion, recall figure, owner verdict) in .private/evals/results-<date>.md, never in a tracked file. Feedback that needs a skill change goes to P8.5.",
+          "files": [
+            "skills/architecture-map/evals/evals.json"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P8.1",
+            "P8.2"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "blockedReason": "Needs the eval repos, which are on the owner's other computer; set ARCHMAP_EVAL_REPO_A/B/C there and unblock."
+        },
+        {
+          "id": "P8.4",
+          "title": "Balanced vs max profile cost on eval 1 (owner-run)",
+          "status": "blocked",
+          "description": "OWNER-RUN. Run the eval 1 build twice on eval repo A, --profile balanced and --profile max, and compare the usage ledger totals usage.mjs prints (tokens and USD-equivalent). Desired outcome: balanced is cheaper than max with the model still passing eval 1's assertions. Record both ledgers in .private/evals/; if balanced is not cheaper, file a follow-up naming the step that dominates.",
+          "files": [
+            "skills/architecture-map/evals/README.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P8.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "blockedReason": "Needs the eval repos, which are on the owner's other computer; set ARCHMAP_EVAL_REPO_A/B/C there and unblock."
+        },
+        {
+          "id": "P8.5",
+          "title": "Iterate SKILL.md and references on eval feedback",
+          "status": "blocked",
+          "description": "Apply the owner's eval feedback from P8.3 to skills/architecture-map/SKILL.md and skills/architecture-map/references/*.md (SKILL.md stays <= 500 lines; tests/skill*.test.mjs stay green), then re-run the evals that failed until they pass or the owner accepts the remainder. Generalise fixes; never add text specific to an eval repo or name one. The exact files depend on the feedback; scope this task's files when the feedback is known.",
+          "files": [
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P8.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "blockedReason": "Needs the eval repos, which are on the owner's other computer; set ARCHMAP_EVAL_REPO_A/B/C there and unblock."
+        },
+        {
+          "id": "P8.6",
+          "title": "Optimise the skill's trigger description with run_loop",
+          "status": "blocked",
+          "description": "Write skills/architecture-map/evals/trigger-evals.json: about 20 realistic queries, roughly half that should trigger the architecture-map skill (map, diagram or document this codebase's architecture, ER, sequences, update the map) and half near-misses that should not (single-file explain, code review, audit, generic diagrams unrelated to the repo). Then, owner-run, use skill-creator's scripts/run_loop.py on skills/architecture-map against that set and apply the best-scoring description to SKILL.md's frontmatter. Record before/after trigger scores in .private/evals/.",
+          "files": [
+            "skills/architecture-map/evals/trigger-evals.json",
+            "skills/architecture-map/SKILL.md",
+            "tests/evals.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/evals.test.mjs: trigger-evals.json parses as a list of {query, should_trigger}, has at least 16 entries, at least 40 percent each of true and false, no duplicate queries; SKILL.md frontmatter description stays under 1024 characters"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P8.5"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "blockedReason": "Needs the eval repos, which are on the owner's other computer; set ARCHMAP_EVAL_REPO_A/B/C there and unblock."
+        }
+      ],
       "area": "evals"
     },
     {
@@ -5176,7 +5403,9 @@
       "P6.4",
       "P6.5-vcu",
       "BF1.4",
-      "P7.6"
+      "P7.6",
+      "P8.5",
+      "P8.6"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -5324,6 +5553,31 @@
     ],
     "CHANGELOG.md": [
       "P7.6"
+    ],
+    "skills/architecture-map/evals/evals.json": [
+      "P8.1",
+      "P8.3"
+    ],
+    "skills/architecture-map/evals/README.md": [
+      "P8.1",
+      "P8.4"
+    ],
+    "tests/evals.test.mjs": [
+      "P8.1",
+      "P8.2",
+      "P8.6"
+    ],
+    "skills/architecture-map/evals/score-recall.mjs": [
+      "P8.2"
+    ],
+    "tests/fixtures/evals/ground-truth.json": [
+      "P8.2"
+    ],
+    "tests/fixtures/evals/issues.json": [
+      "P8.2"
+    ],
+    "skills/architecture-map/evals/trigger-evals.json": [
+      "P8.6"
     ]
   },
   "bugs": [
