@@ -3698,11 +3698,207 @@
       "summary": null,
       "tasks": [],
       "area": "release"
+    },
+    {
+      "id": "BF1",
+      "title": "Bugfix batch 1",
+      "status": "in_progress",
+      "description": "",
+      "desiredOutcome": "BUG-1-2vu, BUG-2-2vu, BUG-3-2zy and BUG-4-vcu are fixed: views carry an optional kind the viewer uses, fitted figures stay legible at 400 px, the explorer coverage glob rule is documented, and issues.mjs import-audit never reads outside the project (symlinks included), cites only relevant lines, the catalogue lists all counts and merge works on a first build.",
+      "testGate": [
+        "test"
+      ],
+      "blockedBy": [],
+      "baseRef": "1e2bf1239c9db52c575ece5a30f449d97497e382",
+      "branch": "audit/bf1-bugfix-batch-1",
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [
+        {
+          "id": "BF1.1",
+          "title": "Fix BUG-1-2vu: Viewer picks deployment/trust views by name regex, not a schema field",
+          "status": "in_progress",
+          "description": "Bug BUG-1-2vu (carried from P2-R3): viewRole in assets/viewer/viewer.js chooses the deployment and trust renderers by regex on a view's id and title (/trust|boundar/, /deploy|release|topolog|infra/), because model.views has no kind. A view named outside those words gets the plain projection. Fix: add an optional, additive kind enum (graph, deployment, trust) to model.views in the schema; validate.mjs accepts it; document it in docs/design.md section 5 and references/model-schema.md; the viewer uses kind when present and keeps the regex only as a fallback for views without kind. Backward compatible: existing models without kind validate and render unchanged.",
+          "files": [
+            "assets/viewer/viewer.js",
+            "schema/archmap-model.schema.json",
+            "scripts/validate.mjs",
+            "docs/design.md",
+            "skills/architecture-map/references/model-schema.md",
+            "tests/viewer.test.mjs",
+            "tests/schema.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/viewer.test.mjs: repro that FAILS on current code - a view with kind trust or deployment but a neutral id/title (e.g. 'zones-overview') gets the trust/deployment renderer, and a view without kind still falls back to the name regex; tests/schema.test.mjs: views[].kind accepts graph|deployment|trust, rejects other values, and a model without kind still validates"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T13:41:31Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "bugId": "BUG-1-2vu",
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:43:21Z.10a146",
+            "status": "passed",
+            "at": "2026-10-29T13:43:21Z"
+          }
+        },
+        {
+          "id": "BF1.2",
+          "title": "Fix BUG-2-2vu: Fitted figures are illegibly small at narrow widths",
+          "status": "pending",
+          "description": "Bug BUG-2-2vu (carried from the P2 re-review, assets/viewer/viewer.js fit logic): Fit is the default for every figure, so at 400 px wide graph, ER and sequence drawings show whole but with very small text; legibility rests on the 100% button. Fix: when the fit scale falls below a legibility floor (about 0.5), open at the floor scale with horizontal scroll and keep Fit one click away; keep the scale computation in a pure function the unit tests can reach. tests/visual/screenshots.py check_figures also asserts a minimum effective font size as well as no clipping (local-only check, run it once and report the result).",
+          "files": [
+            "assets/viewer/viewer.js",
+            "tests/visual/screenshots.py",
+            "tests/viewer.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/viewer.test.mjs: repro that FAILS on current code - the initial scale chosen for a wide figure in a 400 px container is never below the legibility floor, while a figure that fits above the floor still opens fitted; Fit remains available"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "BF1.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "bugId": "BUG-2-2vu"
+        },
+        {
+          "id": "BF1.3",
+          "title": "Fix BUG-3-2zy: Explorer coverage glob rule is undocumented (dir/** vs bare directory)",
+          "status": "pending",
+          "description": "Bug BUG-3-2zy. Repro: an explorer returns coverage ['src/api'] for a subtree it read; since P5.10 merge.mjs and diffmap.mjs match that bare glob only as the literal path. Expected: agents/archmap-explorer.md and skills/architecture-map/references/model-schema.md state that a subtree is written dir/** and a bare directory matches only that literal path. Actual: the explorer is told only '<globs you actually read>', so a bare directory glob silently stops owning its subtree in update merges and diffmap. Fix: one line in each file.",
+          "files": [
+            "agents/archmap-explorer.md",
+            "skills/architecture-map/references/model-schema.md",
+            "tests/agents.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/agents.test.mjs: repro that FAILS on current code - agents/archmap-explorer.md and references/model-schema.md both state that a subtree coverage glob is written dir/** and that a bare directory matches only that literal path"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "bugId": "BUG-3-2zy"
+        },
+        {
+          "id": "BF1.4",
+          "title": "Fix BUG-4-vcu: issues.mjs import-audit follow-ups: symlink guard, weak line match, catalogue counts",
+          "status": "pending",
+          "description": "Bug BUG-4-vcu (P6 second review). Repro: symlink tests/x -> a file outside the project, an audit finding naming tests/x without lines; run issues.mjs import-audit --project <dir>. Expected: files outside the project are never opened, even via symlink; cited lines are relevant; docs list all five counts. Actual: the symlink target is read; generic two-word matches are accepted; the catalogue lists four counts. Fix: (1) compare realpathSync of the file with realpathSync of the project root before stat/read and skip anything outside; (2) tighten findLine to whole-word matches and require 3 distinct words, or 2 when the entry has fewer than 4 candidate words; (3) make merge --existing optional (absent or missing file = empty overlay) and import-audit tolerate a missing --existing file, then simplify SKILL.md's first-build block accordingly; (4) references/issues-catalog.md lists skipped-no-lines among the counts and states the no-guessed-lines rule.",
+          "files": [
+            "scripts/issues.mjs",
+            "tests/issues.test.mjs",
+            "skills/architecture-map/references/issues-catalog.md",
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/issues.test.mjs: repro that FAILS on current code - a symlink inside the project pointing outside is never opened (entry skipped as skipped-no-lines); a line sharing only generic substrings is not cited; merge without --existing and import-audit with a missing --existing file both treat it as an empty overlay and exit 0"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "bugId": "BUG-4-vcu"
+        }
+      ],
+      "area": [
+        "viewer",
+        "issues",
+        "skill"
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-29T13:41:31Z"
     }
   ],
   "fileIndex": {
     "schema/archmap-model.schema.json": [
-      "P1.1"
+      "P1.1",
+      "BF1.1"
     ],
     "schema/archmap-issues.schema.json": [
       "P1.1"
@@ -3712,11 +3908,13 @@
     ],
     "tests/schema.test.mjs": [
       "P1.1",
-      "P1.5-hma"
+      "P1.5-hma",
+      "BF1.1"
     ],
     "scripts/validate.mjs": [
       "P1.2",
-      "P1.4-hma"
+      "P1.4-hma",
+      "BF1.1"
     ],
     "scripts/lib/jsonschema.mjs": [
       "P1.2"
@@ -3762,7 +3960,9 @@
       "P2.3",
       "P2.4",
       "P2.6-2vu",
-      "P2.7-2vu"
+      "P2.7-2vu",
+      "BF1.1",
+      "BF1.2"
     ],
     "scripts/render.mjs": [
       "P2.3"
@@ -3771,12 +3971,15 @@
       "P2.3"
     ],
     "tests/viewer.test.mjs": [
-      "P2.4"
+      "P2.4",
+      "BF1.1",
+      "BF1.2"
     ],
     "tests/visual/screenshots.py": [
       "P2.5",
       "P2.6-2vu",
-      "P2.8-2vu"
+      "P2.8-2vu",
+      "BF1.2"
     ],
     "tests/visual/README.md": [
       "P2.5",
@@ -3996,7 +4199,9 @@
       "P3.5-cdj"
     ],
     "skills/architecture-map/references/model-schema.md": [
-      "P4.1"
+      "P4.1",
+      "BF1.1",
+      "BF1.3"
     ],
     "skills/architecture-map/references/relation-taxonomy.md": [
       "P4.1"
@@ -4027,7 +4232,8 @@
       "P4.2"
     ],
     "skills/architecture-map/references/issues-catalog.md": [
-      "P4.3"
+      "P4.3",
+      "BF1.4"
     ],
     "tests/skill-issues-catalog.test.mjs": [
       "P4.3"
@@ -4040,7 +4246,8 @@
       "P5.8-2zy",
       "P5.9-2zy",
       "P6.4",
-      "P6.5-vcu"
+      "P6.5-vcu",
+      "BF1.4"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -4050,7 +4257,8 @@
       "P6.4"
     ],
     "agents/archmap-explorer.md": [
-      "P4.5"
+      "P4.5",
+      "BF1.3"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5"
@@ -4059,7 +4267,8 @@
       "P4.5"
     ],
     "tests/agents.test.mjs": [
-      "P4.5"
+      "P4.5",
+      "BF1.3"
     ],
     "scripts/merge.mjs": [
       "P5.1",
@@ -4131,11 +4340,13 @@
     "scripts/issues.mjs": [
       "P6.2",
       "P6.3",
-      "P6.8-vcu"
+      "P6.8-vcu",
+      "BF1.4"
     ],
     "tests/issues.test.mjs": [
       "P6.2",
-      "P6.8-vcu"
+      "P6.8-vcu",
+      "BF1.4"
     ],
     "tests/fixtures/issues/": [
       "P6.2",
@@ -4150,13 +4361,16 @@
     ],
     "commands/issues.md": [
       "P6.4"
+    ],
+    "docs/design.md": [
+      "BF1.1"
     ]
   },
   "bugs": [
     {
       "id": "BUG-1-2vu",
       "title": "Viewer picks deployment/trust views by name regex, not a schema field",
-      "status": "open",
+      "status": "in_progress",
       "severity": "low",
       "reportedAt": "2026-10-28T19:22:40Z",
       "reportedBy": null,
@@ -4168,14 +4382,14 @@
         "assets/viewer/viewer.js",
         "schema/archmap-model.schema.json"
       ],
-      "taskId": null,
+      "taskId": "BF1.1",
       "fixedIn": null,
       "notes": null
     },
     {
       "id": "BUG-2-2vu",
       "title": "Fitted figures are illegibly small at narrow widths",
-      "status": "open",
+      "status": "in_progress",
       "severity": "low",
       "reportedAt": "2026-10-28T19:23:50Z",
       "reportedBy": null,
@@ -4187,14 +4401,14 @@
         "assets/viewer/viewer.js",
         "tests/visual/screenshots.py"
       ],
-      "taskId": null,
+      "taskId": "BF1.2",
       "fixedIn": null,
       "notes": null
     },
     {
       "id": "BUG-3-2zy",
       "title": "Explorer coverage glob rule is undocumented (dir/** vs bare directory)",
-      "status": "open",
+      "status": "in_progress",
       "severity": "low",
       "reportedAt": "2026-10-29T09:30:48Z",
       "reportedBy": null,
@@ -4203,14 +4417,14 @@
       "expected": "agents/archmap-explorer.md and skills/architecture-map/references/model-schema.md state that a subtree is written dir/** and a bare directory matches only that literal path",
       "actual": "The explorer is told only '<globs you actually read>', so a bare directory glob silently stops owning its subtree in update merges and diffmap",
       "files": [],
-      "taskId": null,
+      "taskId": "BF1.3",
       "fixedIn": null,
       "notes": null
     },
     {
       "id": "BUG-4-vcu",
       "title": "issues.mjs import-audit follow-ups: symlink guard, weak line match, catalogue counts",
-      "status": "open",
+      "status": "in_progress",
       "severity": "low",
       "reportedAt": "2026-10-29T13:39:44Z",
       "reportedBy": null,
@@ -4219,7 +4433,7 @@
       "expected": "Files outside the project are never opened, even via symlink; cited lines are relevant; docs list all five counts",
       "actual": "The symlink target is read; generic two-word matches are accepted; the catalogue lists four counts",
       "files": [],
-      "taskId": null,
+      "taskId": "BF1.4",
       "fixedIn": null,
       "notes": null
     }

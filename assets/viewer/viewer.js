@@ -61,7 +61,7 @@ function refChipHtml(meta, ref){
 /* views: a deployment or trust view is recognised by an explicit `kind`, else by its id or title */
 function viewRole(v){
   const k = v && typeof v.kind === "string" ? v.kind.toLowerCase() : "";
-  if (k === "deployment" || k === "trust") return k;
+  if (k === "deployment" || k === "trust" || k === "graph") return k;
   const s = ((v && v.id) || "") + " " + ((v && v.title) || "");
   if (/trust|boundar/i.test(s)) return "trust";
   if (/deploy|release|topolog|infra/i.test(s)) return "deployment";

@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/schema.test.mjs tests/viewer.test.mjs": "pass",
+    "node --test (full, exit 0, 223 pass 0 fail)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:42:55Z",
+    "basis": "`node --test tests/schema.test.mjs tests/viewer.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added optional kind enum [graph, deployment, trust] to $defs.view in schema/archmap-model.schema.json. validate.mjs needed no code change: it interprets the schema, and I confirmed kind=trust validates and kind=bogus yields a schema finding at /views/0/kind. viewRole in assets/viewer/viewer.js already honoured deployment/trust kind (HEAD); fixed it to honour kind=graph too, so an explicit graph beats the name regex, and the regex stays the fallback for views without kind. Documented in docs/design.md section 5 and references/model-schema.md. Added s14 (schema) and v7 (viewer). Dependants: validate.mjs importers unaffected (no change); design.md and model-schema.md dependants still correct (additive doc line); viewer.js dependants (viewer.css, render.mjs) unaffected, only a one-token change in viewRole; schema dependants (skill-references test) pass in the full run.",
+    "descriptive": "Views can carry an optional kind that the viewer uses before falling back to the name regex."
+  },
+  "testsAdded": [
+    "s14: views[].kind accepts graph|deployment|trust, rejects other values with an enum finding, and a model without kind validates",
+    "v7: viewRole uses kind on neutral-named views, kind overrides the name regex, and the regex fallback is unchanged without kind"
+  ],
+  "casesAdded": [
+    [
+      "s14"
+    ],
+    [
+      "v7"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:71573a29592ca2eb55c1b7aaceef28acd1a945450d2f505875b716fe84093198\",\"dirtyDigest\":\"sha256:74837ffc23f8e52f7918cb5778e79e4b8f1c82baf4f069104064f4da8543c4e6\",\"dirtyPaths\":{\"assets/viewer/viewer.js\":\"a06904a820207cb0\",\"docs/design.md\":\"5d83ae3642de7b97\",\"schema/archmap-model.schema.json\":\"c5e9131baf10d9e7\",\"skills/architecture-map/references/model-schema.md\":\"9f6a23c19ec288cb\",\"tests/schema.test.mjs\":\"ff8c464f892520fa\",\"tests/viewer.test.mjs\":\"5c5c03242301136e\"},\"head\":\"1e2bf12\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/viewer.js\",\"docs/design.md\",\"schema/archmap-model.schema.json\",\"scripts/validate.mjs\",\"skills/architecture-map/references/model-schema.md\",\"tests/schema.test.mjs\",\"tests/viewer.test.mjs\"],\"scopeDigest\":\"sha256:69af8046f01f04668ae6ceef2ce6f83184aea39e18cf760f60f5c68a8d72733a\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

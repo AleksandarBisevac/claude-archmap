@@ -207,3 +207,17 @@ test('v6 search covers nodes, edges, entities and sequences; lineage runs from a
   assert.equal(tb.length, model.zones.filter((z) => z.parent === undefined).length, 'one enclosure per top-level zone');
   assert.deepEqual(tb.filter((b) => !b.trusted).map((b) => b.zone).sort(), model.zones.filter((z) => z.outside).map((z) => z.id).sort());
 });
+
+test('v7 a view picks its renderer from kind when present, and falls back to the id/title name regex without kind', () => {
+  // A neutral id and title: only kind can say which renderer this is.
+  assert.equal(V.viewRole({ id: 'zones-overview', title: 'Zones overview', kind: 'trust' }), 'trust');
+  assert.equal(V.viewRole({ id: 'zones-overview', title: 'Zones overview', kind: 'deployment' }), 'deployment');
+  assert.equal(V.viewRole({ id: 'zones-overview', title: 'Zones overview', kind: 'graph' }), 'graph');
+  // kind wins over a name that would match the regex.
+  assert.equal(V.viewRole({ id: 'trust-boundaries', title: 'Trust boundaries', kind: 'graph' }), 'graph');
+  assert.equal(V.viewRole({ id: 'release-plan', title: 'Release', kind: 'trust' }), 'trust');
+  // Without kind the regex fallback is unchanged.
+  assert.equal(V.viewRole({ id: 'trust-boundaries', title: 'Boundaries' }), 'trust');
+  assert.equal(V.viewRole({ id: 'release', title: 'Release topology' }), 'deployment');
+  assert.equal(V.viewRole({ id: 'zones-overview', title: 'Zones overview' }), 'graph');
+});

@@ -18,7 +18,7 @@ Do not invent keys the schema lacks. Required keys per object are marked **req**
 | `relations[]` | ER links between entity fields. `{from{entity, field}, to{entity, field}, cardinality, kind, provenance}`, all req. `cardinality` is `1-1`, `1-n` or `n-m`; `kind` is `fk`, `join` or `name-convention`. |
 | `access[]` | CRUD matrix rows. `{node, entity, ops}` req, `evidence` optional. `ops` is a non-empty subset of `CRUD` with no letter repeated, in that order (for example `CR`, `RU`). |
 | `sequences[]` | Sequence diagrams. Grammar in sequences.md. |
-| `views[]` | Named projections. `{id}` req; `title`, `nodes[]`, `zones[]` optional. |
+| `views[]` | Named projections. `{id}` req; `title`, `nodes[]`, `zones[]` optional; `kind` (`graph`\|`deployment`\|`trust`) optional, picks the viewer's renderer (without it the viewer guesses from the id and title). |
 
 An `entity` field is `{name, type, provenance}` req plus `pk`, `fk{entity, field}`, `nullable`, `evidence[]`.
 A `node.level` is the C4 level: 1, 2 or 3.

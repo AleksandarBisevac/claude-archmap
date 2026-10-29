@@ -240,3 +240,22 @@ test('s13 schema tests run through the shipped interpreter, reporting pointers a
     });
   }
 });
+
+test('s14 views[].kind is an optional enum graph|deployment|trust; a model without kind still validates', () => {
+  const kind = model.$defs.view.properties.kind;
+  assert.ok(kind, 'view.kind is declared');
+  assert.deepEqual(kind.enum, ['graph', 'deployment', 'trust']);
+  assert.ok(!model.$defs.view.required.includes('kind'), 'kind is optional');
+  for (const ok of ['graph', 'deployment', 'trust']) {
+    const m = validModel();
+    m.views[0].kind = ok;
+    assert.ok(check(model, m), `kind ${ok} validates`);
+  }
+  for (const bad of ['topology', 'Trust', '', 1]) {
+    const m = validModel();
+    m.views[0].kind = bad;
+    assert.ok(!check(model, m), `kind ${JSON.stringify(bad)} is rejected`);
+    assert.ok(validateSchema(model, m).some((e) => e.keyword === 'enum' && e.pointer === '/views/0/kind'));
+  }
+  assert.ok(check(model, validModel()), 'a model with no kind validates unchanged');
+});

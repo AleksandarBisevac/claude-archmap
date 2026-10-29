@@ -112,6 +112,8 @@ Conventions borrowed from the audit plugin: commands call scripts as
   artifact's: `{m:[from,to], k:type, t:label, d:detail, r:[refs], ret?, i?:issueId}`, `{frag:"alt|else|opt|loop|end", t}`,
   `{note:[ids], t, tone}`.
 - `views[]`: named projections (system, per-container component views, deployment, trust) filtered by node and zone.
+  Optional `kind: graph|deployment|trust` selects the viewer's renderer; without it the viewer falls back to matching the
+  view's id and title against deployment and trust words. Additive: models without `kind` validate and render unchanged.
 - User-authored fields (`locked`, `notes`, layout `pinned`) are never overwritten by update or merge.
 - Issues file: `{id, sev, category, title, anchor{node|edge|entity|step}, summary, impact, fix, detail (internal only),
   evidence[], source: archmap|audit, track?}`.
