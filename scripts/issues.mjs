@@ -7,6 +7,7 @@
 //   node scripts/issues.mjs merge --existing <issues.json> --incoming <reviewer.json> --model <model.json>
 //                                 [--anchors a,b] [--out <issues.json>] [--project <dir>]
 //   node scripts/issues.mjs path [--project <dir>]
+//   node scripts/issues.mjs lint <issues.json> [--json]
 //
 // import-audit turns the open entries of the plan's bugs[] and phases[].review.findings[] (legacy string findings
 // included) into issues with source "audit", id "audit-<sourceId>" and track "<sourceId>". Each is anchored to the node
@@ -17,6 +18,12 @@
 // merge replaces the existing issues on the listed anchors (ids of the anchored node/edge/entity/step; every anchor
 // when --anchors is absent) with the incoming issues on those anchors; the rest is kept untouched.
 // path prints <home>/.claude/archmap/<repo-slug>/ (SKILL.md "Output locations").
+// lint checks the calibration of docs/design.md D4 (wording rules: issues-catalog.md "Calibrated wording") for builds
+// that may be shared: every issue needs a non-empty summary, impact and fix (rule "empty"), and the summary, impact
+// and fix of a security issue carry no internal specifics - a repo path or file name (rules "path"), a line number
+// ("line"), a URL ("url"), a host name or IP ("host"), an ENV_LIKE_NAME ("env"), a credential-like token ("token").
+// `detail` is internal-only and never linted. Reads only the file it is given and writes nothing. Exit 0 clean, 1 findings,
+// 2 usage. --json prints {"ok", "findings": [{issue, field, rule, match}]}; otherwise one line per finding.
 //
 // A subcommand that writes takes --out. It REFUSES (exit 2, nothing written, no directory made) an --out inside the
 // analysed project's git working tree (--project, default the cwd), and refuses (exit 1) a result that fails validate()
@@ -36,6 +43,7 @@ const USAGE = [
   'usage: node scripts/issues.mjs import-audit <audit-plan.json> --model <model.json> [--existing <issues.json>] [--out <issues.json>] [--project <dir>]',
   '       node scripts/issues.mjs merge --existing <issues.json> --incoming <reviewer.json> --model <model.json> [--anchors a,b] [--out <issues.json>] [--project <dir>]',
   '       node scripts/issues.mjs path [--project <dir>]',
+  '       node scripts/issues.mjs lint <issues.json> [--json]',
 ].join('\n');
 
 class UsageError extends Error {}
@@ -282,6 +290,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-h' || a === '--help') o.help = true;
+    else if (a === '--json') o.json = true;
     else if (VALUE_FLAGS.has(a)) {
       if (i + 1 >= argv.length) throw new UsageError(`${a} needs a value`);
       o.flags[a.slice(2)] = argv[++i];
@@ -342,6 +351,63 @@ function mergeCmd(o) {
   return emit(model, mergeIssues(have, inc, anchors), o, '');
 }
 
+// ---------------------------------------------------------------------------
+// lint: the shared-build calibration (design D4)
+
+const WORDING_FIELDS = ['summary', 'impact', 'fix'];
+const TLDS = 'com|net|org|io|dev|local|internal|test|example|corp|lan|intranet|cloud|app|co|ai|biz|info|xyz';
+// [rule, pattern]: each is searched in the text of a security issue's summary, impact and fix.
+const SPECIFICS = [
+  ['url', /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/i],
+  ['path', /(?:^|[\s("'`])\.{0,2}\/?(?:[\w@.-]+\/)+[\w@.-]*\.[A-Za-z0-9]{1,8}\b/],
+  ['line', /\blines?\s*(?:no\.?\s*)?[:#]?\s*\d+|\bL\d+(?:-L?\d+)?\b|[\w)\]]:\d+(?:-\d+)?\b/i],
+  ['host', new RegExp(`\\b(?:\\d{1,3}(?:\\.\\d{1,3}){3}|localhost|(?:[a-z0-9-]+\\.)+(?:${TLDS}))\\b`, 'i')],
+  ['env', /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/],
+  ['token', /\b(?:(?:sk|pk|rk|ghp|gho|ghs|xox[abp])[-_][A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|[A-Fa-f0-9]{32,}|[A-Za-z0-9+/_-]{40,}={0,2})(?![\w-])|\b(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+/i],
+];
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Findings for one issue: [{issue, field, rule, match}] in field then rule order. */
+export function lintIssue(issue) {
+  const id = typeof issue?.id === 'string' ? issue.id : '(no id)';
+  const findings = [];
+  for (const field of WORDING_FIELDS) {
+    const text = issue?.[field];
+    if (typeof text !== 'string' || text.trim() === '') {
+      findings.push({ issue: id, field, rule: 'empty', match: '' });
+      continue;
+    }
+    if (issue.category !== 'security') continue;
+    const hits = [];
+    for (const [rule, re] of SPECIFICS) {
+      const m = text.match(re);
+      if (m) hits.push({ rule, match: m[0].trim() });
+    }
+    // paths and file names named by this issue's own evidence, however they are written in prose
+    for (const ev of list(issue.evidence)) {
+      const p = isObj(ev) && typeof ev.path === 'string' ? ev.path : '';
+      if (!p) continue;
+      for (const needle of new Set([p, basename(p)])) {
+        if (needle && new RegExp(`(?<![\\w.-])${escapeRe(needle)}(?![\\w-])`).test(text) && !hits.some((h) => h.rule === 'path')) {
+          hits.push({ rule: 'path', match: needle });
+        }
+      }
+    }
+    for (const h of hits) findings.push({ issue: id, field, rule: h.rule, match: h.match });
+  }
+  return findings;
+}
+
+function lintCmd(o) {
+  const file = o.positional[1];
+  if (!file) throw new UsageError('lint needs <issues.json>');
+  const findings = issuesOf(readJsonFile(file, 'issues file'), 'issues file').flatMap(lintIssue);
+  if (o.json) process.stdout.write(`${JSON.stringify({ ok: findings.length === 0, findings }, null, 2)}\n`);
+  else if (findings.length === 0) process.stdout.write('lint: ok\n');
+  else process.stdout.write(`${findings.map((f) => `${f.issue} ${f.field} ${f.rule}${f.match ? `: ${f.match}` : ''}`).join('\n')}\n`);
+  return findings.length === 0 ? 0 : 1;
+}
+
 /** @returns {Promise<number>} the exit code */
 export async function main(argv) {
   let o;
@@ -351,6 +417,7 @@ export async function main(argv) {
     switch (o.positional[0]) {
       case 'import-audit': return importCmd(o);
       case 'merge': return mergeCmd(o);
+      case 'lint': return lintCmd(o);
       case 'path':
         process.stdout.write(`${outputDir(o.flags.project ?? process.cwd())}\n`);
         return 0;

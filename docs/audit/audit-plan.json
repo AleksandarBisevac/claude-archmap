@@ -3044,7 +3044,7 @@
         {
           "id": "P6.2",
           "title": "issues.mjs: audit import, overlay merge and write outside the repo",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/issues.mjs (docs/design.md D2, D4, §5 issues file, §9 step 6; mapping rules in skills/architecture-map/references/issues-catalog.md 'Audit import'). Subcommands: (1) import-audit <audit-plan.json> --model <model.json> [--existing <issues.json>] -> issues with source 'audit', id 'audit-<sourceId>', track = source id, from bugs[] and phases[].review.findings[], including legacy string findings; anchor each by its file path to the node whose paths globs (scripts/lib/glob.mjs) or evidence own it, else skip it as unanchored; skip closed/fixed ones and line-level ones per the catalogue; print counts imported / skipped-fixed / skipped-unanchored / skipped-line-level. Reads only the plan file given, never other audit state. (2) merge --existing <issues.json> --incoming <reviewer.json> [--anchors a,b] -> merged overlay: incoming replaces issues on the listed anchors (all when no --anchors), others kept, ids stable, sorted, deterministic. (3) path [--project dir] prints <home>/.claude/archmap/<repo-slug>/ using the slug rule in SKILL.md 'Output locations'. Every subcommand that writes takes --out and REFUSES (exit 2, nothing written) an --out inside the analysed project's git working tree; it validates the result with validate() from scripts/validate.mjs (model + issues, dangling anchors included) and refuses an invalid one (exit 1). Fixtures: a small fictional audit plan with bugs, structured findings and legacy string findings, plus a fictional model. Node >= 18, ESM, zero deps.",
           "files": [
             "scripts/issues.mjs",
@@ -3069,25 +3069,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "80f455d5d11c",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/issues.mjs (import-audit, merge, path; exports importAudit, mergeIssues, sortIssues, repoSlug, outputDir; ESM, zero deps). import-audit maps bugs[] and phases[].review.findings[] incl. legacy strings (id <phaseId>-<zero-based index>, leading [sev] tag before or after the path) to source 'audit' issues with id audit-<id> and track; anchors to the node owning the file via lib/glob.mjs (longest literal glob prefix wins, then deeper level, then id; fallback exact evidence path), skips closed/fixed/resolved, line-level (keyword heuristic), and unanchored/no-path entries, printing 'imported N, skipped-fixed N, skipped-unanchored N, skipped-line-level N'. Re-import replaces audit-source issues of --existing and keeps others; output sorted by sev then id, byte-identical on re-run. merge replaces existing issues on listed anchor ids (all when no --anchors), refuses duplicate ids. path prints <home>/.claude/archmap/<slug>/ (slug of git toplevel or project dir name). --out inside the project's git working tree is refused with exit 2 before anything is created (non-git project: no refusal); result is validated with validate(model,{issues}) and refused with exit 1 if invalid (dangling anchors). Fixtures tests/fixtures/issues/{model.json,audit-plan.json}; tests/issues.test.mjs cases i1-i9. Observed: node --test tests/issues.test.mjs 9/9 pass; first run before the script existed failed (module not found); full node --test 208/208 pass. Deviations/judgement: (a) merge also requires --model (needed for validate()); (b) evidence with a path but no lines files lines '1' because the task says import reads only the plan file (the catalogue's 'open the file and cite a line' is not done); (c) impact/fix are non-fabricated placeholders ('Tracked by the audit as <sev> severity; see the audit entry X.' / resolution or 'See the audit entry X.'), security summary = title only with full text in detail; (d) only node anchors are chosen, never edge/entity. Dependants: docs/design.md and skills/architecture-map/SKILL.md name issues.mjs by basename only - still correct (design lists issues.mjs in the scripts tree; SKILL.md output-location slug rule is implemented as written); the merge command line in design lacks --model, which this adds. tests/fixtures/issues dependants (schema, render, validate, viewer, commands tests etc.) match by basename only; no existing file under that dir was changed, so they are unaffected. No plan-gate refusals encountered.",
+            "descriptive": "scripts/issues.mjs now imports open audit findings as anchored overlay issues, merges reviewer output by anchor, and writes the overlay only outside the repo after validation."
           },
           "startedAt": "2026-10-29T12:58:04Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:05:25Z",
+          "verifiedBy": [
+            "i1-i9 in tests/issues.test.mjs: import mapping and ids/track/sev/category, file-to-node anchoring and evidence, skip counts, idempotent re-import, merge by anchors with determinism, path slug rule, --out inside repo refused (exit 2, nothing written), dangling anchor refused (exit 1), usage errors"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T13:05:25Z.d4ce9b",
             "status": "passed",
             "at": "2026-10-29T13:05:25Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "80f455d5d11c",
+            "at": "2026-10-29T13:05:25Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:04:54Z",
+            "basis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P6.3",
           "title": "Shared-build calibration lint and the issues overlay end to end",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add issues.mjs lint <issues.json> [--json] (docs/design.md D4 calibration; wording rules in references/issues-catalog.md): for shared builds, a security issue's summary, impact and fix must not carry internal specifics - repo paths or file names from its evidence, line numbers, URLs, hostnames or IPs, environment-variable-like NAMES_IN_CAPS, credential-like tokens - and every issue needs non-empty summary/impact/fix; findings exit 1, clean exit 0. Then lock in the overlay chain end to end with a fictional model and a fictional reviewer return: issues.mjs merge -> validate.mjs --issues -> render.mjs --mode internal and --mode shared (both --out outside the temp repo) and the clean render: the clean HTML contains no issue id, title, summary, impact, fix or detail text and no Issues switch; the shared HTML contains summary/impact/fix but no detail text; the internal HTML contains detail and the Issues switch; render refuses an internal/shared build without --out.",
           "files": [
             "scripts/issues.mjs",
@@ -3112,16 +3125,22 @@
           "dependsOn": [
             "P6.2"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T13:05:26Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:07:52Z.d66205",
+            "status": "passed",
+            "at": "2026-10-29T13:07:52Z"
+          }
         },
         {
           "id": "P6.4",

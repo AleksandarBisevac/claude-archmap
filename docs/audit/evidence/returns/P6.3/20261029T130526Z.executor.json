@@ -1,0 +1,34 @@
+{
+  "gates": {
+    "node --test tests/issues-overlay.test.mjs": "pass",
+    "node --test (full, informational)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:07:34Z",
+    "basis": "`node --test tests/issues-overlay.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: unknown subcommand lint; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added `issues.mjs lint <issues.json> [--json]` (exported lintIssue; rules empty/path/line/url/host/env/token; security summary/impact/fix only, detail never linted; exit 0/1/2). Added tests/issues-overlay.test.mjs (7 cases o1-o7) and tests/fixtures/issues/reviewer-return.json. Before implementation, o1-o4 failed (lint unknown subcommand, exit 2); o5-o7 already passed because merge/validate/render already behave as specified (the chain is locked in, not changed). After: 7/7 pass; full `node --test` 215 pass 0 fail. Dependants: tests/issues.test.mjs still correct (existing subcommands untouched, still passes); docs/design.md still correct (D4 calibration is what lint implements, no text change needed); skills/architecture-map/SKILL.md still correct but does not yet mention `lint` (outside this task's files, not edited). Fixtures dir: model.json and audit-plan.json untouched; only reviewer-return.json added.",
+    "descriptive": "issues.mjs gains a shared-build calibration lint, and the merge -> validate -> clean/internal/shared render chain is locked in by an end-to-end test."
+  },
+  "testsAdded": [
+    "o1-o3 lint flags path/filename/line/URL/ENV_NAME/host/token in a security summary, passes a calibrated one, requires non-empty summary/impact/fix",
+    "o4-o7 fictional model + reviewer return: merge, validate --issues, lint, clean/shared/internal renders and refusal without --out"
+  ],
+  "casesAdded": [
+    [
+      "o1",
+      "o2",
+      "o3",
+      "o4",
+      "o5",
+      "o6",
+      "o7"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:398c9eb2664b1ade6ddffbcbf8d17cd2d0e3b9872e740d78f469ac465c18feee\",\"dirtyDigest\":\"sha256:c654802cb95eda2dbb2797c51dedb2d28af70b5ff85187e47957a3dad4e932e4\",\"dirtyPaths\":{\"scripts/issues.mjs\":\"408f2d2da55dd398\",\"tests/fixtures/issues/reviewer-return.json\":\"b1a8eed040d76efe\",\"tests/issues-overlay.test.mjs\":\"5e6d6f8be85d495c\"},\"head\":\"80f455d\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/issues.mjs\",\"tests/fixtures/issues/\",\"tests/issues-overlay.test.mjs\"],\"scopeDigest\":\"sha256:407a129976aaeda8f8d51b8747bf34ec2f7fd71a7ec47db79d00ec164f8f5ac8\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

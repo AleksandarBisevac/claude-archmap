@@ -1,0 +1,30 @@
+{
+  "issues": [
+    {
+      "id": "zq-auth-open-login",
+      "sev": "high",
+      "category": "security",
+      "title": "Zq open login path in the auth module",
+      "anchor": { "node": "n-auth" },
+      "summary": "The authentication module accepts sign-in attempts without any throttling or lockout.",
+      "impact": "Repeated guessing is cheap, so weak credentials can be found by an outsider in general terms.",
+      "fix": "Add per-account throttling and a temporary lockout to the sign-in step.",
+      "detail": "ZQDETAIL-1 src/auth/login.js line 31 reads SESSION_SECRET and falls back to a constant; see https://wiki.internal.example.test/auth and host 10.2.3.4.",
+      "evidence": [{ "path": "src/auth/login.js", "lines": "30-41" }],
+      "source": "archmap"
+    },
+    {
+      "id": "zq-db-chatty-read",
+      "sev": "low",
+      "category": "performance",
+      "title": "Zq chatty read from the shop service to the data layer",
+      "anchor": { "edge": "e-shop-db" },
+      "summary": "One user action reads the whole order collection through this edge.",
+      "impact": "Latency and load grow with the amount of stored data.",
+      "fix": "Page the read or add a summary query.",
+      "detail": "ZQDETAIL-2 src/index.js:3 loops over every row.",
+      "evidence": [{ "path": "src/index.js", "lines": "3" }],
+      "source": "archmap"
+    }
+  ]
+}
