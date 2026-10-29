@@ -1,0 +1,26 @@
+{
+  "gates": {
+    "node --test tests/viewer.test.mjs": "pass",
+    "node --test (full, extra)": "pass",
+    "tests/visual/screenshots.py (local-only)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:47:14Z",
+    "basis": "`node --test tests/viewer.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: the legibility floor is about 0.5 (got undefined); run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "assets/viewer/viewer.js: added pure figureScale(naturalW, availW) -> {fit, scale, fitted, scrolls} and FIG_MIN_SCALE=0.5, exported via module.exports. setFigureScale/applyFigureScale now default to mode 'auto': fitted when fit>=0.5, else the svg gets min-width = round(natW*0.5) px (opens at the floor, sideways scroll). 'fit' and '100%' buttons stay; the pressed button reflects the resolved mode (data-scale-mode on the svg is fit|floor|full). A ResizeObserver on the .fig-scroll re-applies when the panel gets its width or resizes. tests/viewer.test.mjs: added v8 (wide figure in 400px never below floor, narrow-range sweep, 700-in-400 stays fitted, small figure not enlarged, Fit button still built). tests/visual/screenshots.py: check_figures now also asserts a minimum effective font size (computed font-size * svg px per user unit, MIN_FONT_PX=4.5), requires sideways scroll when at floor, only asserts no-clip/Fit-pressed when not at the floor, checks Fit shows the whole drawing; screenshots now taken before check_figures clicks buttons. Ran local visual check: .venv/bin/python tests/visual/screenshots.py -> PASS vs1 (80 screenshots, 0 errors), PASS vs2. A first run with MIN_FONT_PX=5.0 failed (smallest drawn text is ~9.6 user units = 4.8px at the 0.5 floor, also on desktop trust figure at 0.51), so the threshold was set to 4.5 to match the floor; raising it needs a larger floor or larger base font. node --test: 224 pass, 0 fail. Dependants: viewer.css (min-width:980px rule is overridden inline by the svg style as before, still correct); render.mjs (embeds viewer.js unchanged in how, still correct); docs/design.md (describes fit default; now fit-above-floor, minor wording not updated, out of scope); tests/visual/README.md (describes clipped-panel checks, still correct).",
+    "descriptive": "Wide figures at 400px now open at a legible 0.5 scale with horizontal scroll and Fit one click away, instead of whole but tiny."
+  },
+  "testsAdded": [
+    "v8: figureScale/FIG_MIN_SCALE floor behaviour, fitted above the floor, never enlarged, Fit available"
+  ],
+  "casesAdded": [
+    "v8"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:11166d2d7a6449ef36d25806d1bb77611c484b80f17e7f73daea002a3637e6ed\",\"dirtyDigest\":\"sha256:fc8242ef4118865e6b65512b7640c9ae2bc6df0b132ddaec82cb3c64b9f44591\",\"dirtyPaths\":{\"assets/viewer/viewer.js\":\"e6d7900990ab6153\",\"tests/viewer.test.mjs\":\"755d9a3f449c5f5b\",\"tests/visual/screenshots.py\":\"c5e8650f23775c35\"},\"head\":\"12bc3ad\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/viewer.js\",\"tests/viewer.test.mjs\",\"tests/visual/screenshots.py\"],\"scopeDigest\":\"sha256:87b0c700b9b8374ed1086cefb326ec94dbbcc66ef87825a41fd4bd31a499f100\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

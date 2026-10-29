@@ -14,6 +14,17 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 const codeify = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
 const num = v => Math.round(v * 100) / 100;
 
+/* Figure scale (pure): the smallest scale a figure opens at. Fitting a wide drawing to a narrow panel would shrink
+   its text past reading, so below FIG_MIN_SCALE the figure opens at the floor and scrolls sideways; Fit stays one click away.
+   naturalW is the drawing's width in px, availW the panel's. fit is the true whole-drawing scale (never above 1). */
+const FIG_MIN_SCALE = 0.5;
+function figureScale(naturalW, availW){
+  const nat = Math.max(1, naturalW), avail = Math.max(0, availW);
+  const fit = Math.min(1, avail / nat);
+  const fitted = fit >= FIG_MIN_SCALE;
+  return {fit:fit, scale:fitted ? fit : FIG_MIN_SCALE, fitted:fitted, scrolls:!fitted};
+}
+
 // relation types: colour comes from the CSS (--rel-<type>); dash pattern and width make each type readable without colour.
 const REL = {
   api:     {label:"HTTP API",               dash:null,      w:2},
@@ -338,7 +349,7 @@ if (typeof document === "undefined"){
   if (typeof module !== "undefined" && module && typeof module === "object") {
     module.exports = {findPath:findPath, lineageOf:lineageOf, searchModel:searchModel, crudMatrix:crudMatrix, crudHtml:crudHtml,
       erScene:erScene, erMarkup:erMarkup, crowFoot:crowFoot, manyEnds:manyEnds, relationKeys:relationKeys, evidenceUrl:evidenceUrl,
-      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust};
+      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust};
   }
   return;
 }
@@ -487,11 +498,13 @@ function viewBox(view, extra){
 }
 const ALL_VIEWS = buildViews();
 
-/* Figure scale: every diagram opens fitted to its panel (whole drawing visible, nothing clipped, no sideways scroll);
-   the 100% button draws it at its natural size inside the scrolling panel. The choice is kept per figure. */
+/* Figure scale: a diagram opens fitted to its panel (whole drawing visible, nothing clipped, no sideways scroll) while
+   that keeps it legible; when the fit scale would fall below FIG_MIN_SCALE it opens at the floor and scrolls sideways
+   instead. Fit (the whole drawing, however small) and 100% (natural size) stay one click away. The choice is kept per figure;
+   __scale is "auto" (fit above the floor, else the floor), "fit" or "full". */
 function setFigureScale(svg, naturalW){
   svg.__natW = Math.max(1, Math.round(naturalW));
-  if (!svg.__scale) svg.__scale = "fit";
+  if (!svg.__scale) svg.__scale = "auto";
   const fig = svg.closest("figure");
   if (fig && !fig.querySelector(".fig-scale") && svg.parentNode){
     const bar = document.createElement("div");
@@ -507,14 +520,23 @@ function setFigureScale(svg, naturalW){
     });
     fig.insertBefore(bar, svg.parentNode);
   }
+  // A panel that was hidden when drawn has no width yet: re-apply when it gets one, and when the window is resized.
+  if (!svg.__ro && svg.parentNode && typeof ResizeObserver !== "undefined"){
+    svg.__ro = new ResizeObserver(() => applyFigureScale(svg));
+    svg.__ro.observe(svg.parentNode);
+  }
   applyFigureScale(svg);
 }
 function applyFigureScale(svg){
-  const full = svg.__scale === "full";
-  svg.style.minWidth = full ? svg.__natW + "px" : "0";
+  const avail = svg.parentNode ? svg.parentNode.clientWidth : 0;
+  const fs = avail > 0 ? figureScale(svg.__natW, avail) : null;
+  let mode = svg.__scale;
+  if (mode === "auto") mode = fs && !fs.fitted ? "floor" : "fit";
+  svg.style.minWidth = mode === "full" ? svg.__natW + "px" : mode === "floor" ? Math.round(svg.__natW * FIG_MIN_SCALE) + "px" : "0";
+  svg.dataset.scaleMode = mode;
   const fig = svg.closest("figure");
   if (fig) fig.querySelectorAll(".fig-scale button").forEach(b => {
-    const on = b.dataset.scale === svg.__scale;
+    const on = b.dataset.scale === mode;
     b.setAttribute("aria-pressed", on ? "true" : "false");
     b.style.borderColor = on ? "var(--accent)" : "";
     b.style.fontWeight = on ? "700" : "";

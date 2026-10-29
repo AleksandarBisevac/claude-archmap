@@ -51,35 +51,53 @@ def build(tmp):
     return pages
 
 
-# Layout checks for the figure in the open tab (P2-R1): the default view fits the figure to the panel width, so
-# nothing is clipped on the right and nothing scrolls sideways, the drawing fills its viewBox (no mostly blank canvas),
-# and a scale control (Fit / 100%) lets the reader zoom in and scroll.
+# Layout checks for the figure in the open tab (P2-R1, BF1.2): the default view fits the figure to the panel width, so
+# nothing is clipped on the right and nothing scrolls sideways - unless fitting would shrink the text below the
+# legibility floor, in which case the figure opens at the floor scale and scrolls sideways, with Fit one click away.
+# The drawing fills its viewBox (no mostly blank canvas), a scale control (Fit / 100%) is present, and the smallest
+# text on the figure is MIN_FONT_PX or more once the svg scale is applied (effective = computed font-size * svg px per user unit).
+MIN_FONT_PX = 4.5  # the smallest drawn text is about 9.6 user units; at the 0.5 floor that is 4.8px
 FIGURE_JS = """() => [...document.querySelectorAll('.fig-scroll')].filter(f => f.offsetParent !== null).map(f => {
   const svg = f.querySelector('svg'), r = svg.getBoundingClientRect(), fr = f.getBoundingClientRect();
   const vb = svg.viewBox.baseVal, bb = svg.getBBox();
   const ctl = f.parentElement.querySelector('.fig-scale');
+  const k = vb.width ? r.width / vb.width : 1;
+  const sizes = [...svg.querySelectorAll('text')].filter(t => t.getClientRects().length && t.textContent.trim())
+    .map(t => parseFloat(getComputedStyle(t).fontSize) * k).filter(x => x > 0);
   return {id: svg.id, overflow: f.scrollWidth - f.clientWidth, right: r.right - fr.right, width: r.width,
-          fill: vb.width ? bb.width / vb.width : 1,
-          control: !!ctl, fitOn: !!ctl && !!ctl.querySelector('[data-scale="fit"][aria-pressed="true"]')};
+          fill: vb.width ? bb.width / vb.width : 1, scaleMode: svg.dataset.scaleMode || '',
+          minFont: sizes.length ? Math.min(...sizes) : null, scale: vb.width ? r.width / vb.width : 1,
+          control: !!ctl, fitOn: !!ctl && !!ctl.querySelector('[data-scale="fit"][aria-pressed="true"]'),
+          fitBtn: !!ctl && !!ctl.querySelector('[data-scale="fit"]')};
 })"""
 
 
 def check_figures(page, where, errors):
     for fig in page.evaluate(FIGURE_JS):
         at = f"{where}/{fig['id']}"
-        if fig["overflow"] > 1 or fig["right"] > 1:
+        floor = fig["scaleMode"] == "floor"
+        if not floor and (fig["overflow"] > 1 or fig["right"] > 1):
             errors.append(f"{at}: figure clipped on the right (scroll overflow {fig['overflow']}px, svg past panel {fig['right']:.0f}px)")
+        if floor and fig["overflow"] <= 1:
+            errors.append(f"{at}: opened at the legibility floor but cannot scroll sideways (content would be clipped)")
+        if fig["minFont"] is not None and fig["minFont"] < MIN_FONT_PX:
+            errors.append(f"{at}: smallest text is {fig['minFont']:.1f}px effective (scale {fig['scale']:.2f}), below {MIN_FONT_PX}px")
         if fig["fill"] < 0.6:
             errors.append(f"{at}: drawing fills only {fig['fill']:.0%} of its viewBox (mostly blank canvas)")
-        if not fig["control"] or not fig["fitOn"]:
-            errors.append(f"{at}: no scale control with Fit pressed by default")
+        if not fig["control"] or not fig["fitBtn"]:
+            errors.append(f"{at}: no scale control with a Fit button")
+        elif not floor and not fig["fitOn"]:
+            errors.append(f"{at}: Fit is not pressed by default although the figure fits above the floor")
         else:
             fig_el = page.locator(f'#{fig["id"]}').locator("xpath=ancestor::figure")
             fig_el.locator("button[data-scale='full']").click()
             wide = next(w for w in page.evaluate(FIGURE_JS) if w["id"] == fig["id"])
             fig_el.locator("button[data-scale='fit']").click()
+            fitted = next(w for w in page.evaluate(FIGURE_JS) if w["id"] == fig["id"])
             if wide["width"] < fig["width"] - 1:
                 errors.append(f"{at}: 100% is narrower than Fit")
+            if fitted["overflow"] > 1 or fitted["right"] > 1:
+                errors.append(f"{at}: Fit does not show the whole drawing (overflow {fitted['overflow']}px)")
 
 
 def check_page(browser, mode, html, results, errors, sizes=SIZES, themes=THEMES, fault=False, shoot=True):
@@ -113,12 +131,12 @@ def check_page(browser, mode, html, results, errors, sizes=SIZES, themes=THEMES,
                     continue  # e.g. the Issues tab in a clean render
                 btn.click()
                 page.wait_for_timeout(300)
-                check_figures(page, f"{where}/{tab}", errors)
                 shown += 1
-                if shoot:
+                if shoot:  # shoot the opening state first: check_figures clicks the scale buttons
                     path = OUT / f"{mode}-{tab}-{theme}-{size_name}.png"
                     page.screenshot(path=str(path), full_page=True)
                     results.append(str(path.relative_to(ROOT)))
+                check_figures(page, f"{where}/{tab}", errors)
             if shown == 0:
                 errors.append(f"{where}: no visible tabs")
             ctx.close()

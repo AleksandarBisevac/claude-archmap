@@ -3723,7 +3723,7 @@
         {
           "id": "BF1.1",
           "title": "Fix BUG-1-2vu: Viewer picks deployment/trust views by name regex, not a schema field",
-          "status": "in_progress",
+          "status": "done",
           "description": "Bug BUG-1-2vu (carried from P2-R3): viewRole in assets/viewer/viewer.js chooses the deployment and trust renderers by regex on a view's id and title (/trust|boundar/, /deploy|release|topolog|infra/), because model.views has no kind. A view named outside those words gets the plain projection. Fix: add an optional, additive kind enum (graph, deployment, trust) to model.views in the schema; validate.mjs accepts it; document it in docs/design.md section 5 and references/model-schema.md; the viewer uses kind when present and keeps the regex only as a fallback for views without kind. Backward compatible: existing models without kind validate and render unchanged.",
           "files": [
             "assets/viewer/viewer.js",
@@ -3752,26 +3752,40 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "12bc3ad91a57",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added optional kind enum [graph, deployment, trust] to $defs.view in schema/archmap-model.schema.json. validate.mjs needed no code change: it interprets the schema, and I confirmed kind=trust validates and kind=bogus yields a schema finding at /views/0/kind. viewRole in assets/viewer/viewer.js already honoured deployment/trust kind (HEAD); fixed it to honour kind=graph too, so an explicit graph beats the name regex, and the regex stays the fallback for views without kind. Documented in docs/design.md section 5 and references/model-schema.md. Added s14 (schema) and v7 (viewer). Dependants: validate.mjs importers unaffected (no change); design.md and model-schema.md dependants still correct (additive doc line); viewer.js dependants (viewer.css, render.mjs) unaffected, only a one-token change in viewRole; schema dependants (skill-references test) pass in the full run.",
+            "descriptive": "Views can carry an optional kind that the viewer uses before falling back to the name regex."
           },
           "startedAt": "2026-10-29T13:41:31Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:43:23Z",
+          "verifiedBy": [
+            "s14: views[].kind accepts graph|deployment|trust, rejects other values with an enum finding, and a model without kind validates",
+            "v7: viewRole uses kind on neutral-named views, kind overrides the name regex, and the regex fallback is unchanged without kind"
+          ],
           "bugId": "BUG-1-2vu",
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T13:43:21Z.10a146",
             "status": "passed",
             "at": "2026-10-29T13:43:21Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "12bc3ad91a57",
+            "at": "2026-10-29T13:43:23Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:42:55Z",
+            "basis": "`node --test tests/schema.test.mjs tests/viewer.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "BF1.2",
           "title": "Fix BUG-2-2vu: Fitted figures are illegibly small at narrow widths",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Bug BUG-2-2vu (carried from the P2 re-review, assets/viewer/viewer.js fit logic): Fit is the default for every figure, so at 400 px wide graph, ER and sequence drawings show whole but with very small text; legibility rests on the 100% button. Fix: when the fit scale falls below a legibility floor (about 0.5), open at the floor scale with horizontal scroll and keep Fit one click away; keep the scale computation in a pure function the unit tests can reach. tests/visual/screenshots.py check_figures also asserts a minimum effective font size as well as no clipping (local-only check, run it once and report the result).",
           "files": [
             "assets/viewer/viewer.js",
@@ -3796,17 +3810,23 @@
           "dependsOn": [
             "BF1.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T13:43:23Z",
           "completedAt": null,
           "verifiedBy": [],
-          "bugId": "BUG-2-2vu"
+          "bugId": "BUG-2-2vu",
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:47:34Z.7af19c",
+            "status": "passed",
+            "at": "2026-10-29T13:47:34Z"
+          }
         },
         {
           "id": "BF1.3",
@@ -4370,7 +4390,7 @@
     {
       "id": "BUG-1-2vu",
       "title": "Viewer picks deployment/trust views by name regex, not a schema field",
-      "status": "in_progress",
+      "status": "fixed",
       "severity": "low",
       "reportedAt": "2026-10-28T19:22:40Z",
       "reportedBy": null,
@@ -4383,7 +4403,7 @@
         "schema/archmap-model.schema.json"
       ],
       "taskId": "BF1.1",
-      "fixedIn": null,
+      "fixedIn": "12bc3ad91a57",
       "notes": null
     },
     {

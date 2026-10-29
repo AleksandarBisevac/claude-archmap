@@ -221,3 +221,30 @@ test('v7 a view picks its renderer from kind when present, and falls back to the
   assert.equal(V.viewRole({ id: 'release', title: 'Release topology' }), 'deployment');
   assert.equal(V.viewRole({ id: 'zones-overview', title: 'Zones overview' }), 'graph');
 });
+
+test('v8 a figure that would fit below the legibility floor opens at the floor (scrolling), one that fits above it opens fitted, and Fit stays available', () => {
+  const floor = V.FIG_MIN_SCALE;
+  assert.ok(floor >= 0.45 && floor <= 0.55, `the legibility floor is about 0.5 (got ${floor})`);
+  // A wide figure in a 400 px container: whole-drawing fit would be 400/1600 = 0.25, below the floor.
+  const wide = V.figureScale(1600, 400);
+  assert.equal(wide.fit, 0.25, 'the fit scale is still computed');
+  assert.ok(wide.scale >= floor, `opens at ${wide.scale}, below the floor ${floor}`);
+  assert.equal(wide.scale, floor);
+  assert.equal(wide.scrolls, true, 'the floor scale needs sideways scrolling');
+  assert.equal(wide.fitted, false);
+  // Across many narrow widths the opening scale is never below the floor.
+  for (const w of [200, 320, 400, 480, 600]) for (const nat of [900, 1200, 1600, 2400]) {
+    assert.ok(V.figureScale(nat, w).scale >= floor, `${nat} in ${w}: below the floor`);
+  }
+  // A figure that fits above the floor still opens fitted, with no scrolling.
+  const ok = V.figureScale(700, 400);
+  assert.equal(ok.scale, 400 / 700);
+  assert.equal(ok.fitted, true);
+  assert.equal(ok.scrolls, false);
+  // A figure narrower than its container is never enlarged.
+  assert.equal(V.figureScale(300, 400).scale, 1);
+  assert.equal(V.figureScale(300, 400).scrolls, false);
+  // Fit stays available: the Fit scale is the true fit, and the Fit button is built for every figure.
+  assert.equal(V.figureScale(1600, 400).fit, 0.25);
+  assert.match(clean, /\["fit", "Fit"\]/, 'the Fit button is still built by the viewer script');
+});
