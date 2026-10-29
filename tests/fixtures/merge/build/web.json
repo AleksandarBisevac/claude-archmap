@@ -1,0 +1,14 @@
+{
+  "area": "web",
+  "nodes": [
+    { "id": "ui", "zone": "browser", "kind": "app", "title": "Shop UI", "paths": ["web/**"], "level": 1, "evidence": [{ "path": "web/app.js", "lines": "1-10" }] },
+    { "id": "shared-lib", "zone": "browser", "kind": "module", "title": "Shared lib", "paths": ["lib/**"], "level": 2, "evidence": [{ "path": "lib/index.js", "lines": "1-5" }] }
+  ],
+  "edges": [
+    { "id": "ui-calls-api", "from": "ui", "to": "svc", "type": "api", "desc": "UI fetches orders", "evidence": [{ "path": "web/app.js", "lines": "3-4" }], "confidence": "inferred" }
+  ],
+  "entities": [],
+  "access": [],
+  "coverage": ["web/**", "lib/**"],
+  "skipped": { "count": 1, "reasons": ["generated client"] }
+}

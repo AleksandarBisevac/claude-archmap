@@ -1,0 +1,41 @@
+{
+  "gates": {
+    "node --test tests/merge.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T08:45:32Z",
+    "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/merge.mjs (pure exported merge() + CLI), tests/merge.test.mjs (15 cases m1..m8 incl. b/c variants) and fixtures under tests/fixtures/merge/ (build/{web,api,introspection}.json, update/frags/api.json, synth.json). Tests were drafted before merge.mjs existed and failed on the missing module (first red: import error, merge symbol introduced by this task). After implementation: node --test tests/merge.test.mjs 15/15 pass; full `node --test` 149/149 pass, exit 0. Design choices: fragments sorted by area; identical elements deduped, differing ones renamed <id>-<area> (-2.. if taken) with per-fragment reference rewrite (edge from/to, entity.store, fk.entity, access node/entity, relations); access rows dedupe on node+entity with ops unioned; zones used by nodes but undeclared are auto-created (fragments do not emit zones, schema requires them); generatedAt/commit/project never invented (flags --commit/--project/--generated-at, else taken from --previous); update mode owns elements whose first evidence path matches the previous meta.coverage globs of the --areas (cross-area synth edges/access with evidence in an affected area are replaced, so the synthesizer must rerun for them); user fields: locked node keeps authored content with a conflict if the new analysis differs, notes copied onto re-analysed nodes, a locked/noted node an explorer no longer reports is kept with a conflict; synth edges/sequences/views by id, access/relations by key, optional synth.nodes guarded by locked, notes and conflicts passed through; output key-sorted and element-sorted for byte-identical runs; validate() gate refuses with exit 1 and writes nothing; --strict with conflicts exits 1 and writes nothing; usage errors exit 2. Dependants: docs/design.md (\u00a75/\u00a76 describe merge behaviour) still correct - consistent with what was built; skills/architecture-map/SKILL.md step 4 still says merge.mjs is 'not yet built' - now stale, outside this task's files, left for the later task that wires commands/SKILL; the other tests/fixtures/merge dependants listed (LICENSE, viewer bundle, prescan libs, agents, review skill) match only by basename 'merge' and are unaffected.",
+    "descriptive": "merge.mjs now merges explorer fragments and synthesizer output into a validated, deterministic model while preserving locked and notes."
+  },
+  "testsAdded": [
+    "tests/merge.test.mjs: 15 cases covering fragment merge+validate+meta, id collision renames and reference rewrites (node/edge/entity), update mode area replacement, locked/notes preservation and conflicts, synthesizer merge by id, byte-identical runs, invalid result refused, usage/strict exit codes"
+  ],
+  "casesAdded": [
+    [
+      "m1",
+      "m1b",
+      "m2",
+      "m2b",
+      "m3",
+      "m3b",
+      "m4",
+      "m4b",
+      "m4c",
+      "m5",
+      "m5b",
+      "m6",
+      "m6b",
+      "m7",
+      "m8"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:90413a2e6c2ca0856a25423fb8dc5a5b81fd982a068426ddc928750a0368accd\",\"dirtyDigest\":\"sha256:86acd5742d68dde54bcf696941b07bca969a5d09a01d2fcef990c76b5ed5d17f\",\"dirtyPaths\":{\"scripts/merge.mjs\":\"aa39f10dbb588b02\",\"tests/fixtures/merge/build/api.json\":\"8dcb5a0fb3d30773\",\"tests/fixtures/merge/build/introspection.json\":\"12630d06d9f432a8\",\"tests/fixtures/merge/build/web.json\":\"2b8feee6cba7c433\",\"tests/fixtures/merge/synth.json\":\"6352d9c992e23e3f\",\"tests/fixtures/merge/update/frags/api.json\":\"ceca58b2330cd3b7\",\"tests/merge.test.mjs\":\"5050c3449c022422\"},\"head\":\"fca53ec\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"tests/fixtures/merge/\",\"tests/merge.test.mjs\"],\"scopeDigest\":\"sha256:c2b1f5ca95b2e56aa4c42f75d07683fe5adc79ba622cf713a124970ed3d475cb\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -2164,7 +2164,7 @@
     {
       "id": "P5",
       "title": "Commands, merge, diffmap and usage ledger",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "build, update, render and export commands run end to end; merge.mjs preserves user-authored fields; diffmap.mjs maps changed files to nodes and their dependents; the usage ledger prints per-phase tokens and duration.",
       "testGate": [
@@ -2175,8 +2175,8 @@
         "P3",
         "P4"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "fca53ece26d9f172d8011fe10aed68aebbaf0552",
+      "branch": "audit/p5-commands-merge-diffmap-and-usa",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -2185,12 +2185,217 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P5.1",
+          "title": "merge.mjs: fragments + synthesizer output into the model, preserving user-authored fields",
+          "status": "in_progress",
+          "description": "Implement scripts/merge.mjs (docs/design.md §5, §6; contract in skills/architecture-map/references/model-schema.md 'Explorer fragment contract'). CLI: node scripts/merge.mjs <fragmentsDir> --out <model.json> [--previous <model.json>] [--synth <synth.json>] [--areas a,b] [--commit sha] [--project name] [--profile p]; export a pure merge() for tests. Fragments: concatenate nodes/edges/entities/access, dedupe identical ids, rename colliding ids deterministically and rewrite every reference (edges.from/to, access.node/entity, relations, fk targets), fill meta (schemaVersion, project, commit, generatedAt only when given, profile, coverage[area] from each fragment, sources incl. skipped tallies). Update mode (--previous + --areas): replace only the elements owned by the affected areas, keep the rest, keep ids stable. Synthesizer object (edges, sequences, access, relations, views, notes, conflicts): merged in place by id; conflicts returned/printed, never resolved silently. User-authored fields (node locked + notes, any notes) are never overwritten: a locked node keeps its authored content and a disagreement is reported as a conflict. The result is run through validate() and refused (exit 1, nothing written) when invalid. Deterministic: sorted output, byte-identical for the same inputs. Exit 0 ok, 1 invalid result or conflicts with --strict, 2 usage. Node >= 18, ESM, zero deps. Fixtures are small and fictional.",
+          "files": [
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs",
+            "tests/fixtures/merge/"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: fragments merge into a model that validate() accepts; colliding ids are renamed and all references rewritten; update mode replaces only affected areas and keeps other elements and ids; locked/notes survive and a disagreeing locked node yields a conflict; synthesizer edges/sequences/views merge by id; two runs are byte-identical; an invalid result is refused with exit 1 and nothing written"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T08:39:52Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T08:45:43Z.924acb",
+            "status": "passed",
+            "at": "2026-10-29T08:45:43Z"
+          }
+        },
+        {
+          "id": "P5.2",
+          "title": "usage.mjs: per-phase token and duration ledger",
+          "status": "pending",
+          "description": "Implement scripts/usage.mjs (docs/design.md D11, §8 'The usage ledger takes tokens and duration from subagent completion notifications'). The orchestrator records one row per step: node scripts/usage.mjs add <ledger.jsonl> --phase <prescan|explorer|introspection|merge|synthesizer|reviewer|layout|render> [--label area] [--agent name] [--model m] [--tokens n] [--duration-ms n]; scripts that cost 0 tokens are recorded with tokens 0. node scripts/usage.mjs print <ledger.jsonl> [--json] prints a table per phase (rows, tokens, duration) and a total; a missing figure is shown as unknown, never as 0, and the total says how many rows were unknown. Ledger lives in the work directory, not in the repo. Deterministic output for the same ledger. Exit 0 ok, 2 usage or unreadable ledger. Node >= 18, ESM, zero deps.",
+          "files": [
+            "scripts/usage.mjs",
+            "tests/usage.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/usage.test.mjs: add appends a JSONL row; print groups by phase with token and duration totals; a row without tokens prints unknown and is counted as unknown in the total, never summed as 0; --json output is stable"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P5.3",
+          "title": "diffmap.mjs: changed files to affected areas, nodes, dependents, entities and sequences",
+          "status": "pending",
+          "description": "Implement scripts/diffmap.mjs (docs/design.md Req 'update on command', §6 update step 1, §10 'diffmap maps changed files to the right nodes'). CLI: node scripts/diffmap.mjs <model.json> [--repo <dir>] [--since <sha>] [--json]; export a pure diffmap(model, changes) plus the git reader. Changes = git diff --name-status from meta.commit (or --since) to HEAD, plus untracked files from git ls-files -o --exclude-standard; renames count as delete plus add; git is run with execFileSync, never a shell. Map each file to areas (meta.coverage globs), nodes (paths globs, then evidence paths) and entities (evidence paths); add dependents: nodes one edge away from an affected node, and sequences whose participants or steps touch an affected node; list uncovered new files no area owns. Report {base, head, behind (commit count), files, areas, nodes, dependents, entities, sequences, uncovered}, all sorted; human output is a short summary. Exit 0 ok (also when nothing is affected), 2 usage, unknown base commit or not a git repo. scripts/lib/glob.mjs: a small dependency-free matcher for the globs prescan emits (**, *, ?, dir/**) with its own tests; leave prescan untouched. Tests build a throwaway git repo in a temp dir. Node >= 18, ESM, zero deps.",
+          "files": [
+            "scripts/diffmap.mjs",
+            "scripts/lib/glob.mjs",
+            "tests/diffmap.test.mjs",
+            "tests/glob.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/diffmap.test.mjs: in a temp git repo, a changed file maps to its area and owning node, the node's one-edge neighbours appear as dependents, an entity whose evidence file changed is listed, a touched sequence is listed, a new file outside every glob is uncovered, behind counts commits, nothing changed yields empty lists with exit 0; tests/glob.test.mjs: double-star, star, question mark and dir/** semantics"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P5.4",
+          "title": "Commands build, update, render; SKILL.md uses merge, diffmap and usage",
+          "status": "pending",
+          "description": "Write the plugin commands (docs/design.md §4 conventions, §6 flows). commands/build.md (/archmap:build [--issues] [--profile p] [--db dsn] [--scope path] [--publish]) and commands/update.md (/archmap:update [--issues] [--profile p] [--since sha]) are thin: frontmatter description, argument-hint, allowed-tools; the body hands off to the architecture-map skill's build or update flow with the arguments, and does not restate the flow. commands/render.md (/archmap:render [--internal|--shared]) is script-only with disable-model-invocation: true, running node \"${CLAUDE_PLUGIN_ROOT}/scripts/render.mjs\" on docs/architecture/ (layout first when the layout file is missing), internal and shared writing under <home>/.claude/archmap/<repo-slug>/. Update SKILL.md: merge.mjs, diffmap.mjs and usage.mjs now exist, so replace their 'not yet built' fallbacks with the real invocations (fragments dir, --previous/--areas for update, diffmap --json for update step 1, usage add/print for the ledger); keep staleness, issues and export marked as not yet built. /archmap:export is deferred to P7 with export.mjs; /archmap:check and /archmap:issues to P6. SKILL.md stays <= 500 lines.",
+          "files": [
+            "commands/build.md",
+            "commands/update.md",
+            "commands/render.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/commands.test.mjs",
+            "tests/skill.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/commands.test.mjs: each command file has description, argument-hint and allowed-tools frontmatter; render.md has disable-model-invocation: true; every ${CLAUDE_PLUGIN_ROOT}/scripts/<x>.mjs a command or SKILL.md names exists unless SKILL.md marks it not yet built; tests/skill.test.mjs: SKILL.md no longer marks merge, diffmap or usage as not yet built and invokes each"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test",
+              "claude plugin validate ."
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P5.1",
+            "P5.2",
+            "P5.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P5.5",
+          "title": "End-to-end build and update over a fixture repo without the LLM",
+          "status": "pending",
+          "description": "Prove the script chain runs end to end (P5 outcome; docs/design.md §10 eval 3 shape, without agents). In a temp git copy of the fictional tests/fixtures/repos/node-api repo: run prescan.mjs; take hand-written fictional explorer fragments from tests/fixtures/e2e/ (as an explorer would return, evidence pointing at real fixture lines) plus a synthesizer object; merge.mjs -> validate.mjs --repo -> layout.mjs -> render.mjs, asserting each exit 0 and a clean archmap.html with no issue text. Then mark one node locked with notes and pin it in the layout, commit a scripted change (a new route file and a changed entity file), run diffmap.mjs and assert only the expected area/nodes/entity are affected, re-merge with --previous/--areas from an updated fixture fragment, re-layout seeded and re-render: locked, notes and pinned survive, unaffected nodes keep their positions, meta.commit advances to the new HEAD. usage.mjs records a row per step and prints. Uses only node:test and child_process execFileSync; nothing from the fixture repo is executed.",
+          "files": [
+            "tests/e2e.test.mjs",
+            "tests/fixtures/e2e/"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/e2e.test.mjs: prescan, merge, validate --repo, layout, render all exit 0 on the fixture and the clean HTML has no issue text; after a scripted commit diffmap affects only the expected area, nodes and entity; update re-merge keeps locked, notes and pinned, unaffected positions are unchanged and meta.commit equals the new HEAD"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P5.1",
+            "P5.2",
+            "P5.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
       "area": [
         "commands",
         "merge",
         "diffmap"
-      ]
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-29T08:39:52Z"
     },
     {
       "id": "P6",
@@ -2632,12 +2837,14 @@
     "skills/architecture-map/SKILL.md": [
       "P4.4",
       "P4.6-w15",
-      "P4.7-w15"
+      "P4.7-w15",
+      "P5.4"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
       "P4.6-w15",
-      "P4.8-w15"
+      "P4.8-w15",
+      "P5.4"
     ],
     "agents/archmap-explorer.md": [
       "P4.5"
@@ -2650,6 +2857,51 @@
     ],
     "tests/agents.test.mjs": [
       "P4.5"
+    ],
+    "scripts/merge.mjs": [
+      "P5.1"
+    ],
+    "tests/merge.test.mjs": [
+      "P5.1"
+    ],
+    "tests/fixtures/merge/": [
+      "P5.1"
+    ],
+    "scripts/usage.mjs": [
+      "P5.2"
+    ],
+    "tests/usage.test.mjs": [
+      "P5.2"
+    ],
+    "scripts/diffmap.mjs": [
+      "P5.3"
+    ],
+    "scripts/lib/glob.mjs": [
+      "P5.3"
+    ],
+    "tests/diffmap.test.mjs": [
+      "P5.3"
+    ],
+    "tests/glob.test.mjs": [
+      "P5.3"
+    ],
+    "commands/build.md": [
+      "P5.4"
+    ],
+    "commands/update.md": [
+      "P5.4"
+    ],
+    "commands/render.md": [
+      "P5.4"
+    ],
+    "tests/commands.test.mjs": [
+      "P5.4"
+    ],
+    "tests/e2e.test.mjs": [
+      "P5.5"
+    ],
+    "tests/fixtures/e2e/": [
+      "P5.5"
     ]
   },
   "bugs": [

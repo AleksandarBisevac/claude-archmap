@@ -1,0 +1,26 @@
+{
+  "area": "introspection",
+  "nodes": [
+    { "id": "store", "zone": "data", "kind": "store", "title": "Orders DB", "paths": ["db/**"], "level": 1, "evidence": [{ "path": "db/schema.sql", "lines": "1-12" }] }
+  ],
+  "edges": [],
+  "entities": [
+    {
+      "id": "orders", "store": "store", "name": "orders", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "int", "pk": true, "provenance": "observed" },
+        { "name": "user_id", "type": "int", "provenance": "observed", "fk": { "entity": "users", "field": "id" } }
+      ],
+      "evidence": [{ "path": "db/schema.sql", "lines": "1-6" }]
+    },
+    {
+      "id": "users", "store": "store", "name": "users", "kind": "table",
+      "fields": [{ "name": "id", "type": "int", "pk": true, "provenance": "observed" }],
+      "evidence": [{ "path": "db/schema.sql", "lines": "7-12" }]
+    }
+  ],
+  "access": [],
+  "coverage": ["db/**"],
+  "skipped": { "count": 2, "reasons": ["views", "sqlite internals"] },
+  "sources": [{ "type": "introspection", "tool": "sqlite3", "status": "run" }]
+}

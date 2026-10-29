@@ -1,0 +1,16 @@
+{
+  "area": "api",
+  "nodes": [
+    { "id": "svc", "zone": "api", "kind": "service", "title": "Orders service", "paths": ["api/**"], "level": 2, "evidence": [{ "path": "api/main.py", "lines": "1-20" }] },
+    { "id": "shared-lib", "zone": "browser", "kind": "module", "title": "Shared lib", "paths": ["lib/**"], "level": 2, "evidence": [{ "path": "lib/index.js", "lines": "1-5" }] }
+  ],
+  "edges": [
+    { "id": "svc-reads-store", "from": "svc", "to": "store", "type": "sql", "desc": "Service reads orders", "evidence": [{ "path": "api/main.py", "lines": "8-9" }], "confidence": "verified" }
+  ],
+  "entities": [],
+  "access": [
+    { "node": "svc", "entity": "orders", "ops": "R", "evidence": [{ "path": "api/main.py", "lines": "8-9" }] }
+  ],
+  "coverage": ["api/**"],
+  "skipped": { "count": 0, "reasons": [] }
+}

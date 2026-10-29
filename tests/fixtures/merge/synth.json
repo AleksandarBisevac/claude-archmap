@@ -1,0 +1,22 @@
+{
+  "edges": [
+    { "id": "ui-calls-api", "from": "ui", "to": "svc", "type": "api", "desc": "UI calls the orders API", "evidence": [{ "path": "web/app.js", "lines": "3-4" }], "confidence": "verified" },
+    { "id": "svc-persists", "from": "svc", "to": "store", "type": "persist", "desc": "Service writes orders", "evidence": [{ "path": "api/main.py", "lines": "12-14" }], "confidence": "verified" }
+  ],
+  "sequences": [
+    {
+      "id": "place-order", "title": "Place order", "summary": "UI posts an order.",
+      "participants": [{ "id": "ui", "label": "UI", "node": "ui" }, { "id": "svc", "label": "Service", "node": "svc" }],
+      "steps": [{ "m": ["ui", "svc"], "k": "api", "t": "POST /orders", "d": "Creates the order", "r": ["web/app.js:3"] }]
+    }
+  ],
+  "access": [
+    { "node": "svc", "entity": "orders", "ops": "CRU", "evidence": [{ "path": "api/main.py", "lines": "8-14" }] }
+  ],
+  "relations": [
+    { "from": { "entity": "orders", "field": "user_id" }, "to": { "entity": "users", "field": "id" }, "cardinality": "1-n", "kind": "fk", "provenance": "observed" }
+  ],
+  "views": [{ "id": "system", "title": "System", "nodes": ["ui", "svc", "store"] }],
+  "notes": ["Only one flow is distinct."],
+  "conflicts": []
+}
