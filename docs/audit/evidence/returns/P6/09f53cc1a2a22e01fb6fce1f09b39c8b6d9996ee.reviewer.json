@@ -1,0 +1,124 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "skills/architecture-map/SKILL.md:172-178",
+      "issue": "The first-build instructions do not work with the scripts. The import-audit and merge commands always pass --existing <overlay-dir>/issues.json, and line 178 says 'first build: omit --existing'. But scripts/issues.mjs mergeCmd (issues.mjs:831) throws a UsageError (exit 2) when --existing is absent, and readJsonFile throws a UsageError (exit 2) on ENOENT, so import-audit --existing on a file that does not exist yet also exits 2. The first /archmap:issues run in a new project therefore fails on both documented paths. Tests i1-i9 and o4 always supply an existing file.",
+      "resolution": "Make --existing optional in merge and tolerate a missing --existing file in both subcommands (treat it as an empty overlay), or have SKILL.md say to create `{\"schemaVersion\":\"1.0\",\"issues\":[]}` in the overlay dir first. Add a test for the first-build case."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "tests/issues-overlay.test.mjs:135-137",
+      "issue": "Test o5 (the clean render holds no issue text) renders clean WITHOUT --issues (renderTo omits the flag for 'clean'). The check passes trivially and cannot fail if `--mode clean --issues <overlay>` leaked issue text. renderHtml does drop issues in clean mode, so the behaviour is right today, but this test does not lock it in. It was green before the change, as the executor noted.",
+      "resolution": "Also render with `--issues OVERLAY --mode clean` and run the same no-issue-text assertions on that output."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "scripts/staleness.mjs:166-180",
+      "issue": "In check mode an exception that is not a UsageError is rethrown (line 168). The direct-run rejection handler (line 180) then calls process.exit(0), which reports 'fresh' for a crashed check. The task says check returns 0 fresh, 1 stale, 2 error. The hook-mode exit-0 rule was applied to check mode.",
+      "resolution": "Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "The phase desired outcome holds. The SessionStart hook prints one line only when the model is stale. It always exits 0 and is silent on a missing or corrupt model, a non-git dir, bad stdin or a hung git, because the comparison runs in a killable child process. Check mode exits 0, 1 or 2 as described. issues.mjs import-audit covers bugs, structured findings and legacy string findings. It refuses an --out inside the project's git tree (exit 2, nothing written) and validates the result (exit 1). The overlay path is outside the repo. Clean render takes no issues. Shared drops detail, and internal shows detail and the switch. The executors' claims describe their diffs, including their stated deviations. P6.2 notes that merge also requires --model and that evidence with no lines files lines '1'. P6.3 notes that o5-o7 were already green. P6.1 uses an ASCII ' - ' in the line, as the task text did. One gap against the P6.4 clause 'real invocations': the first-build path in SKILL.md does not run (finding 1).",
+    "missing": [
+      "phase.request and phase.openChoices were not saved, so where a task chose something the request left open could not be checked"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase level: no red-first is owed. Per task, the recorded redFirst is could-not-prove, computed by the red-first helper (its basis shows an exit 1 with no test tally it can read). The executors' notes say P6.2 failed first on a missing module, P6.3 o1-o4 on the unknown subcommand lint, and P6.4 c7, c8 and s8 on current code. P6.3 says o5-o7 passed before the change.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every gate command is `node --test` over the whole project, and the P6.1 and P6.4 gates add `claude plugin validate .`, which also covers the whole project. No gate selects a bounded set of tests, so the question has no bound."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P6.1",
+      "commit": "0936d3798193",
+      "answer": "matches",
+      "note": "Description: 'Hook mode ALWAYS exits 0 and prints nothing on any error'. staleness.mjs hookMain is wrapped in try/catch, the comparison runs in a child process (--assess) killed after ARCHMAP_STALENESS_TIMEOUT_MS, and diffmap is imported rather than spawned. Check mode exits 0, 1 or 2. hooks.json holds one SessionStart command hook. The claim matches the diff. Low-severity gap: a non-UsageError crash in check mode exits 0 (finding 3).",
+      "missing": [],
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is `node --test` and `claude plugin validate .`, both whole-project. No bounded selection.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/staleness.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.1/20261029T125518Z.executor.json, at 2026-10-29T12:57:44Z)"
+    },
+    {
+      "id": "P6.2",
+      "commit": "80f455d5d11c",
+      "answer": "matches",
+      "note": "import-audit, merge and path are present with the id, track, anchoring, skip counts and --out refusal the clause lists. The refusal is checked before anything is created. validate() is applied and failure exits 1. The claim's stated deviations are accurate. The first-run behaviour with a missing --existing file is not covered (finding 1).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.2/20261029T125804Z.executor.json, at 2026-10-29T13:04:54Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P6.3",
+      "commit": "ca6af63e2bff",
+      "answer": "matches",
+      "note": "lint covers the listed specifics (path or file name from evidence, line, URL, host or IP, ENV_NAME, token) and the non-empty summary, impact and fix rule. It exits 1 on findings and 0 when clean, and detail is not linted. The end-to-end chain is locked in as asked. The clean-render assertion is weak (finding 2).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/issues-overlay.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: unknown subcommand lint; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.3/20261029T130526Z.executor.json, at 2026-10-29T13:07:34Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P6.4",
+      "commit": "09f53cc1a2a2",
+      "answer": "matches",
+      "note": "check.md has disable-model-invocation: true and runs staleness.mjs --check. issues.md is a thin hand-off with $ARGUMENTS. SKILL.md replaces the 'not yet built' notes with real invocations and keeps export.mjs marked not yet built. It stays under 500 lines and describes the SessionStart hook. The first-build instruction in SKILL.md contradicts issues.mjs (finding 1).",
+      "missing": [],
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is `node --test` and `claude plugin validate .`, both whole-project. No bounded selection.",
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: staleness.mjs named via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.4/20261029T130753Z.executor.json, at 2026-10-29T13:09:20Z)"
+    }
+  ],
+  "computedAnswers": {
+    "P6.1": [
+      "redFirst",
+      "redFirstBasis"
+    ],
+    "P6.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P6.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P6.4": [
+      "redFirst",
+      "redFirstBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P6.1",
+      "commit": "0936d3798193"
+    },
+    {
+      "id": "P6.2",
+      "commit": "80f455d5d11c"
+    },
+    {
+      "id": "P6.3",
+      "commit": "ca6af63e2bff"
+    },
+    {
+      "id": "P6.4",
+      "commit": "09f53cc1a2a2"
+    }
+  ]
+}

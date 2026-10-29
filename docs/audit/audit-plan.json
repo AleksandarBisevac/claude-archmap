@@ -2980,7 +2980,41 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P6-R1",
+            "severity": "med",
+            "file": "skills/architecture-map/SKILL.md:172-178",
+            "issue": "The first-build instructions do not work with the scripts. The import-audit and merge commands always pass --existing <overlay-dir>/issues.json, and line 178 says 'first build: omit --existing'. But scripts/issues.mjs mergeCmd (issues.mjs:831) throws a UsageError (exit 2) when --existing is absent, and readJsonFile throws a UsageError (exit 2) on ENOENT, so import-audit --existing on a file that does not exist yet also exits 2. The first /archmap:issues run in a new project therefore fails on both documented paths. Tests i1-i9 and o4 always supply an existing file.",
+            "resolution": "Make --existing optional in merge and tolerate a missing --existing file in both subcommands (treat it as an empty overlay), or have SKILL.md say to create `{\"schemaVersion\":\"1.0\",\"issues\":[]}` in the overlay dir first. Add a test for the first-build case.",
+            "fixTask": "P6.5-vcu"
+          },
+          {
+            "id": "P6-R2",
+            "severity": "low",
+            "file": "tests/issues-overlay.test.mjs:135-137",
+            "issue": "Test o5 (the clean render holds no issue text) renders clean WITHOUT --issues (renderTo omits the flag for 'clean'). The check passes trivially and cannot fail if `--mode clean --issues <overlay>` leaked issue text. renderHtml does drop issues in clean mode, so the behaviour is right today, but this test does not lock it in. It was green before the change, as the executor noted.",
+            "resolution": "Also render with `--issues OVERLAY --mode clean` and run the same no-issue-text assertions on that output.",
+            "fixTask": "P6.6-vcu"
+          },
+          {
+            "id": "P6-R3",
+            "severity": "low",
+            "file": "scripts/staleness.mjs:166-180",
+            "issue": "In check mode an exception that is not a UsageError is rethrown (line 168). The direct-run rejection handler (line 180) then calls process.exit(0), which reports 'fresh' for a crashed check. The task says check returns 0 fresh, 1 stale, 2 error. The hook-mode exit-0 rule was applied to check mode.",
+            "resolution": "Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode.",
+            "fixTask": "P6.7-vcu"
+          },
+          {
+            "id": "P6-R4",
+            "severity": "med",
+            "file": "scripts/issues.mjs:675",
+            "issue": "import-audit writes evidence lines: \"1\" when an audit entry names a file but no lines - a line the importer never read, which breaks the evidence rule (cite lines actually read, never guess); references/issues-catalog.md:237 says to cite the most relevant line found",
+            "resolution": "Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found; add a test that no imported issue carries a line the importer did not read",
+            "fixTask": "P6.8-vcu"
+          }
+        ],
+        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -3159,7 +3193,7 @@
         {
           "id": "P6.4",
           "title": "Commands check and issues; SKILL.md uses staleness and issues",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write commands/check.md (/archmap:check; script only, disable-model-invocation: true; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\" --check and reports its line and exit code) and commands/issues.md (/archmap:issues [--import-audit] [--profile p]; thin hand-off to the architecture-map skill's issues step, like build.md). Frontmatter per docs/design.md §4 conventions. Update SKILL.md: staleness.mjs and issues.mjs now exist - replace their 'not yet built' notes with the real invocations (issues.mjs path for the overlay dir, import-audit when --import-audit, merge of the reviewer's return, lint before any --mode shared render or --publish of a shared build, write with --out under the overlay dir) and describe the SessionStart hook in one line. export.mjs stays marked not yet built (P7). SKILL.md stays <= 500 lines.",
           "files": [
             "commands/check.md",
@@ -3191,20 +3225,252 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "09f53cc1a2a2",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote tests first (c7, c8 in tests/commands.test.mjs; s8 in tests/skill.test.mjs, and narrowed s7 to export only); first run red: c7, c8, s8 failed on current code. Then added commands/check.md (disable-model-invocation: true, runs staleness.mjs --check, reports line and exit code), commands/issues.md (thin hand-off to the skill's issues step with $ARGUMENTS), and updated SKILL.md: step 7 now gives issues.mjs path, import-audit, merge, validate/render and lint before any shared render or shared --publish, with --out under the overlay dir; Other commands describes check and the SessionStart hook; export.mjs remains 'not yet built'. SKILL.md is 312 lines. Full node --test: 218 pass, 0 fail; claude plugin validate . passed. Dependants: docs/design.md, scripts/issues.mjs, skills-lock.json, tests/issues.test.mjs, .agents/skills/node/tile.json still correct - no names, paths or contracts they use changed; SKILL.md edits only replace the not-yet-built notes and add invocations of existing scripts. tests/commands.test.mjs and tests/skill.test.mjs have no dependants. Test fix along the way: my first s8 lint regex expected lint after the word shared on the same line; corrected to match the actual paragraph order.",
+            "descriptive": "/archmap:check and /archmap:issues exist, and SKILL.md documents the real staleness.mjs and issues.mjs invocations and the SessionStart hook."
           },
           "startedAt": "2026-10-29T13:07:53Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:09:37Z",
+          "verifiedBy": [
+            "c7/c8: check.md and issues.md frontmatter, check.md script-only with staleness.mjs --check and exit code, issues.md thin hand-off, script references exist",
+            "s8: SKILL.md invokes staleness.mjs --check and issues.mjs path/import-audit/merge/lint, lint before shared render/publish, SessionStart described, export.mjs still not yet built, <=500 lines"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T13:09:36Z.50ece9",
             "status": "passed",
             "at": "2026-10-29T13:09:36Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "09f53cc1a2a2",
+            "at": "2026-10-29T13:09:37Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:09:20Z",
+            "basis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: staleness.mjs named via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P6.5-vcu",
+          "title": "fix P6-R1: The first-build instructions do not work with the scripts. The imp...",
+          "status": "in_progress",
+          "description": "The first-build instructions do not work with the scripts. The import-audit and merge commands always pass --existing <overlay-dir>/issues.json, and line 178 says 'first build: omit --existing'. But scripts/issues.mjs mergeCmd (issues.mjs:831) throws a UsageError (exit 2) when --existing is absent, and readJsonFile throws a UsageError (exit 2) on ENOENT, so import-audit --existing on a file that does not exist yet also exits 2. The first /archmap:issues run in a new project therefore fails on both documented paths. Tests i1-i9 and o4 always supply an existing file.\n\nResolution asked: Make --existing optional in merge and tolerate a missing --existing file in both subcommands (treat it as an empty overlay), or have SKILL.md say to create `{\"schemaVersion\":\"1.0\",\"issues\":[]}` in the overlay dir first. Add a test for the first-build case.",
+          "files": [
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T13:16:10Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "scope: skills/architecture-map/SKILL.md, every path the finding(s) P6-R1 name"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "no suite: skills/architecture-map/SKILL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/commands.test.mjs, tests/skill.test.mjs"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "the resolution of P6-R1 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "gate-only, not tdd: every file P6-R1 names is a document (skills/architecture-map/SKILL.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "no test runner in this task's gate for the test P6-R1 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P6 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P6-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:17:16Z.1f5a01",
+            "status": "passed",
+            "at": "2026-10-29T13:17:16Z"
+          }
+        },
+        {
+          "id": "P6.6-vcu",
+          "title": "fix P6-R2: Test o5 (the clean render holds no issue text) renders clean WITHO...",
+          "status": "pending",
+          "description": "Test o5 (the clean render holds no issue text) renders clean WITHOUT --issues (renderTo omits the flag for 'clean'). The check passes trivially and cannot fail if `--mode clean --issues <overlay>` leaked issue text. renderHtml does drop issues in clean mode, so the behaviour is right today, but this test does not lock it in. It was green before the change, as the executor noted.\n\nResolution asked: Also render with `--issues OVERLAY --mode clean` and run the same no-issue-text assertions on that output.",
+          "files": [
+            "tests/issues-overlay.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/issues-overlay.test.mjs: the case P6-R2 asks for, locking the behaviour at HEAD"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "scope: tests/issues-overlay.test.mjs, every path the finding(s) P6-R2 name"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "no test runner in this task's gate for the test P6-R2 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P6 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P6-R2"
+          ]
+        },
+        {
+          "id": "P6.7-vcu",
+          "title": "fix P6-R3: In check mode an exception that is not a UsageError is rethrown (l...",
+          "status": "pending",
+          "description": "In check mode an exception that is not a UsageError is rethrown (line 168). The direct-run rejection handler (line 180) then calls process.exit(0), which reports 'fresh' for a crashed check. The task says check returns 0 fresh, 1 stale, 2 error. The hook-mode exit-0 rule was applied to check mode.\n\nResolution asked: Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode.",
+          "files": [
+            "scripts/staleness.mjs",
+            "tests/staleness.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/staleness.test.mjs: Use a separate rejection handler for check mode that prints the error and exits 2"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "scope: scripts/staleness.mjs, every path the finding(s) P6-R3 name"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "scope: tests/staleness.test.mjs, the suite that tests scripts/staleness.mjs (the test file that names staleness.mjs)"
+            }
+          ],
+          "fixes": [
+            "P6-R3"
+          ]
+        },
+        {
+          "id": "P6.8-vcu",
+          "title": "fix P6-R4: import-audit writes evidence lines: \"1\" when an audit entry names ...",
+          "status": "pending",
+          "description": "import-audit writes evidence lines: \"1\" when an audit entry names a file but no lines - a line the importer never read, which breaks the evidence rule (cite lines actually read, never guess); references/issues-catalog.md:237 says to cite the most relevant line found\n\nResolution asked: Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found; add a test that no imported issue carries a line the importer did not read",
+          "files": [
+            "scripts/issues.mjs",
+            "tests/issues.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/issues.test.mjs: Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "scope: scripts/issues.mjs, every path the finding(s) P6-R4 name"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "scope: tests/issues.test.mjs, the suite that tests scripts/issues.mjs (the test file that names issues.mjs)"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "the resolution of P6-R4 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-10-29T13:16:09Z",
+              "text": "no test runner in this task's gate for the test P6-R4 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P6 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P6-R4"
+          ]
         }
       ],
       "area": [
@@ -3630,7 +3896,8 @@
       "P5.4",
       "P5.8-2zy",
       "P5.9-2zy",
-      "P6.4"
+      "P6.4",
+      "P6.5-vcu"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -3708,27 +3975,32 @@
       "P5.7-2zy"
     ],
     "scripts/staleness.mjs": [
-      "P6.1"
+      "P6.1",
+      "P6.7-vcu"
     ],
     "hooks/hooks.json": [
       "P6.1"
     ],
     "tests/staleness.test.mjs": [
-      "P6.1"
+      "P6.1",
+      "P6.7-vcu"
     ],
     "scripts/issues.mjs": [
       "P6.2",
-      "P6.3"
+      "P6.3",
+      "P6.8-vcu"
     ],
     "tests/issues.test.mjs": [
-      "P6.2"
+      "P6.2",
+      "P6.8-vcu"
     ],
     "tests/fixtures/issues/": [
       "P6.2",
       "P6.3"
     ],
     "tests/issues-overlay.test.mjs": [
-      "P6.3"
+      "P6.3",
+      "P6.6-vcu"
     ],
     "commands/check.md": [
       "P6.4"

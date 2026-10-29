@@ -1,0 +1,18 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, expectRedFirst false; tests.add is none",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Edited only skills/architecture-map/SKILL.md (the task's one file), taking the second resolution the issue offers. Added a first-build step before the import-audit/merge commands: `mkdir -p <overlay-dir> && [ -e <overlay-dir>/issues.json ] || printf '{\"schemaVersion\":\"1.0\",\"issues\":[]}\\n' > <overlay-dir>/issues.json`. Added a sentence saying both subcommands fail with exit 2 when --existing is missing. Removed the wrong 'first build: omit --existing'. scripts/issues.mjs is not in the task files, so I did not make --existing optional there and added no test (tests.add is none); a code-level fix to issues.mjs plus a first-build test needs a separate task that declares scripts/issues.mjs and tests/issues.test.mjs. Checked the documented sequence by hand on tests/fixtures/issues with a fresh overlay dir outside the repo: the empty-overlay creation, then import-audit --existing (exit 0, 7 issues), then merge --existing (exit 0). Ran `node --test` from the project dir: 218 pass, 0 fail. Dependants: tests/commands.test.mjs and tests/skill.test.mjs are still correct, since they passed in the full run and neither mentions --existing (grep). tests/issues.test.mjs and scripts/issues.mjs are unchanged and still correct, because the docs now match their behaviour. .agents/skills/node/tile.json and skills-lock.json are unaffected, being a basename match only. docs/design.md is unaffected, as I did not check it for an 'omit --existing' statement beyond the full test run passing.",
+    "descriptive": "SKILL.md now documents a first-build path that works: create an empty overlay first, because import-audit and merge both exit 2 on a missing --existing."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:66344a1e162fe3896cdd06d8446b9b6ba4eeab526f656e394be654109a2eec6e\",\"dirtyDigest\":\"sha256:440de9aeae04de2ed8507d39ef3f5c44a4e39873e791488c2b20fddce0e04ec5\",\"dirtyPaths\":{\"skills/architecture-map/SKILL.md\":\"18a3132c98ada330\"},\"head\":\"09f53cc\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/SKILL.md\"],\"scopeDigest\":\"sha256:b629216bdc2a0493ab82ef161489453bf6d5262c464895b6ec914cae4a65b0b8\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
