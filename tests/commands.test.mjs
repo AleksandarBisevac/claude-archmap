@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 // Case ids (c1, c2, ...) lead every title so the suite prints them first.
 // The plugin commands are specified in docs/design.md section 4 (conventions) and section 6 (flows).
-// P5.4 ships build, update and render; P6.4 adds check and issues; export lands in P7.
+// P5.4 ships build, update and render; P6.4 adds check and issues; P7.6 adds export.
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const COMMANDS = ['build', 'update', 'render'];
 
@@ -110,5 +110,28 @@ test('c8 the plugin-root script references of check.md and issues.md exist', () 
     for (const m of body.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([a-z][a-z-]*)\.mjs/g)) {
       assert.ok(existsSync(join(ROOT, 'scripts', `${m[1]}.mjs`)), `commands/${name}.md names scripts/${m[1]}.mjs which does not exist`);
     }
+  }
+});
+
+test('c9 export.md is script-only: frontmatter keys, runs export.mjs via the plugin root, names all five formats and exit codes 1, 2 and 3', () => {
+  const { fm, body } = load('export');
+  for (const key of ['description', 'argument-hint', 'allowed-tools']) {
+    assert.ok(fm[key] && fm[key].length > 0, `export.md has a non-empty ${key}`);
+  }
+  assert.ok(fm.description.length > 20, 'export.md description says something');
+  assert.equal(fm['disable-model-invocation'], 'true');
+  assert.ok(fm['allowed-tools'].includes('Bash') && fm['allowed-tools'].includes('Read'), 'export.md allows Bash and Read');
+  for (const f of ['mermaid', 'plantuml', 'svg', 'png', 'md', '--view']) assert.ok(fm['argument-hint'].includes(f), `export argument-hint names ${f}`);
+  assert.ok(body.includes('node "${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs" docs/architecture/architecture.model.json'), 'export.md runs export.mjs via the plugin root');
+  assert.ok(body.includes('$ARGUMENTS'), 'export.md passes $ARGUMENTS');
+  assert.ok(body.includes('--layout docs/architecture/architecture.layout.json'), 'export.md passes the layout when it exists');
+  assert.ok(body.includes('/archmap:build'), 'export.md says to run /archmap:build when the model is missing');
+  for (const f of ['mermaid', 'plantuml', 'svg', 'png', 'md']) assert.match(body, new RegExp(`\\b${f}\\b`), `export.md names ${f}`);
+  for (const code of ['1', '2', '3']) assert.match(body, new RegExp(`[Ee]xit ${code}\\b`), `export.md explains exit ${code}`);
+  assert.match(body, /CHROME_PATH|Chromium/, 'exit 3 is explained as no Chromium');
+  assert.match(body, /clean/i, 'export.md says exports are clean');
+  assert.match(body, /no issues/i, 'export.md says exports carry no issues');
+  for (const m of body.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([a-z][a-z-]*)\.mjs/g)) {
+    assert.ok(existsSync(join(ROOT, 'scripts', `${m[1]}.mjs`)), `export.md names scripts/${m[1]}.mjs which does not exist`);
   }
 });

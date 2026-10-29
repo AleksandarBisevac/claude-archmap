@@ -268,7 +268,11 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
   same script without `--check`: it prints one line when the model is stale, nothing otherwise, and always exits 0; the
   LLM is never run automatically.
 - `/archmap:issues [--import-audit] [--profile p]`: build step 7 over the current model.
-- `/archmap:export mermaid|plantuml|svg|png|md [--view v]`: `export.mjs`, not yet built; no LLM.
+- `/archmap:export mermaid|plantuml|svg|png|md [--view v]`: script only, `node "${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs" docs/architecture/architecture.model.json <format> [--view v] [--layout docs/architecture/architecture.layout.json]`.
+  Writes Mermaid (flowchart per view, erDiagram, sequenceDiagram), PlantUML, Markdown summary or SVG to
+  `docs/architecture/exports/`; png rasterises the svgs with a headless Chromium when one is present (`CHROME_PATH`).
+  Exports are clean only: no issues ever appear in them. Exit 1 invalid model, 2 usage or unreadable, 3 no Chromium
+  for png. No LLM.
 - `/archmap:render [--internal|--shared]`: build step 6 (render) only; no LLM.
 
 ## Evidence rules

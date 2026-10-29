@@ -34,7 +34,7 @@ For local development:
 | `/archmap:update` | Re-analyse only what changed since the model's commit |
 | `/archmap:check` | Report staleness (exit code for CI) |
 | `/archmap:issues` | Run the issues pass, optionally importing audit findings |
-| `/archmap:export` | Export Mermaid, PlantUML, SVG/PNG or Markdown |
+| `/archmap:export` | Export Mermaid, PlantUML, SVG/PNG or Markdown (clean, no issues; PNG needs headless Chromium) |
 | `/archmap:render` | Re-render HTML from the model (no LLM) |
 
 ## Requirements

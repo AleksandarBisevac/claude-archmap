@@ -68,7 +68,7 @@ test('s5 SKILL.md does not let the synthesizer or reviewer write architecture.mo
   assert.match(skill, /only the orchestrat\w*[^\n]*(writes?|edits?)[^\n]*architecture\.model\.json/i, 'only the orchestrator writes the model');
 });
 
-test('s7 SKILL.md no longer marks merge, diffmap or usage as not yet built, invokes each, and still marks export', () => {
+test('s7 SKILL.md no longer marks merge, diffmap or usage as not yet built, invokes each, and export.mjs is invoked and no longer marked', () => {
   const lines = skill.split('\n');
   for (const s of ['merge', 'diffmap', 'usage']) {
     assert.ok(skill.includes(`node "\${CLAUDE_PLUGIN_ROOT}/scripts/${s}.mjs"`), `${s}.mjs invoked via plugin root`);
@@ -81,9 +81,8 @@ test('s7 SKILL.md no longer marks merge, diffmap or usage as not yet built, invo
   assert.match(skill, /usage\.mjs"\s+add\b/, 'usage add recorded per step');
   assert.match(skill, /usage\.mjs"\s+print\b/, 'usage print for the ledger');
   assert.match(skill, /fragments/, 'merge reads the fragments dir');
-  for (const s of ['export']) {
-    assert.ok(lines.some((l) => l.includes(`${s}.mjs`) && /not yet built/i.test(l)) || new RegExp(`${s}\\.mjs[^\\n]*\\n?[^\\n]*not yet built`).test(skill), `${s}.mjs stays marked not yet built`);
-  }
+  assert.ok(skill.includes('node "${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs"'), 'export.mjs invoked via plugin root');
+  assert.deepEqual(lines.filter((l) => l.includes('export.mjs') && /not yet built/i.test(l)), [], 'export.mjs is no longer marked not yet built');
 });
 
 // s6 (P4-R2): the claim scan must not be fooled by a stale line that says "agents" instead of a
@@ -127,7 +126,7 @@ test('s6 the claim scan catches an "agents write the model" line and a negation-
   assert.deepEqual(staleClaims(skill.split('\n')), [], 'SKILL.md carries no line that says an agent writes the model');
 });
 
-test('s8 SKILL.md invokes staleness.mjs and issues.mjs (import-audit, merge, lint, path), no longer marks them not yet built, and still marks export.mjs', () => {
+test('s8 SKILL.md invokes staleness.mjs and issues.mjs (import-audit, merge, lint, path), no longer marks them not yet built, and no longer marks export.mjs', () => {
   const lines = skill.split('\n');
   for (const s of ['staleness', 'issues']) {
     assert.ok(skill.includes(`\${CLAUDE_PLUGIN_ROOT}/scripts/${s}.mjs`), `${s}.mjs named via plugin root`);
@@ -140,6 +139,7 @@ test('s8 SKILL.md invokes staleness.mjs and issues.mjs (import-audit, merge, lin
   assert.match(skill, /before any `--mode shared` render[^\n]*\n?[^\n]*lint/i, 'lint is required before a shared render');
   assert.match(skill, /--publish` of a shared build/, 'lint is required before publishing a shared build');
   assert.match(skill, /SessionStart/, 'the SessionStart hook is described');
-  assert.ok(lines.some((l) => l.includes('export.mjs') && /not yet built/i.test(l)), 'export.mjs stays marked not yet built');
+  assert.ok(lines.some((l) => l.includes('${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs')), 'export.mjs invoked via ${CLAUDE_PLUGIN_ROOT}');
+  assert.deepEqual(lines.filter((l) => l.includes('export.mjs') && /not yet built/i.test(l)), [], 'export.mjs is not marked not yet built');
   assert.ok(lines.length <= 500, 'SKILL.md stays within 500 lines');
 });

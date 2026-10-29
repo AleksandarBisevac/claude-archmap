@@ -3892,7 +3892,7 @@
         {
           "id": "P7.5",
           "title": "PNG via headless Chromium when present",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add the png format to scripts/export.mjs: rasterise each SVG from the svg format to <name>.png with a headless Chrome/Chromium found at CHROME_PATH or the platform's known install paths (macOS app bundles, linux google-chrome/chromium/chromium-browser on PATH, Windows Program Files). Spawn it with execFile/spawn and an argument array, never a shell, with a timeout, a throwaway --user-data-dir under os.tmpdir() removed afterwards, and --headless --disable-gpu --screenshot --window-size from the SVG's size; load the SVG from a temp file:// path. No browser found: print one clear line naming CHROME_PATH and exit 3, writing nothing. Browser failure or timeout: exit 2 with the message. Export findChromium() for tests. Tests must not require a browser: the detection and argument building are unit-tested, and the real rasterise test skips (t.skip) when findChromium() returns null.",
           "files": [
             "scripts/export.mjs",
@@ -3918,25 +3918,41 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "4feda49dfbc9",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/export.mjs: added png format. Exported findChromium({env,platform,exists}) (CHROME_PATH if it exists, else macOS app bundles, PATH lookup of google-chrome/chromium/chromium-browser on linux, Program Files on win32; a CHROME_PATH pointing nowhere falls through) and chromiumArgs(). rasterise() writes each svg from svgFiles to a temp dir, runs the browser via execFile with an argument array, 30s timeout, throwaway --user-data-dir under os.tmpdir() removed in finally, window size from the svg width/height, file:// url from pathToFileURL; PNGs are copied to the out dir only after all render. No browser: single stderr line naming CHROME_PATH, exit 3, nothing created. Browser failure/timeout: exit 2 with message, no png. Removed the IMPLEMENTED gate. tests/export.test.mjs: x10 no longer expects png 'not yet implemented'; added x32-x37 (x35/x36 use a fake chrome script; x33 runs the CLI with a preload making platform freebsd and empty PATH; x37 uses the real Chrome, skipped via t.skip when none). Results: export tests 37/37 pass (real Chrome on this machine ran x37), full node --test 265/265 pass. Dependants: tests/export.test.mjs updated; tests/skill.test.mjs, docs/design.md still correct (they only name the file/png as planned); skills/architecture-map/SKILL.md line 271 still says export.mjs 'not yet built' - pre-existing, outside my files, not changed.",
+            "descriptive": "export.mjs now writes PNGs through headless Chrome/Chromium when present, exit 3 with a CHROME_PATH hint when absent."
           },
           "startedAt": "2026-10-29T14:34:22Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:39:55Z",
+          "verifiedBy": [
+            "findChromium per platform with injected paths, CHROME_PATH precedence and null",
+            "png without a browser: exit 3, one line naming CHROME_PATH, nothing written",
+            "chromiumArgs array shape and no-shell source check",
+            "fake-browser end-to-end png run with profile cleanup, failure exit 2, and real-browser PNG signature test (skips when none)"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T14:39:53Z.037e7e",
             "status": "passed",
             "at": "2026-10-29T14:39:53Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "4feda49dfbc9",
+            "at": "2026-10-29T14:39:55Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:39:21Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: findChromium is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P7.6",
           "title": "/archmap:export command, README and CHANGELOG",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write commands/export.md in the style of commands/render.md: description, argument-hint 'mermaid|plantuml|svg|png|md [--view v]', allowed-tools Bash, Read, disable-model-invocation: true; script only; requires docs/architecture/architecture.model.json else stop and say to run /archmap:build; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs\" docs/architecture/architecture.model.json $ARGUMENTS with --layout docs/architecture/architecture.layout.json when it exists; reports files written and the exit code, explaining exit 1 invalid model, 2 usage/unreadable, 3 no Chromium for png. Exports are clean (no issues) by design; say so. Update README's command table entry if needed and add an Unreleased entry to CHANGELOG.md. Keep tests/commands.test.mjs passing and extend it for export.md. Also, now that export.mjs is complete, update skills/architecture-map/SKILL.md's /archmap:export line (currently 'export.mjs, not yet built; no LLM') to describe the real invocation, formats and clean-only rule, and flip tests/skill.test.mjs's assertion 'export.mjs stays marked not yet built' to assert the SKILL.md line invokes scripts/export.mjs via ${CLAUDE_PLUGIN_ROOT} and no longer says not yet built.",
           "files": [
             "commands/export.md",
@@ -3968,16 +3984,22 @@
             "P7.4",
             "P7.5"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T14:39:55Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:41:54Z.413dec",
+            "status": "passed",
+            "at": "2026-10-29T14:41:54Z"
+          }
         }
       ],
       "area": "export",

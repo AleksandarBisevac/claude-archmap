@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "claude plugin validate .": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:41:39Z",
+    "basis": "`node --test tests/commands.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: commands/export.md exists; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote commands/export.md (script-only, frontmatter description/argument-hint/allowed-tools Bash, Read/disable-model-invocation true; requires the model else /archmap:build; runs export.mjs with $ARGUMENTS and --layout when present; says exports are clean; explains exit 1/2/3). Updated SKILL.md /archmap:export line with the real invocation, formats, clean-only rule and exits. README table entry and CHANGELOG Unreleased entry added. Added test c9 to tests/commands.test.mjs; flipped s7 and s8 in tests/skill.test.mjs to assert export.mjs is invoked via ${CLAUDE_PLUGIN_ROOT} and not marked not yet built. Full node --test: 266 pass, 0 fail; claude plugin validate . passed. Dependants: docs/design.md, .claude/audit.config.json, scripts/issues.mjs, skills-lock.json, tests/issues.test.mjs, the other READMEs-referenced tests and node skill files only name these files by basename and are unaffected (no path or interface changed); tests/commands.test.mjs c5 still holds since SKILL.md no longer names a missing script; SKILL.md stays at 317 lines (<=500).",
+    "descriptive": "/archmap:export command, SKILL.md, README and CHANGELOG now document and test the finished export.mjs."
+  },
+  "testsAdded": [
+    "c9: export.md frontmatter keys, disable-model-invocation true, export.mjs via CLAUDE_PLUGIN_ROOT, five formats, exit codes 1/2/3, clean statement"
+  ],
+  "casesAdded": [
+    "c9"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:8d3ec3f90b9ac97ef5f70d0bf565965d2e4f30d771d56989f742836653ff748f\",\"dirtyDigest\":\"sha256:b3f1836f38a4c5823f8f7467dd5ffbce130d160a7d99562a72f2f48dd5b92a64\",\"dirtyPaths\":{\"CHANGELOG.md\":\"11da2f3cad60f4df\",\"README.md\":\"68b335ad97a23c13\",\"commands/export.md\":\"79c29b4fc55dfca3\",\"skills/architecture-map/SKILL.md\":\"92f4f44d83be8035\",\"tests/commands.test.mjs\":\"d72270087a96adc0\",\"tests/skill.test.mjs\":\"8262d356e217f511\"},\"head\":\"4feda49\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"CHANGELOG.md\",\"README.md\",\"commands/export.md\",\"skills/architecture-map/SKILL.md\",\"tests/commands.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:1c04939c170f809fb4ec2f23f8cb1f1de79ccefe730deb6e668c8f6b94416c66\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
