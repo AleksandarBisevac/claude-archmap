@@ -3705,7 +3705,7 @@
         {
           "id": "P7.2",
           "title": "PlantUML exporter",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add the plantuml format to scripts/export.mjs, reusing P7.1's CLI, validation, view selection, output directory and clean-only rule. Writes per view a component diagram (@startuml/@enduml; zones as packages or rectangles, nodes as components, edges as arrows labelled with type and label, async edges dashed), er.puml with entities as entity blocks (fields, PK/FK markers) and relations with crow's-foot cardinality, and per sequence <id>.sequence.puml (participants, messages, dashed returns, alt/else/opt/loop/end groups, notes). Files <view-id>.component.puml, er.puml, <sequence-id>.sequence.puml. All model text escaped for PlantUML so it cannot break or inject; aliases sanitised and collision-free. No issue data ever appears. Deterministic output. Export pure functions toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence.",
           "files": [
             "scripts/export.mjs",
@@ -3731,25 +3731,44 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "c845ae75dcd1",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/export.mjs: added plantuml format. New pure exports toPlantUmlComponent (zones as nested packages, nodes as components, edges 'a --> b : type: label', queue/event edges dashed ..>), toPlantUmlER (entity blocks, fields with <<PK>>/<<FK>>, crow's-foot relations), toPlantUmlSequence (participants, -> calls, --> returns, alt/else/opt/loop/end, note over), plus plantUmlFiles; CLI reuses validation, --view, --out, exports dir; 'plantuml' moved into IMPLEMENTED; OK line now names the format. PlantUML escaping pesc(): newlines become literal \\n and quote, apostrophe, <, >, %, #, &, ;, |, brackets, braces and backslash become <U+XXXX> so no model text can start a line, a directive, a comment, a macro, link or image. Aliases via idAllocator (n_/z_/p_ prefixes; ER aliases unprefixed with a new optional reserved-word set). Issue data is never read. tests/export.test.mjs: x10 no longer lists plantuml as unimplemented; added x13-x19. Ran node --test tests/export.test.mjs (19 pass) and node --test (247 pass, 0 fail), both exit 0. Red first: x13-x19 failed before the implementation (7 failures, 12 passing) before any code was written. Dependants: tests/skill.test.mjs, docs/design.md and skills/architecture-map/SKILL.md mention export.mjs only as 'not yet built' / by basename - still correct, the task does not complete export.mjs (md/svg/png remain).",
+            "descriptive": "export.mjs now writes PlantUML component, ER and sequence diagrams with injection-safe escaping and collision-free aliases."
           },
           "startedAt": "2026-10-29T14:21:26Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:25:32Z",
+          "verifiedBy": [
+            "x13 file set and bookends + --view",
+            "x14 component packages, labelled edges, dashed async",
+            "x15 ER blocks, PK/FK, cardinality",
+            "x16 sequence participants/messages/returns/fragments/notes",
+            "x17 no issue data, byte-identical runs",
+            "x18 hostile text escaped",
+            "x19 aliases collision-free, safe file names"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T14:25:31Z.3581d6",
             "status": "passed",
             "at": "2026-10-29T14:25:31Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "c845ae75dcd1",
+            "at": "2026-10-29T14:25:32Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:25:13Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: toPlantUmlComponent is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P7.3",
           "title": "Markdown summary exporter",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add the md format to scripts/export.mjs: one summary.md (or <view-id>.md with --view) describing the model for a wiki or PR: project, commit and generatedAt from meta; zones; nodes per zone with kind, role and facts; an edges table (from, to, type, label, confidence); entities with field tables (name, type, PK/FK, nullable); relations; a CRUD matrix table from access[] (nodes as rows, entities as columns); sequences each with summary and an embedded mermaid sequenceDiagram block from toMermaidSequence; and evidence as path:lines, linked to repoUrl/blob/<commit>/<path>#L<a>-L<b> when meta.repoUrl is set. Markdown table cells escape pipes and newlines. Clean only: no issue data. Deterministic output, ordering by id.",
           "files": [
             "scripts/export.mjs",
@@ -3773,16 +3792,22 @@
           "dependsOn": [
             "P7.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T14:25:32Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T14:29:48Z.84e3f4",
+            "status": "passed",
+            "at": "2026-10-29T14:29:48Z"
+          }
         },
         {
           "id": "P7.4",
@@ -3864,12 +3889,14 @@
           "id": "P7.6",
           "title": "/archmap:export command, README and CHANGELOG",
           "status": "pending",
-          "description": "Write commands/export.md in the style of commands/render.md: description, argument-hint 'mermaid|plantuml|svg|png|md [--view v]', allowed-tools Bash, Read, disable-model-invocation: true; script only; requires docs/architecture/architecture.model.json else stop and say to run /archmap:build; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs\" docs/architecture/architecture.model.json $ARGUMENTS with --layout docs/architecture/architecture.layout.json when it exists; reports files written and the exit code, explaining exit 1 invalid model, 2 usage/unreadable, 3 no Chromium for png. Exports are clean (no issues) by design; say so. Update README's command table entry if needed and add an Unreleased entry to CHANGELOG.md. Keep tests/commands.test.mjs passing and extend it for export.md.",
+          "description": "Write commands/export.md in the style of commands/render.md: description, argument-hint 'mermaid|plantuml|svg|png|md [--view v]', allowed-tools Bash, Read, disable-model-invocation: true; script only; requires docs/architecture/architecture.model.json else stop and say to run /archmap:build; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs\" docs/architecture/architecture.model.json $ARGUMENTS with --layout docs/architecture/architecture.layout.json when it exists; reports files written and the exit code, explaining exit 1 invalid model, 2 usage/unreadable, 3 no Chromium for png. Exports are clean (no issues) by design; say so. Update README's command table entry if needed and add an Unreleased entry to CHANGELOG.md. Keep tests/commands.test.mjs passing and extend it for export.md. Also, now that export.mjs is complete, update skills/architecture-map/SKILL.md's /archmap:export line (currently 'export.mjs, not yet built; no LLM') to describe the real invocation, formats and clean-only rule, and flip tests/skill.test.mjs's assertion 'export.mjs stays marked not yet built' to assert the SKILL.md line invokes scripts/export.mjs via ${CLAUDE_PLUGIN_ROOT} and no longer says not yet built.",
           "files": [
             "commands/export.md",
             "README.md",
             "CHANGELOG.md",
-            "tests/commands.test.mjs"
+            "tests/commands.test.mjs",
+            "skills/architecture-map/SKILL.md",
+            "tests/skill.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
@@ -4778,14 +4805,16 @@
       "P5.9-2zy",
       "P6.4",
       "P6.5-vcu",
-      "BF1.4"
+      "BF1.4",
+      "P7.6"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
       "P4.6-w15",
       "P4.8-w15",
       "P5.4",
-      "P6.4"
+      "P6.4",
+      "P7.6"
     ],
     "agents/archmap-explorer.md": [
       "P4.5",

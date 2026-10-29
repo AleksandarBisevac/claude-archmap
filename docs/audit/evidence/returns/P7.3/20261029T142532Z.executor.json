@@ -1,0 +1,41 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:29:31Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: format md is not yet implemented; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/export.mjs: added toMarkdown(model, viewId) and markdownFiles(); md added to IMPLEMENTED; main dispatches md -> summary.md (or <view-id>.md with --view). Sections: meta header, zones, nodes per zone (kind/role/facts/evidence), edges table (from,to,type,label,confidence), entities with Name/Type/Key/Nullable field tables, relations, CRUD matrix from access[] (nodes rows x entities columns, ops merged) plus access evidence, sequences with summary, mermaid block from toMermaidSequence and step evidence. Evidence is path:lines linked to repoUrl/blob/<commit>/<path>#La-Lb when meta.repoUrl is set. Cells escape backslash, &, <, pipe and newline (<br>). Sorted by id; no issue data. tests/export.test.mjs: x10 no longer lists md as unimplemented; added x20-x27. Full `node --test`: 255 pass, 0 fail. Dependants: tests/skill.test.mjs s8 still correct (SKILL.md line 271 still says export.mjs not yet built, left unchanged as svg/png are pending); docs/design.md and SKILL.md basename mentions still correct.",
+    "descriptive": "export.mjs now writes a deterministic, clean Markdown summary (summary.md / <view>.md) with tables, CRUD matrix, embedded mermaid sequences and linked evidence."
+  },
+  "testsAdded": [
+    "x20 sections/meta/edges table/entity field tables/relations",
+    "x21 CRUD matrix rows, columns, golden ops",
+    "x22 mermaid block per sequence equals toMermaidSequence",
+    "x23 evidence links with repoUrl/blob/commit and plain without repoUrl",
+    "x24 pipe/newline escaping keeps rows intact",
+    "x25 no issue ids or step issue refs",
+    "x26 byte-identical runs and input-order independence",
+    "x27 --view and --out"
+  ],
+  "casesAdded": [
+    [
+      "x20",
+      "x21",
+      "x22",
+      "x23",
+      "x24",
+      "x25",
+      "x26",
+      "x27"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:d152cfab63bf4087cae1d52c06e3dfe8b0148b60a2ff6385bd03c0b1f1f13977\",\"dirtyDigest\":\"sha256:9cf643e35723e6d06c5ae2086e075700c355b83514dbb1068594d7f48d649bda\",\"dirtyPaths\":{\"scripts/export.mjs\":\"4b0b3a60ab64b5b3\",\"tests/export.test.mjs\":\"fdd49d797ba66f4b\"},\"head\":\"c845ae7\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:273ea9442034aadd731b9a9a29b88ed596a446d47b47521a3d215b8c96315b27\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

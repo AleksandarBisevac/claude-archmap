@@ -284,7 +284,7 @@ test('x9 an invalid model is refused: exit 1, nothing written', () => {
 
 test('x10 usage errors and formats not yet implemented exit 2 and write nothing', () => {
   const p = place(model);
-  for (const fmt of ['md', 'svg', 'png']) {
+  for (const fmt of ['svg', 'png']) {
     const r = run([p.file, fmt]);
     assert.equal(r.status, 2, `${fmt}: ${r.stderr}`);
     assert.match(r.stderr, /not yet implemented/);
@@ -554,4 +554,175 @@ test('x19 PlantUML aliases are safe identifiers without collisions, and file nam
   assert.equal(new Set(names).size, names.length);
   assert.deepEqual(files(dirname(dir)).filter((f) => f !== 'out'), []);
   assert.equal(pumlFiles(dir).length, names.length, 'only .puml files are written');
+});
+
+// ---------------------------------------------------------------------------
+// Markdown summary (P7.3)
+
+const mdOf = (m, extra = [], name = 'summary.md') => {
+  const p = place(m);
+  const r = run([p.file, 'md', ...extra]);
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  return { p, text: readFileSync(join(p.exports, name), 'utf8'), r };
+};
+/** The lines of the section under a `## <title>` heading, up to the next `## ` heading. */
+const section = (text, title) => {
+  const L = lines(text);
+  const i = L.findIndex((l) => l.trim().toLowerCase() === `## ${title}`.toLowerCase());
+  assert.ok(i >= 0, `no "## ${title}" section`);
+  const rest = L.slice(i + 1);
+  const j = rest.findIndex((l) => /^## /.test(l));
+  return j < 0 ? rest : rest.slice(0, j);
+};
+/** A table row's cells: split on pipes that are not escaped. */
+const cells = (row) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => c.trim());
+const tableRows = (sec) => sec.filter((l) => l.trim().startsWith('|')).map(cells);
+
+test('x20 md writes one summary.md with the meta header and sections for zones, nodes, edges, entities, relations, CRUD matrix and sequences', () => {
+  const { p, text } = mdOf(model);
+  assert.deepEqual(files(p.exports), ['summary.md']);
+  assert.match(text, /^# /);
+  assert.ok(text.includes(model.meta.project), 'project');
+  assert.ok(text.includes(model.meta.commit), 'commit');
+  assert.ok(text.includes(model.meta.generatedAt), 'generatedAt');
+  for (const t of ['Zones', 'Nodes', 'Edges', 'Entities', 'Relations', 'CRUD matrix', 'Sequences']) section(text, t);
+  const zones = section(text, 'Zones').join('\n');
+  for (const z of model.zones) assert.ok(zones.includes(z.id), `zone ${z.id}`);
+  const nodes = section(text, 'Nodes').join('\n');
+  for (const n of model.nodes) {
+    assert.ok(nodes.includes(n.id), `node ${n.id}`);
+    assert.ok(nodes.includes(n.kind), `kind of ${n.id}`);
+    assert.ok(nodes.includes(n.role), `role of ${n.id}`);
+    for (const f of n.facts ?? []) assert.ok(nodes.includes(f), `fact of ${n.id}`);
+  }
+  // the edges table: from, to, type, label, confidence - one row per edge, ordered by id
+  const rows = tableRows(section(text, 'Edges'));
+  assert.deepEqual(rows[0].map((c) => c.toLowerCase()), ['from', 'to', 'type', 'label', 'confidence']);
+  const body = rows.slice(2);
+  const sorted = model.edges.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+  assert.equal(body.length, sorted.length);
+  sorted.forEach((e, i) => assert.deepEqual(body[i], [e.from, e.to, e.type, e.desc ?? '', e.confidence].map((c) => String(c).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\|/g, '\\|')), e.id));
+  // entities: a field table each (name, type, key, nullable); relations listed
+  const ent = section(text, 'Entities').join('\n');
+  for (const e of model.entities) {
+    assert.ok(ent.includes(e.name), `entity ${e.name}`);
+    for (const f of e.fields) assert.ok(ent.includes(f.name) && ent.includes(f.type), `field ${e.name}.${f.name}`);
+  }
+  assert.match(ent, /\| *Name *\| *Type *\| *Key *\| *Nullable *\|/i);
+  assert.match(ent, /\bPK\b/);
+  assert.match(ent, /\bFK\b/);
+  const rel = section(text, 'Relations').join('\n');
+  for (const r of model.relations) assert.ok(rel.includes(r.from.entity) && rel.includes(r.to.entity) && rel.includes(r.cardinality));
+  // the CLI lists the file it wrote
+  assert.match(run([p.file, 'md']).stdout, /summary\.md/);
+});
+
+test('x21 the CRUD matrix has one row per accessing node, one column per accessed entity and the golden ops', () => {
+  const { text } = mdOf(model);
+  const rows = tableRows(section(text, 'CRUD matrix'));
+  const ents = [...new Set(model.access.map((a) => a.entity))].sort();
+  const nodes = [...new Set(model.access.map((a) => a.node))].sort();
+  assert.deepEqual(rows[0].slice(1), ents);
+  const body = rows.slice(2);
+  assert.deepEqual(body.map((r) => r[0]), nodes);
+  assert.equal(nodes.length, 7);
+  for (const r of body) {
+    assert.equal(r.length, ents.length + 1);
+    ents.forEach((e, i) => {
+      const a = model.access.find((x) => x.node === r[0] && x.entity === e);
+      assert.equal(r[i + 1], a ? a.ops : '', `${r[0]} x ${e}`);
+    });
+  }
+  assert.equal(body.flat().filter((c, i) => i % (ents.length + 1) !== 0 && c !== '').length, model.access.length);
+});
+
+test('x22 every sequence has its summary and an embedded mermaid sequenceDiagram block equal to toMermaidSequence', () => {
+  const { text } = mdOf(model);
+  const sec = section(text, 'Sequences').join('\n');
+  for (const s of model.sequences) {
+    assert.ok(sec.includes(s.title), `title of ${s.id}`);
+    assert.ok(sec.includes(s.summary), `summary of ${s.id}`);
+    assert.ok(sec.includes('```mermaid\n' + toMermaidSequence(model, s.id).trimEnd() + '\n```'), `mermaid block of ${s.id}`);
+  }
+  assert.equal(sec.split('```mermaid').length - 1, model.sequences.length);
+});
+
+test('x23 evidence is path:lines, linked to repoUrl/blob/<commit>/<path>#La-Lb when repoUrl is set, plain otherwise', () => {
+  const { text } = mdOf(model);
+  const base = `${model.meta.repoUrl}/blob/${model.meta.commit}`;
+  assert.ok(text.includes('backend/app/services/ordering.py:60-120'));
+  assert.ok(text.includes(`](${base}/backend/app/services/ordering.py#L60-L120)`), 'linked evidence');
+  assert.ok(text.includes(`](${base}/frontend/src/main.tsx#L1-L24)`), 'node evidence linked');
+  assert.ok(text.includes(`](${base}/frontend/src/screens/orders/OrdersScreen.tsx#L30-L52)`), 'sequence step evidence linked');
+  const m = clone(model);
+  delete m.meta.repoUrl;
+  const plain = mdOf(m).text;
+  assert.ok(plain.includes('backend/app/services/ordering.py:60-120'));
+  assert.ok(!plain.includes('/blob/'), 'no links without repoUrl');
+  assert.ok(!plain.includes(']('.concat('http')), 'no http links either');
+  // a trailing slash on repoUrl does not double up
+  const m2 = clone(model);
+  m2.meta.repoUrl += '/';
+  assert.ok(mdOf(m2).text.includes(`](${base}/backend/app/services/ordering.py#L60-L120)`));
+});
+
+test('x24 pipes and newlines in cell text are escaped, so a table row never breaks', () => {
+  const m = clone(model);
+  m.edges[0].desc = 'a|b\nc | d';
+  m.nodes[0].facts = ['fact | with pipe\nand newline'];
+  m.entities[0].fields[1].name = 'we|rd';
+  const { text } = mdOf(m);
+  assert.ok(text.includes('a\\|b'), 'pipe escaped');
+  assert.ok(!text.includes('a|b'), 'raw pipe gone');
+  for (const sec of ['Edges', 'Entities', 'CRUD matrix']) {
+    const rows = section(text, sec).filter((l) => l.trim().startsWith('|'));
+    let width;
+    for (const r of rows) {
+      const n = cells(r).length;
+      if (width === undefined || /^\|\s*(From|Name|Node)\b/i.test(r)) width = n;
+      assert.equal(n, width, `a broken row in ${sec}: ${r}`);
+    }
+  }
+  const e = tableRows(section(text, 'Edges')).slice(2).find((r) => r[0] === m.edges[0].from && r[1] === m.edges[0].to);
+  assert.ok(e, 'the edge row is still one row');
+  assert.ok(e[3].includes('<br>'), 'the newline stays inside the cell as <br>');
+  // no table line was split by the newline
+  assert.ok(!lines(text).some((l) => l === 'c | d' || l.startsWith('c |')));
+});
+
+test('x25 no issue data: no issue id and no step issue ref appears in md', () => {
+  const { text } = mdOf(model);
+  for (const i of issues.issues) assert.ok(!text.includes(i.id), `issue id ${i.id} leaked`);
+  const refd = model.sequences.flatMap((q) => q.steps).filter((st) => st.i !== undefined);
+  assert.ok(refd.length > 0, 'the golden model does carry step issue refs');
+  for (const st of refd) for (const id of [].concat(st.i)) assert.ok(!text.includes(String(id)), `step issue ref ${id} leaked`);
+});
+
+test('x26 md is deterministic: two runs are byte-identical and input order does not matter (ordering by id)', () => {
+  const a = mdOf(model).text;
+  const b = mdOf(model).text;
+  assert.equal(a, b);
+  const m = clone(model);
+  m.nodes.reverse();
+  m.edges.reverse();
+  m.zones.reverse();
+  m.entities.reverse();
+  m.access.reverse();
+  assert.equal(mdOf(m).text, a);
+  assert.ok(a.endsWith('\n') && !a.endsWith('\n\n'));
+});
+
+test('x27 md --view writes <view-id>.md for that view only and --out redirects it', () => {
+  const v = model.views.find((x) => x.id === 'web-components');
+  const { p, text } = mdOf(model, ['--view', v.id], `${v.id}.md`);
+  assert.deepEqual(files(p.exports), ['web-components.md']);
+  const nodes = section(text, 'Nodes').join('\n');
+  const inView = new Set(viewNodes(v).map((n) => n.id));
+  for (const n of model.nodes) assert.equal(nodes.includes(`\`${n.id}\``) || nodes.includes(`**${n.id}**`) || new RegExp(`(^|[^\\w-])${n.id}([^\\w-]|$)`).test(nodes), inView.has(n.id), n.id);
+  const body = tableRows(section(text, 'Edges')).slice(2);
+  assert.equal(body.length, viewEdges(v).length);
+  const out = join(fresh('mdout'), 'o');
+  assert.equal(run([p.file, 'md', '--out', out]).status, 0);
+  assert.deepEqual(files(out), ['summary.md']);
+  assert.equal(run([p.file, 'md', '--view', 'nope']).status, 2);
 });

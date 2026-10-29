@@ -3,7 +3,7 @@
 //
 //   node scripts/export.mjs <model.json> <format> [--view <id>] [--layout <layout.json>] [--out <path>]
 //
-// Formats: mermaid | plantuml | md | svg | png. This build implements mermaid and plantuml; the others
+// Formats: mermaid | plantuml | md | svg | png. This build implements mermaid, plantuml and md; the others
 // are refused with exit 2 ("not yet implemented") until their tasks land.
 //
 //   mermaid  one flowchart per view (nodes grouped in subgraphs by zone, every edge labelled with its type
@@ -16,6 +16,12 @@
 //            er.puml (entity blocks with fields and <<PK>>/<<FK>> markers, crow's-foot relations) and one
 //            sequence diagram per sequence (participants, messages, dashed returns, alt/else/opt/loop/end,
 //            notes). Files are <view-id>.component.puml, er.puml and <sequence-id>.sequence.puml.
+//
+//   md       one summary.md (or <view-id>.md with --view): project, commit and generatedAt, zones, nodes per
+//            zone (kind, role, facts), an edges table, entities with field tables, relations, a CRUD
+//            matrix (nodes x entities from access[]), and each sequence with its summary and an embedded
+//            mermaid block. Evidence is path:lines, linked to <repoUrl>/blob/<commit>/<path>#La-Lb when
+//            meta.repoUrl is set. Table cells escape pipes and newlines. Ordered by id.
 //
 // Exports are ALWAYS clean: no issue id, no step issue ref (steps[].i) and no issue text ever appears in
 // any output, because the exporters never read them. Every label taken from the model is escaped for
@@ -42,7 +48,7 @@ import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
 
 export const FORMATS = ['mermaid', 'plantuml', 'md', 'svg', 'png'];
-const IMPLEMENTED = ['mermaid', 'plantuml'];
+const IMPLEMENTED = ['mermaid', 'plantuml', 'md'];
 
 const list = (v) => (Array.isArray(v) ? v : []);
 const str = (v) => (typeof v === 'string' ? v : v === undefined || v === null ? '' : String(v));
@@ -501,6 +507,201 @@ export function plantUmlFiles(model, { view } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Markdown summary
+
+const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const sortedById = (xs) => list(xs).slice().sort(byId);
+
+/** Text for a table cell: no raw HTML, escaped pipes and backslashes, line breaks as <br>. */
+function cell(s) {
+  return str(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/\|/g, '\\|')
+    .replace(/\r\n|[\n\r\u0085\u2028\u2029]/g, '<br>')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ');
+}
+/** Text for a line of prose or a list item: no raw HTML, line breaks folded to a space. */
+const prose = (s) =>
+  str(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/\r\n|[\n\r\u0085\u2028\u2029]/g, ' ')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ');
+const mdRow = (cs) => `| ${cs.join(' | ')} |`;
+const mdTable = (head, rows) => [mdRow(head), mdRow(head.map(() => '---')), ...rows.map(mdRow)];
+
+/** One evidence reference as `path:lines`, linked to the commit on the repo host when meta.repoUrl is set. */
+function evidenceRef(meta, path, lines) {
+  const label = lines === undefined || lines === '' ? str(path) : `${path}:${lines}`;
+  const text = label.replace(/[[\]\\]/g, (c) => `\\${c}`);
+  const repo = str(meta && meta.repoUrl).replace(/\/+$/, '');
+  if (!repo || !meta.commit) return `\`${label.replace(/`/g, "'")}\``;
+  const m = /^(\d+)(?:-(\d+))?$/.exec(str(lines).trim());
+  const anchor = m ? `#L${m[1]}${m[2] ? `-L${m[2]}` : ''}` : '';
+  const file = str(path).split('/').map(encodeURIComponent).join('/');
+  return `[${text}](${repo}/blob/${encodeURIComponent(str(meta.commit))}/${file}${anchor})`;
+}
+const evidenceList = (meta, ev) => list(ev).map((e) => evidenceRef(meta, e.path, e.lines)).join(', ');
+/** Step references are "path:lines" strings; the lines part follows the last colon. */
+function stepRef(meta, r) {
+  const s = str(r);
+  const i = s.lastIndexOf(':');
+  return i > 0 && /^\d+(-\d+)?$/.test(s.slice(i + 1)) ? evidenceRef(meta, s.slice(0, i), s.slice(i + 1)) : evidenceRef(meta, s);
+}
+
+const OPS = 'CRUD';
+const mergeOps = (a, b) => [...new Set(str(a) + str(b))].sort((x, y) => OPS.indexOf(x) - OPS.indexOf(y)).join('');
+
+/**
+ * A Markdown summary of the model for a wiki or a PR: meta, zones, nodes per zone, an edges table,
+ * entities with field tables, relations, a CRUD matrix, and sequences with embedded Mermaid. Ordered by
+ * id, so the same model gives the same text. Issue data is never part of it.
+ * @param {object} model a valid model
+ * @param {string} [viewId] limit zones, nodes, edges and the CRUD matrix to that view
+ * @returns {string}
+ */
+export function toMarkdown(model, viewId) {
+  let view;
+  if (viewId !== undefined) {
+    view = list(model.views).find((v) => v.id === viewId);
+    if (!view) throw new Error(`unknown view ${viewId}`);
+  }
+  const meta = model.meta || {};
+  const scope = viewScope(model, view);
+  const nodes = sortedById(scope.nodes);
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const out = [];
+  const title = view ? `${prose(meta.project)} - ${prose(view.title || view.id)}` : `${prose(meta.project)} - architecture summary`;
+  out.push(`# ${title}`, '');
+  out.push(`- Project: ${prose(meta.project)}`);
+  if (meta.commit) out.push(`- Commit: \`${prose(meta.commit)}\``);
+  if (meta.generatedAt) out.push(`- Generated at: ${prose(meta.generatedAt)}`);
+  if (view) out.push(`- View: \`${prose(view.id)}\``);
+  out.push('');
+
+  out.push('## Zones', '');
+  const zones = sortedById(scope.zones);
+  if (zones.length === 0) out.push('None.');
+  else out.push(...mdTable(['Zone', 'Kind', 'Label', 'Parent'], zones.map((z) => [cell(z.id), cell(z.kind), cell(z.label), cell(z.parent)])));
+  out.push('');
+
+  out.push('## Nodes', '');
+  if (nodes.length === 0) out.push('None.', '');
+  for (const z of zones) {
+    const inZone = nodes.filter((n) => n.zone === z.id);
+    if (inZone.length === 0) continue;
+    out.push(`### ${prose(z.label || z.id)} (\`${prose(z.id)}\`)`, '');
+    for (const n of inZone) {
+      out.push(`- **${prose(n.id)}** - ${prose(n.title)} (${prose(n.kind)})`);
+      if (n.role) out.push(`  - Role: ${prose(n.role)}`);
+      for (const f of list(n.facts)) out.push(`  - ${prose(f)}`);
+      if (list(n.evidence).length) out.push(`  - Evidence: ${evidenceList(meta, n.evidence)}`);
+    }
+    out.push('');
+  }
+
+  out.push('## Edges', '');
+  const edges = sortedById(scope.edges);
+  if (edges.length === 0) out.push('None.');
+  else
+    out.push(
+      ...mdTable(
+        ['From', 'To', 'Type', 'Label', 'Confidence'],
+        edges.map((e) => [cell(e.from), cell(e.to), cell(e.type), cell(e.desc), cell(e.confidence)]),
+      ),
+    );
+  out.push('');
+
+  out.push('## Entities', '');
+  const entities = sortedById(model.entities);
+  const fkFields = new Set(list(model.relations).map((r) => `${r.from.entity}\u0000${r.from.field}`));
+  if (entities.length === 0) out.push('None.', '');
+  for (const e of entities) {
+    out.push(`### ${prose(e.name || e.id)} (\`${prose(e.id)}\`)`, '');
+    out.push(`${prose(e.kind)}${e.store ? ` in \`${prose(e.store)}\`` : ''}`, '');
+    out.push(
+      ...mdTable(
+        ['Name', 'Type', 'Key', 'Nullable'],
+        list(e.fields).map((f) => {
+          const keys = [];
+          if (f.pk) keys.push('PK');
+          if (f.fk || fkFields.has(`${e.id}\u0000${f.name}`)) keys.push('FK');
+          return [cell(f.name), cell(f.type), keys.join(', '), f.nullable ? 'yes' : 'no'];
+        }),
+      ),
+    );
+    out.push('');
+    if (list(e.evidence).length) out.push(`Evidence: ${evidenceList(meta, e.evidence)}`, '');
+  }
+
+  out.push('## Relations', '');
+  const rels = list(model.relations)
+    .slice()
+    .sort((a, b) => {
+      const k = (r) => [r.from.entity, r.from.field, r.to.entity, r.to.field].join('\u0000');
+      return k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : 0;
+    });
+  if (rels.length === 0) out.push('None.');
+  else
+    out.push(
+      ...mdTable(
+        ['From', 'To', 'Cardinality', 'Kind'],
+        rels.map((r) => [cell(`${r.from.entity}.${r.from.field}`), cell(`${r.to.entity}.${r.to.field}`), cell(r.cardinality), cell(r.kind)]),
+      ),
+    );
+  out.push('');
+
+  out.push('## CRUD matrix', '');
+  const access = list(model.access).filter((a) => nodeIds.has(a.node));
+  const rowIds = [...new Set(access.map((a) => a.node))].sort();
+  const colIds = [...new Set(access.map((a) => a.entity))].sort();
+  if (access.length === 0) out.push('None.');
+  else {
+    const ops = new Map();
+    for (const a of access) {
+      const k = `${a.node}\u0000${a.entity}`;
+      ops.set(k, mergeOps(ops.get(k), a.ops));
+    }
+    out.push(...mdTable(['Node', ...colIds.map(cell)], rowIds.map((n) => [cell(n), ...colIds.map((e) => ops.get(`${n}\u0000${e}`) || '')])));
+    const refs = [];
+    for (const a of access.slice().sort((x, y) => (`${x.node}\u0000${x.entity}` < `${y.node}\u0000${y.entity}` ? -1 : 1))) {
+      if (list(a.evidence).length) refs.push(`- \`${prose(a.node)}\` x \`${prose(a.entity)}\` (${prose(a.ops)}): ${evidenceList(meta, a.evidence)}`);
+    }
+    if (refs.length) out.push('', 'Evidence:', '', ...refs);
+  }
+  out.push('');
+
+  out.push('## Sequences', '');
+  const seqs = sortedById(model.sequences);
+  if (seqs.length === 0) out.push('None.', '');
+  for (const s of seqs) {
+    out.push(`### ${prose(s.title || s.id)} (\`${prose(s.id)}\`)`, '');
+    if (s.summary) out.push(prose(s.summary), '');
+    out.push('```mermaid', toMermaidSequence(model, s.id).trimEnd(), '```', '');
+    const seen = new Set();
+    const refs = [];
+    for (const st of list(s.steps)) {
+      for (const r of list(st.r)) {
+        if (seen.has(r)) continue;
+        seen.add(r);
+        refs.push(stepRef(meta, r));
+      }
+    }
+    if (refs.length) out.push(`Evidence: ${refs.join(', ')}`, '');
+  }
+  while (out[out.length - 1] === '') out.pop();
+  return `${out.join('\n')}\n`;
+}
+
+/** The Markdown file for a model: summary.md, or <view-id>.md when one view is asked for. */
+export function markdownFiles(model, { view } = {}) {
+  if (view !== undefined) return [{ name: fileNamer()(view, '.md'), text: toMarkdown(model, view) }];
+  return [{ name: 'summary.md', text: toMarkdown(model) }];
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 
 const USAGE =
@@ -562,7 +763,7 @@ function main(argv) {
       const known = list(model.views).map((x) => x.id).join(', ') || 'none';
       throw new UsageError(`unknown view ${opts.view} (the model has: ${known})`);
     }
-    const files = (opts.format === 'plantuml' ? plantUmlFiles : mermaidFiles)(model, { view: opts.view });
+    const files = { plantuml: plantUmlFiles, md: markdownFiles }[opts.format]?.(model, { view: opts.view }) ?? mermaidFiles(model, { view: opts.view });
     const dir = opts.out ?? join(dirname(opts.model), 'exports');
     try {
       mkdirSync(dir, { recursive: true });
