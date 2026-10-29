@@ -2964,7 +2964,7 @@
     {
       "id": "P6",
       "title": "Staleness hook, check and issues overlay",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "The SessionStart hook prints one line for a stale model, nothing otherwise, and always exits 0; /archmap:check returns 0 or 1; the reviewer and issues.mjs (with audit import, legacy findings included) write the overlay outside the repo, and the clean render contains no issue text.",
       "testGate": [
@@ -2975,7 +2975,7 @@
       ],
       "baseRef": "8d63f9369d11c749eda75148e1ee73678cf54c9c",
       "branch": "audit/p6-staleness-hook-check-and-issue",
-      "mergedAt": null,
+      "mergedAt": "2026-10-29T13:40:12Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -3620,7 +3620,8 @@
         "runId": "2026-10-29T13:40:08Z.629b72",
         "status": "passed",
         "at": "2026-10-29T13:40:08Z"
-      }
+      },
+      "mergedHead": "0e76e7ff3952257bc510ed44d39d21c040317f55"
     },
     {
       "id": "P7",
