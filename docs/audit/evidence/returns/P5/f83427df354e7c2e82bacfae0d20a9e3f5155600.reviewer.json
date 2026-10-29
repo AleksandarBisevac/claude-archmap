@@ -1,0 +1,43 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "scripts/merge.mjs:79-84",
+      "issue": "P5.10 switched ownerTest to lib/glob.mjs, so a bare directory coverage glob (`src/api`) or `dir/*` no longer owns the subtree in merge; before, merge's own regex made it own it. diffmap and merge now agree, but agents/archmap-explorer.md:64 only says '<globs you actually read>' and gives no rule that a subtree must be written `dir/**`. An explorer that writes a bare directory now gets silent staleness on update: old elements of that area are never classed owned, so they are never removed or replaced. Only the merge.mjs header comment states the rule.",
+      "resolution": "Add one line to agents/archmap-explorer.md (coverage field) and skills/architecture-map/references/model-schema.md: a subtree is written `dir/**`; a bare directory matches only that literal path. Low, so carry rather than loop another fix round."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome: build/update/render/export run end to end, merge preserves user fields, diffmap maps changed files to nodes and dependents, usage ledger prints per-phase tokens and duration. Only the four fix tasks closed since the earlier round were reviewed here. P5.8: SKILL.md update step 4 now gives the exact merge.mjs call with --areas <a,b> and --synth and warns never to omit --areas; this is what the clause asked, and the executor's note that the optional refusal and e2e case were not done matches the diff. P5.9: merge.mjs in update mode pushes a conflict for each --areas entry with no fragment and each fragment whose area is not in --areas (sorted, deterministic), exit 1 under --strict through the existing path; SKILL.md step 3 says --areas must include the uncovered-files fragment's area; m9 and m9b cover both directions and the CLI. P5.10: the local globToRegExp is deleted and matchAny from lib/glob.mjs is imported. The executor chose the literal reading of a bare directory over adding a subtree rule to glob.mjs, which the clause allowed (merge and diffmap now agree); the consequence is finding 1. P5.11: unknown top-level and meta keys from --previous are cloned through and appended sorted after the known ones; m11 checks values, order, idempotence on a second run, and no carry on a fresh build. The filed outcomes describe the diffs. archmap-review scan.mjs over fca53ec..f83427d returned 0 leads (denylist checked, no external URLs, builtin or relative imports only, no post-Node-18 APIs). Tasks with no diff (P5.5, P5.6-2zy) were not reviewed.",
+    "missing": [
+      "phase.request and phase.openChoices (neither saved), so the open-choice question could not be asked of the record. The only choice found is P5.10's literal-glob reading, which the task text itself offered."
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase mode owes no red-first answer. For the record, the filed redFirst for P5.9, P5.10 and P5.11 is could-not-prove: the helper's run exited 1 with an assertion message on the new tests, but no test tally was read. P5.8 is gate-only (not-attempted). P5.10 and P5.11 outcomes also say the new tests were seen failing before the fix, which the diff supports (m10b greps for the deleted function, m11 asserts keys the old whitelist dropped). I did not run anything myself.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test`, which runs the whole project, so the question does not apply."
+  },
+  "verdict": "findings",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P5.8-2zy",
+      "commit": "eea8164350ca"
+    },
+    {
+      "id": "P5.9-2zy",
+      "commit": "030e383ef11a"
+    },
+    {
+      "id": "P5.10-2zy",
+      "commit": "fc130729729b"
+    },
+    {
+      "id": "P5.11-2zy",
+      "commit": "f83427df354e"
+    }
+  ]
+}

@@ -2181,7 +2181,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P5-R1",
@@ -2218,13 +2218,34 @@
             "severity": "low",
             "file": "scripts/merge.mjs:445-465",
             "issue": "Model output is rebuilt from a fixed whitelist: meta keys (outMeta) and top-level keys (TOP_ORDER). Any other key in the --previous model is silently dropped on every merge, including unknown meta fields and unknown top-level arrays a newer schema might add. This conflicts with the additive-schema, readers-tolerate-unknown-keys rule (checklist 5) for a file users commit.",
-            "resolution": "Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order.",
-            "fixTask": "P5.11-2zy"
+            "resolution": "fixed in P5.11-2zy (f83427df354e): Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order.",
+            "fixTask": "P5.11-2zy",
+            "commit": "f83427df354e",
+            "status": "fixed"
+          },
+          {
+            "id": "P5-R5",
+            "severity": "low",
+            "file": "scripts/merge.mjs:79-84",
+            "issue": "P5.10 switched ownerTest to lib/glob.mjs, so a bare directory coverage glob (`src/api`) or `dir/*` no longer owns the subtree in merge; before, merge's own regex made it own it. diffmap and merge now agree, but agents/archmap-explorer.md:64 only says '<globs you actually read>' and gives no rule that a subtree must be written `dir/**`. An explorer that writes a bare directory now gets silent staleness on update: old elements of that area are never classed owned, so they are never removed or replaced. Only the merge.mjs header comment states the rule.",
+            "resolution": "Add one line to agents/archmap-explorer.md (coverage field) and skills/architecture-map/references/model-schema.md: a subtree is written `dir/**`; a bare directory matches only that literal path. Low, so carry rather than loop another fix round.",
+            "status": "carried",
+            "carriedTo": "BUG-3-2zy"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 3 with a recorded fix commit]"
+        "outcome": "phase review filed at head f83427df354e [findings: 5 - 0 high, 2 med, 3 low; 4 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P5/6010462157f4c50dcade260facfd1eec8c748444.reviewer.json",
+            "sha256": "718a1db2e4020187daee381138ae4cf581caec6129c6f1b53d7a9b82ddf6361a"
+          },
+          {
+            "return": "returns/P5/f83427df354e7c2e82bacfae0d20a9e3f5155600.reviewer.json",
+            "sha256": "01a89bf03185e3acaff7e92215c3027963e97554918efdba1f8195bdc181c6dc"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P5 delivers scripts/merge.mjs (fragments + synthesizer output into the model; locked/notes preserved, conflicts reported, unknown keys carried, shared lib/glob.mjs ownership, missing/unlisted area fragments reported), scripts/diffmap.mjs (changed files to areas, nodes, one-edge dependents, entities, sequences, uncovered), scripts/usage.mjs (per-phase ledger, unknown never summed as 0), commands build/update/render, SKILL.md wired to the real scripts, and tests/e2e.test.mjs running the whole no-LLM chain incl. an update; node --test 189/189 and claude plugin validate . green. Review findings R1-R4 fixed and re-reviewed; R5 (explorer dir/** rule undocumented) carried to BUG-3-2zy. /archmap:export is deferred to P7 with export.mjs. P5.5 and P5.6-2zy were cancelled for bookkeeping (wrong test mode, then a start-snapshot refusal); their work landed as P5.7-2zy.",
       "tasks": [
         {
           "id": "P5.1",
@@ -2271,9 +2292,14 @@
             "at": "2026-10-29T08:45:43Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "7cd1f81ff351",
-            "at": "2026-10-29T08:45:44Z"
+            "at": "2026-10-29T09:31:08Z",
+            "return": "returns/P5/6010462157f4c50dcade260facfd1eec8c748444.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.1/20261029T083952Z.executor.json, at 2026-10-29T08:45:32Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T08:45:32Z",
@@ -2331,9 +2357,14 @@
             "at": "2026-10-29T08:53:27Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "317a1a07e280",
-            "at": "2026-10-29T08:53:28Z"
+            "at": "2026-10-29T09:31:08Z",
+            "return": "returns/P5/6010462157f4c50dcade260facfd1eec8c748444.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but no test was collected or none reached an assertion: AssertionError [ERR_ASSERTION]:  -> 1; HEAD's own tests on HEAD's code are not green (no tally or error reader matched its output, so no line of it is quoted as decisive) - the command is already red (or unreadable) at HEAD - narrow it to the task's cases; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.2/20261029T084544Z.executor.json, at 2026-10-29T08:50:08Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T08:50:08Z",
@@ -2389,9 +2420,14 @@
             "at": "2026-10-29T08:57:09Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "a9f73d454faf",
-            "at": "2026-10-29T08:57:10Z"
+            "at": "2026-10-29T09:31:08Z",
+            "return": "returns/P5/6010462157f4c50dcade260facfd1eec8c748444.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/diffmap.test.mjs tests/glob.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.3/20261029T085329Z.executor.json, at 2026-10-29T08:56:51Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T08:56:51Z",
@@ -2454,9 +2490,14 @@
             "at": "2026-10-29T08:59:42Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "500f846e4d69",
-            "at": "2026-10-29T08:59:43Z"
+            "at": "2026-10-29T09:31:08Z",
+            "return": "returns/P5/6010462157f4c50dcade260facfd1eec8c748444.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: merge.mjs invoked via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P5.4/20261029T085710Z.executor.json, at 2026-10-29T08:59:21Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "The gate is `node --test` (the whole project) plus `claude plugin validate .`, which selects no tests. The first is a whole-project run, so the question is not asked."
           },
           "redFirst": {
             "at": "2026-10-29T08:59:21Z",
@@ -2605,9 +2646,14 @@
             "at": "2026-10-29T09:11:04Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "6010462157f4",
-            "at": "2026-10-29T09:11:05Z"
+            "at": "2026-10-29T09:31:08Z",
+            "return": "returns/P5/6010462157f4c50dcade260facfd1eec8c748444.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The filed redFirst is {status: not-attempted, basis: regression mode, expectRedFirst false, scripts P5.1-P5.4 already exist}. The mode owes no red, so the word holds.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "status": "not-attempted",
@@ -2834,7 +2880,7 @@
         {
           "id": "P5.11-2zy",
           "title": "fix P5-R4: Model output is rebuilt from a fixed whitelist: meta keys (outMeta...",
-          "status": "in_progress",
+          "status": "done",
           "description": "Model output is rebuilt from a fixed whitelist: meta keys (outMeta) and top-level keys (TOP_ORDER). Any other key in the --previous model is silently dropped on every merge, including unknown meta fields and unknown top-level arrays a newer schema might add. This conflicts with the additive-schema, readers-tolerate-unknown-keys rule (checklist 5) for a file users commit.\n\nResolution asked: Carry unknown top-level keys and unknown meta keys from --previous through unchanged, appended after the known ones in sorted order.",
           "files": [
             "scripts/merge.mjs",
@@ -2858,14 +2904,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "f83427df354e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/merge.mjs: unknown top-level keys and unknown meta keys from --previous are cloned through and appended after the known ones in sorted order (unknownTop/unknownMeta, appended to TOP_ORDER/META_ORDER). Added m11 in tests/merge.test.mjs (carry-through, order, idempotent second run, no carry on fresh build). Ran node --test tests/merge.test.mjs: 20 pass, 0 fail; full node --test: 189 pass, 0 fail, exit 0. Dependants: tests/merge.test.mjs, tests/e2e.test.mjs still correct (full suite green); skills/architecture-map/SKILL.md and docs/design.md (readers tolerate unknown keys, line 118) still correct - the change makes merge honour that rule; CLI/path unchanged.",
+            "descriptive": "merge no longer drops unknown top-level or meta keys from the previous model; they are carried through deterministically."
           },
           "startedAt": "2026-10-29T09:27:33Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T09:29:05Z",
+          "verifiedBy": [
+            "m11: unknown top-level and meta keys from previous are preserved, ordered last and sorted, stable on re-merge"
+          ],
           "notes": [
             {
               "at": "2026-10-29T09:13:43Z",
@@ -2884,6 +2932,18 @@
             "runId": "2026-10-29T09:29:04Z.2b259d",
             "status": "passed",
             "at": "2026-10-29T09:29:04Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "f83427df354e",
+            "at": "2026-10-29T09:29:05Z",
+            "basis": "a fix task for P5-R4, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-10-29T09:28:44Z",
+            "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
@@ -2893,7 +2953,12 @@
         "diffmap"
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-29T08:39:52Z"
+      "startedAt": "2026-10-29T08:39:52Z",
+      "testEvidence": {
+        "runId": "2026-10-29T09:31:07Z.967e3f",
+        "status": "passed",
+        "at": "2026-10-29T09:31:07Z"
+      }
     },
     {
       "id": "P6",
@@ -3449,6 +3514,22 @@
         "assets/viewer/viewer.js",
         "tests/visual/screenshots.py"
       ],
+      "taskId": null,
+      "fixedIn": null,
+      "notes": null
+    },
+    {
+      "id": "BUG-3-2zy",
+      "title": "Explorer coverage glob rule is undocumented (dir/** vs bare directory)",
+      "status": "open",
+      "severity": "low",
+      "reportedAt": "2026-10-29T09:30:48Z",
+      "reportedBy": null,
+      "description": "P5 review finding P5-R1 (second round): after P5.10 merge.mjs uses lib/glob.mjs, so a bare directory coverage glob no longer owns its subtree, but agents/archmap-explorer.md and references/model-schema.md never tell the explorer to write dir/**. Fix: add one line to each.",
+      "repro": "An explorer returns coverage ['src/api'] for a subtree it read; since P5.10 merge.mjs and diffmap.mjs match that bare glob only as the literal path",
+      "expected": "agents/archmap-explorer.md and skills/architecture-map/references/model-schema.md state that a subtree is written dir/** and a bare directory matches only that literal path",
+      "actual": "The explorer is told only '<globs you actually read>', so a bare directory glob silently stops owning its subtree in update merges and diffmap",
+      "files": [],
       "taskId": null,
       "fixedIn": null,
       "notes": null
