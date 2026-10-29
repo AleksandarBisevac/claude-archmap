@@ -1,0 +1,15 @@
+{
+  "gates": {},
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, expectRedFirst false; no tests added"
+  },
+  "outcome": {
+    "technical": "Edited skills/architecture-map/references/schema-introspection.md. The 'project's own Python' recipe now runs `python3 -I -c` and the text explains why: plain `python -c` puts the cwd first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. The example now takes the DuckDB-section temp copy (`\"$tmp/app.duckdb\"`, passed via sys.argv) instead of hard-coded /tmp/copy.duckdb. The 'No shipped driver' rule (line 12) now says `python3 -I -c`. If the module is not importable under -I, skip and record it, and do not drop -I. Gate: this task adds no test, so there was nothing of its own to run and I ran none; the orchestrator's recorded `node --test` is the evidence. Dependants (tests/skill-discovery-refs.test.mjs, agents/archmap-explorer.md, agents/archmap-synthesizer.md, docs/design.md, SKILL.md, discovery-generic.md, stack-node-backend.md, stack-python-backend.md): all still correct. They refer to the file by basename. I ran grep for 'python -c', 'python3 -c' and 'copy.duckdb' across them, which exited 0, and the only hit was the edited file itself. The file's name, path and headings are unchanged, so basename references and any heading-based checks are unaffected. I did not run the discovery-refs test.",
+    "descriptive": "Python introspection recipe now runs isolated (-I) against the temp DuckDB copy, so a scanned repo's duckdb.py cannot be executed."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:b7cea602971d7cf54db556a9067206bc6948281bf02a66ef9dab5f8b642db11d\",\"dirtyDigest\":\"sha256:79411a77def8f95e19e91362ef70f2a56e43fced5141a619ca3ba89b78570485\",\"dirtyPaths\":{\"skills/architecture-map/references/schema-introspection.md\":\"f3e0416b6a432055\"},\"head\":\"f2003c8\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/references/schema-introspection.md\"],\"scopeDigest\":\"sha256:0c5f392e4402014ff8da240e5fe907f1faf43504b52e41062af8d45f117c5908\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

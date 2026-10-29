@@ -1530,8 +1530,10 @@
             "severity": "low",
             "file": "tests/skill.test.mjs:2088-2092",
             "issue": "s5 only inspects lines that name 'synthesizer' or 'reviewer' and carry no never/not/no/without word. The stale claim at SKILL.md:17 says 'agents', so s5 passes while the contradiction in finding 1 remains. The negation filter would also let a line such as 'the synthesizer writes the model, no review needed' through.",
-            "resolution": "Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing.",
-            "fixTask": "P4.8-w15"
+            "resolution": "fixed in P4.8-w15 (f2003c8b019e): Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing.",
+            "fixTask": "P4.8-w15",
+            "commit": "f2003c8b019e",
+            "status": "fixed"
           },
           {
             "id": "P4-R3",
@@ -1542,7 +1544,7 @@
             "fixTask": "P4.9-w15"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 2 med, 1 low; 1 with a recorded fix commit]"
+        "outcome": "[findings: 3 - 0 high, 2 med, 1 low; 2 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -1974,7 +1976,7 @@
         {
           "id": "P4.8-w15",
           "title": "fix P4-R2: s5 only inspects lines that name 'synthesizer' or 'reviewer' and c...",
-          "status": "in_progress",
+          "status": "done",
           "description": "s5 only inspects lines that name 'synthesizer' or 'reviewer' and carry no never/not/no/without word. The stale claim at SKILL.md:17 says 'agents', so s5 passes while the contradiction in finding 1 remains. The negation filter would also let a line such as 'the synthesizer writes the model, no review needed' through.\n\nResolution asked: Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing.",
           "files": [
             "tests/skill.test.mjs"
@@ -1997,14 +1999,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "f2003c8b019e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added tests/skill.test.mjs case s6 with a staleClaims() scan: considers lines naming agent(s)/synthesizer/reviewer/explorer, strips only the specific allowed phrasings ('only the orchestrator writes the model|architecture.model.json', 'no write tools', 'never/do not/does not/cannot/must not write|edit|rewrite|update|save'), then flags a write verb followed by 'the model'/architecture.model.json or the model followed by a passive write. No blanket negation exclusion. The case asserts 5 stale phrasings (including 'agents write the model' and 'the synthesizer writes the model, no review needed') are flagged, 4 legitimate lines (including the SKILL.md rule 1 line and the reviewer table row where 'The model' is an input) are not, and SKILL.md has no flagged line. node --test tests/skill.test.mjs: 6 pass 0 fail; full node --test: 134 pass 0 fail. s5 left unchanged.",
+            "descriptive": "The SKILL.md write-claim scan now catches 'agents write the model' and negation-laced lines instead of passing them."
           },
           "startedAt": "2026-10-29T07:02:33Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T07:03:56Z",
+          "verifiedBy": [
+            "s6: claim scan flags agent-worded and negation-laced 'writes the model' lines, passes the allowed phrasing, and SKILL.md carries none"
+          ],
           "notes": [
             {
               "at": "2026-10-29T07:01:54Z",
@@ -2023,12 +2027,22 @@
             "runId": "2026-10-29T07:03:55Z.754cb9",
             "status": "passed",
             "at": "2026-10-29T07:03:55Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "f2003c8b019e",
+            "at": "2026-10-29T07:03:56Z",
+            "basis": "a fix task for P4-R2, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task, expectRedFirst false: the stale SKILL.md line was already fixed at HEAD (P4.7-w15), the new case locks the corrected behaviour. Manually confirmed the new scan regex matches the pre-fix line 'The agents write only the model.' (commit 2a45143)."
           }
         },
         {
           "id": "P4.9-w15",
           "title": "fix P4-R3: The 'project's own Python' recipe is `python3 -c \"import duckdb; ....",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The 'project's own Python' recipe is `python3 -c \"import duckdb; ...\"` run from the analysed repo root. `python -c` puts the current directory first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. That breaks the same file's rule (line 12) and SKILL.md hard rule 3, 'never execute the scanned project's own code'. The example also hard-codes /tmp/copy.duckdb rather than the mktemp copy from the DuckDB section.\n\nResolution asked: Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened.",
           "files": [
             "skills/architecture-map/references/schema-introspection.md"
@@ -2047,14 +2061,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T07:03:56Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -2073,7 +2087,13 @@
           ],
           "fixes": [
             "P4-R3"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T07:07:37Z.fae60d",
+            "status": "passed",
+            "at": "2026-10-29T07:07:37Z"
+          }
         }
       ],
       "area": [

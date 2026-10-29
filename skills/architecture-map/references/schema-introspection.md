@@ -9,7 +9,7 @@ Introspection adds `observed` fields from a live database. It is optional, read-
 - **Schema only, never rows.** Read table, column, type, key and index metadata. Never SELECT rows from a user table,
   never `COUNT(*)`, `LIMIT` sample or preview data. Rows may hold personal data and are not part of the model.
 - **No shipped driver.** The plugin ships no database driver. Use the `duckdb` or `sqlite3` command-line tools, or the
-  project's own Python (`python -c` with the driver it already depends on). Never `pip install` or `npm install`
+  project's own Python (`python3 -I -c` with the driver it already depends on). Never `pip install` or `npm install`
   anything. Never execute the scanned project's own code (no importing its modules, no running its scripts or
   migrations); only open the database file with a tool.
 - **Only files found in the repo.** Prescan lists database files (`*.duckdb`, `*.db`, `*.sqlite`, `*.sqlite3`) in
@@ -49,13 +49,18 @@ Delete the temp copy when done. Do not open the original while a server may be r
 
 ## Via the project's own Python
 
-When no CLI is installed, use the interpreter the project already uses, reading metadata only:
+When no CLI is installed, use the interpreter the project already uses, reading metadata only. Run it isolated with
+`python3 -I -c`: plain `python -c` puts the current directory first on `sys.path`, so a `duckdb.py` or `sqlite3.py`
+in the analysed repo would be imported and executed, which breaks the rule above. `-I` drops the current directory and
+the `PYTHON*` environment variables from the import path. Point it at the temp copy (`$tmp` from the DuckDB section),
+never at the original:
 
 ```sh
-python3 -c "import duckdb; c=duckdb.connect('/tmp/copy.duckdb', read_only=True); print(c.execute('SELECT table_name, column_name, data_type FROM information_schema.columns').fetchall())"
+python3 -I -c "import sys, duckdb; c=duckdb.connect(sys.argv[1], read_only=True); print(c.execute('SELECT table_name, column_name, data_type FROM information_schema.columns').fetchall())" "$tmp/app.duckdb"
 ```
 
-If the module is not importable, skip and record it; do not install it.
+If the module is not importable under `-I`, skip and record it; do not install it and do not drop `-I` to make it
+import.
 
 ## Remote database (explicit only)
 
