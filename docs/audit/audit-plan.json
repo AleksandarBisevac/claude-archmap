@@ -3006,8 +3006,10 @@
             "severity": "low",
             "file": "scripts/staleness.mjs:166-180",
             "issue": "In check mode an exception that is not a UsageError is rethrown (line 168). The direct-run rejection handler (line 180) then calls process.exit(0), which reports 'fresh' for a crashed check. The task says check returns 0 fresh, 1 stale, 2 error. The hook-mode exit-0 rule was applied to check mode.",
-            "resolution": "Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode.",
-            "fixTask": "P6.7-vcu"
+            "resolution": "fixed in P6.7-vcu (8a7ae24f4a23): Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode.",
+            "fixTask": "P6.7-vcu",
+            "commit": "8a7ae24f4a23",
+            "status": "fixed"
           },
           {
             "id": "P6-R4",
@@ -3018,7 +3020,7 @@
             "fixTask": "P6.8-vcu"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 2 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 3 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -3403,7 +3405,7 @@
         {
           "id": "P6.7-vcu",
           "title": "fix P6-R3: In check mode an exception that is not a UsageError is rethrown (l...",
-          "status": "in_progress",
+          "status": "done",
           "description": "In check mode an exception that is not a UsageError is rethrown (line 168). The direct-run rejection handler (line 180) then calls process.exit(0), which reports 'fresh' for a crashed check. The task says check returns 0 fresh, 1 stale, 2 error. The hook-mode exit-0 rule was applied to check mode.\n\nResolution asked: Use a separate rejection handler for check mode that prints the error and exits 2. Keep exit 0 only for hook mode.",
           "files": [
             "scripts/staleness.mjs",
@@ -3427,14 +3429,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "8a7ae24f4a23",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/staleness.mjs: the direct-run block now picks the rejection handler by mode. With --check in argv, a rejection prints 'staleness.mjs: <stack>' to stderr and exits 2. Otherwise (hook mode) it still exits 0. checkMain/main are unchanged apart from a comment on the rethrow. tests/staleness.test.mjs: added s11, which preloads a --require module via NODE_OPTIONS that makes process.stdout.write throw a non-UsageError. It asserts check mode exits 2 with the message on stderr, and hook mode with the same preload exits 0 with empty stdout. I ran it before the fix and it failed (status 0). After the fix s11 passes. tests/staleness.test.mjs passes in full, and 'node --test' ran 219 tests, 219 pass, 0 fail. Dependants: hooks/hooks.json (hook mode still exits 0, unchanged), commands/check.md (documents exit 0 fresh/1 stale, still correct; exit 2 for errors was already the behaviour for usage errors), docs/design.md, skills/architecture-map/SKILL.md, tests/commands.test.mjs, tests/skill.test.mjs (all describe the script by path and exit codes that are unchanged; their tests pass in the full run). I did not open docs/design.md or SKILL.md.",
+            "descriptive": "A check that crashes unexpectedly now exits 2 with the error printed instead of falsely reporting fresh; hook mode still always exits 0."
           },
           "startedAt": "2026-10-29T13:17:59Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:35:46Z",
+          "verifiedBy": [
+            "s11: a non-usage exception in check mode exits 2 and prints the error; hook mode under the same fault stays silent with exit 0"
+          ],
           "notes": [
             {
               "at": "2026-10-29T13:16:09Z",
@@ -3453,12 +3457,24 @@
             "runId": "2026-10-29T13:35:45Z.a997cf",
             "status": "passed",
             "at": "2026-10-29T13:35:45Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "8a7ae24f4a23",
+            "at": "2026-10-29T13:35:46Z",
+            "basis": "a fix task for P6-R3, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:35:25Z",
+            "basis": "`node --test tests/staleness.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: check mode must report an error, not 0:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P6.8-vcu",
           "title": "fix P6-R4: import-audit writes evidence lines: \"1\" when an audit entry names ...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "import-audit writes evidence lines: \"1\" when an audit entry names a file but no lines - a line the importer never read, which breaks the evidence rule (cite lines actually read, never guess); references/issues-catalog.md:237 says to cite the most relevant line found\n\nResolution asked: Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found; add a test that no imported issue carries a line the importer did not read",
           "files": [
             "scripts/issues.mjs",
@@ -3480,14 +3496,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T13:35:46Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -3510,7 +3526,13 @@
           ],
           "fixes": [
             "P6-R4"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:38:21Z.637682",
+            "status": "passed",
+            "at": "2026-10-29T13:38:21Z"
+          }
         }
       ],
       "area": [

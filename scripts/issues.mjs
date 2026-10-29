@@ -12,9 +12,10 @@
 // import-audit turns the open entries of the plan's bugs[] and phases[].review.findings[] (legacy string findings
 // included) into issues with source "audit", id "audit-<sourceId>" and track "<sourceId>". Each is anchored to the node
 // whose paths globs (lib/glob.mjs), else whose evidence path, owns the entry's file; the most specific glob wins.
-// Entries that are fixed/closed, line-level, or have no owning node (or no file) are skipped and counted. It reads
-// only the plan file it is given. Re-importing is idempotent: audit-source issues of --existing are replaced by the
-// fresh import (so one whose source closed disappears); issues of any other source are kept.
+// Entries that are fixed/closed, line-level, have no owning node (or no file), or name a file with no lines and no
+// relevant line found in it under --project are skipped and counted. It reads the plan file it is given and, for
+// an entry with a path but no lines, that project file (never one outside --project).
+// Re-importing is idempotent: audit-source issues of --existing are replaced by the fresh import (so one whose source closed disappears); issues of any other source are kept.
 // merge replaces the existing issues on the listed anchors (ids of the anchored node/edge/entity/step; every anchor
 // when --anchors is absent) with the incoming issues on those anchors; the rest is kept untouched.
 // path prints <home>/.claude/archmap/<repo-slug>/ (SKILL.md "Output locations").
@@ -31,7 +32,7 @@
 // printed to stdout. Output is sorted (severity, then id) and deterministic.
 // Exit 0 ok, 1 invalid result, 2 usage error or unreadable input. Node >= 18, ESM, zero npm dependencies.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -129,13 +130,33 @@ function ownerOf(nodes, path) {
   return hits[0]?.id ?? null;
 }
 
+const STOP = new Set(['that', 'this', 'with', 'from', 'have', 'does', 'into', 'when', 'then', 'than', 'they', 'them', 'there', 'their', 'what', 'which', 'will', 'would', 'should', 'could', 'only', 'also', 'been', 'being', 'were', 'must', 'each', 'every', 'about', 'after', 'before', 'instead', 'fix']);
+
 /**
- * Map the open entries of an audit plan to issues. Pure: reads nothing but its arguments.
- * @returns {{issues: object[], counts: {imported: number, skippedFixed: number, skippedUnanchored: number, skippedLineLevel: number}}}
+ * The line of `text` that best matches the audit entry's own words, as a 1-based number; null when fewer than two
+ * distinct words of the entry occur on any one line. A line is cited only when it was read and matches: no guess.
  */
-export function importAudit(plan, model) {
+function findLine(text, entryText) {
+  const words = [...new Set(String(entryText).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w)))];
+  let best = 0;
+  let bestScore = 0;
+  String(text).split(/\r?\n/).forEach((line, i) => {
+    const l = line.toLowerCase();
+    const score = words.reduce((n, w) => n + (l.includes(w) ? 1 : 0), 0);
+    if (score > bestScore) { best = i + 1; bestScore = score; }
+  });
+  return bestScore >= 2 ? best : null;
+}
+
+/**
+ * Map the open entries of an audit plan to issues. Pure: reads only its arguments; `readFile(path)` (optional)
+ * returns the text of a project file or null, and is how an entry that names a file without lines gets a line that
+ * was actually read. Without it, or when nothing relevant is found, such an entry is skipped (skipped-no-lines).
+ * @returns {{issues: object[], counts: {imported: number, skippedFixed: number, skippedUnanchored: number, skippedLineLevel: number, skippedNoLines: number}}}
+ */
+export function importAudit(plan, model, { readFile } = {}) {
   const nodes = list(model?.nodes);
-  const counts = { imported: 0, skippedFixed: 0, skippedUnanchored: 0, skippedLineLevel: 0 };
+  const counts = { imported: 0, skippedFixed: 0, skippedUnanchored: 0, skippedLineLevel: 0, skippedNoLines: 0 };
   const issues = [];
   const entries = [];
 
@@ -171,6 +192,14 @@ export function importAudit(plan, model) {
     let node = null;
     for (const f of e.files) { node = ownerOf(nodes, f.path); if (node) break; }
     if (!node) { counts.skippedUnanchored++; continue; }
+    // Evidence cites lines the audit gave or the importer read; a path alone is opened, never given a guessed line.
+    const evidence = [];
+    for (const f of e.files) {
+      if (f.lines && LINES.test(f.lines)) { evidence.push({ path: f.path, lines: f.lines }); continue; }
+      const found = readFile ? findLine(readFile(f.path) ?? '', e.text) : null;
+      if (found !== null) evidence.push({ path: f.path, lines: String(found) });
+    }
+    if (!evidence.length) { counts.skippedNoLines++; continue; }
     const category = categoryOf(e.text);
     const title = e.title || firstSentence(e.text, 90);
     const sev = mapSev(e.sev);
@@ -184,7 +213,7 @@ export function importAudit(plan, model) {
       summary: category === 'security' ? title : firstSentence(e.text, 240),
       impact: `Tracked by the audit as ${sev} severity; see the audit entry ${e.id}.`,
       fix: e.fix ? firstSentence(e.fix, 240) : `See the audit entry ${e.id}.`,
-      evidence: e.files.map((f) => ({ path: f.path, lines: f.lines && LINES.test(f.lines) ? f.lines : '1' })),
+      evidence,
       source: 'audit',
       track: e.id,
     };
@@ -334,8 +363,18 @@ function importCmd(o) {
   const kept = o.flags.existing
     ? issuesOf(readJsonFile(o.flags.existing, 'existing overlay'), 'existing overlay').filter((i) => i?.source !== 'audit')
     : [];
-  const { issues, counts } = importAudit(plan, model);
-  const summary = `imported ${counts.imported}, skipped-fixed ${counts.skippedFixed}, skipped-unanchored ${counts.skippedUnanchored}, skipped-line-level ${counts.skippedLineLevel}`;
+  const root = resolve(project);
+  const readFile = (rel) => {
+    const abs = resolve(root, rel);
+    const up = relative(root, abs);
+    if (!up || up.startsWith('..') || isAbsolute(up) || /(^|[\\/])\.\.([\\/]|$)/.test(rel)) return null; // never outside the project
+    try {
+      const st = statSync(abs);
+      return st.isFile() && st.size <= 2_000_000 ? readFileSync(abs, 'utf8') : null;
+    } catch { return null; }
+  };
+  const { issues, counts } = importAudit(plan, model, { readFile });
+  const summary = `imported ${counts.imported}, skipped-fixed ${counts.skippedFixed}, skipped-unanchored ${counts.skippedUnanchored}, skipped-line-level ${counts.skippedLineLevel}, skipped-no-lines ${counts.skippedNoLines}`;
   return emit(model, sortIssues([...kept, ...issues]), o, summary);
 }
 

@@ -1,0 +1,30 @@
+{
+  "gates": {
+    "node --test tests/issues.test.mjs": "pass",
+    "node --test (full)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:38:00Z",
+    "basis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /skipped-no-lines[: =]+4\\b/. Input:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/issues.mjs: importAudit(plan, model, {readFile}) no longer writes lines '1' for an entry naming a file without lines. Such a file is opened through readFile (CLI: resolved under --project/cwd, regular file <=2MB, never outside the project or via '..') and the line best matching the entry's own words (>=2 distinct words on one line) is cited; otherwise the file is dropped from evidence and, if none remain, the entry is skipped and counted as skipped-no-lines (new field in counts and in the report line). Header comment updated. tests/issues.test.mjs: added proj() helper writing the fixture's files; i1-i4 now run against it; i2 asserts exact lines read (4,3,2,5); i3 asserts skipped-no-lines 0; new i10 (no files readable -> imported 3, skipped-no-lines 4, no line '1') and i11 (irrelevant file contents -> skipped, path climbing out of project never opened). Ran node --test tests/issues.test.mjs: 11/11 pass; full node --test: 221 pass, 0 fail, exit 0. First red seen before the fix: i2/i10/i11 failed (imported 7 with no skipped-no-lines). Dependants: tests/issues.test.mjs updated as above; tests/issues-overlay.test.mjs, tests/skill.test.mjs, skills/architecture-map/SKILL.md, docs/design.md still correct (full suite green; the 'imported/skipped-fixed/-unanchored/-line-level' report tokens they or the docs name are unchanged, one token added). Note: skills/architecture-map/references/issues-catalog.md:237 lists four counts and is outside this task's files; it could mention skipped-no-lines.",
+    "descriptive": "import-audit never invents evidence line 1; entries with a path but no findable line are skipped and counted as skipped-no-lines."
+  },
+  "testsAdded": [
+    "i10: no readable file -> path-only entries skipped, counted skipped-no-lines, no line '1'",
+    "i11: irrelevant file content skipped not pinned to line 1; path climbing out of project never opened",
+    "i2/i3 strengthened: cited lines are the exact lines read"
+  ],
+  "casesAdded": [
+    [
+      "i10",
+      "i11"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:6ea5102cf96ecbd16ea553ff605b1559f3f38b8c0d4556c1b39c2b2e1230a9a5\",\"dirtyDigest\":\"sha256:cbee2aa20103b4fceb4fc87f060e233a9a496eef55ba0ee25a00d6616e6fc710\",\"dirtyPaths\":{\"scripts/issues.mjs\":\"e8054193952792d4\",\"tests/issues.test.mjs\":\"16c7fcff115c4886\"},\"head\":\"8a7ae24\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/issues.mjs\",\"tests/issues.test.mjs\"],\"scopeDigest\":\"sha256:ce9dc9f4cbd374d060c54baca5be7564b20b6ef2442325a5b93ee7370cfda971\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
