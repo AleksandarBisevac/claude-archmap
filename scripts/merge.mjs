@@ -21,6 +21,8 @@
 // by those areas (first evidence path under a glob of the area's previous meta.coverage) are replaced; every
 // other element, zone, relation, sequence and view is kept as it was, ids unchanged. Cross-area edges and
 // access rows whose evidence sits in an affected area are replaced too: rerun the synthesizer for them.
+// Globs are matched by lib/glob.mjs, the matcher diffmap.mjs uses, so both scripts agree on who owns a path
+// (a bare directory glob is literal; write `dir/**` to own a subtree).
 // --previous without --areas treats every area as affected (full rebuild that still carries user fields).
 // --areas and the fragment directory must name the same areas: an --areas entry with no fragment, and a fragment
 // whose area is not in --areas, are each reported as a conflict (exit 1 under --strict).
@@ -41,6 +43,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, realpathSync, stat
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
+import { matchAny } from './lib/glob.mjs';
 
 export const SCHEMA_VERSION = '1.0';
 
@@ -70,32 +73,13 @@ const stripUser = (n) => {
 // ---------------------------------------------------------------------------
 // ownership by area coverage
 
-function globToRegExp(glob) {
-  const g = String(glob).replace(/^\.\//, '');
-  let re = '';
-  for (let i = 0; i < g.length; i++) {
-    const c = g[i];
-    if (c === '*') {
-      if (g[i + 1] === '*') {
-        i++;
-        if (g[i + 1] === '/') {
-          i++;
-          re += '(?:.*/)?';
-        } else re += '.*';
-      } else re += '[^/]*';
-    } else if (c === '?') re += '[^/]';
-    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  }
-  return new RegExp(`^${re}(?:/.*)?$`);
-}
-
 function ownerTest(areas, coverage) {
   if (areas === null) return () => true; // every area is affected
-  const res = [];
-  for (const a of areas) for (const g of list(coverage?.[a])) if (typeof g === 'string') res.push(globToRegExp(g));
+  const globs = [];
+  for (const a of areas) for (const g of list(coverage?.[a])) if (typeof g === 'string') globs.push(g);
   return (el) => {
     const p = list(el?.evidence)[0]?.path;
-    return typeof p === 'string' && res.some((r) => r.test(p));
+    return typeof p === 'string' && matchAny(globs, p);
   };
 }
 

@@ -1,0 +1,29 @@
+{
+  "gates": {
+    "node --test tests/merge.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T09:27:06Z",
+    "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from '\\.\\/lib\\/glob\\.mjs'/. Input:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote m10 and m10b in tests/merge.test.mjs first; saw both fail (m10: area with bare coverage glob 'api' still owned api/old.js under merge's local regex; m10b: source had local globToRegExp). Then deleted the local globToRegExp in scripts/merge.mjs, imported matchAny from ./lib/glob.mjs, and ownerTest now collects globs and calls matchAny. Chose the literal reading (bare directory glob does not own subtree; dir/** does) rather than adding a subtree rule to lib/glob.mjs, because lib/glob.mjs is outside this task's files and glob.mjs documents dir/** as the subtree form; merge and diffmap now agree. Header comment in merge.mjs notes this. node --test tests/merge.test.mjs: 19 pass, 0 fail; node --test full: 188 pass, 0 fail. Dependants: tests/merge.test.mjs still correct (updated with 2 new cases, existing 17 pass); SKILL.md, tests/e2e.test.mjs, docs/design.md reference merge.mjs by path/name only, its CLI and behavior for api/** style coverage unchanged, so still correct (e2e passes in the full run).",
+    "descriptive": "merge.mjs now uses the shared lib/glob.mjs matcher so merge and diffmap agree on area ownership."
+  },
+  "testsAdded": [
+    "m10: bare directory coverage glob does not own subtree in merge (matches lib/glob.mjs); api/** still does",
+    "m10b: merge.mjs imports from lib/glob.mjs and has no local globToRegExp"
+  ],
+  "casesAdded": [
+    [
+      "m10",
+      "m10b"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:d72aabda9e448fd71098615942002aae2d57da50081f65b6d952ddba693c6c69\",\"dirtyDigest\":\"sha256:70208cf363119b5566bf0158ec30f787d47538faac470404c13d325b8fffebdf\",\"dirtyPaths\":{\"scripts/merge.mjs\":\"ca3400de2a6ea604\",\"tests/merge.test.mjs\":\"7ed850b7fe10f888\"},\"head\":\"030e383\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"tests/merge.test.mjs\"],\"scopeDigest\":\"sha256:4bcda5dd8d34618d53da2aa8ca1fd193904859c92f8925d3e4c29f25b4283c16\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

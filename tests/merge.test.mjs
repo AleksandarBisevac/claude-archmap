@@ -366,3 +366,26 @@ test('m9b through the CLI an unmatched area is a conflict on stderr; --strict ex
   assert.equal(existsSync(out), false);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('m10 merge shares lib/glob.mjs ownership: a bare directory coverage glob does not own its subtree, as in diffmap', async () => {
+  const { matchAny } = await import('../scripts/lib/glob.mjs');
+  const prev = built().model;
+  const old = node('old-api', { evidence: ev('api/old.js') });
+  prev.nodes.push(old);
+  prev.meta.coverage.api = ['api'];
+  assert.equal(matchAny(['api'], 'api/old.js'), false, 'the shared matcher reads a bare directory literally');
+  const fresh = frag('api', { nodes: [clone(prev.nodes.find((n) => n.id === 'svc'))], coverage: ['api'] });
+  const r = merge({ fragments: [fresh], previous: prev, areas: ['api'], meta: {} });
+  assert.ok(ids(r.model.nodes).includes('old-api'), 'not owned by the area, so not replaced or dropped');
+  assert.equal(r.conflicts.some((c) => c.ids?.includes('old-api')), false, JSON.stringify(r.conflicts));
+  // the explicit subtree form still owns it
+  prev.meta.coverage.api = ['api/**'];
+  const owned = merge({ fragments: [fresh], previous: prev, areas: ['api'], meta: {} });
+  assert.equal(ids(owned.model.nodes).includes('old-api'), false, 'api/** owns the subtree');
+});
+
+test('m10b merge.mjs imports its matcher from lib/glob.mjs and keeps no glob translator of its own', () => {
+  const src = readFileSync(CLI, 'utf8');
+  assert.match(src, /from '\.\/lib\/glob\.mjs'/);
+  assert.doesNotMatch(src, /function globToRegExp/);
+});
