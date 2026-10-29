@@ -1,0 +1,58 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "scripts/issues.mjs:133-148",
+      "issue": "findLine accepts any line on which two distinct words of the audit text (length >= 4, substring match, short stop list) occur. For an entry whose text is generic (words like 'return', 'export', 'config', 'error') the cited line is a real line that was read but may not be the defect. The evidence rule is met (no invented line), but 'most relevant line' is only weakly guaranteed.",
+      "resolution": "Carry: require word-boundary matches or a higher minimum (e.g. 3 words, or 2 when the entry has fewer than 4 candidate words), or tag the evidence as inferred. Not a blocker."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "scripts/issues.mjs:406-414",
+      "issue": "The readFile guard rejects '..' paths but resolves with resolve(), not realpath: a symlink inside --project that points outside it is followed (statSync/readFileSync). Only a line number is cited, never file content, so the exposure is a line-number oracle, not a content leak.",
+      "resolution": "Carry: compare realpathSync(abs) against realpathSync(root) before reading."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "skills/architecture-map/references/issues-catalog.md:237",
+      "issue": "The import report line still lists four counts (imported, fixed, unanchored, line-level); import-audit now prints a fifth, skipped-no-lines, and the evidence bullet at line 231 does not say that an entry whose file yields no relevant line is skipped. The executor of P6.8-vcu noted this and left it (file outside the task). Also P6.5-vcu's description asked 'Add a test for the first-build case'; the SKILL.md-only resolution adds none, so the documented first-build sequence is unguarded by a test.",
+      "resolution": "Carry: add skipped-no-lines to the catalogue's count list and evidence bullet; add a test (tests/skill.test.mjs or tests/commands.test.mjs) that SKILL.md's first-build block creates the empty overlay before import-audit/merge, or make --existing optional/missing-tolerant in issues.mjs."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Desired outcome: hook prints one line for stale and always exits 0 (hook mode unchanged; P6.7 keeps exit 0 for hook mode via separate handler, scripts/staleness.mjs:181-186); /archmap:check returns 0/1 and now 2 on a crash instead of a false 0; reviewer/issues.mjs write the overlay outside the repo (assertOutsideRepo untouched, SKILL.md first-build now creates the empty overlay in the overlay dir); clean render holds no issue text (P6.6 locks --issues OVERLAY --mode clean in o5). Per fix: P6.5 asked for either a script change or a SKILL.md instruction and the diff does the SKILL.md option (the 'add a test' clause is not met, see finding 3); P6.6 diff renders clean with --issues and runs the same assertions, as asked; P6.7 diff does the separate check-mode handler printing the error and exiting 2, hook mode exit 0, as asked, and the executor's outcome describes it; P6.8 diff never writes line '1', reads the named file under --project, cites a found line or skips and counts skipped-no-lines, with tests i10/i11 as asked. I checked that i11's traversal case does anchor and reach readFile, so the CLI guard is what it exercises. The claims describe the diffs. archmap-review scan: 26 files, 14 denylist terms checked, no leads; no external URLs, no non-builtin imports, no Node>18 APIs, no shell strings.",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level review: intent.redFirst is not-attempted. Per task, as filed: P6.7-vcu and P6.8-vcu are could-not-prove (red-first-helper output shows a non-zero exit and an assertion message but no test tally); P6.5 gate-only and P6.6 regression are not-attempted by design.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the whole-project `node --test`, which selects every test file; the question does not narrow to a bounded set, so it is not asked."
+  },
+  "verdict": "findings",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P6.5-vcu",
+      "commit": "290b2ebd9166"
+    },
+    {
+      "id": "P6.6-vcu",
+      "commit": "8f047bc0418a"
+    },
+    {
+      "id": "P6.7-vcu",
+      "commit": "8a7ae24f4a23"
+    },
+    {
+      "id": "P6.8-vcu",
+      "commit": "eeaa3135d762"
+    }
+  ]
+}

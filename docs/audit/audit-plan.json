@@ -2979,7 +2979,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P6-R1",
@@ -3016,13 +3016,52 @@
             "severity": "med",
             "file": "scripts/issues.mjs:675",
             "issue": "import-audit writes evidence lines: \"1\" when an audit entry names a file but no lines - a line the importer never read, which breaks the evidence rule (cite lines actually read, never guess); references/issues-catalog.md:237 says to cite the most relevant line found",
-            "resolution": "Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found; add a test that no imported issue carries a line the importer did not read",
-            "fixTask": "P6.8-vcu"
+            "resolution": "fixed in P6.8-vcu (eeaa3135d762): Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found; add a test that no imported issue carries a line the importer did not read",
+            "fixTask": "P6.8-vcu",
+            "commit": "eeaa3135d762",
+            "status": "fixed"
+          },
+          {
+            "id": "P6-R5",
+            "severity": "low",
+            "file": "scripts/issues.mjs:133-148",
+            "issue": "findLine accepts any line on which two distinct words of the audit text (length >= 4, substring match, short stop list) occur. For an entry whose text is generic (words like 'return', 'export', 'config', 'error') the cited line is a real line that was read but may not be the defect. The evidence rule is met (no invented line), but 'most relevant line' is only weakly guaranteed.",
+            "resolution": "Carry: require word-boundary matches or a higher minimum (e.g. 3 words, or 2 when the entry has fewer than 4 candidate words), or tag the evidence as inferred. Not a blocker.",
+            "status": "carried",
+            "carriedTo": "BUG-4-vcu"
+          },
+          {
+            "id": "P6-R6",
+            "severity": "low",
+            "file": "scripts/issues.mjs:406-414",
+            "issue": "The readFile guard rejects '..' paths but resolves with resolve(), not realpath: a symlink inside --project that points outside it is followed (statSync/readFileSync). Only a line number is cited, never file content, so the exposure is a line-number oracle, not a content leak.",
+            "resolution": "Carry: compare realpathSync(abs) against realpathSync(root) before reading.",
+            "status": "carried",
+            "carriedTo": "BUG-4-vcu"
+          },
+          {
+            "id": "P6-R7",
+            "severity": "low",
+            "file": "skills/architecture-map/references/issues-catalog.md:237",
+            "issue": "The import report line still lists four counts (imported, fixed, unanchored, line-level); import-audit now prints a fifth, skipped-no-lines, and the evidence bullet at line 231 does not say that an entry whose file yields no relevant line is skipped. The executor of P6.8-vcu noted this and left it (file outside the task). Also P6.5-vcu's description asked 'Add a test for the first-build case'; the SKILL.md-only resolution adds none, so the documented first-build sequence is unguarded by a test.",
+            "resolution": "Carry: add skipped-no-lines to the catalogue's count list and evidence bullet; add a test (tests/skill.test.mjs or tests/commands.test.mjs) that SKILL.md's first-build block creates the empty overlay before import-audit/merge, or make --existing optional/missing-tolerant in issues.mjs.",
+            "status": "carried",
+            "carriedTo": "BUG-4-vcu"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 2 med, 2 low; 3 with a recorded fix commit]"
+        "outcome": "phase review filed at head eeaa3135d762 [findings: 7 - 0 high, 2 med, 5 low; 4 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P6/09f53cc1a2a22e01fb6fce1f09b39c8b6d9996ee.reviewer.json",
+            "sha256": "210c0f603df6a1b88e7b618e8ac1f8a6fa31ee40ffa51018db75e608dc9486c5"
+          },
+          {
+            "return": "returns/P6/eeaa3135d762f9f8d35188881dd422a4b2793924.reviewer.json",
+            "sha256": "d5754cd12bdac5880fc7a83e972be8826aff2bfe5238aaab811d59b4f66c9454"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P6 delivers scripts/staleness.mjs with the SessionStart hook (one line when stale, silent otherwise, always exit 0, killable child with timeout) and --check (0 fresh, 1 stale, 2 no model/error incl. crashes); scripts/issues.mjs (import-audit of bugs, structured and legacy findings anchored by file, never inventing evidence lines; merge; path; lint for shared-build calibration; refuses writes inside the repo); commands check and issues; SKILL.md wired to both scripts incl. first-build empty overlay. node --test 221/221 and claude plugin validate . green. Review findings R1-R4 fixed and re-reviewed; R5-R7 (weak line match, symlink guard, catalogue counts) carried to BUG-4-vcu.",
       "tasks": [
         {
           "id": "P6.1",
@@ -3070,9 +3109,14 @@
             "at": "2026-10-29T12:58:03Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "0936d3798193",
-            "at": "2026-10-29T12:58:04Z"
+            "at": "2026-10-29T13:40:10Z",
+            "return": "returns/P6/09f53cc1a2a22e01fb6fce1f09b39c8b6d9996ee.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/staleness.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.1/20261029T125518Z.executor.json, at 2026-10-29T12:57:44Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is `node --test` and `claude plugin validate .`, both whole-project. No bounded selection."
           },
           "redFirst": {
             "at": "2026-10-29T12:57:44Z",
@@ -3126,9 +3170,14 @@
             "at": "2026-10-29T13:05:25Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "80f455d5d11c",
-            "at": "2026-10-29T13:05:25Z"
+            "at": "2026-10-29T13:40:10Z",
+            "return": "returns/P6/09f53cc1a2a22e01fb6fce1f09b39c8b6d9996ee.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.2/20261029T125804Z.executor.json, at 2026-10-29T13:04:54Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T13:04:54Z",
@@ -3185,9 +3234,14 @@
             "at": "2026-10-29T13:07:52Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "ca6af63e2bff",
-            "at": "2026-10-29T13:07:53Z"
+            "at": "2026-10-29T13:40:10Z",
+            "return": "returns/P6/09f53cc1a2a22e01fb6fce1f09b39c8b6d9996ee.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/issues-overlay.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: unknown subcommand lint; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.3/20261029T130526Z.executor.json, at 2026-10-29T13:07:34Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T13:07:34Z",
@@ -3249,9 +3303,14 @@
             "at": "2026-10-29T13:09:36Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "09f53cc1a2a2",
-            "at": "2026-10-29T13:09:37Z"
+            "at": "2026-10-29T13:40:10Z",
+            "return": "returns/P6/09f53cc1a2a22e01fb6fce1f09b39c8b6d9996ee.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: staleness.mjs named via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P6.4/20261029T130753Z.executor.json, at 2026-10-29T13:09:20Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is `node --test` and `claude plugin validate .`, both whole-project. No bounded selection."
           },
           "redFirst": {
             "at": "2026-10-29T13:09:20Z",
@@ -3474,7 +3533,7 @@
         {
           "id": "P6.8-vcu",
           "title": "fix P6-R4: import-audit writes evidence lines: \"1\" when an audit entry names ...",
-          "status": "in_progress",
+          "status": "done",
           "description": "import-audit writes evidence lines: \"1\" when an audit entry names a file but no lines - a line the importer never read, which breaks the evidence rule (cite lines actually read, never guess); references/issues-catalog.md:237 says to cite the most relevant line found\n\nResolution asked: Never invent a line: skip such entries and count them in the import report (skipped-no-lines), or read the named file and cite a line actually found; add a test that no imported issue carries a line the importer did not read",
           "files": [
             "scripts/issues.mjs",
@@ -3498,14 +3557,18 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "eeaa3135d762",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/issues.mjs: importAudit(plan, model, {readFile}) no longer writes lines '1' for an entry naming a file without lines. Such a file is opened through readFile (CLI: resolved under --project/cwd, regular file <=2MB, never outside the project or via '..') and the line best matching the entry's own words (>=2 distinct words on one line) is cited; otherwise the file is dropped from evidence and, if none remain, the entry is skipped and counted as skipped-no-lines (new field in counts and in the report line). Header comment updated. tests/issues.test.mjs: added proj() helper writing the fixture's files; i1-i4 now run against it; i2 asserts exact lines read (4,3,2,5); i3 asserts skipped-no-lines 0; new i10 (no files readable -> imported 3, skipped-no-lines 4, no line '1') and i11 (irrelevant file contents -> skipped, path climbing out of project never opened). Ran node --test tests/issues.test.mjs: 11/11 pass; full node --test: 221 pass, 0 fail, exit 0. First red seen before the fix: i2/i10/i11 failed (imported 7 with no skipped-no-lines). Dependants: tests/issues.test.mjs updated as above; tests/issues-overlay.test.mjs, tests/skill.test.mjs, skills/architecture-map/SKILL.md, docs/design.md still correct (full suite green; the 'imported/skipped-fixed/-unanchored/-line-level' report tokens they or the docs name are unchanged, one token added). Note: skills/architecture-map/references/issues-catalog.md:237 lists four counts and is outside this task's files; it could mention skipped-no-lines.",
+            "descriptive": "import-audit never invents evidence line 1; entries with a path but no findable line are skipped and counted as skipped-no-lines."
           },
           "startedAt": "2026-10-29T13:35:46Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:38:22Z",
+          "verifiedBy": [
+            "i10: no readable file -> path-only entries skipped, counted skipped-no-lines, no line '1'",
+            "i11: irrelevant file content skipped not pinned to line 1; path climbing out of project never opened",
+            "i2/i3 strengthened: cited lines are the exact lines read"
+          ],
           "notes": [
             {
               "at": "2026-10-29T13:16:09Z",
@@ -3532,6 +3595,18 @@
             "runId": "2026-10-29T13:38:21Z.637682",
             "status": "passed",
             "at": "2026-10-29T13:38:21Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "eeaa3135d762",
+            "at": "2026-10-29T13:38:22Z",
+            "basis": "a fix task for P6-R4: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:38:00Z",
+            "basis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /skipped-no-lines[: =]+4\\b/. Input:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
@@ -3540,7 +3615,12 @@
         "issues"
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-29T12:55:18Z"
+      "startedAt": "2026-10-29T12:55:18Z",
+      "testEvidence": {
+        "runId": "2026-10-29T13:40:08Z.629b72",
+        "status": "passed",
+        "at": "2026-10-29T13:40:08Z"
+      }
     },
     {
       "id": "P7",
@@ -4121,6 +4201,22 @@
       "repro": "An explorer returns coverage ['src/api'] for a subtree it read; since P5.10 merge.mjs and diffmap.mjs match that bare glob only as the literal path",
       "expected": "agents/archmap-explorer.md and skills/architecture-map/references/model-schema.md state that a subtree is written dir/** and a bare directory matches only that literal path",
       "actual": "The explorer is told only '<globs you actually read>', so a bare directory glob silently stops owning its subtree in update merges and diffmap",
+      "files": [],
+      "taskId": null,
+      "fixedIn": null,
+      "notes": null
+    },
+    {
+      "id": "BUG-4-vcu",
+      "title": "issues.mjs import-audit follow-ups: symlink guard, weak line match, catalogue counts",
+      "status": "open",
+      "severity": "low",
+      "reportedAt": "2026-10-29T13:39:44Z",
+      "reportedBy": null,
+      "description": "P6 second review, all low: (1) issues.mjs readFile guards '..' but uses resolve(), not realpath, so a symlink inside --project pointing outside is followed (only a line number is exposed); compare realpathSync(abs) to realpathSync(root). (2) findLine accepts any line with two distinct >=4-char words of the audit text by substring; tighten to word boundaries / 3 words, or mark the evidence inferred. (3) references/issues-catalog.md:231-237 lacks the skipped-no-lines count and rule; and there is no test that SKILL.md's first-build block creates the empty overlay before import-audit/merge (or make merge --existing optional).",
+      "repro": "Symlink tests/x -> /etc/hosts in a project, an audit finding naming tests/x without lines; run issues.mjs import-audit --project <dir>",
+      "expected": "Files outside the project are never opened, even via symlink; cited lines are relevant; docs list all five counts",
+      "actual": "The symlink target is read; generic two-word matches are accepted; the catalogue lists four counts",
       "files": [],
       "taskId": null,
       "fixedIn": null,
