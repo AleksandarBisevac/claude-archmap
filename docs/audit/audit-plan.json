@@ -2305,7 +2305,7 @@
         {
           "id": "P5.3",
           "title": "diffmap.mjs: changed files to affected areas, nodes, dependents, entities and sequences",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/diffmap.mjs (docs/design.md Req 'update on command', §6 update step 1, §10 'diffmap maps changed files to the right nodes'). CLI: node scripts/diffmap.mjs <model.json> [--repo <dir>] [--since <sha>] [--json]; export a pure diffmap(model, changes) plus the git reader. Changes = git diff --name-status from meta.commit (or --since) to HEAD, plus untracked files from git ls-files -o --exclude-standard; renames count as delete plus add; git is run with execFileSync, never a shell. Map each file to areas (meta.coverage globs), nodes (paths globs, then evidence paths) and entities (evidence paths); add dependents: nodes one edge away from an affected node, and sequences whose participants or steps touch an affected node; list uncovered new files no area owns. Report {base, head, behind (commit count), files, areas, nodes, dependents, entities, sequences, uncovered}, all sorted; human output is a short summary. Exit 0 ok (also when nothing is affected), 2 usage, unknown base commit or not a git repo. scripts/lib/glob.mjs: a small dependency-free matcher for the globs prescan emits (**, *, ?, dir/**) with its own tests; leave prescan untouched. Tests build a throwaway git repo in a temp dir. Node >= 18, ESM, zero deps.",
           "files": [
             "scripts/diffmap.mjs",
@@ -2331,25 +2331,39 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "a9f73d454faf",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/glob.mjs (globToRegExp, matchGlob, matchAny: **, **/ zero-dir, *, ?, dir/** subtree, escaping, ./ and backslash normalisation) and scripts/diffmap.mjs (pure diffmap(model, changes), readGitChanges via execFileSync: git diff --name-status -z --no-renames --relative base HEAD + ls-files -o --exclude-standard; rev-list --count for behind; CLI <model.json> [--repo] [--since] [--json]; exit 2 on usage, unreadable model, no meta.commit, unknown base, non-git dir). Mapping: areas by meta.coverage globs; nodes by paths globs or evidence path equal to file; entities by evidence incl. field evidence; dependents = nodes one edge away (either direction) not themselves affected; sequences when a participant (node ?? id) or a step m/r/note ref is an affected node; uncovered = new (A or untracked) files no area owns. Prescan untouched. Tests: tests/glob.test.mjs 6 cases (g1-g6), tests/diffmap.test.mjs 12 cases (d1-d12) in throwaway temp git repos; the model file is kept outside the repo. Full node --test: 173 pass, 0 fail. Dependants: docs/design.md and skills/architecture-map/SKILL.md mention diffmap.mjs by basename; still correct, since the CLI signature and report keys follow design.md section 6 and the new --repo/--since/--json flags are additive.",
+            "descriptive": "diffmap.mjs maps git changes since meta.commit to areas, nodes, dependents, entities, sequences and uncovered new files, backed by a dependency-free glob matcher."
           },
           "startedAt": "2026-10-29T08:53:29Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T08:57:10Z",
+          "verifiedBy": [
+            "tests/diffmap.test.mjs: temp git repo cases for area+node+dependents, entity evidence, evidence-only node, sequences, uncovered (committed and untracked), ignored/deleted files, renames, behind and --since, empty result exit 0, human summary, exit 2 cases, pure function determinism",
+            "tests/glob.test.mjs: double-star, star, question mark, dir/**, literal escaping/normalisation, matchAny"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T08:57:09Z.d0959e",
             "status": "passed",
             "at": "2026-10-29T08:57:09Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "a9f73d454faf",
+            "at": "2026-10-29T08:57:10Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T08:56:51Z",
+            "basis": "`node --test tests/diffmap.test.mjs tests/glob.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P5.4",
           "title": "Commands build, update, render; SKILL.md uses merge, diffmap and usage",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write the plugin commands (docs/design.md §4 conventions, §6 flows). commands/build.md (/archmap:build [--issues] [--profile p] [--db dsn] [--scope path] [--publish]) and commands/update.md (/archmap:update [--issues] [--profile p] [--since sha]) are thin: frontmatter description, argument-hint, allowed-tools; the body hands off to the architecture-map skill's build or update flow with the arguments, and does not restate the flow. commands/render.md (/archmap:render [--internal|--shared]) is script-only with disable-model-invocation: true, running node \"${CLAUDE_PLUGIN_ROOT}/scripts/render.mjs\" on docs/architecture/ (layout first when the layout file is missing), internal and shared writing under <home>/.claude/archmap/<repo-slug>/. Update SKILL.md: merge.mjs, diffmap.mjs and usage.mjs now exist, so replace their 'not yet built' fallbacks with the real invocations (fragments dir, --previous/--areas for update, diffmap --json for update step 1, usage add/print for the ledger); keep staleness, issues and export marked as not yet built. /archmap:export is deferred to P7 with export.mjs; /archmap:check and /archmap:issues to P6. SKILL.md stays <= 500 lines.",
           "files": [
             "commands/build.md",
@@ -2380,16 +2394,22 @@
             "P5.2",
             "P5.3"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T08:57:10Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T08:59:42Z.de6693",
+            "status": "passed",
+            "at": "2026-10-29T08:59:42Z"
+          }
         },
         {
           "id": "P5.5",

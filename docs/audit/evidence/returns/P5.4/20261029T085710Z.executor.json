@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/commands.test.mjs tests/skill.test.mjs": "pass",
+    "node --test": "pass",
+    "claude plugin validate .": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T08:59:21Z",
+    "basis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: merge.mjs invoked via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added commands/build.md, update.md (thin hand-off to architecture-map skill with $ARGUMENTS, no flow restated) and render.md (disable-model-invocation: true; runs layout.mjs first when the layout file is missing, then render.mjs; internal/shared use issues.json and --out under <home>/.claude/archmap/<repo-slug>/). Updated SKILL.md: step 4 and the synthesizer merge use merge.mjs (fragments dir, --previous, --synth, --generated-at), update step 1 uses diffmap.mjs --json, update step 3 uses merge.mjs --previous --areas, step 9 uses usage.mjs add/print; staleness, issues and export remain marked not yet built. SKILL.md is 282 lines. Added tests c1-c6 in tests/commands.test.mjs and s7 in tests/skill.test.mjs. Full node --test: 180 pass, 0 fail; claude plugin validate . passed. Dependants: docs/design.md still correct (the commands and flags match section 4 and 6; no edit needed); tests/skill.test.mjs still correct (s1-s6 pass unchanged, SKILL.md under 500 lines, s5 required the orchestrator/merge/validate sentence on one line, which I kept); .agents/skills/node/tile.json and skills-lock.json only name SKILL.md by basename and are unaffected (the skill's name and description are unchanged).",
+    "descriptive": "Plugin now has /archmap:build, /archmap:update and script-only /archmap:render, and the skill invokes the real merge, diffmap and usage scripts."
+  },
+  "testsAdded": [
+    "tests/commands.test.mjs: frontmatter, argument hints, render disable-model-invocation, thin build/update, script-existence guard (and a guard-can-fail case)",
+    "tests/skill.test.mjs s7: merge/diffmap/usage invoked and no longer marked not yet built, staleness/issues/export still marked"
+  ],
+  "casesAdded": [
+    [
+      "c1",
+      "c2",
+      "c3",
+      "c4",
+      "c5",
+      "c6"
+    ],
+    "s7"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:b1927ea0fac05c2181c5aa046d6aadd8fe992c83d2f5ae6ff91129a8e4877965\",\"dirtyDigest\":\"sha256:f2bab8020cb68d957b6f9d2c0a23310061ffe093e7b306b153dee098322dd6b7\",\"dirtyPaths\":{\"commands/build.md\":\"3973d3ee313adfb3\",\"commands/render.md\":\"298e1b7d09ed956a\",\"commands/update.md\":\"c6285fed86add89d\",\"skills/architecture-map/SKILL.md\":\"130d0a3ae1d29241\",\"tests/commands.test.mjs\":\"60ce0d80040d5083\",\"tests/skill.test.mjs\":\"fb4beb7ed31c7232\"},\"head\":\"a9f73d4\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"commands/build.md\",\"commands/render.md\",\"commands/update.md\",\"skills/architecture-map/SKILL.md\",\"tests/commands.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:14da4ef3f993c9fbdeecbdf9cc0f690de22f83f2a5b15a31664db8032610ba83\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

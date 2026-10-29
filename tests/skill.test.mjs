@@ -68,6 +68,24 @@ test('s5 SKILL.md does not let the synthesizer or reviewer write architecture.mo
   assert.match(skill, /only the orchestrat\w*[^\n]*(writes?|edits?)[^\n]*architecture\.model\.json/i, 'only the orchestrator writes the model');
 });
 
+test('s7 SKILL.md no longer marks merge, diffmap or usage as not yet built, invokes each, and still marks staleness, issues and export', () => {
+  const lines = skill.split('\n');
+  for (const s of ['merge', 'diffmap', 'usage']) {
+    assert.ok(skill.includes(`node "\${CLAUDE_PLUGIN_ROOT}/scripts/${s}.mjs"`), `${s}.mjs invoked via plugin root`);
+    const stale = lines.filter((l) => l.includes(`${s}.mjs`) && /not yet built/i.test(l));
+    assert.deepEqual(stale, [], `${s}.mjs is still marked not yet built`);
+  }
+  assert.match(skill, /merge\.mjs"[^\n]*--previous/, 'update merge uses --previous');
+  assert.match(skill, /--areas/, 'update merge passes --areas');
+  assert.match(skill, /diffmap\.mjs"[^\n]*--json/, 'update step 1 runs diffmap --json');
+  assert.match(skill, /usage\.mjs"\s+add\b/, 'usage add recorded per step');
+  assert.match(skill, /usage\.mjs"\s+print\b/, 'usage print for the ledger');
+  assert.match(skill, /fragments/, 'merge reads the fragments dir');
+  for (const s of ['staleness', 'issues', 'export']) {
+    assert.ok(lines.some((l) => l.includes(`${s}.mjs`) && /not yet built/i.test(l)) || new RegExp(`${s}\\.mjs[^\\n]*\\n?[^\\n]*not yet built`).test(skill), `${s}.mjs stays marked not yet built`);
+  }
+});
+
 // s6 (P4-R2): the claim scan must not be fooled by a stale line that says "agents" instead of a
 // role name, nor by a stray negation word elsewhere in the line. Only the specific allowed
 // phrasings are removed before a line is judged.

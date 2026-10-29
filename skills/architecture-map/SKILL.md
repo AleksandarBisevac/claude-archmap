@@ -112,11 +112,19 @@ introspection`. Write the result as one more fragment, `<work>/fragments/introsp
 
 ### 4. Merge and validate
 
-`merge.mjs` is **not yet built** (later phase). Until it exists, you merge the fragments yourself, following the fragment
-contract in model-schema.md: concatenate the arrays, dedupe by id, rename on collision and rewrite references, fill
-`meta` (`schemaVersion`, `project`, `commit` = HEAD, `generatedAt`, `profile`, `sources`, `coverage` from each fragment's
-`coverage`). When it exists, call it with the fragment directory and the target model path; it also preserves
-user-authored fields. Then validate:
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/merge.mjs" <work>/fragments --out docs/architecture/architecture.model.json \
+  --commit "$(git rev-parse HEAD)" --project <name> --profile <profile> --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --json
+```
+
+`merge.mjs` follows the fragment contract in model-schema.md: it concatenates the arrays in area order, dedupes
+identical elements, renames an id collision to `<id>-<area>` and rewrites the references, and fills `meta`
+(`schemaVersion`, `project`, `commit`, `generatedAt`, `profile`, `sources`, `coverage` from each fragment's `coverage`).
+`generatedAt` is never invented, so always pass it. When `docs/architecture/architecture.model.json` already exists, add
+`--previous docs/architecture/architecture.model.json` so `locked` and `notes` survive. The result is validated before
+anything is written. Exit 0 ok; exit 1 the result is invalid (print the findings, fix or re-dispatch the owning
+explorer); exit 2 is a usage error. It reports `conflicts` (for example a locked node the new analysis disagrees with):
+report them, do not resolve them silently. Then validate:
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/validate.mjs" docs/architecture/architecture.model.json --repo .
@@ -132,7 +140,8 @@ Dispatch `archmap-synthesizer` with the merged model path. It reads the model an
 targeted source reads to confirm a cross-area claim. It adds cross-area edges, 3-7 sequences (read
 [sequences.md](references/sequences.md)), `access[]` rows that drive the CRUD matrix and lineage, `relations[]`, and
 `views[]`. It has no write tools and returns one JSON object (`edges`, `sequences`, `access`, `relations`, `views`,
-`notes`, `conflicts`). The orchestrating session merges that object into the model, then runs validate (step 6); a
+`notes`, `conflicts`). Save it as `<work>/synth.json`. Then the orchestrating session merges that object into the model and runs validate (step 6),
+by re-running `merge.mjs` from step 4 with `--synth <work>/synth.json` and `--previous` on the model just written; a
 non-empty `conflicts` is reported, not resolved silently. Only the orchestrator writes `architecture.model.json`.
 
 ### 6. Validate, layout, render
@@ -175,25 +184,49 @@ so and stop; do not substitute another channel.
 
 ### 9. Usage ledger
 
-Print a per-phase ledger: prescan, each explorer, introspection, synthesizer, reviewer, with tokens and duration taken
-from the subagent completion notifications. `usage.mjs` is **not yet built**; until it exists, print the table from the
-notifications you saw and label any figure you could not read as unknown, not zero.
+Record one row per step in `<work>/usage.jsonl` as it finishes, taking tokens and duration from the subagent completion
+notifications (a script step costs no tokens: `--tokens 0`). Leave out a figure you could not read; it prints as
+unknown, never as zero.
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/usage.mjs" add <work>/usage.jsonl --phase explorer --label <area> --agent archmap-explorer --model <model> --tokens <n> --duration-ms <n>
+node "${CLAUDE_PLUGIN_ROOT}/scripts/usage.mjs" print <work>/usage.jsonl
+```
+
+Phases are `prescan`, `explorer`, `introspection`, `merge`, `synthesizer`, `reviewer`, `layout`, `render`. Put the printed
+table in the final report (`print --json` for the machine form).
 
 ## Update flow
 
 Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model stores the analysed commit
 (`meta.commit`) and each node's `paths`, so update re-analyses only what changed.
 
-1. **Diffmap.** `diffmap.mjs` is **not yet built**; it compares `meta.commit` (or `--since`) with HEAD and maps changed
-   files to affected areas (via `meta.coverage`), nodes (via `paths`) and entities. Until it exists, do this with
-   `git diff --name-only <commit>..HEAD` and match the files against `meta.coverage` and node `paths` yourself. If
-   nothing is affected, re-render only (step 5) and stop.
+1. **Diffmap.**
+
+   ```sh
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/diffmap.mjs" docs/architecture/architecture.model.json --repo . --json
+   ```
+
+   Add `--since <sha>` when given. It compares `meta.commit` with HEAD and reports `areas` (via `meta.coverage`), `nodes`
+   (via `paths`), `dependents` (one edge away), `entities`, `sequences` and `uncovered` (new files no area owns). Exit 0
+   also when nothing is affected: if `areas`, `nodes`, `entities` and `uncovered` are all empty, re-render only (step 5)
+   and stop. Exit 2 is a usage error, an unreadable model or an unknown base commit. Uncommitted edits to tracked files
+   are not seen: say so.
 2. **Explorers** on the affected areas and on new files no area covers. Same dispatch as build step 2, with the old
    fragment's node ids supplied so ids stay stable.
-3. **Merge, preserving user fields.** Replace only the affected areas' elements. `locked` and `notes` and layout
-   `pinned` survive; a locked node keeps its authored content, and a conflict is reported, not resolved silently.
+3. **Merge, preserving user fields.**
+
+   ```sh
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/merge.mjs" <work>/fragments --previous docs/architecture/architecture.model.json --out docs/architecture/architecture.model.json \
+     --areas <a,b> --commit "$(git rev-parse HEAD)" --generated-at <iso> --json
+   ```
+
+   Only the listed areas' fragments are read and only their elements are replaced; everything else keeps its ids.
+   `locked` and `notes` and layout `pinned` survive; a locked node keeps its authored content, and a `conflict` is
+   reported, not resolved silently. Cross-area edges and access rows whose evidence sits in an affected area are
+   replaced too, which is what step 4 refills.
 4. **Synthesizer only for touched edges and sequences**: pass it the list of affected ids. It returns only the touched or new elements with the same ids; you merge
-   them in place and run validate, as in build step 5.
+   them with `merge.mjs --synth` as in build step 5, then run validate.
 5. **Validate, layout, render.** Layout is seeded from the previous positions in `architecture.layout.json`. Set
    `meta.commit` to HEAD and `generatedAt` anew.
 6. **Issues**, only with `--issues`: re-review the affected anchors only and merge into the existing overlay.
