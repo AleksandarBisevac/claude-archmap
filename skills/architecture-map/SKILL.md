@@ -165,13 +165,11 @@ sequence step, with severity high, med or low and a category (security, data, re
 If `docs/audit/audit-plan.json` exists, its findings may be imported (`/archmap:issues --import-audit`).
 
 `issues.mjs` does the deterministic half and never writes inside the repo (it refuses an `--out` in the project's git
-tree). Get the overlay directory, then import, merge and write there. Both subcommands read `--existing` and fail
-(exit 2) when that file is missing, so on a first build create the empty overlay first (skip this if
-`<overlay-dir>/issues.json` already exists):
+tree). Get the overlay directory, then import, merge and write there. `--existing` is optional: absent, or naming
+a file that does not exist yet (a first build), it means an empty overlay.
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" path
-mkdir -p <overlay-dir> && [ -e <overlay-dir>/issues.json ] || printf '{"schemaVersion":"1.0","issues":[]}\n' > <overlay-dir>/issues.json
 node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" import-audit docs/audit/audit-plan.json --model docs/architecture/architecture.model.json --existing <overlay-dir>/issues.json --out <overlay-dir>/issues.json
 node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" merge --existing <overlay-dir>/issues.json --incoming <reviewer.json> --model docs/architecture/architecture.model.json --out <overlay-dir>/issues.json
 ```

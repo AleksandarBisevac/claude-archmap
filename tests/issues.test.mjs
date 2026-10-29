@@ -271,3 +271,70 @@ test('i11 no imported issue carries a line the importer did not read: a file wit
   assert.equal(r2.status, 0, r2.err);
   assert.ok(!readJson(out2).issues.some((i) => i.id === 'audit-B-X'));
 });
+
+const planOf = (dir, entries) => write(dir, 'plan-x.json', { bugs: entries.map((e) => ({ status: 'open', severity: 'low', ...e })) });
+
+test('i12 a symlink inside the project that points outside it is never opened: the entry is skipped as skipped-no-lines', async () => {
+  const { symlinkSync } = await import('node:fs');
+  const dir = proj();
+  const outsideDir = tmp();
+  const target = join(outsideDir, 'secret.js');
+  writeFileSync(target, '// scheduler orders queue retries timeout: the order query hangs the request\n');
+  symlinkSync(target, join(dir, 'src', 'link.js'));
+  const plan = planOf(dir, [{ id: 'B-LINK', title: 'Scheduler orders queue', description: 'scheduler orders queue retries timeout', files: ['src/link.js'] }]);
+  const out = join(dir, 'issues-link.json');
+  const r = run(['import-audit', plan, '--model', MODEL, '--out', out, '--project', dir], { cwd: dir });
+  assert.equal(r.status, 0, r.err);
+  assert.match(r.out, /skipped-no-lines[: =]+1\b/);
+  assert.ok(!readJson(out).issues.some((i) => i.id === 'audit-B-LINK'), 'a symlinked outside file must not be read or cited');
+  // a symlink whose target stays inside the project is still read
+  writeFileSync(join(dir, 'src', 'real.js'), '// header\n// scheduler orders queue retries timeout here\n');
+  symlinkSync(join(dir, 'src', 'real.js'), join(dir, 'src', 'inner.js'));
+  const plan2 = planOf(dir, [{ id: 'B-INNER', title: 'Scheduler orders queue', description: 'scheduler orders queue retries timeout', files: ['src/inner.js'] }]);
+  const out2 = join(dir, 'issues-inner.json');
+  assert.equal(run(['import-audit', plan2, '--model', MODEL, '--out', out2, '--project', dir], { cwd: dir }).status, 0);
+  assert.deepEqual(readJson(out2).issues.find((i) => i.id === 'audit-B-INNER')?.evidence, [{ path: 'src/inner.js', lines: '2' }]);
+});
+
+test('i13 findLine needs whole-word matches: substrings do not count, 3 distinct words are required (2 when the entry has fewer than 4 words)', () => {
+  const dir = proj();
+  writeFileSync(join(dir, 'src', 'weak.js'), [
+    '// reorder requested databases', // substrings only of: order, request, database
+    '// orders queue handled here', // 2 whole words of a 5-word entry
+    '// scheduler orders queue', // 3 whole words
+    '',
+  ].join('\n'));
+  const out = join(dir, 'issues-weak.json');
+  const plan = planOf(dir, [
+    { id: 'B-SUB', title: 'Order request database', description: 'order request database', files: ['src/weak.js'] },
+    { id: 'B-TWO', title: 'Orders queue scheduler retries timeout', description: 'orders queue scheduler retries timeout', files: ['src/weak.js'] },
+  ]);
+  const r = run(['import-audit', plan, '--model', MODEL, '--out', out, '--project', dir], { cwd: dir });
+  assert.equal(r.status, 0, r.err);
+  const m = byId(readJson(out));
+  assert.ok(!m['audit-B-SUB'], 'substring-only matches must not be cited');
+  assert.deepEqual(m['audit-B-TWO']?.evidence, [{ path: 'src/weak.js', lines: '3' }]); // line 2 has only two of five words
+  // a short entry (3 words) is satisfied by 2 whole words
+  writeFileSync(join(dir, 'src', 'short.js'), '// x\n// order request handled\n');
+  const plan2 = planOf(dir, [{ id: 'B-SHORT', title: 'Order request database', description: 'order request database', files: ['src/short.js'] }]);
+  const out2 = join(dir, 'issues-short.json');
+  assert.equal(run(['import-audit', plan2, '--model', MODEL, '--out', out2, '--project', dir], { cwd: dir }).status, 0);
+  assert.deepEqual(readJson(out2).issues.find((i) => i.id === 'audit-B-SHORT')?.evidence, [{ path: 'src/short.js', lines: '2' }]);
+});
+
+test('i14 a first build has no overlay yet: merge without --existing and import-audit with a missing --existing file both treat it as empty', () => {
+  const dir = proj();
+  const incoming = write(dir, 'incoming.json', { issues: [issue('new-auth', { node: 'n-auth' }, { sev: 'high' })] });
+  const out = join(dir, 'merged.json');
+  const r = run(['merge', '--incoming', incoming, '--anchors', 'n-auth', '--model', MODEL, '--out', out], { cwd: dir });
+  assert.equal(r.status, 0, r.err);
+  assert.deepEqual(readJson(out).issues.map((i) => i.id), ['new-auth']);
+  const out2 = join(dir, 'merged2.json');
+  const r2 = run(['merge', '--existing', join(dir, 'absent.json'), '--incoming', incoming, '--model', MODEL, '--out', out2], { cwd: dir });
+  assert.equal(r2.status, 0, r2.err);
+  assert.deepEqual(readJson(out2).issues.map((i) => i.id), ['new-auth']);
+  const out3 = join(dir, 'imported.json');
+  const r3 = run(['import-audit', PLAN, '--model', MODEL, '--existing', join(dir, 'absent.json'), '--out', out3], { cwd: dir });
+  assert.equal(r3.status, 0, r3.err);
+  assert.equal(readJson(out3).issues.length, 7);
+});

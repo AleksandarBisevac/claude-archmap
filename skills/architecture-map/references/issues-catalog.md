@@ -235,12 +235,14 @@ Mapping:
 - `anchor`: find the node whose `paths[]` globs match the finding's file or files; use that node. If an edge or entity
   fits better by name, use it. If nothing matches, skip the entry and report it as unanchored. Never invent an id.
 - `evidence`: `file` split into `path` and `lines`. If the finding has a path without lines, open the file and cite the
-  most relevant line. If it has no path at all, skip and report it.
+  most relevant line: one where whole words of the entry recur (three distinct words, or two when the entry has fewer
+  than four candidate words). Never guess a line: when none is found, or the file resolves (symlinks included) outside
+  the project, skip the entry and count it as skipped-no-lines. If it has no path at all, skip and report it.
 - `title`, `summary`, `impact`, `fix`: condense the audit text. `summary`, `impact` and `fix` follow the calibration rules
   above. `detail` carries any internal specifics from the audit text.
 
 Re-importing keeps ids stable, so an issue already present is updated in place and one whose source is now closed is
-dropped. Print counts: imported, skipped as fixed, skipped as unanchored, skipped as line-level.
+dropped. Print counts: imported, skipped as fixed, skipped as unanchored, skipped as line-level, skipped as no-lines.
 
 ## Before filing
 

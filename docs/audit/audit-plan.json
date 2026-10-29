@@ -3844,7 +3844,7 @@
         {
           "id": "BF1.3",
           "title": "Fix BUG-3-2zy: Explorer coverage glob rule is undocumented (dir/** vs bare directory)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Bug BUG-3-2zy. Repro: an explorer returns coverage ['src/api'] for a subtree it read; since P5.10 merge.mjs and diffmap.mjs match that bare glob only as the literal path. Expected: agents/archmap-explorer.md and skills/architecture-map/references/model-schema.md state that a subtree is written dir/** and a bare directory matches only that literal path. Actual: the explorer is told only '<globs you actually read>', so a bare directory glob silently stops owning its subtree in update merges and diffmap. Fix: one line in each file.",
           "files": [
             "agents/archmap-explorer.md",
@@ -3869,26 +3869,39 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "d93657e7dec3",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added case a4 to tests/agents.test.mjs (written before reading the docs; saw it FAIL: a4 red, a1-a3 green). Then added one line to agents/archmap-explorer.md (after the coverage fragment JSON block, before the size caps) and one line to skills/architecture-map/references/model-schema.md (after the coverage bullet) stating a subtree is written dir/** and a bare directory matches only that literal path. node --test tests/agents.test.mjs: a1-a4 pass; full node --test: 225 pass, 0 fail. Dependants: docs/design.md, scripts/merge.mjs, tests/skill-references.test.mjs, tests/agents.test.mjs, archmap-reviewer.md, archmap-synthesizer.md, SKILL.md only reference these files by name/path; the change is one added doc line each, no schema or behaviour change, so all still correct (full suite green).",
+            "descriptive": "The explorer and model-schema reference now document the dir/** versus bare-directory coverage glob rule, locked by test a4."
           },
           "startedAt": "2026-10-29T13:47:35Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:48:50Z",
+          "verifiedBy": [
+            "a4: both explorer agent and model-schema reference contain a line naming dir/** and that a bare directory matches only its literal path"
+          ],
           "bugId": "BUG-3-2zy",
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T13:48:49Z.9fce12",
             "status": "passed",
             "at": "2026-10-29T13:48:49Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "d93657e7dec3",
+            "at": "2026-10-29T13:48:50Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:48:37Z",
+            "basis": "`node --test tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: agents/archmap-explorer.md has a line naming dir/** and that a bare directory matches only its literal path; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "BF1.4",
           "title": "Fix BUG-4-vcu: issues.mjs import-audit follow-ups: symlink guard, weak line match, catalogue counts",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Bug BUG-4-vcu (P6 second review). Repro: symlink tests/x -> a file outside the project, an audit finding naming tests/x without lines; run issues.mjs import-audit --project <dir>. Expected: files outside the project are never opened, even via symlink; cited lines are relevant; docs list all five counts. Actual: the symlink target is read; generic two-word matches are accepted; the catalogue lists four counts. Fix: (1) compare realpathSync of the file with realpathSync of the project root before stat/read and skip anything outside; (2) tighten findLine to whole-word matches and require 3 distinct words, or 2 when the entry has fewer than 4 candidate words; (3) make merge --existing optional (absent or missing file = empty overlay) and import-audit tolerate a missing --existing file, then simplify SKILL.md's first-build block accordingly; (4) references/issues-catalog.md lists skipped-no-lines among the counts and states the no-guessed-lines rule.",
           "files": [
             "scripts/issues.mjs",
@@ -3912,17 +3925,23 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T13:48:50Z",
           "completedAt": null,
           "verifiedBy": [],
-          "bugId": "BUG-4-vcu"
+          "bugId": "BUG-4-vcu",
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:51:15Z.6b84e7",
+            "status": "passed",
+            "at": "2026-10-29T13:51:15Z"
+          }
         }
       ],
       "area": [
@@ -4447,7 +4466,7 @@
     {
       "id": "BUG-3-2zy",
       "title": "Explorer coverage glob rule is undocumented (dir/** vs bare directory)",
-      "status": "in_progress",
+      "status": "fixed",
       "severity": "low",
       "reportedAt": "2026-10-29T09:30:48Z",
       "reportedBy": null,
@@ -4457,7 +4476,7 @@
       "actual": "The explorer is told only '<globs you actually read>', so a bare directory glob silently stops owning its subtree in update merges and diffmap",
       "files": [],
       "taskId": "BF1.3",
-      "fixedIn": null,
+      "fixedIn": "d93657e7dec3",
       "notes": null
     },
     {

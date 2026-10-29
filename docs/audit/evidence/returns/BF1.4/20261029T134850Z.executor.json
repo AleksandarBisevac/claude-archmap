@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/issues.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:50:47Z",
+    "basis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: merge needs --existing, --incoming and --model; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/issues.mjs: readFile in importCmd now compares realpathSync(file) against realpathSync(project root) before stat/read, skipping anything outside (symlinks included); findLine counts whole-word matches only (split into word set) and needs 3 distinct words, or 2 when the entry has <4 candidate words; new existingIssues() helper makes --existing optional/missing-file = empty overlay for merge and import-audit (invalid JSON still exit 2); merge usage text updated. SKILL.md first-build block simplified (mkdir/printf removed, --existing described as optional). issues-catalog.md lists skipped-no-lines in the counts and states the no-guessed-lines/whole-word rule and the outside-project skip. Tests: added i12, i13, i14 to tests/issues.test.mjs; first run before the fix showed 3 fail/11 pass, after fix 14/14; full `node --test` 228 pass 0 fail. Dependants: tests/issues-overlay.test.mjs, tests/skill.test.mjs, tests/skill-issues-catalog.test.mjs, tests/agents.test.mjs, tests/commands.test.mjs, docs/design.md, archmap-reviewer.md, skills-lock.json, node tile.json - still correct: CLI contract only loosened (merge --existing optional), full suite green; docs/design.md and archmap-reviewer.md not edited and not contradicted (no statement of requiring --existing seen by running tests only; not manually re-read).",
+    "descriptive": "issues.mjs import-audit never reads outside the project (symlinks included), cites only whole-word relevant lines, first-build merge/import work without an existing overlay, and docs list all five counts."
+  },
+  "testsAdded": [
+    "i12 symlink to outside file skipped as skipped-no-lines (inner symlink still read)",
+    "i13 whole-word and 3/2-distinct-word line matching",
+    "i14 merge without --existing and import-audit with missing --existing treat overlay as empty"
+  ],
+  "casesAdded": [
+    [
+      "i12",
+      "i13",
+      "i14"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:7f26a9a18820325cecb86cef5d737653d6e6e154a3bc377c3e224cfb4b2f4d2c\",\"dirtyDigest\":\"sha256:7ba827ef5415c2e31b54b0f6f76881f3141700bffaf4b28e624a69111fe02aec\",\"dirtyPaths\":{\"scripts/issues.mjs\":\"8fe0401c5cfabfdf\",\"skills/architecture-map/SKILL.md\":\"4817d85bc1a5f9f4\",\"skills/architecture-map/references/issues-catalog.md\":\"341325c240ffd7a3\",\"tests/issues.test.mjs\":\"95d8cf36566b0512\"},\"head\":\"d93657e\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/issues.mjs\",\"skills/architecture-map/SKILL.md\",\"skills/architecture-map/references/issues-catalog.md\",\"tests/issues.test.mjs\"],\"scopeDigest\":\"sha256:2ff205f9c04f5c4e9ff00a4ff50550175d9763fa6bfb59c13d398d61a1145f5c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

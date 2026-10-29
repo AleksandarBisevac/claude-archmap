@@ -4,7 +4,7 @@
 //
 //   node scripts/issues.mjs import-audit <audit-plan.json> --model <model.json> [--existing <issues.json>]
 //                                        [--out <issues.json>] [--project <dir>]
-//   node scripts/issues.mjs merge --existing <issues.json> --incoming <reviewer.json> --model <model.json>
+//   node scripts/issues.mjs merge [--existing <issues.json>] --incoming <reviewer.json> --model <model.json>
 //                                 [--anchors a,b] [--out <issues.json>] [--project <dir>]
 //   node scripts/issues.mjs path [--project <dir>]
 //   node scripts/issues.mjs lint <issues.json> [--json]
@@ -42,7 +42,7 @@ import { validate } from './validate.mjs';
 
 const USAGE = [
   'usage: node scripts/issues.mjs import-audit <audit-plan.json> --model <model.json> [--existing <issues.json>] [--out <issues.json>] [--project <dir>]',
-  '       node scripts/issues.mjs merge --existing <issues.json> --incoming <reviewer.json> --model <model.json> [--anchors a,b] [--out <issues.json>] [--project <dir>]',
+  '       node scripts/issues.mjs merge [--existing <issues.json>] --incoming <reviewer.json> --model <model.json> [--anchors a,b] [--out <issues.json>] [--project <dir>]',
   '       node scripts/issues.mjs path [--project <dir>]',
   '       node scripts/issues.mjs lint <issues.json> [--json]',
 ].join('\n');
@@ -133,19 +133,20 @@ function ownerOf(nodes, path) {
 const STOP = new Set(['that', 'this', 'with', 'from', 'have', 'does', 'into', 'when', 'then', 'than', 'they', 'them', 'there', 'their', 'what', 'which', 'will', 'would', 'should', 'could', 'only', 'also', 'been', 'being', 'were', 'must', 'each', 'every', 'about', 'after', 'before', 'instead', 'fix']);
 
 /**
- * The line of `text` that best matches the audit entry's own words, as a 1-based number; null when fewer than two
- * distinct words of the entry occur on any one line. A line is cited only when it was read and matches: no guess.
+ * The line of `text` that best matches the audit entry's own words, as a 1-based number; null when too few distinct
+ * words of the entry occur, as whole words, on any one line: three, or two when the entry has fewer than four
+ * candidate words. A line is cited only when it was read and matches: no guess.
  */
 function findLine(text, entryText) {
   const words = [...new Set(String(entryText).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w)))];
   let best = 0;
   let bestScore = 0;
   String(text).split(/\r?\n/).forEach((line, i) => {
-    const l = line.toLowerCase();
-    const score = words.reduce((n, w) => n + (l.includes(w) ? 1 : 0), 0);
+    const present = new Set(line.toLowerCase().split(/[^a-z0-9]+/));
+    const score = words.reduce((n, w) => n + (present.has(w) ? 1 : 0), 0);
     if (score > bestScore) { best = i + 1; bestScore = score; }
   });
-  return bestScore >= 2 ? best : null;
+  return bestScore >= (words.length < 4 ? 2 : 3) ? best : null;
 }
 
 /**
@@ -307,6 +308,12 @@ function readJsonFile(path, what) {
   }
 }
 
+/** The issues of an --existing overlay; an absent flag or a file that does not exist yet (a first build) is empty. */
+function existingIssues(path) {
+  if (path === undefined || !existsSync(path)) return [];
+  return issuesOf(readJsonFile(path, 'existing overlay'), 'existing overlay');
+}
+
 function issuesOf(doc, what) {
   if (!isObj(doc) || !Array.isArray(doc.issues)) throw new UsageError(`${what} has no issues[] array`);
   return doc.issues;
@@ -360,17 +367,21 @@ function importCmd(o) {
   if (o.flags.out !== undefined) assertOutsideRepo(o.flags.out, project);
   const plan = readJsonFile(planPath, 'audit plan');
   const model = readJsonFile(o.flags.model, 'model');
-  const kept = o.flags.existing
-    ? issuesOf(readJsonFile(o.flags.existing, 'existing overlay'), 'existing overlay').filter((i) => i?.source !== 'audit')
-    : [];
+  const kept = existingIssues(o.flags.existing).filter((i) => i?.source !== 'audit');
   const root = resolve(project);
+  let realRoot;
+  try { realRoot = realpathSync(root); } catch { realRoot = null; }
   const readFile = (rel) => {
     const abs = resolve(root, rel);
     const up = relative(root, abs);
     if (!up || up.startsWith('..') || isAbsolute(up) || /(^|[\\/])\.\.([\\/]|$)/.test(rel)) return null; // never outside the project
     try {
-      const st = statSync(abs);
-      return st.isFile() && st.size <= 2_000_000 ? readFileSync(abs, 'utf8') : null;
+      // a symlink inside the project may point outside it: compare real paths before anything is stat'ed or read
+      const realAbs = realpathSync(abs);
+      const real = realRoot ? relative(realRoot, realAbs) : '..';
+      if (!real || real.startsWith('..') || isAbsolute(real)) return null;
+      const st = statSync(realAbs);
+      return st.isFile() && st.size <= 2_000_000 ? readFileSync(realAbs, 'utf8') : null;
     } catch { return null; }
   };
   const { issues, counts } = importAudit(plan, model, { readFile });
@@ -380,11 +391,11 @@ function importCmd(o) {
 
 function mergeCmd(o) {
   const { existing, incoming, model: modelPath } = o.flags;
-  if (!existing || !incoming || !modelPath) throw new UsageError('merge needs --existing, --incoming and --model');
+  if (!incoming || !modelPath) throw new UsageError('merge needs --incoming and --model');
   const project = o.flags.project ?? process.cwd();
   if (o.flags.out !== undefined) assertOutsideRepo(o.flags.out, project);
   const model = readJsonFile(modelPath, 'model');
-  const have = issuesOf(readJsonFile(existing, 'existing overlay'), 'existing overlay');
+  const have = existingIssues(existing);
   const inc = issuesOf(readJsonFile(incoming, 'incoming overlay'), 'incoming overlay');
   const anchors = o.flags.anchors === undefined ? null : new Set(o.flags.anchors.split(',').map((s) => s.trim()).filter(Boolean));
   return emit(model, mergeIssues(have, inc, anchors), o, '');
