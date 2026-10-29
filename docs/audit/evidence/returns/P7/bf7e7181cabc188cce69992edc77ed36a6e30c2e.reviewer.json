@@ -1,0 +1,29 @@
+{
+  "findings": [],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome: export.mjs writes Mermaid, PlantUML, Markdown and SVG (PNG when Chromium present). The three fix diffs do what each task asked. P7.7: toSvgGraph zone caption now fit(z.label ?? z.id, ...) (export.mjs:930), matching Mermaid (:184) and PlantUML (:368) which use z.label; x28 asserts each drawn zone caption is its label (ellipsis cut allowed), x30 sets zones[0].label and asserts the escaped caption. P7.8: '@' and '!' added to PUML_UNSAFE (:314) so a field name starting with either becomes <U+0040>/<U+0021> in the unquoted ER field line (:404); x18b feeds whole-name hostile values and asserts only two @ bookend lines and no line starting with '!'. P7.9: Markdown Edges table Label column now cell(e.label) (:629), consistent with Mermaid/PlantUML edge labels (:192, :376); x20 updated, x20b added, x24 moved to the rendered column. The executors' outcome texts describe these diffs accurately (they note x18b was added beside x18 rather than extending it, and that no Description column was added; both optional). The scan.mjs mechanical scan over 61f693a..bf7e718 returned no leads (denylist checked, no external URLs, no non-builtin imports). Minor, not filed: SVG uses ?? while Mermaid/PlantUML use ||, so an empty-string label would draw an empty caption; label is schema-required and this is cosmetic. The edge desc text is no longer in the Markdown export at all; the task made the Description column optional.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "mode: phase owes no red-first for the phase itself. Per fix task the filed redFirst is could-not-prove: each basis reads a throwaway-tree run at HEAD that exited 1 on an unrelated Chromium teardown-watchdog failure (PNG test), with no test tally, so no assertion failure of the task's own case is shown. The executors' prose claims of an earlier red (P7.7: x28/x30 failing, 35 pass 2 fail) is not backed by a stamp-verification red and is not counted as proved. The new assertions are, on reading, plainly sensitive to the fixes (x28 expects label not id; x18b expects no '@'/'!'-leading lines; x20/x20b expect label not desc), but that is a reading, not a seen red.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Each task's tests.gate is the literal `node --test`, which runs the whole project suite, so the question is not asked per the rule for whole-project gates."
+  },
+  "verdict": "clean",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P7.7-5ye",
+      "commit": "4e04f532d55f"
+    },
+    {
+      "id": "P7.8-5ye",
+      "commit": "3d6df046644f"
+    },
+    {
+      "id": "P7.9-5ye",
+      "commit": "bf7e7181cabc"
+    }
+  ]
+}

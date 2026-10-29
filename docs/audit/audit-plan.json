@@ -3642,7 +3642,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P7-R1",
@@ -3669,13 +3669,25 @@
             "severity": "med",
             "file": "scripts/export.mjs:628",
             "issue": "contradicts task clause 'an edges table (from, to, type, label, confidence)': the Label column is filled from `e.desc` (the long description), and the edge's `label` field, which the Mermaid and PlantUML exporters label edges with, is never read. Edges that carry a short label (18 of 51 in the golden model, e.g. 'carrier page') show a sentence instead, and x20 (tests/export.test.mjs:601) asserts `e.desc`, so it locks the divergence in.",
-            "resolution": "Fill the Label column from `e.label` (falling back to empty), optionally add a separate Description column for `desc`; update x20 to match.",
-            "fixTask": "P7.9-5ye"
+            "resolution": "fixed in P7.9-5ye (bf7e7181cabc): Fill the Label column from `e.label` (falling back to empty), optionally add a separate Description column for `desc`; update x20 to match.",
+            "fixTask": "P7.9-5ye",
+            "commit": "bf7e7181cabc",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 3 med, 0 low; 2 with a recorded fix commit]"
+        "outcome": "phase review filed at head bf7e7181cabc [findings: 3 - 0 high, 3 med, 0 low; 3 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "sha256": "c4c4920a209fa17fa1634312ff9fe66bcbd231446f2a3c7c95960e330e487f40"
+          },
+          {
+            "return": "returns/P7/bf7e7181cabc188cce69992edc77ed36a6e30c2e.reviewer.json",
+            "sha256": "492ff11e3e46b67a4208a0709b58a2838f3f4aca73adf60599e4b4122be1d835"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "export.mjs writes Mermaid (flowchart, erDiagram, sequenceDiagram), PlantUML (component, ER, sequence), Markdown summary, standalone SVG (graph + ER) and PNG via headless Chromium (exit 3 when absent); clean-only, deterministic, escaped; /archmap:export command, README, CHANGELOG and SKILL.md updated. Phase review found 3 defects (SVG zone label, PlantUML @/! escaping, md edge Label column), fixed in P7.7-5ye..P7.9-5ye; re-review clean. Reviewer answers accepted: Accept, fixed later: P7.2 divergence resolved by P7.8-5ye, P7.3 divergence resolved by P7.9-5ye; phase re-review clean. Declined on the way: triage: Decline, being fixed: the fix task for P7-R2/P7-R3 brings P7.2 and P7.3 back in line with their descriptions.",
       "tasks": [
         {
           "id": "P7.1",
@@ -3721,9 +3733,14 @@
             "at": "2026-10-29T14:21:25Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "34bee70696cc",
-            "at": "2026-10-29T14:21:26Z"
+            "at": "2026-10-29T15:08:04Z",
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<outside-repo>' imported from <outside-repo>; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.1/20261029T141449Z.executor.json, at 2026-10-29T14:21:09Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T14:21:09Z",
@@ -3784,9 +3801,14 @@
             "at": "2026-10-29T14:25:31Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "c845ae75dcd1",
-            "at": "2026-10-29T14:25:32Z"
+            "at": "2026-10-29T15:08:04Z",
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: toPlantUmlComponent is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.2/20261029T142126Z.executor.json, at 2026-10-29T14:25:13Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T14:25:13Z",
@@ -3848,9 +3870,14 @@
             "at": "2026-10-29T14:29:48Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "423d01c3a75d",
-            "at": "2026-10-29T14:29:49Z"
+            "at": "2026-10-29T15:08:04Z",
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: format md is not yet implemented; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.3/20261029T142532Z.executor.json, at 2026-10-29T14:29:31Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T14:29:31Z",
@@ -3908,9 +3935,14 @@
             "at": "2026-10-29T14:34:20Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "fcfdf94a25f0",
-            "at": "2026-10-29T14:34:21Z"
+            "at": "2026-10-29T15:08:04Z",
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.4/20261029T142950Z.executor.json, at 2026-10-29T14:33:59Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T14:33:59Z",
@@ -3968,9 +4000,14 @@
             "at": "2026-10-29T14:39:53Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "4feda49dfbc9",
-            "at": "2026-10-29T14:39:55Z"
+            "at": "2026-10-29T15:08:04Z",
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: findChromium is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.5/20261029T143422Z.executor.json, at 2026-10-29T14:39:21Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T14:39:21Z",
@@ -4033,9 +4070,14 @@
             "at": "2026-10-29T14:41:54Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "61f693a400f7",
-            "at": "2026-10-29T14:41:55Z"
+            "at": "2026-10-29T15:08:04Z",
+            "return": "returns/P7/61f693a400f71728520516b3ac4da0a425e03447.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/commands.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: commands/export.md exists; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop (the red-first helper's block in returns/P7.6/20261029T143955Z.executor.json, at 2026-10-29T14:41:39Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "the gate commands are `node --test` (whole project) and `claude plugin validate .` (validates the plugin manifest, selects no test); neither bounds a set of tests."
           },
           "redFirst": {
             "at": "2026-10-29T14:41:39Z",
@@ -4186,7 +4228,7 @@
         {
           "id": "P7.9-5ye",
           "title": "fix P7-R3: contradicts task clause 'an edges table (from, to, type, label, co...",
-          "status": "in_progress",
+          "status": "done",
           "description": "contradicts task clause 'an edges table (from, to, type, label, confidence)': the Label column is filled from `e.desc` (the long description), and the edge's `label` field, which the Mermaid and PlantUML exporters label edges with, is never read. Edges that carry a short label (18 of 51 in the golden model, e.g. 'carrier page') show a sentence instead, and x20 (tests/export.test.mjs:601) asserts `e.desc`, so it locks the divergence in.\n\nResolution asked: Fill the Label column from `e.label` (falling back to empty), optionally add a separate Description column for `desc`; update x20 to match.",
           "files": [
             "scripts/export.mjs",
@@ -4210,14 +4252,17 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "bf7e7181cabc",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/export.mjs line 629: Edges table Label column now cell(e.label) instead of cell(e.desc); empty when no label. Tests: x20 now asserts e.label; new x20b asserts labelled edges show label (not desc) and unlabelled show empty; x24 adversarial pipe/newline text moved from edges[0].desc to edges[0].label since that is the rendered column. Full `node --test`: 268 pass, 0 fail (exit 0). No separate Description column added (optional). Dependants: tests/commands.test.mjs, tests/skill.test.mjs, CHANGELOG.md, commands/export.md, SKILL.md, docs/design.md reference export.mjs by path/name only, not the edges Label contents; still correct. tests/export.test.mjs imports it; updated.",
+            "descriptive": "Markdown export edges table Label column now shows the edge label rather than the long description."
           },
           "startedAt": "2026-10-29T14:54:53Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T14:57:26Z",
+          "verifiedBy": [
+            "x20b: Label column shows e.label and never e.desc for edges with both; empty for unlabelled edges",
+            "x20 updated to expect e.label"
+          ],
           "notes": [
             {
               "at": "2026-10-29T14:49:52Z",
@@ -4236,12 +4281,29 @@
             "runId": "2026-10-29T14:57:25Z.64b842",
             "status": "passed",
             "at": "2026-10-29T14:57:25Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "bf7e7181cabc",
+            "at": "2026-10-29T14:57:26Z",
+            "basis": "a fix task for P7-R3: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-29T14:56:57Z",
+            "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: export: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome failed on system-context.svg: Teardown watchdog expired; recording dump and terminating.; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
       "area": "export",
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-29T14:14:49Z"
+      "startedAt": "2026-10-29T14:14:49Z",
+      "testEvidence": {
+        "runId": "2026-10-29T15:08:02Z.469989",
+        "status": "passed",
+        "at": "2026-10-29T15:08:02Z"
+      }
     },
     {
       "id": "P8",
