@@ -1,0 +1,33 @@
+{
+  "gates": {
+    "node --test tests/commands.test.mjs tests/skill.test.mjs": "pass",
+    "node --test": "pass",
+    "claude plugin validate .": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:09:20Z",
+    "basis": "`node --test tests/commands.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: staleness.mjs named via plugin root; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote tests first (c7, c8 in tests/commands.test.mjs; s8 in tests/skill.test.mjs, and narrowed s7 to export only); first run red: c7, c8, s8 failed on current code. Then added commands/check.md (disable-model-invocation: true, runs staleness.mjs --check, reports line and exit code), commands/issues.md (thin hand-off to the skill's issues step with $ARGUMENTS), and updated SKILL.md: step 7 now gives issues.mjs path, import-audit, merge, validate/render and lint before any shared render or shared --publish, with --out under the overlay dir; Other commands describes check and the SessionStart hook; export.mjs remains 'not yet built'. SKILL.md is 312 lines. Full node --test: 218 pass, 0 fail; claude plugin validate . passed. Dependants: docs/design.md, scripts/issues.mjs, skills-lock.json, tests/issues.test.mjs, .agents/skills/node/tile.json still correct - no names, paths or contracts they use changed; SKILL.md edits only replace the not-yet-built notes and add invocations of existing scripts. tests/commands.test.mjs and tests/skill.test.mjs have no dependants. Test fix along the way: my first s8 lint regex expected lint after the word shared on the same line; corrected to match the actual paragraph order.",
+    "descriptive": "/archmap:check and /archmap:issues exist, and SKILL.md documents the real staleness.mjs and issues.mjs invocations and the SessionStart hook."
+  },
+  "testsAdded": [
+    "c7/c8: check.md and issues.md frontmatter, check.md script-only with staleness.mjs --check and exit code, issues.md thin hand-off, script references exist",
+    "s8: SKILL.md invokes staleness.mjs --check and issues.mjs path/import-audit/merge/lint, lint before shared render/publish, SessionStart described, export.mjs still not yet built, <=500 lines"
+  ],
+  "casesAdded": [
+    [
+      "c7",
+      "c8"
+    ],
+    [
+      "s8"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:b6cdec56db8074b24e7a5d65788526387b90bbda46a124c4dd1cef9bbac4277a\",\"dirtyDigest\":\"sha256:af16647dde2e13444ea02032c9bff8f02f082b5311f29780bef7c8289e37f6e0\",\"dirtyPaths\":{\"commands/check.md\":\"ce4c836a4ce0d7a4\",\"commands/issues.md\":\"7470a3db43b8042a\",\"skills/architecture-map/SKILL.md\":\"9a75b818889ccc81\",\"tests/commands.test.mjs\":\"177890895e67f8e1\",\"tests/skill.test.mjs\":\"2b0648a7648b8f3b\"},\"head\":\"ca6af63\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"commands/check.md\",\"commands/issues.md\",\"skills/architecture-map/SKILL.md\",\"tests/commands.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:f140cd711070c39b78fb04c8e8b81b2e66c616a030837125add127d7b2676b8d\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

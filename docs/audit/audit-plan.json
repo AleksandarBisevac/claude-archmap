@@ -3100,7 +3100,7 @@
         {
           "id": "P6.3",
           "title": "Shared-build calibration lint and the issues overlay end to end",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add issues.mjs lint <issues.json> [--json] (docs/design.md D4 calibration; wording rules in references/issues-catalog.md): for shared builds, a security issue's summary, impact and fix must not carry internal specifics - repo paths or file names from its evidence, line numbers, URLs, hostnames or IPs, environment-variable-like NAMES_IN_CAPS, credential-like tokens - and every issue needs non-empty summary/impact/fix; findings exit 1, clean exit 0. Then lock in the overlay chain end to end with a fictional model and a fictional reviewer return: issues.mjs merge -> validate.mjs --issues -> render.mjs --mode internal and --mode shared (both --out outside the temp repo) and the clean render: the clean HTML contains no issue id, title, summary, impact, fix or detail text and no Issues switch; the shared HTML contains summary/impact/fix but no detail text; the internal HTML contains detail and the Issues switch; render refuses an internal/shared build without --out.",
           "files": [
             "scripts/issues.mjs",
@@ -3127,25 +3127,39 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "ca6af63e2bff",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added `issues.mjs lint <issues.json> [--json]` (exported lintIssue; rules empty/path/line/url/host/env/token; security summary/impact/fix only, detail never linted; exit 0/1/2). Added tests/issues-overlay.test.mjs (7 cases o1-o7) and tests/fixtures/issues/reviewer-return.json. Before implementation, o1-o4 failed (lint unknown subcommand, exit 2); o5-o7 already passed because merge/validate/render already behave as specified (the chain is locked in, not changed). After: 7/7 pass; full `node --test` 215 pass 0 fail. Dependants: tests/issues.test.mjs still correct (existing subcommands untouched, still passes); docs/design.md still correct (D4 calibration is what lint implements, no text change needed); skills/architecture-map/SKILL.md still correct but does not yet mention `lint` (outside this task's files, not edited). Fixtures dir: model.json and audit-plan.json untouched; only reviewer-return.json added.",
+            "descriptive": "issues.mjs gains a shared-build calibration lint, and the merge -> validate -> clean/internal/shared render chain is locked in by an end-to-end test."
           },
           "startedAt": "2026-10-29T13:05:26Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T13:07:53Z",
+          "verifiedBy": [
+            "o1-o3 lint flags path/filename/line/URL/ENV_NAME/host/token in a security summary, passes a calibrated one, requires non-empty summary/impact/fix",
+            "o4-o7 fictional model + reviewer return: merge, validate --issues, lint, clean/shared/internal renders and refusal without --out"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T13:07:52Z.d66205",
             "status": "passed",
             "at": "2026-10-29T13:07:52Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "ca6af63e2bff",
+            "at": "2026-10-29T13:07:53Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T13:07:34Z",
+            "basis": "`node --test tests/issues-overlay.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: issues.mjs: unknown subcommand lint; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P6.4",
           "title": "Commands check and issues; SKILL.md uses staleness and issues",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write commands/check.md (/archmap:check; script only, disable-model-invocation: true; runs node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\" --check and reports its line and exit code) and commands/issues.md (/archmap:issues [--import-audit] [--profile p]; thin hand-off to the architecture-map skill's issues step, like build.md). Frontmatter per docs/design.md §4 conventions. Update SKILL.md: staleness.mjs and issues.mjs now exist - replace their 'not yet built' notes with the real invocations (issues.mjs path for the overlay dir, import-audit when --import-audit, merge of the reviewer's return, lint before any --mode shared render or --publish of a shared build, write with --out under the overlay dir) and describe the SessionStart hook in one line. export.mjs stays marked not yet built (P7). SKILL.md stays <= 500 lines.",
           "files": [
             "commands/check.md",
@@ -3175,16 +3189,22 @@
             "P6.2",
             "P6.3"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T13:07:53Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:09:36Z.50ece9",
+            "status": "passed",
+            "at": "2026-10-29T13:09:36Z"
+          }
         }
       ],
       "area": [

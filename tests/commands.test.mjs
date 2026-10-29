@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 // Case ids (c1, c2, ...) lead every title so the suite prints them first.
 // The plugin commands are specified in docs/design.md section 4 (conventions) and section 6 (flows).
-// P5.4 ships build, update and render; check and issues land in P6, export in P7.
+// P5.4 ships build, update and render; P6.4 adds check and issues; export lands in P7.
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const COMMANDS = ['build', 'update', 'render'];
 
@@ -82,4 +82,33 @@ test('c6 the guard in c5 can fail: a missing script without the marker is flagge
   const para = 'Run `${CLAUDE_PLUGIN_ROOT}/scripts/nope.mjs` now.';
   const missing = [...para.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([a-z][a-z-]*)\.mjs/g)].map((m) => m[1]).filter((x) => !existsSync(join(ROOT, 'scripts', `${x}.mjs`)));
   assert.deepEqual(missing, ['nope']);
+});
+
+test('c7 check.md and issues.md carry description, argument-hint and allowed-tools; check.md is script-only and runs staleness.mjs --check; issues.md hands off to the skill', () => {
+  for (const name of ['check', 'issues']) {
+    const { fm } = load(name);
+    for (const key of ['description', 'argument-hint', 'allowed-tools']) {
+      assert.ok(fm[key] && fm[key].length > 0, `${name}.md has a non-empty ${key}`);
+    }
+    assert.ok(fm.description.length > 20, `${name}.md description says something`);
+  }
+  const c = load('check');
+  assert.equal(c.fm['disable-model-invocation'], 'true');
+  assert.ok(c.body.includes('node "${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs" --check'), 'check.md runs staleness.mjs --check via the plugin root');
+  assert.match(c.body, /exit code/i, 'check.md reports the exit code');
+  const i = load('issues');
+  assert.notEqual(i.fm['disable-model-invocation'], 'true', 'issues needs the model');
+  for (const f of ['--import-audit', '--profile']) assert.ok(i.fm['argument-hint'].includes(f), `issues ${f}`);
+  assert.ok(i.body.includes('architecture-map') && i.body.includes('$ARGUMENTS') && /\bissues\b/i.test(i.body), 'issues.md hands off to the skill with $ARGUMENTS');
+  assert.ok(i.body.split('\n').filter((l) => l.trim()).length <= 15, 'issues.md body stays short');
+  assert.doesNotMatch(i.body, /prescan\.mjs|merge\.mjs|synthesizer|explorer/i, 'issues.md does not restate the flow');
+});
+
+test('c8 the plugin-root script references of check.md and issues.md exist', () => {
+  for (const name of ['check', 'issues']) {
+    const { body } = load(name);
+    for (const m of body.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([a-z][a-z-]*)\.mjs/g)) {
+      assert.ok(existsSync(join(ROOT, 'scripts', `${m[1]}.mjs`)), `commands/${name}.md names scripts/${m[1]}.mjs which does not exist`);
+    }
+  }
 });

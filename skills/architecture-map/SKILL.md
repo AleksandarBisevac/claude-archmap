@@ -164,13 +164,30 @@ Only on `--issues`. Dispatch `archmap-reviewer` with the model path; it reads
 sequence step, with severity high, med or low and a category (security, data, reliability, performance, design, docs).
 If `docs/audit/audit-plan.json` exists, its findings may be imported (`/archmap:issues --import-audit`).
 
-Write `issues.json` under `<home>/.claude/archmap/<repo-slug>/` (the reviewer returns the list; you or `issues.mjs`
-write it). `issues.mjs` is **not yet built**; until it is, write the file yourself to the schema in
-`schema/archmap-issues.schema.json`. Then:
+`issues.mjs` does the deterministic half and never writes inside the repo (it refuses an `--out` in the project's git
+tree). Get the overlay directory, then import, merge and write there:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/validate.mjs" docs/architecture/architecture.model.json --issues <issues.json> --repo .
-node "${CLAUDE_PLUGIN_ROOT}/scripts/render.mjs" docs/architecture/architecture.model.json --layout docs/architecture/architecture.layout.json --issues <issues.json> --mode internal --out <home>/.claude/archmap/<repo-slug>/archmap.internal.html
+node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" path
+node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" import-audit docs/audit/audit-plan.json --model docs/architecture/architecture.model.json --existing <overlay-dir>/issues.json --out <overlay-dir>/issues.json
+node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" merge --existing <overlay-dir>/issues.json --incoming <reviewer.json> --model docs/architecture/architecture.model.json --out <overlay-dir>/issues.json
+```
+
+`import-audit` runs only with `--import-audit` (re-importing is idempotent; non-audit issues are kept). `merge` takes the
+reviewer's returned object, saved to a scratch file as `<reviewer.json>`, and replaces the existing issues on the
+anchors it covers (`--anchors a,b` to limit it; first build: omit `--existing`). Output is validated against the model.
+Then:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/validate.mjs" docs/architecture/architecture.model.json --issues <overlay-dir>/issues.json --repo .
+node "${CLAUDE_PLUGIN_ROOT}/scripts/render.mjs" docs/architecture/architecture.model.json --layout docs/architecture/architecture.layout.json --issues <overlay-dir>/issues.json --mode internal --out <overlay-dir>/archmap.internal.html
+```
+
+Before any `--mode shared` render, and before `--publish` of a shared build, lint the overlay (exit 0 clean, 1 findings:
+fix the wording, do not render until it is clean):
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" lint <overlay-dir>/issues.json
 ```
 
 `--mode shared` (also needs an explicit `--out`) produces a build with only the calibrated `summary`, `impact` and `fix`, without the internal `detail`.
@@ -245,9 +262,10 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
 
 ## Other commands
 
-- `/archmap:check`: script only (`staleness.mjs`, not yet built). Exit 0 when the model is fresh, 1 when it is behind
-  HEAD. The SessionStart hook prints one line when stale and is silent when the project has no model; the LLM is never
-  run automatically.
+- `/archmap:check`: script only, `node "${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs" --check`. Exit 0 when the model is
+  fresh, 1 when it is behind HEAD, 2 when there is no usable model. The SessionStart hook (`hooks/hooks.json`) runs the
+  same script without `--check`: it prints one line when the model is stale, nothing otherwise, and always exits 0; the
+  LLM is never run automatically.
 - `/archmap:issues [--import-audit] [--profile p]`: build step 7 over the current model.
 - `/archmap:export mermaid|plantuml|svg|png|md [--view v]`: `export.mjs`, not yet built; no LLM.
 - `/archmap:render [--internal|--shared]`: build step 6 (render) only; no LLM.
