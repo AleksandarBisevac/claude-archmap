@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +19,7 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 const tmp = mkdtempSync(join(tmpdir(), 'archmap-export-'));
 process.on('exit', () => rmSync(tmp, { recursive: true, force: true }));
 
-const { toMermaidFlowchart, toMermaidER, toMermaidSequence, toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence, toSvgGraph, toSvgER } = await import('../scripts/export.mjs');
+const { toMermaidFlowchart, toMermaidER, toMermaidSequence, toPlantUmlComponent, toPlantUmlER, toPlantUmlSequence, toSvgGraph, toSvgER, findChromium, chromiumArgs } = await import('../scripts/export.mjs');
 const { layoutModel } = await import('../scripts/layout.mjs');
 
 let seq = 0;
@@ -283,13 +283,8 @@ test('x9 an invalid model is refused: exit 1, nothing written', () => {
   assert.deepEqual(files(out), []);
 });
 
-test('x10 usage errors and formats not yet implemented exit 2 and write nothing', () => {
+test('x10 usage errors and unknown formats exit 2 and write nothing', () => {
   const p = place(model);
-  for (const fmt of ['png']) {
-    const r = run([p.file, fmt]);
-    assert.equal(r.status, 2, `${fmt}: ${r.stderr}`);
-    assert.match(r.stderr, /not yet implemented/);
-  }
   assert.equal(run([p.file, 'docx']).status, 2);
   assert.equal(run([p.file]).status, 2);
   assert.equal(run([]).status, 2);
@@ -857,4 +852,131 @@ test('x31 svg is deterministic, honours --layout and computes the layout in memo
   assert.equal(toSvgER(model, layout), toSvgER(model, layout));
   assert.equal(run([p.file, 'svg', '--layout', join(tmp, 'nope.json')]).status, 2);
   assert.equal(run([p.file, 'svg', '--view', 'nope']).status, 2);
+});
+
+// ---- png: headless Chromium ----
+const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
+test('x32 findChromium honours CHROME_PATH, searches the known paths, and returns null when CHROME_PATH points nowhere and nothing else exists', () => {
+  const only = (...paths) => (p) => paths.includes(p);
+  // CHROME_PATH wins over a known path
+  assert.equal(findChromium({ env: { CHROME_PATH: '/x/mychrome' }, platform: 'darwin', exists: only('/x/mychrome', MAC_CHROME) }), '/x/mychrome');
+  // known paths per platform
+  assert.equal(findChromium({ env: {}, platform: 'darwin', exists: only(MAC_CHROME) }), MAC_CHROME);
+  assert.equal(findChromium({ env: { PATH: '/opt/bin:/usr/bin' }, platform: 'linux', exists: only('/usr/bin/chromium') }), '/usr/bin/chromium');
+  assert.equal(findChromium({ env: { PATH: '/opt/bin:/usr/bin' }, platform: 'linux', exists: only('/opt/bin/google-chrome', '/usr/bin/chromium') }), '/opt/bin/google-chrome');
+  const pf = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  assert.equal(findChromium({ env: { ProgramFiles: 'C:\\Program Files' }, platform: 'win32', exists: only(pf) }), pf);
+  // CHROME_PATH pointing nowhere does not hide a real install, and with no install it is null
+  assert.equal(findChromium({ env: { CHROME_PATH: '/nowhere/chrome' }, platform: 'darwin', exists: only(MAC_CHROME) }), MAC_CHROME);
+  for (const platform of ['darwin', 'linux', 'win32', 'freebsd']) {
+    assert.equal(findChromium({ env: { CHROME_PATH: '/nowhere/chrome', PATH: '/usr/bin' }, platform, exists: () => false }), null, platform);
+  }
+});
+
+// A child process that believes it runs on a platform with no known browser location, with an empty PATH.
+const noBrowserPreload = join(tmp, 'no-browser-preload.mjs');
+writeFileSync(noBrowserPreload, "Object.defineProperty(process, 'platform', { value: 'freebsd' });\n");
+const childEnv = (extra) => Object.assign({}, process.env, extra);
+const runNoBrowser = (args) => spawnSync(process.execPath, ['--import', noBrowserPreload, CLI, ...args], {
+  encoding: 'utf8',
+  env: childEnv({ CHROME_PATH: join(tmp, 'no-such-chrome'), PATH: join(tmp, 'empty-path') }),
+});
+
+test('x33 png with no browser exits 3, prints one line naming CHROME_PATH and writes nothing', () => {
+  const p = place(model);
+  const out = join(fresh('pngout'), 'o');
+  for (const args of [[p.file, 'png'], [p.file, 'png', '--out', out]]) {
+    const r = runNoBrowser(args);
+    assert.equal(r.status, 3, r.stderr);
+    const all = (r.stdout + r.stderr).trim().split('\n').filter(Boolean);
+    assert.equal(all.length, 1, `one line, got: ${all.join(' | ')}`);
+    assert.match(all[0], /CHROME_PATH/);
+  }
+  assert.ok(!existsSync(p.exports), 'the default exports dir was not created');
+  assert.ok(!existsSync(out), 'the --out dir was not created');
+});
+
+test('x34 the chromium arguments are an array: --headless, a temp --user-data-dir, --screenshot, --window-size, a file:// url, no shell', () => {
+  const udd = join(tmpdir(), 'archmap-chrome-abc');
+  const args = chromiumArgs({ userDataDir: udd, width: 640, height: 480, screenshot: '/t/out.png', url: 'file:///t/in.svg' });
+  assert.ok(Array.isArray(args) && args.every((a) => typeof a === 'string'));
+  assert.ok(args.includes('--headless') || args.some((a) => a.startsWith('--headless=')));
+  assert.ok(args.includes('--disable-gpu'));
+  assert.ok(args.includes(`--user-data-dir=${udd}`));
+  assert.ok(args.includes('--screenshot=/t/out.png'));
+  assert.ok(args.includes('--window-size=640,480'));
+  assert.equal(args[args.length - 1], 'file:///t/in.svg');
+  // hostile characters stay one argument each: nothing is joined into a command line
+  const weird = chromiumArgs({ userDataDir: '/t/a b;rm -rf', width: 1, height: 2, screenshot: '/t/o $(x).png', url: 'file:///t/i%20n.svg' });
+  assert.ok(weird.includes('--user-data-dir=/t/a b;rm -rf') && weird.includes('--screenshot=/t/o $(x).png'));
+  // the implementation spawns without a shell
+  const src = readFileSync(CLI, 'utf8');
+  assert.ok(!/shell\s*:\s*true/.test(src), 'no shell: true');
+  assert.ok(!/(?<![.\w])exec\(|(?<![.\w])execSync\(/.test(src), 'no exec/execSync');
+});
+
+// A stand-in browser: records its argv, then writes a PNG (signature only) where --screenshot says.
+function fakeChrome(behaviour = 'ok') {
+  const dir = fresh('fakechrome');
+  const log = join(dir, 'argv.jsonl');
+  const exe = join(dir, 'fake-chrome.mjs');
+  writeFileSync(exe, `#!${process.execPath}
+import { appendFileSync, writeFileSync, existsSync } from 'node:fs';
+const args = process.argv.slice(2);
+const udd = args.find((a) => a.startsWith('--user-data-dir='))?.slice(16);
+appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, uddExists: !!udd && existsSync(udd) }) + '\\n');
+if (${JSON.stringify(behaviour)} === 'fail') { console.error('fake chrome exploded'); process.exit(7); }
+const shot = args.find((a) => a.startsWith('--screenshot='))?.slice(13);
+writeFileSync(shot, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]));
+`);
+  chmodSync(exe, 0o755);
+  return { exe, calls: () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l)) : []) };
+}
+const runWith = (args, env) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8', env: childEnv(env) });
+
+test('x35 png with a browser present writes one .png per svg (PNG signature), spawns it once per image with a throwaway profile and removes it', { skip: process.platform === 'win32' }, () => {
+  const fake = fakeChrome();
+  const p = place(model);
+  const r = runWith([p.file, 'png'], { CHROME_PATH: fake.exe });
+  assert.equal(r.status, 0, r.stderr);
+  const svgOut = join(fresh('svgref'), 'o');
+  assert.equal(run([p.file, 'svg', '--out', svgOut]).status, 0);
+  const expected = files(svgOut).map((f) => f.replace(/\.svg$/, '.png'));
+  assert.deepEqual(files(p.exports), expected, 'a png per svg, no svg left behind');
+  for (const f of expected) assert.deepEqual(readFileSync(join(p.exports, f)).subarray(0, 8), PNG_SIG, f);
+  const calls = fake.calls();
+  assert.equal(calls.length, expected.length);
+  for (const { args, uddExists } of calls) {
+    assert.ok(uddExists, 'the profile dir existed while the browser ran');
+    assert.ok(args.includes('--headless') || args.some((a) => a.startsWith('--headless=')));
+    const udd = args.find((a) => a.startsWith('--user-data-dir=')).slice(16);
+    assert.ok(udd.startsWith(tmpdir()), `profile under os.tmpdir(): ${udd}`);
+    assert.ok(!existsSync(udd), 'the profile dir was removed afterwards');
+    assert.match(args.find((a) => a.startsWith('--window-size=')), /^--window-size=\d+,\d+$/);
+    assert.match(args[args.length - 1], /^file:\/\/\/.*\.svg$/);
+  }
+});
+
+test('x36 a browser failure exits 2 with the message and writes no png', { skip: process.platform === 'win32' }, () => {
+  const fake = fakeChrome('fail');
+  const p = place(model);
+  const r = runWith([p.file, 'png'], { CHROME_PATH: fake.exe });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /fake chrome exploded|chrom/i);
+  assert.ok(!files(p.exports).some((f) => f.endsWith('.png')), 'no png written for a failed render');
+});
+
+test('x37 the real browser rasterises the svg to a PNG (skipped when no Chromium is installed)', (t) => {
+  const chrome = findChromium();
+  if (!chrome) return t.skip('no Chrome/Chromium found; set CHROME_PATH to run');
+  const p = place(model);
+  const r = run([p.file, 'png', '--view', model.views[0].id]);
+  assert.equal(r.status, 0, r.stderr);
+  const pngs = files(p.exports).filter((f) => f.endsWith('.png'));
+  assert.deepEqual(pngs, [`${model.views[0].id}.png`]);
+  const buf = readFileSync(join(p.exports, pngs[0]));
+  assert.deepEqual(buf.subarray(0, 8), PNG_SIG);
+  assert.ok(buf.length > 200, 'a real image, not a stub');
 });

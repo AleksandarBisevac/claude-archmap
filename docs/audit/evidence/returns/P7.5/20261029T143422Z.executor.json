@@ -1,0 +1,41 @@
+{
+  "gates": {
+    "node --test tests/export.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T14:39:21Z",
+    "basis": "`node --test tests/export.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: TypeError: findChromium is not a function; run without CLAUDE_PROJECT_DIR, OLDPWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/export.mjs: added png format. Exported findChromium({env,platform,exists}) (CHROME_PATH if it exists, else macOS app bundles, PATH lookup of google-chrome/chromium/chromium-browser on linux, Program Files on win32; a CHROME_PATH pointing nowhere falls through) and chromiumArgs(). rasterise() writes each svg from svgFiles to a temp dir, runs the browser via execFile with an argument array, 30s timeout, throwaway --user-data-dir under os.tmpdir() removed in finally, window size from the svg width/height, file:// url from pathToFileURL; PNGs are copied to the out dir only after all render. No browser: single stderr line naming CHROME_PATH, exit 3, nothing created. Browser failure/timeout: exit 2 with message, no png. Removed the IMPLEMENTED gate. tests/export.test.mjs: x10 no longer expects png 'not yet implemented'; added x32-x37 (x35/x36 use a fake chrome script; x33 runs the CLI with a preload making platform freebsd and empty PATH; x37 uses the real Chrome, skipped via t.skip when none). Results: export tests 37/37 pass (real Chrome on this machine ran x37), full node --test 265/265 pass. Dependants: tests/export.test.mjs updated; tests/skill.test.mjs, docs/design.md still correct (they only name the file/png as planned); skills/architecture-map/SKILL.md line 271 still says export.mjs 'not yet built' - pre-existing, outside my files, not changed.",
+    "descriptive": "export.mjs now writes PNGs through headless Chrome/Chromium when present, exit 3 with a CHROME_PATH hint when absent."
+  },
+  "testsAdded": [
+    "findChromium per platform with injected paths, CHROME_PATH precedence and null",
+    "png without a browser: exit 3, one line naming CHROME_PATH, nothing written",
+    "chromiumArgs array shape and no-shell source check",
+    "fake-browser end-to-end png run with profile cleanup, failure exit 2, and real-browser PNG signature test (skips when none)"
+  ],
+  "casesAdded": [
+    [
+      "x32"
+    ],
+    [
+      "x33"
+    ],
+    [
+      "x34"
+    ],
+    [
+      "x35",
+      "x36",
+      "x37"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:6eb30b4d318147e4feaa1bd69e2d3335a912e94878e9fa43e1eda72a1aea30c7\",\"dirtyDigest\":\"sha256:9cf643e35723e6d06c5ae2086e075700c355b83514dbb1068594d7f48d649bda\",\"dirtyPaths\":{\"scripts/export.mjs\":\"cabbeabbf42b102e\",\"tests/export.test.mjs\":\"9a03bece739adf06\"},\"head\":\"fcfdf94\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/export.mjs\",\"tests/export.test.mjs\"],\"scopeDigest\":\"sha256:c1b485086ba67ea8b5345b0229e699b9d4a7f30004c0cf74e7fdc4bb92c2062a\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

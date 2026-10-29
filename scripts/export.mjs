@@ -3,8 +3,7 @@
 //
 //   node scripts/export.mjs <model.json> <format> [--view <id>] [--layout <layout.json>] [--out <path>]
 //
-// Formats: mermaid | plantuml | md | svg | png. This build implements mermaid, plantuml, md and svg; png
-// is refused with exit 2 ("not yet implemented") until its task lands.
+// Formats: mermaid | plantuml | md | svg | png.
 //
 //   mermaid  one flowchart per view (nodes grouped in subgraphs by zone, every edge labelled with its type
 //            and label), an erDiagram of the entities (fields with type, PK/FK markers, crow's-foot
@@ -32,6 +31,13 @@
 //            self-contained: no href, font url, script, foreignObject or url(); text is XML-escaped; system
 //            font stack; coordinates rounded to 2 decimals.
 //
+//   png      each svg above rasterised to <name>.png by a headless Chrome/Chromium: CHROME_PATH, else the
+//            platform's known install paths (macOS app bundles, google-chrome/chromium/chromium-browser on
+//            PATH, Windows Program Files). The browser is spawned with execFile and an argument array (never
+//            a shell), a timeout and a throwaway --user-data-dir under os.tmpdir() removed afterwards; the
+//            svg is loaded from a temp file:// path. No browser: one line naming CHROME_PATH, exit 3, nothing
+//            written. Browser failure or timeout: exit 2 with the message, no png written.
+//
 // Exports are ALWAYS clean: no issue id, no step issue ref (steps[].i) and no issue text ever appears in
 // any output, because the exporters never read them. Every label taken from the model is escaped for
 // Mermaid (quotes, brackets, braces, pipes, semicolons, angle brackets, '#', '%' and newlines become numeric
@@ -51,13 +57,14 @@
 // Exit 0 ok, 1 the model is invalid (nothing is written), 2 usage or unreadable input.
 // Node >= 18, ESM, zero npm dependencies.
 
-import { readFileSync, writeFileSync, mkdirSync, realpathSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, realpathSync, existsSync, statSync, copyFileSync } from 'node:fs';
+import { dirname, join, delimiter, posix, win32 } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tmpdir } from 'node:os';
+import { execFile } from 'node:child_process';
 import { validate } from './validate.mjs';
 
 export const FORMATS = ['mermaid', 'plantuml', 'md', 'svg', 'png'];
-const IMPLEMENTED = ['mermaid', 'plantuml', 'md', 'svg'];
 
 const list = (v) => (Array.isArray(v) ? v : []);
 const str = (v) => (typeof v === 'string' ? v : v === undefined || v === null ? '' : String(v));
@@ -1058,6 +1065,109 @@ export function svgFiles(model, layout, { view } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// png: rasterise the svg files with a headless Chrome/Chromium
+
+const isFile = (p) => {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The Chrome/Chromium executable to rasterise with, or null. CHROME_PATH wins when it exists; otherwise
+ * the platform's known install paths (a CHROME_PATH that points nowhere does not hide a real install).
+ * @param {{env?: object, platform?: string, exists?: (p: string) => boolean}} [opts] injected for tests
+ * @returns {string|null}
+ */
+export function findChromium({ env = process.env, platform = process.platform, exists = isFile } = {}) {
+  if (env.CHROME_PATH && exists(env.CHROME_PATH)) return env.CHROME_PATH;
+  const candidates = [];
+  if (platform === 'darwin') {
+    const apps = ['Google Chrome.app/Contents/MacOS/Google Chrome', 'Chromium.app/Contents/MacOS/Chromium', 'Microsoft Edge.app/Contents/MacOS/Microsoft Edge'];
+    for (const base of ['/Applications', env.HOME ? posix.join(env.HOME, 'Applications') : '']) {
+      if (base) for (const a of apps) candidates.push(posix.join(base, a));
+    }
+  } else if (platform === 'win32') {
+    const roots = [env.ProgramFiles || 'C:\\Program Files', env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', env.LOCALAPPDATA].filter(Boolean);
+    for (const r of roots) {
+      candidates.push(win32.join(r, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+      candidates.push(win32.join(r, 'Chromium', 'Application', 'chrome.exe'));
+      candidates.push(win32.join(r, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+    }
+  } else {
+    for (const dir of String(env.PATH ?? '').split(delimiter).filter(Boolean)) {
+      for (const n of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome']) candidates.push(posix.join(dir, n));
+    }
+  }
+  return candidates.find((c) => exists(c)) ?? null;
+}
+
+/** The argument array (never a shell line) for one screenshot. */
+export function chromiumArgs({ userDataDir, width, height, screenshot, url }) {
+  return [
+    '--headless',
+    '--disable-gpu',
+    '--hide-scrollbars',
+    '--no-first-run',
+    '--disable-extensions',
+    `--user-data-dir=${userDataDir}`,
+    `--screenshot=${screenshot}`,
+    `--window-size=${width},${height}`,
+    url,
+  ];
+}
+
+const CHROME_TIMEOUT_MS = 30000;
+
+/** Window size from the svg root's width/height (svgDocument writes both), rounded up; a sane default otherwise. */
+function svgSize(text) {
+  const root = /<svg\b[^>]*>/.exec(text)?.[0] ?? '';
+  const dim = (n) => {
+    const m = new RegExp(`\\s${n}="([0-9.]+)"`).exec(root);
+    return m ? Math.max(1, Math.ceil(Number(m[1]))) : 0;
+  };
+  return { width: dim('width') || 800, height: dim('height') || 600 };
+}
+
+class BrowserError extends Error {}
+class NoBrowserError extends Error {}
+
+/** Rasterise [{name: 'x.svg', text}] into a fresh temp dir; returns {dir, pngs: [{name: 'x.png', path}]}. The caller removes dir. */
+async function rasterise(chrome, svgs) {
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-png-'));
+  const pngs = [];
+  try {
+    for (const f of svgs) {
+      const base = f.name.replace(/\.svg$/, '');
+      const svgPath = join(dir, f.name);
+      const pngPath = join(dir, `${base}.png`);
+      writeFileSync(svgPath, f.text);
+      const userDataDir = mkdtempSync(join(tmpdir(), 'archmap-chrome-'));
+      const args = chromiumArgs({ userDataDir, ...svgSize(f.text), screenshot: pngPath, url: pathToFileURL(svgPath).href });
+      try {
+        await new Promise((resolve, reject) => {
+          execFile(chrome, args, { timeout: CHROME_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, maxBuffer: 1 << 20 }, (err, _out, errOut) => {
+            if (!err) return resolve();
+            const why = err.killed ? `timed out after ${CHROME_TIMEOUT_MS / 1000}s` : String(errOut || err.message).trim().split('\n').pop();
+            reject(new BrowserError(`${chrome} failed on ${f.name}: ${why}`));
+          });
+        });
+      } finally {
+        rmSync(userDataDir, { recursive: true, force: true });
+      }
+      if (!isFile(pngPath)) throw new BrowserError(`${chrome} produced no image for ${f.name}`);
+      pngs.push({ name: `${base}.png`, path: pngPath });
+    }
+  } catch (e) {
+    rmSync(dir, { recursive: true, force: true });
+    throw e;
+  }
+  return { dir, pngs };
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 
 const USAGE =
@@ -1083,7 +1193,6 @@ function parseArgs(argv) {
   if (o.model === undefined) throw new UsageError('missing <model.json>');
   if (o.format === undefined) throw new UsageError(`missing <format> (${FORMATS.join(', ')})`);
   if (!FORMATS.includes(o.format)) throw new UsageError(`unknown format ${o.format}; use one of ${FORMATS.join(', ')}`);
-  if (!IMPLEMENTED.includes(o.format)) throw new UsageError(`format ${o.format} is not yet implemented`);
   return o;
 }
 
@@ -1133,22 +1242,42 @@ async function main(argv) {
       throw new UsageError(`unknown view ${opts.view} (the model has: ${known})`);
     }
     let files;
-    if (opts.format === 'svg') {
+    let tmpPngs;
+    const chrome = opts.format === 'png' ? findChromium() : null;
+    if (opts.format === 'png' && !chrome) throw new NoBrowserError('export: png needs headless Chrome/Chromium and none was found; set CHROME_PATH to its executable');
+    if (opts.format === 'svg' || opts.format === 'png') {
       files = svgFiles(model, await layoutFor(opts, model), { view: opts.view });
+      if (chrome) {
+        tmpPngs = await rasterise(chrome, files);
+        files = tmpPngs.pngs;
+      }
     } else {
       files = { plantuml: plantUmlFiles, md: markdownFiles }[opts.format]?.(model, { view: opts.view }) ?? mermaidFiles(model, { view: opts.view });
     }
     const dir = opts.out ?? join(dirname(opts.model), 'exports');
     try {
       mkdirSync(dir, { recursive: true });
-      for (const f of files) writeFileSync(join(dir, f.name), f.text);
+      for (const f of files) {
+        if (f.path) copyFileSync(f.path, join(dir, f.name));
+        else writeFileSync(join(dir, f.name), f.text);
+      }
     } catch (e) {
       throw new UsageError(`cannot write to ${dir}: ${e.code ?? e.message}`);
+    } finally {
+      if (tmpPngs) rmSync(tmpPngs.dir, { recursive: true, force: true });
     }
     for (const f of files) console.log(join(dir, f.name));
     console.log(`OK: ${files.length} ${opts.format} file(s) written to ${dir}`);
     return 0;
   } catch (e) {
+    if (e instanceof NoBrowserError) {
+      console.error(e.message);
+      return 3;
+    }
+    if (e instanceof BrowserError) {
+      console.error(`export: ${e.message}`);
+      return 2;
+    }
     if (!(e instanceof UsageError)) throw e;
     console.error(`export: ${e.message}\n${USAGE}`);
     return 2;
