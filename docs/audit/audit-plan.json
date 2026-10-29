@@ -2164,7 +2164,7 @@
     {
       "id": "P5",
       "title": "Commands, merge, diffmap and usage ledger",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "build, update, render and export commands run end to end; merge.mjs preserves user-authored fields; diffmap.mjs maps changed files to nodes and their dependents; the usage ledger prints per-phase tokens and duration.",
       "testGate": [
@@ -2177,7 +2177,7 @@
       ],
       "baseRef": "fca53ece26d9f172d8011fe10aed68aebbaf0552",
       "branch": "audit/p5-commands-merge-diffmap-and-usa",
-      "mergedAt": null,
+      "mergedAt": "2026-10-29T09:31:09Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -2958,7 +2958,8 @@
         "runId": "2026-10-29T09:31:07Z.967e3f",
         "status": "passed",
         "at": "2026-10-29T09:31:07Z"
-      }
+      },
+      "mergedHead": "b38291a245a4cf00e6435f1f6c19cb37fc06596c"
     },
     {
       "id": "P6",
