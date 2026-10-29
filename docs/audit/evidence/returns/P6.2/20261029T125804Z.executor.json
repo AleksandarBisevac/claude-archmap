@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/issues.test.mjs": "pass",
+    "node --test (full, run once for sanity; 208 tests pass, exit 0)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-29T13:04:54Z",
+    "basis": "`node --test tests/issues.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/issues.mjs (import-audit, merge, path; exports importAudit, mergeIssues, sortIssues, repoSlug, outputDir; ESM, zero deps). import-audit maps bugs[] and phases[].review.findings[] incl. legacy strings (id <phaseId>-<zero-based index>, leading [sev] tag before or after the path) to source 'audit' issues with id audit-<id> and track; anchors to the node owning the file via lib/glob.mjs (longest literal glob prefix wins, then deeper level, then id; fallback exact evidence path), skips closed/fixed/resolved, line-level (keyword heuristic), and unanchored/no-path entries, printing 'imported N, skipped-fixed N, skipped-unanchored N, skipped-line-level N'. Re-import replaces audit-source issues of --existing and keeps others; output sorted by sev then id, byte-identical on re-run. merge replaces existing issues on listed anchor ids (all when no --anchors), refuses duplicate ids. path prints <home>/.claude/archmap/<slug>/ (slug of git toplevel or project dir name). --out inside the project's git working tree is refused with exit 2 before anything is created (non-git project: no refusal); result is validated with validate(model,{issues}) and refused with exit 1 if invalid (dangling anchors). Fixtures tests/fixtures/issues/{model.json,audit-plan.json}; tests/issues.test.mjs cases i1-i9. Observed: node --test tests/issues.test.mjs 9/9 pass; first run before the script existed failed (module not found); full node --test 208/208 pass. Deviations/judgement: (a) merge also requires --model (needed for validate()); (b) evidence with a path but no lines files lines '1' because the task says import reads only the plan file (the catalogue's 'open the file and cite a line' is not done); (c) impact/fix are non-fabricated placeholders ('Tracked by the audit as <sev> severity; see the audit entry X.' / resolution or 'See the audit entry X.'), security summary = title only with full text in detail; (d) only node anchors are chosen, never edge/entity. Dependants: docs/design.md and skills/architecture-map/SKILL.md name issues.mjs by basename only - still correct (design lists issues.mjs in the scripts tree; SKILL.md output-location slug rule is implemented as written); the merge command line in design lacks --model, which this adds. tests/fixtures/issues dependants (schema, render, validate, viewer, commands tests etc.) match by basename only; no existing file under that dir was changed, so they are unaffected. No plan-gate refusals encountered.",
+    "descriptive": "scripts/issues.mjs now imports open audit findings as anchored overlay issues, merges reviewer output by anchor, and writes the overlay only outside the repo after validation."
+  },
+  "testsAdded": [
+    "i1-i9 in tests/issues.test.mjs: import mapping and ids/track/sev/category, file-to-node anchoring and evidence, skip counts, idempotent re-import, merge by anchors with determinism, path slug rule, --out inside repo refused (exit 2, nothing written), dangling anchor refused (exit 1), usage errors"
+  ],
+  "casesAdded": [
+    [
+      "i1",
+      "i2",
+      "i3",
+      "i4",
+      "i5",
+      "i6",
+      "i7",
+      "i8",
+      "i9"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:c68c38dfbdd63e7c1314d513fc7a1299c7db5ec106c7a48999e8699303c2a92e\",\"dirtyDigest\":\"sha256:58584950c7b5b1a0efbdf197dcbb909c5354a1ef5730b054b29d2c4b1898499d\",\"dirtyPaths\":{\"scripts/issues.mjs\":\"2efac32d1d85280c\",\"tests/fixtures/issues/audit-plan.json\":\"bcb3395bdaf31c98\",\"tests/fixtures/issues/model.json\":\"4d34fb0649878689\",\"tests/issues.test.mjs\":\"cef86a6168f07679\"},\"head\":\"0936d37\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/issues.mjs\",\"tests/fixtures/issues/\",\"tests/issues.test.mjs\"],\"scopeDigest\":\"sha256:f54961d6c2db33aac550c8a409f271f88f02e01d652377a3bd43d878674729c4\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

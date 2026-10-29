@@ -1,0 +1,37 @@
+{
+  "meta": { "project": "shopdemo" },
+  "bugs": [
+    { "id": "BUG-1", "title": "Login accepts any token", "status": "open", "severity": "high", "description": "The login handler never compares the supplied token with the stored one, so any request is treated as signed in. Fix the comparison.", "files": ["src/auth/login.js"] },
+    { "id": "BUG-2", "title": "Cart total drifts", "status": "fixed", "severity": "medium", "description": "Rounding was applied twice.", "files": ["src/cart/total.js"] },
+    { "id": "BUG-3", "title": "Stale note in an unmapped folder", "status": "open", "severity": "medium", "description": "A tool outside the model misbehaves.", "files": ["tools/unmapped/run.js"] },
+    { "id": "BUG-4", "title": "Something is slow", "status": "open", "severity": "low", "description": "No file is named." },
+    { "id": "BUG-5", "title": "Order query has no timeout", "status": "open", "severity": "medium", "description": "The order query can hang the request when the database stalls, and nothing retries it.", "files": ["src/db/query.js"] }
+  ],
+  "phases": [
+    {
+      "id": "P1",
+      "review": {
+        "findings": [
+          { "id": "P1-R1", "severity": "med", "file": "src/db/query.js:40-52", "issue": "The database migration step runs outside a transaction, so a failure leaves the schema half applied.", "status": "open" },
+          { "id": "P1-R2", "severity": "high", "file": "src/index.js", "issue": "Request handling keeps per-user state in a module-level cache.", "resolution": "Move the state into a shared store.", "status": "carried" },
+          { "id": "P1-R3", "severity": "low", "file": "src/index.js:7", "issue": "Already handled.", "status": "fixed" },
+          { "id": "P1-R4", "severity": "low", "file": "src/db/query.js:9", "issue": "Also handled.", "status": "resolved" },
+          { "id": "P1-R5", "severity": "low", "file": "src/index.js:20", "issue": "Off-by-one in the pagination loop; rename the variable for style.", "status": "open" },
+          { "id": "P1-R6", "severity": "low", "file": "docs/guide.md:2", "issue": "The operator guide describes a queue that the code does not have.", "status": "open" }
+        ]
+      }
+    },
+    {
+      "id": "P2",
+      "review": {
+        "findings": [
+          "src/auth/login.js:30-41 - [high] session tokens never expire, so a stolen token works forever",
+          "[med] src/db/query.js - the order table has no index for the report query",
+          "the readme is out of date",
+          "vendor/nowhere/x.js:1 - [low] unmapped file problem"
+        ]
+      }
+    },
+    { "id": "P3" }
+  ]
+}

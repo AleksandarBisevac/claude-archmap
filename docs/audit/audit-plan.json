@@ -2987,7 +2987,7 @@
         {
           "id": "P6.1",
           "title": "staleness.mjs and the SessionStart hook",
-          "status": "in_progress",
+          "status": "done",
           "description": "Implement scripts/staleness.mjs (docs/design.md D12, §10 'Hook'). Two modes. Hook mode (default; what hooks/hooks.json runs on SessionStart as node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\"): project dir from CLAUDE_PROJECT_DIR, else the cwd in the hook's stdin JSON, else process.cwd(); no docs/architecture/architecture.model.json -> print nothing; otherwise reuse diffmap (import its functions from scripts/diffmap.mjs, do not shell out to it) to compare meta.commit with HEAD and, when behind, print exactly one line, e.g. 'Architecture map is 12 commits behind (3 nodes, 1 entity affected) - run /archmap:update'; fresh -> nothing. Hook mode ALWAYS exits 0 and prints nothing on any error (not a git repo, unreadable or invalid model, unknown commit, timeout); it must stay fast (bounded git calls with a timeout) and never run the LLM. Check mode (--check [--project dir] [--json]): same comparison, prints the line or 'Architecture map is current', exit 0 fresh, 1 stale, 2 no model / usage / not a git repo. Node >= 18, ESM, zero deps. hooks/hooks.json follows the plugin hooks format with one SessionStart command hook.",
           "files": [
             "scripts/staleness.mjs",
@@ -3013,25 +3013,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "0936d3798193",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/staleness.mjs (hook mode + --check [--project] [--json]; imports diffmap/readGitChanges from diffmap.mjs; hook mode runs the comparison in a self-spawned child node process (--assess <dir>) killed after ARCHMAP_STALENESS_TIMEOUT_MS (default 5000) because a worker thread blocked in execFileSync could not be terminated promptly; always exit 0, silent on any error; check exit 0/1/2), hooks/hooks.json (one SessionStart command hook: node \"${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs\"), tests/staleness.test.mjs (10 cases). Stale line uses ASCII ' - ' as in the task text (design D12 shows an em dash). node --test tests/staleness.test.mjs: 10 pass, 0 fail; node --test: 199 pass, 0 fail; claude plugin validate .: passed. Dependants: docs/design.md D12/section 10 still correct (same line, hook path, exit codes; only the dash character differs from the example); skills/architecture-map/SKILL.md line 248 still says staleness.mjs is 'not yet built' - now outdated, outside this task's files, left for a later task.",
+            "descriptive": "SessionStart hook and /archmap:check backend: one-line staleness report, silent and exit 0 in hook mode, exit 0/1/2 in check mode."
           },
           "startedAt": "2026-10-29T12:55:18Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-29T12:58:04Z",
+          "verifiedBy": [
+            "10 cases in tests/staleness.test.mjs: no model, fresh, stale line, stdin/cwd project resolution, silent failures, git timeout, check 0/1/2 and --json, hooks.json shape"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-29T12:58:03Z.b27130",
             "status": "passed",
             "at": "2026-10-29T12:58:03Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "0936d3798193",
+            "at": "2026-10-29T12:58:04Z"
+          },
+          "redFirst": {
+            "at": "2026-10-29T12:57:44Z",
+            "basis": "`node --test tests/staleness.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: ENOENT: no such file or directory, open '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P6.2",
           "title": "issues.mjs: audit import, overlay merge and write outside the repo",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Implement scripts/issues.mjs (docs/design.md D2, D4, §5 issues file, §9 step 6; mapping rules in skills/architecture-map/references/issues-catalog.md 'Audit import'). Subcommands: (1) import-audit <audit-plan.json> --model <model.json> [--existing <issues.json>] -> issues with source 'audit', id 'audit-<sourceId>', track = source id, from bugs[] and phases[].review.findings[], including legacy string findings; anchor each by its file path to the node whose paths globs (scripts/lib/glob.mjs) or evidence own it, else skip it as unanchored; skip closed/fixed ones and line-level ones per the catalogue; print counts imported / skipped-fixed / skipped-unanchored / skipped-line-level. Reads only the plan file given, never other audit state. (2) merge --existing <issues.json> --incoming <reviewer.json> [--anchors a,b] -> merged overlay: incoming replaces issues on the listed anchors (all when no --anchors), others kept, ids stable, sorted, deterministic. (3) path [--project dir] prints <home>/.claude/archmap/<repo-slug>/ using the slug rule in SKILL.md 'Output locations'. Every subcommand that writes takes --out and REFUSES (exit 2, nothing written) an --out inside the analysed project's git working tree; it validates the result with validate() from scripts/validate.mjs (model + issues, dangling anchors included) and refuses an invalid one (exit 1). Fixtures: a small fictional audit plan with bugs, structured findings and legacy string findings, plus a fictional model. Node >= 18, ESM, zero deps.",
           "files": [
             "scripts/issues.mjs",
@@ -3054,16 +3067,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-29T12:58:04Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T13:05:25Z.d4ce9b",
+            "status": "passed",
+            "at": "2026-10-29T13:05:25Z"
+          }
         },
         {
           "id": "P6.3",
