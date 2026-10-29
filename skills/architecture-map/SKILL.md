@@ -14,8 +14,8 @@ npm dependencies. Run them from the analysed project's root so relative paths st
 
 ## Hard rules
 
-1. **The agents write only the model.** Model + renderer: the model is the single source of truth (D1). Agents never
-   write HTML, layout or issues files by hand; scripts do. Explorers write nothing at all and return JSON.
+1. **Only the orchestrator writes the model.** Agents have no write tools for it and return JSON; scripts write HTML,
+   layout and issues files. Model + renderer: the model is the single source of truth (D1).
 2. **Nothing without evidence.** Every node and edge carries a non-empty `evidence` of `{path, lines}`. An element that
    cannot cite a file and lines is left out and tallied in `skipped`. See [Evidence](#evidence-rules).
 3. **Never execute the code you map.** Read it as text. Do not import, build, start, test or migrate the project, and

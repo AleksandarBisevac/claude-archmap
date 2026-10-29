@@ -1514,7 +1514,33 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P4-R1",
+            "severity": "med",
+            "file": "skills/architecture-map/SKILL.md:17",
+            "issue": "contradicts task clause P4.6-w15 ('only the orchestrator writes architecture.model.json'): Hard rule 1 still reads 'The agents write only the model', which says the agents write the model. The synthesizer and reviewer have no write tools (agents/archmap-synthesizer.md, agents/archmap-reviewer.md) and the explorer writes nothing. SKILL.md now states two opposite things, and the Hard rules are the part an orchestrator reads first.",
+            "resolution": "Reword rule 1 to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' Keep the D1 point (the model is the single source of truth).",
+            "fixTask": "P4.7-w15"
+          },
+          {
+            "id": "P4-R2",
+            "severity": "low",
+            "file": "tests/skill.test.mjs:2088-2092",
+            "issue": "s5 only inspects lines that name 'synthesizer' or 'reviewer' and carry no never/not/no/without word. The stale claim at SKILL.md:17 says 'agents', so s5 passes while the contradiction in finding 1 remains. The negation filter would also let a line such as 'the synthesizer writes the model, no review needed' through.",
+            "resolution": "Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing.",
+            "fixTask": "P4.8-w15"
+          },
+          {
+            "id": "P4-R3",
+            "severity": "med",
+            "file": "skills/architecture-map/references/schema-introspection.md:52-56",
+            "issue": "The 'project's own Python' recipe is `python3 -c \"import duckdb; ...\"` run from the analysed repo root. `python -c` puts the current directory first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. That breaks the same file's rule (line 12) and SKILL.md hard rule 3, 'never execute the scanned project's own code'. The example also hard-codes /tmp/copy.duckdb rather than the mktemp copy from the DuckDB section.",
+            "resolution": "Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened.",
+            "fixTask": "P4.9-w15"
+          }
+        ],
+        "outcome": "[findings: 3 - 0 high, 2 med, 1 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -1822,7 +1848,7 @@
         {
           "id": "P4.6-w15",
           "title": "Align SKILL.md with the synthesizer's return-JSON contract",
-          "status": "in_progress",
+          "status": "done",
           "description": "SKILL.md says the archmap-synthesizer 'edits only architecture.model.json' (step 5, around line 134) and its agent table row says it outputs 'The updated model', but agents/archmap-synthesizer.md (P4.5) has no write tools, as the design requires (Read, Grep, Glob), and returns one JSON object (edges, sequences, access, relations, views, notes, conflicts) for the caller to merge into the model and validate. Align SKILL.md step 5, the agent table, and the update flow's synthesizer step with the agent file: the orchestrating session merges the returned object and runs validate; only the orchestrator writes architecture.model.json. Keep the reviewer wording consistent the same way. Read agents/archmap-synthesizer.md and agents/archmap-reviewer.md for the exact output contracts.",
           "files": [
             "skills/architecture-map/SKILL.md",
@@ -1848,20 +1874,187 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b655bfc58e52",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "SKILL.md: agent table synthesizer row now says it returns one JSON object (edges, sequences, access, relations, views, notes, conflicts) with no write tools; reviewer row says one JSON object (issues, import, unreviewed) written by the caller as issues.json; step 5 says the orchestrating session merges the returned object and runs validate, and only the orchestrator writes architecture.model.json; update-flow step 4 says the returned touched elements are merged in place and validated. SKILL.md is 249 lines. Added case s5 to tests/skill.test.mjs; node --test tests/skill.test.mjs exits 0 with s1-s5 passing. Dependants: tests/skill.test.mjs still correct (s1-s4 pass); .agents/skills/node/tile.json, skills-lock.json, docs/design.md reference SKILL.md by basename only and were not changed, content they refer to (the file's existence/name) is unchanged. Step 7 reviewer wording already said the reviewer returns the list and the caller writes it, so left as is.",
+            "descriptive": "SKILL.md now matches the synthesizer and reviewer return-JSON contracts: only the orchestrator merges and writes the model."
           },
           "startedAt": "2026-10-28T23:04:31Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-28T23:05:20Z",
+          "verifiedBy": [
+            "s5: no line claims synthesizer/reviewer writes architecture.model.json, no agent table row says 'updated model', synthesizer row says JSON, and SKILL.md states the orchestrator merges the returned object and runs validate and is the only writer"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-28T23:05:19Z.d03c4a",
             "status": "passed",
             "at": "2026-10-28T23:05:19Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "b655bfc58e52",
+            "at": "2026-10-28T23:05:20Z"
+          },
+          "redFirst": {
+            "at": "2026-10-28T23:05:06Z",
+            "basis": "`node --test tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: AssertionError [ERR_ASSERTION]: no table row says an agent outputs the updated model; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; dependencies linked from the project root, entry by entry as symlinks: .venv - .cache, .vite, .vite-temp are not linked and a new entry a runner makes beside the links stays in the throwaway, but a write into a linked entry lands in the project's own .venv and is not watched; no .npmrc to carry or drop",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P4.7-w15",
+          "title": "fix P4-R1: contradicts task clause P4.6-w15 ('only the orchestrator writes ar...",
+          "status": "in_progress",
+          "description": "contradicts task clause P4.6-w15 ('only the orchestrator writes architecture.model.json'): Hard rule 1 still reads 'The agents write only the model', which says the agents write the model. The synthesizer and reviewer have no write tools (agents/archmap-synthesizer.md, agents/archmap-reviewer.md) and the explorer writes nothing. SKILL.md now states two opposite things, and the Hard rules are the part an orchestrator reads first.\n\nResolution asked: Reword rule 1 to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' Keep the D1 point (the model is the single source of truth).",
+          "files": [
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-29T07:01:55Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "scope: skills/architecture-map/SKILL.md, every path the finding(s) P4-R1 name"
+            },
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "no suite: skills/architecture-map/SKILL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/skill.test.mjs"
+            },
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "gate-only, not tdd: every file P4-R1 names is a document (skills/architecture-map/SKILL.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P4-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-29T07:02:32Z.bf0ddf",
+            "status": "passed",
+            "at": "2026-10-29T07:02:32Z"
+          }
+        },
+        {
+          "id": "P4.8-w15",
+          "title": "fix P4-R2: s5 only inspects lines that name 'synthesizer' or 'reviewer' and c...",
+          "status": "pending",
+          "description": "s5 only inspects lines that name 'synthesizer' or 'reviewer' and carry no never/not/no/without word. The stale claim at SKILL.md:17 says 'agents', so s5 passes while the contradiction in finding 1 remains. The negation filter would also let a line such as 'the synthesizer writes the model, no review needed' through.\n\nResolution asked: Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing.",
+          "files": [
+            "tests/skill.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/skill.test.mjs: the case P4-R2 asks for, locking the behaviour at HEAD"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "scope: tests/skill.test.mjs, every path the finding(s) P4-R2 name"
+            },
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "no test runner in this task's gate for the test P4-R2 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P4 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P4-R2"
+          ]
+        },
+        {
+          "id": "P4.9-w15",
+          "title": "fix P4-R3: The 'project's own Python' recipe is `python3 -c \"import duckdb; ....",
+          "status": "pending",
+          "description": "The 'project's own Python' recipe is `python3 -c \"import duckdb; ...\"` run from the analysed repo root. `python -c` puts the current directory first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. That breaks the same file's rule (line 12) and SKILL.md hard rule 3, 'never execute the scanned project's own code'. The example also hard-codes /tmp/copy.duckdb rather than the mktemp copy from the DuckDB section.\n\nResolution asked: Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened.",
+          "files": [
+            "skills/architecture-map/references/schema-introspection.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "scope: skills/architecture-map/references/schema-introspection.md, every path the finding(s) P4-R3 name"
+            },
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "no suite: skills/architecture-map/references/schema-introspection.md - a document, so no test of it is inferred; nothing names it as a file name in any test, tool or script"
+            },
+            {
+              "at": "2026-10-29T07:01:54Z",
+              "text": "gate-only, not tdd: every file P4-R3 names is a document (skills/architecture-map/references/schema-introspection.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P4-R3"
+          ]
         }
       ],
       "area": [
@@ -2327,7 +2520,8 @@
       "P4.2"
     ],
     "skills/architecture-map/references/schema-introspection.md": [
-      "P4.2"
+      "P4.2",
+      "P4.9-w15"
     ],
     "tests/skill-discovery-refs.test.mjs": [
       "P4.2"
@@ -2340,11 +2534,13 @@
     ],
     "skills/architecture-map/SKILL.md": [
       "P4.4",
-      "P4.6-w15"
+      "P4.6-w15",
+      "P4.7-w15"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
-      "P4.6-w15"
+      "P4.6-w15",
+      "P4.8-w15"
     ],
     "agents/archmap-explorer.md": [
       "P4.5"

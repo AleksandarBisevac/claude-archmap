@@ -1,0 +1,133 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "skills/architecture-map/SKILL.md:17",
+      "issue": "contradicts task clause P4.6-w15 ('only the orchestrator writes architecture.model.json'): Hard rule 1 still reads 'The agents write only the model', which says the agents write the model. The synthesizer and reviewer have no write tools (agents/archmap-synthesizer.md, agents/archmap-reviewer.md) and the explorer writes nothing. SKILL.md now states two opposite things, and the Hard rules are the part an orchestrator reads first.",
+      "resolution": "Reword rule 1 to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files.' Keep the D1 point (the model is the single source of truth)."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "tests/skill.test.mjs:2088-2092",
+      "issue": "s5 only inspects lines that name 'synthesizer' or 'reviewer' and carry no never/not/no/without word. The stale claim at SKILL.md:17 says 'agents', so s5 passes while the contradiction in finding 1 remains. The negation filter would also let a line such as 'the synthesizer writes the model, no review needed' through.",
+      "resolution": "Extend the claim scan to lines that say 'agents' (or 'agent') together with a write verb and architecture.model.json or 'the model', and drop the blanket negation exclusion in favour of matching the specific allowed phrasing."
+    },
+    {
+      "id": 3,
+      "severity": "med",
+      "file": "skills/architecture-map/references/schema-introspection.md:52-56",
+      "issue": "The 'project's own Python' recipe is `python3 -c \"import duckdb; ...\"` run from the analysed repo root. `python -c` puts the current directory first on sys.path, so a repo-owned duckdb.py or sqlite3.py would be imported and executed. That breaks the same file's rule (line 12) and SKILL.md hard rule 3, 'never execute the scanned project's own code'. The example also hard-codes /tmp/copy.duckdb rather than the mktemp copy from the DuckDB section.",
+      "resolution": "Run the recipe isolated (`python3 -I -c ...`, or `cd` to the temp dir first) and say so in the text. Point the example at the `$tmp` copy so the original is never opened."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "At phase level the diff delivers the desired outcome. SKILL.md is 249 lines (500 or fewer). The nine references cover the model contract, discovery recipes, introspection and the issues catalogue. The three agents carry the designed model and effort frontmatter. P4.5's recorded gate included `claude plugin validate .` with exit 0. The mechanical scan over the phase range found no leads: denylist checked, no external URLs, no non-builtin imports. Gaps: SKILL.md:17 still says the agents write the model (finding 1), and the python -c introspection recipe can import repo-owned code (finding 3). No phase request or openChoices was saved, so where a task chose something the request left open could not be asked of the record.",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level review: no phase diff test of its own. The per-task words are in tasks.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test`, which runs the whole project (P4.5 adds `claude plugin validate .`). The question does not reach a whole-suite gate, so it is not asked."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P4.1",
+      "commit": "2c336a5de599",
+      "answer": "matches",
+      "note": "model-schema.md, relation-taxonomy.md and sequences.md name every top-level, meta, edge, zone, node-kind, step and fragment key. I checked them against schema/archmap-model.schema.json (required lists, enums, participant and step shapes) and they agree. The fragment contract and the fictional examples are present. The claim matches the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed by the filing verb: the helper's throwaway run exited 1 with an ENOENT on a file read, and no test tally was collected. The same note says an assertion failure cannot be told from a crash. I do not upgrade it.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
+    },
+    {
+      "id": "P4.2",
+      "commit": "5867ef4d9129",
+      "answer": "matches",
+      "note": "The five references cover the generic recipe, the three stack references and introspection: read-only, schema-only, the DuckDB temp-copy rule, --db with information_schema only, and skips recorded in meta.sources. Exception: the `python -c` example (schema-introspection.md:52-56) can import repo-owned modules (finding 3).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed by the filing verb (could-not-prove); no run that reaches an assertion was recorded.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
+    },
+    {
+      "id": "P4.3",
+      "commit": "7a65c0098a4d",
+      "answer": "matches",
+      "note": "issues-catalog.md carries the patterns, anchors, categories and severities, the shared-versus-internal wording and the audit-import mapping. Its anchors and enums agree with schema/archmap-issues.schema.json. The denylist scan is clean. The recorded gate had no overlap with this task's files.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed by the filing verb (could-not-prove).",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
+    },
+    {
+      "id": "P4.4",
+      "commit": "22f58c6c1b99",
+      "answer": "matches",
+      "note": "SKILL.md is 249 lines, with the build and update flows, scripts invoked via ${CLAUDE_PLUGIN_ROOT}, not-yet-built scripts named, output locations, evidence rules, token rules and profiles. Every reference is linked. It carries the rule the task asked for ('agents write only the model'), later superseded by P4.6.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed by the filing verb (could-not-prove).",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
+    },
+    {
+      "id": "P4.5",
+      "commit": "2a4514332fae",
+      "answer": "matches",
+      "note": "The three agents have the designed model, effort and tools. The explorer has Bash, restricted by prose to read-only introspection. The synthesizer and reviewer have Read, Grep and Glob. Each names its references and its output contract. `claude plugin validate .` exited 0 in the recorded gate, so effort is accepted. The gate had no overlap with this task's files.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed by the filing verb (could-not-prove).",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is `node --test` plus `claude plugin validate .`, both whole-project commands."
+    },
+    {
+      "id": "P4.6-w15",
+      "commit": "b655bfc58e52",
+      "answer": "diverges",
+      "note": "The task asks to align SKILL.md so 'only the orchestrator writes architecture.model.json'. The diff fixes the agent table rows, step 5 and update step 4. It leaves SKILL.md:17, 'The agents write only the model', which says the opposite. The executor's claim ('only the orchestrator merges and writes the model') is true of the lines it changed and not of the file. Test s5 does not see line 17 (finding 2). Update step 4's added line is also left unwrapped, which is cosmetic.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed by the filing verb. The helper's output did show 'AssertionError: no table row says an agent outputs the updated model', but the verb could not read a test tally, so the verb's could-not-prove stands.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the literal `node --test`, a whole-suite run."
+    }
+  ],
+  "shown": [
+    {
+      "id": "P4.1",
+      "commit": "2c336a5de599"
+    },
+    {
+      "id": "P4.2",
+      "commit": "5867ef4d9129"
+    },
+    {
+      "id": "P4.3",
+      "commit": "7a65c0098a4d"
+    },
+    {
+      "id": "P4.4",
+      "commit": "22f58c6c1b99"
+    },
+    {
+      "id": "P4.5",
+      "commit": "2a4514332fae"
+    },
+    {
+      "id": "P4.6-w15",
+      "commit": "b655bfc58e52"
+    }
+  ]
+}

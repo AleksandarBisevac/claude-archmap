@@ -1,0 +1,18 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, expectRedFirst false; wording fix in SKILL.md, no test owed",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Reworded Hard rule 1 in skills/architecture-map/SKILL.md to 'Only the orchestrator writes the model. Agents have no write tools for it and return JSON; scripts write HTML, layout and issues files. Model + renderer: the model is the single source of truth (D1).' File stays 249 lines (<=500). Ran `node --test` from project dir: 133 pass, 0 fail (exit 0). Dependants: tests/skill.test.mjs still correct (passes in the run above); .agents/skills/node/tile.json, skills-lock.json, docs/design.md reference the file by basename only and grep for the old phrase 'write only the model' finds nothing in tests, docs/design.md, skills-lock.json or .agents, so still correct.",
+    "descriptive": "SKILL.md Hard rule 1 now agrees with P4.6-w15: only the orchestrator writes the model."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ade333f27520fb02ab8590f1c034790025ae922fb05f75b06dd4583854237fc5\",\"dirtyDigest\":\"sha256:440de9aeae04de2ed8507d39ef3f5c44a4e39873e791488c2b20fddce0e04ec5\",\"dirtyPaths\":{\"skills/architecture-map/SKILL.md\":\"7a67a60701ca49bd\"},\"head\":\"b655bfc\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/SKILL.md\"],\"scopeDigest\":\"sha256:413e62b5a2fe47c2bd95c61a03bb5180377f6e2b8fdc3ce7b09b34505f049a0d\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
