@@ -197,8 +197,9 @@ test('pc6 output is byte-identical across runs, honours --out and --scope, and p
   assert.equal(a.stdout, b.stdout);
   assert.ok(a.stdout.endsWith('\n'));
 
-  const outFile = join(repo, '..', `${repo.split('/').pop()}-out.json`);
-  tmpDirs.push(outFile);
+  const outDir = mkdtempSync(join(tmpdir(), 'archmap-prescan-out-'));
+  tmpDirs.push(outDir);
+  const outFile = join(outDir, 'prescan.json');
   const c = run(repo, '--out', outFile);
   assert.equal(c.status, 0);
   assert.equal(readFileSync(outFile, 'utf8'), a.stdout);
@@ -227,4 +228,88 @@ test('pc7 prescan() runs plug-in extractors (detect/extract) and files their fra
   assert.deepEqual(out.extracts.fake, { greeting: 'hello' });
   assert.ok(out.stacks.includes('fake') && !out.stacks.includes('never'));
   assert.deepEqual(seen, [3]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.2: per-area extracts. prescan writes <work>/extracts/<area>.json so the orchestrator never slices JSON.
+
+const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
+const workDir = () => {
+  const d = mkdtempSync(join(tmpdir(), 'archmap-work-'));
+  tmpDirs.push(d);
+  return d;
+};
+const sliceOf = (repo) => {
+  const work = workDir();
+  const r = run(repo, '--out', join(work, 'prescan.json'));
+  assert.equal(r.status, 0, r.stderr);
+  const pre = readJson(join(work, 'prescan.json'));
+  return { work, pre, slice: (id) => readJson(join(work, 'extracts', `${id}.json`)) };
+};
+
+const LINKED = {
+  'api/main.py':
+    'from fastapi import FastAPI\nfrom worker.tasks import run\napp = FastAPI()\n\n@app.get("/items/{item_id}")\ndef get_item(item_id):\n    return run(item_id)\n',
+  'api/models.py': 'x = 1\n',
+  'api/util.py': 'y = 2\n',
+  'worker/tasks.py': 'def run(i):\n    return i\n',
+  'worker/__init__.py': '',
+  'worker/other.py': 'z = 3\n',
+  'web/package.json': JSON.stringify({ name: 'web', dependencies: { react: '18.0.0' } }),
+  'web/src/api.ts': 'import { base } from "./http";\nexport const getItem = () => fetch("/items/42");\n',
+  'web/src/http.ts': 'export const base = "";\n',
+  'web/src/App.tsx': 'import { getItem } from "./api";\nexport const App = () => { getItem(); return null; };\n',
+};
+
+test('pc8 the import and call edges between areas are listed with source and target file, on both sides', () => {
+  const { pre, slice } = sliceOf(makeRepo(LINKED));
+  assert.deepEqual(pre.areas.map((a) => a.id).sort(), ['api', 'web', 'worker']);
+  for (const a of pre.areas) assert.equal(a.extract, `extracts/${a.id}.json`, 'each area points at its extract file');
+
+  const api = slice('api');
+  assert.deepEqual(
+    api.links.filter((l) => l.kind === 'import'),
+    [{ kind: 'import', dir: 'out', from: 'api/main.py', to: 'worker/tasks.py', other: 'worker' }],
+  );
+  const worker = slice('worker');
+  assert.deepEqual(
+    worker.links.filter((l) => l.kind === 'import'),
+    [{ kind: 'import', dir: 'in', from: 'api/main.py', to: 'worker/tasks.py', other: 'api' }],
+  );
+
+  // the call edge: web fetches a path that an api route serves
+  const out = slice('web').links.filter((l) => l.kind === 'http');
+  assert.equal(out.length, 1, JSON.stringify(slice('web').links));
+  assert.deepEqual([out[0].dir, out[0].other, out[0].via], ['out', 'api', 'GET /items/{item_id}']);
+  assert.match(out[0].from, /^web\/src\/api\.ts:2$/);
+  assert.match(out[0].to, /^api\/main\.py:5(-\d+)?$/);
+  const inn = api.links.filter((l) => l.kind === 'http');
+  assert.deepEqual(inn.map((l) => [l.dir, l.other, l.from, l.to]), [['in', 'web', out[0].from, out[0].to]]);
+
+  // edges inside one area are listed too, but as plain "from > to" rows
+  assert.deepEqual(slice('web').imports, ['web/src/App.tsx > web/src/api.ts', 'web/src/api.ts > web/src/http.ts']);
+});
+
+test('pc9 the explorer brief plus the extract is under 12 K characters for every area of every fixture repo, and an oversized area is trimmed with counts', () => {
+  const brief = readFileSync(join(ROOT, 'agents', 'archmap-explorer.md'), 'utf8').length;
+  for (const name of ['python-api', 'node-api', 'ts-web']) {
+    const { pre, slice, work } = sliceOf(join(ROOT, 'tests', 'fixtures', 'repos', name));
+    for (const a of pre.areas) {
+      const size = readFileSync(join(work, 'extracts', `${a.id}.json`), 'utf8').length;
+      assert.ok(brief + size < 12000, `${name}/${a.id}: brief ${brief} + extract ${size} chars`);
+      assert.equal(slice(a.id).area, a.id);
+    }
+  }
+
+  const wide = { 'big/package.json': JSON.stringify({ name: 'big', dependencies: { express: '4.0.0' } }), 'big/a.js': 'x\n', 'big/b.js': 'x\n' };
+  const lines = ["const express = require('express');", 'const app = express();'];
+  for (let i = 0; i < 280; i++) lines.push(`app.get('/route-number-${String(i).padStart(3, '0')}/:id', handlerNumber${i});`);
+  wide['big/routes.js'] = lines.join('\n') + '\n';
+  for (const d of ['one', 'two']) for (let i = 0; i < 3; i++) wide[`${d}/f${i}.py`] = 'x = 1\n';
+  const { slice, pre } = sliceOf(makeRepo(wide));
+  const id = pre.areas.find((a) => a.globs.some((g) => g.startsWith('big/'))).id;
+  const s = slice(id);
+  assert.ok(JSON.stringify(s).length + brief < 12000, `trimmed slice is ${JSON.stringify(s).length} chars`);
+  assert.ok(s.routes.length > 0 && s.truncated.routes > 0, 'what the budget cut is counted in truncated');
+  assert.equal(s.routes.length + s.truncated.routes, 280);
 });

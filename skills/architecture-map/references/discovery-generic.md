@@ -1,9 +1,12 @@
 # Generic discovery recipe
 
 Use this for any stack prescan does not recognise (Go, Rust, Java, Ruby, PHP, a data platform, a mixed repo), and as the
-fallback inside a recognised stack for whatever its extractor skipped. Prescan (`scripts/prescan.mjs`) still gives you
-the stack-independent hints for every repo: `entryPoints`, `topLevelDirs`, `containers`, `ci`, `manifests`, and the
-`areas` and `sources` lists. Start from those; do not rediscover them.
+fallback inside a recognised stack for whatever its extractor skipped. Prescan (`scripts/prescan.mjs`) writes your
+area's extract, `<work>/extracts/<area>.json`: `entryPoints`, `manifests`, `containers` and `ci` for any repo, and for a
+recognised stack the `routes` (method, path, handler, file, line), `tables` with fields, `envKeys` (names, never values),
+`queues` with producers and consumers, `clients` (SDK constructors and base URLs), `httpCalls`, `imports` between the
+area's files and `links` to other areas (import, HTTP call to route, queue producer to consumer). A kind that is empty
+for your stack, or listed in `truncated`, is where the steps below apply. Start from the extract; do not rediscover it.
 
 ## Hard rules
 

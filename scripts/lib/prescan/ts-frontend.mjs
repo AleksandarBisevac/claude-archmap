@@ -1,11 +1,12 @@
 // ts-frontend.mjs - the ts-frontend stack plug-in of prescan: static, regex/lightweight-parse extraction.
 //
 // extractTsFrontend(files, read) -> fragment
-//   { scanned, routes[], stores[], apiCalls[], skipped{<kind>: n}, truncated{<kind>: n} }
+//   { scanned, routes[], stores[], apiCalls[], envKeys[], clients[], skipped{<kind>: n}, truncated{<kind>: n} }
 // routes   React Router (JSX <Route> and data-router objects), Next.js app/ and pages/ dirs (page files,
 //          route handlers, pages/api), React Navigation <X.Screen> entries
 // stores   Redux Toolkit slices, Zustand stores, RTK Query endpoints, React Query keys (useQuery/useMutation)
 // apiCalls fetch, axios (direct and axios.create instances) and RTK Query endpoints, with method and path
+// envKeys  environment variable names read (never values); clients SDK constructors and base URLs
 // Every item carries evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each
 // kind is capped, and what the cap drops is counted in `truncated`. A recognised shape whose arguments
 // cannot be resolved statically is counted in `skipped`, never guessed.
@@ -18,9 +19,9 @@
 // Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
-import { detectStacks } from './generic.mjs';
+import { detectStacks, scanClients, scanEnvKeys } from './generic.mjs';
 
-export const KINDS = ['apiCalls', 'routes', 'stores'];
+export const KINDS = ['apiCalls', 'clients', 'envKeys', 'routes', 'stores'];
 export const MAX_ITEMS = 300; // per kind
 const MAX_TEXT = 200; // longest name / path / url string kept
 const MAX_NAMES = 60; // longest list of action / state names kept
@@ -917,6 +918,8 @@ export function extractTsFrontend(files, read) {
     httpCalls(f, instances, acc);
   }
   nextRoutes(parsedByPath, files, read, acc);
+  acc.envKeys.push(...scanEnvKeys(files, read, 'js'));
+  acc.clients.push(...scanClients(files, read, 'js'));
 
   const truncated = {};
   const out = { scanned: parsed.length };

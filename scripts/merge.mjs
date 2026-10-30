@@ -5,13 +5,20 @@
 //        [--areas a,b] [--commit sha] [--project name] [--profile p] [--generated-at iso] [--repo-url url]
 //        [--strict] [--json]
 //
-// Fragments (<fragmentsDir>/*.json, one object per area, contract in
+// Fragments (<work>/fragments/*.json, written by the explorers; one object per area, contract in
 // skills/architecture-map/references/model-schema.md): nodes, edges, entities, access (and, tolerated,
 // relations and zones) are concatenated in area order. An element identical to one already present is
 // deduped; one that reuses an id with different content is renamed "<id>-<area>" (then -2, -3...) and every
 // reference inside that fragment is rewritten (edge from/to, entity store, fk targets, access node/entity,
 // relation endpoints). Access rows dedupe on node+entity with the ops unioned. Zones the nodes use but nobody
 // declared are created (kind from the zone id, else from its nodes' kinds, else "service").
+//
+// A fragment is never bounced back to its explorer. Before merging, each one is normalised (evidence lines given as a
+// number or "L12-L14", a string `level`, a missing `paths`, `confidence` or `level`, lowercase or unordered `ops`) and
+// truncated to the caps (40 nodes, 80 edges, 60 entities, 80 access rows; the first elements the explorer listed are
+// kept, and elements that would dangle on a dropped one go with it). What was fixed or dropped is recorded as a
+// meta.sources row of type "normalisation" or "truncation" that names the area and the counts. An unreadable fragment
+// file is recorded as skipped. None of this changes the exit code: merge exits 1 only for an invalid result.
 //
 // meta: schemaVersion, project, commit, profile and generatedAt come from the flags, else from --previous.
 // generatedAt is never invented (pass --generated-at; a missing value makes the result invalid). coverage[area]
@@ -84,6 +91,123 @@ function ownerTest(areas, coverage) {
 }
 
 // ---------------------------------------------------------------------------
+// normalise and truncate one fragment (never a reason to ask the explorer again)
+
+export const CAPS = { nodes: 40, edges: 80, entities: 60, access: 80 };
+const CAP_LABEL = { nodes: 'nodes', edges: 'edges', entities: 'entities', access: 'access rows' };
+
+function fixLines(v) {
+  if (Number.isInteger(v) && v >= 1) return String(v);
+  if (typeof v !== 'string') return v;
+  const t = v.trim().replace(/\s+/g, '');
+  const range = /^L?(\d+)[-–—:]L?(\d+)$/i.exec(t);
+  if (range) return range[1] === range[2] ? range[1] : `${range[1]}-${range[2]}`;
+  const one = /^L?(\d+)$/i.exec(t);
+  return one ? one[1] : v;
+}
+
+/** Evidence as an array of {path, lines}; `fixed.n` counts every value changed. */
+function fixEvidence(ev, fixed) {
+  if (ev === undefined) return ev;
+  const arr = Array.isArray(ev) ? ev : [ev];
+  if (!Array.isArray(ev)) fixed.n++;
+  return arr.map((e) => {
+    if (!isObj(e)) return e;
+    const out = { ...e };
+    if (out.lines === undefined && out.line !== undefined) {
+      out.lines = out.line;
+      delete out.line;
+      fixed.n++;
+    }
+    const lines = fixLines(out.lines);
+    if (lines !== out.lines) {
+      out.lines = lines;
+      fixed.n++;
+    }
+    return out;
+  });
+}
+
+const fixOps = (ops) => (typeof ops === 'string' ? [...OPS].filter((c) => ops.toUpperCase().includes(c)).join('') || ops : ops);
+
+function normaliseFragment(raw, area) {
+  const fixed = { n: 0 };
+  const f = clone(raw);
+  const nodes = list(f.nodes).filter(isObj).map((n) => {
+    if (n.evidence !== undefined) n.evidence = fixEvidence(n.evidence, fixed);
+    if (typeof n.level === 'string' && /^\d+$/.test(n.level.trim())) {
+      n.level = Number(n.level);
+      fixed.n++;
+    } else if (n.level === undefined) {
+      n.level = 2;
+      fixed.n++;
+    }
+    const path = list(n.evidence).find((e) => isObj(e) && typeof e.path === 'string')?.path;
+    if (!Array.isArray(n.paths) && path !== undefined) {
+      n.paths = [path];
+      fixed.n++;
+    }
+    return n;
+  });
+  const edges = list(f.edges).filter(isObj).map((e) => {
+    if (e.evidence !== undefined) e.evidence = fixEvidence(e.evidence, fixed);
+    if (e.confidence === undefined) {
+      e.confidence = 'inferred';
+      fixed.n++;
+    }
+    return e;
+  });
+  const entities = list(f.entities).filter(isObj).map((e) => {
+    if (e.evidence !== undefined) e.evidence = fixEvidence(e.evidence, fixed);
+    return e;
+  });
+  const access = list(f.access).filter(isObj).map((a) => {
+    if (a.evidence !== undefined) a.evidence = fixEvidence(a.evidence, fixed);
+    const ops = fixOps(a.ops);
+    if (ops !== a.ops) {
+      a.ops = ops;
+      fixed.n++;
+    }
+    return a;
+  });
+
+  // caps: the first elements the explorer listed are the ones kept
+  const dropped = {};
+  const drop = (kind, n) => {
+    if (n > 0) dropped[kind] = (dropped[kind] ?? 0) + n;
+  };
+  const cut = (kind, arr) => {
+    drop(kind, arr.length - CAPS[kind]);
+    return arr.slice(0, CAPS[kind]);
+  };
+  const keptNodes = cut('nodes', nodes);
+  const goneNodes = new Set(nodes.slice(CAPS.nodes).map((n) => n.id));
+  const liveEntities = entities.filter((e) => !goneNodes.has(e.store));
+  drop('entities', entities.length - liveEntities.length);
+  const keptEntities = cut('entities', liveEntities);
+  const goneEntities = new Set([...entities.filter((e) => !keptEntities.includes(e)).map((e) => e.id)]);
+  const liveEdges = edges.filter((e) => !goneNodes.has(e.from) && !goneNodes.has(e.to));
+  drop('edges', edges.length - liveEdges.length);
+  const keptEdges = cut('edges', liveEdges);
+  const liveAccess = access.filter((a) => !goneNodes.has(a.node) && !goneEntities.has(a.entity));
+  drop('access', access.length - liveAccess.length);
+  const keptAccess = cut('access', liveAccess);
+
+  const notes = [];
+  if (fixed.n > 0) notes.push({ area, type: 'normalisation', fixed: fixed.n, note: `area ${area}: ${fixed.n} fragment field(s) normalised (evidence lines, level, paths, confidence, ops)` });
+  if (Object.keys(dropped).length) {
+    const parts = Object.keys(CAPS).filter((k) => dropped[k]).map((k) => `${dropped[k]} ${CAP_LABEL[k]}`);
+    notes.push({
+      area,
+      type: 'truncation',
+      dropped,
+      note: `area ${area}: fragment over the caps (${Object.values(CAPS).join('/')} nodes/edges/entities/access rows); dropped ${parts.join(', ')}; split the area to see them`,
+    });
+  }
+  return { f: { ...f, nodes: keptNodes, edges: keptEdges, entities: keptEntities, access: keptAccess }, notes };
+}
+
+// ---------------------------------------------------------------------------
 // merge
 
 const OPS = 'CRUD';
@@ -128,9 +252,15 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
   const updateMode = prev !== null && affected !== null;
 
   // fragments in area order; in update mode only the affected areas
+  const fixNotes = [];
   const frags = fragments
     .map((f, i) => ({ f, area: typeof f?.area === 'string' && f.area ? f.area : `fragment${i}` }))
     .filter((x) => isObj(x.f) && (!updateMode || affected.has(x.area)))
+    .map((x) => {
+      const n = normaliseFragment(x.f, x.area);
+      fixNotes.push(...n.notes);
+      return { f: n.f, area: x.area };
+    })
     .sort((a, b) => cmp(a.area, b.area) || cmp(canon(a.f), canon(b.f)));
 
   // update mode: --areas and the fragment directory must name the same areas, or an area's elements vanish
@@ -290,6 +420,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     });
     for (const s of list(f.sources)) if (isObj(s)) sources.push({ ...clone(s), area });
   }
+  sources.push(...fixNotes);
 
   // --- user-authored fields of the nodes the affected areas owned
   for (const p of nodePart.gone) {
@@ -476,9 +607,17 @@ function main(argv) {
       .filter((f) => f.endsWith('.json'))
       .sort(cmp)
       .map((f) => {
-        const frag = readJson(join(o.dir, f), 'fragment');
-        if (!isObj(frag)) throw new UsageError(`fragment ${join(o.dir, f)} is not a JSON object`);
-        if (typeof frag.area !== 'string' || !frag.area) frag.area = f.replace(/\.json$/, '');
+        const stem = f.replace(/\.json$/, '');
+        let frag;
+        try {
+          frag = readJson(join(o.dir, f), 'fragment');
+          if (!isObj(frag)) throw new UsageError('not a JSON object');
+        } catch (e) {
+          if (!(e instanceof UsageError)) throw e;
+          // an explorer that wrote a broken file is not asked again: the area is recorded as skipped
+          return { area: stem, skipped: { count: 1, reasons: [`fragment ${f} unreadable: ${e.message.replace(/^.*?is not valid JSON: /, 'not valid JSON: ')}`.slice(0, 200)] } };
+        }
+        if (typeof frag.area !== 'string' || !frag.area) frag.area = stem;
         return frag;
       });
     const previous = o.previous === undefined ? undefined : readJson(o.previous, 'previous model');

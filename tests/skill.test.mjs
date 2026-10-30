@@ -143,3 +143,14 @@ test('s8 SKILL.md invokes staleness.mjs and issues.mjs (import-audit, merge, lin
   assert.deepEqual(lines.filter((l) => l.includes('export.mjs') && /not yet built/i.test(l)), [], 'export.mjs is not marked not yet built');
   assert.ok(lines.length <= 500, 'SKILL.md stays within 500 lines');
 });
+
+test('s9 SKILL.md has no re-ask path, states the three-line explorer reply and the fragment and extract paths, and stays within 500 lines', () => {
+  const lines = skill.split('\n');
+  assert.ok(lines.length <= 500, `SKILL.md has ${lines.length} lines`);
+  assert.deepEqual(lines.filter((l) => /re-?ask|re-?request|re-?dispatch/i.test(l)), [], 'no line sends an explorer back for another try');
+  assert.match(skill, /three lines/i, 'the explorer reply is three lines');
+  assert.match(skill, /<work>\/extracts\/<area>\.json/, 'the extract the explorer reads');
+  assert.match(skill, /<work>\/fragments\/<area>\.json/, 'the fragment the explorer writes');
+  assert.match(skill, /truncat/i, 'merge truncates instead of bouncing a fragment');
+  assert.equal(lines[2], 'description: Use to map or refresh the architecture of a code repository: which components or services exist, what calls what, what each reads or writes in databases, queues and external APIs, and how requests and background jobs flow. Trigger on requests for C4 or container diagrams, architecture or onboarding docs (including Confluence pages), mapping an inherited or multi-service monorepo, updating an existing architecture doc after code changes, and system-level checks such as auth boundaries, shared state or cross-service coupling. Output is evidence-cited with an offline HTML viewer. Do not use for explaining a single file, reviewing a PR, writing ADRs, API specs, slide decks or refactors. Also runs the commands /archmap:build, /archmap:update, /archmap:issues, /archmap:render and /archmap:check.', 'frontmatter description (line 3) is untouched');
+});

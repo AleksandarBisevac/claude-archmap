@@ -1,10 +1,11 @@
 // node-backend.mjs - the node-backend stack plug-in of prescan: static, regex/lightweight-parse extraction.
 //
 // extractNodeBackend(files, read) -> fragment
-//   { scanned, routes[], entities[], openapi[], queues[], skipped{<kind>: n}, truncated{<kind>: n} }
+//   { scanned, routes[], entities[], openapi[], queues[], envKeys[], clients[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (NestJS controllers, Express and Hono routers, with router mounts resolved), ORM entities
 // (Prisma models, TypeORM entities, Drizzle tables) with fields, PK/FK and relations, OpenAPI
-// documents (YAML or JSON) and BullMQ queues with their producers and workers. Every item carries
+// documents (YAML or JSON), BullMQ queues with their producers and workers, environment variables read
+// (names only) and SDK clients / base URLs. Every item carries
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind is
 // capped, and what the cap drops is counted in `truncated`. A recognised shape whose arguments
 // cannot be resolved statically (a computed path, a variable queue name) is counted in `skipped`,
@@ -15,9 +16,9 @@
 // prescan.mjs loads. Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
-import { detectStacks } from './generic.mjs';
+import { detectStacks, scanClients, scanEnvKeys } from './generic.mjs';
 
-export const KINDS = ['entities', 'openapi', 'queues', 'routes'];
+export const KINDS = ['clients', 'entities', 'envKeys', 'openapi', 'queues', 'routes'];
 export const MAX_ITEMS = 300; // per kind
 const MAX_FIELDS = 60; // per entity
 const MAX_NESTED = 100; // producers / workers per queue, operations per OpenAPI document
@@ -928,6 +929,8 @@ export function extractNodeBackend(files, read) {
     for (const p of prefixesOf(r.key, mounts)) acc.routes.push({ framework: r.framework, method: r.method, url: joinUrl(p, r.sub), handler: r.handler, evidence: r.ev });
   }
   extractQueues(ctx, acc);
+  acc.envKeys.push(...scanEnvKeys(sorted, read, 'js'));
+  acc.clients.push(...scanClients(sorted, read, 'js'));
 
   const truncated = {};
   const out = { scanned };

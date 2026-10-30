@@ -20,3 +20,6 @@ One realistic example of each pattern the Python extractor looks for:
 | Alembic migrations | `migrations/versions/` |
 | Raw SQL table names | `app/reports.py` |
 | Outbound HTTP calls | `app/clients.py` |
+| Environment variables and shared clients | `app/config.py` |
+| Celery tasks (consumers) | `app/tasks.py` |
+| Task producers and a cross-area import | `app/jobs.py` |

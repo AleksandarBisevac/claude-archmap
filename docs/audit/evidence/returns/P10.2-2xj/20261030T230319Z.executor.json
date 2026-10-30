@@ -1,0 +1,53 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/denylist.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-30T23:20:28Z",
+    "basis": "`node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Prescan: generic.mjs gained scanEnvKeys (names only), scanClients (SDK constructors, base URLs, env:NAME or URL targets, no secrets) and importEdges (Python suffix-indexed and relative imports, JS/TS relative, at-alias and workspace package resolution); python.mjs gained envKeys, clients and queues (Celery/shared_task/Dramatiq/RQ/pika producers and consumers grouped by queue); node-backend.mjs and ts-frontend.mjs gained envKeys and clients. prescan.mjs adds extracts.generic.imports, areas[].extract and writes extracts/<area>.json next to --out (or --extracts <dir>): routes {method,path,handler,file,line}, tables with compact field strings, schemas, migrations, sqlTables, openapi, envKeys, queues {producers,consumers}, clients, httpCalls, stores, imports, cross-area links (import, http call to route, queue) on both sides; trimmed to EXTRACT_BUDGET=5500 chars with truncated counts. Measured: largest fixture slice 3825 chars (python-api app) + explorer brief 5735 = 9560 < 12000. merge.mjs: normaliseFragment (evidence lines number/L12-L14/line, string or missing level, missing paths/confidence, ops order) and caps 40/80/60/80 keeping the first elements and dropping dependants of dropped nodes/entities; meta.sources rows type truncation (area, dropped counts, note) and normalisation; an unreadable fragment file is recorded as a skipped area (extra, beyond the brief, to honour no re-ask); never exits 1 for caps. archmap-explorer.md: tools add Write, effort low, 20 tool-call budget, reads its extract file, writes the fragment to the brief path, exactly three-line reply. SKILL.md (333 lines, line 3 untouched): re-ask path removed, paths-only dispatch, three-line reply, extracts, exit-1 wording, profile table; model-schema.md and discovery-generic.md updated. Fixtures added under the widened scope: python-api app/config.py, tasks.py, jobs.py, node-api src/config.ts, books/books.service.ts, both READMEs. Existing tests updated for new skipped/truncated keys (py7, nb6, ts6), agents a1/a2, pc6 out dir. Full suite: node --test 313 pass 0 fail; node --test tests/denylist.test.mjs 2 pass; new files staged. Dependants: the three plug-in stack shims and e2e still correct (default exports and old keys unchanged; e2e green); prescan-core/node/python/ts tests, agents, skill, merge tests changed as above; SKILL.md dependants commands/evals/skill tests green, skills-lock.json only names other skills; docs/design.md D11 and lines 81, 125, 165 still say explorer medium effort and returns JSON fragments - STALE, not in this task's files, needs a follow-up edit.",
+    "descriptive": "Explorers now start from a per-area extract file, write the fragment to disk and answer in three lines; merge truncates and normalises instead of re-asking."
+  },
+  "testsAdded": [
+    "py9/py10: env keys, Celery queues with producers and consumers, shared clients on the python fixture; prescan writes extracts/<area>.json per area",
+    "nb9/nb10: env keys, SDK clients, queue pairing on the node fixture; per-area extract slices",
+    "pc8/pc9: cross-area import and http call edges on both sides; brief plus extract under 12 K for every fixture area and an oversized area trimmed with counts",
+    "m12/m12b/m12c/m12d: over-cap truncation note, fragment missing optional fields, normalisation, unreadable fragment",
+    "a5: explorer budget, write path, three-line reply, Write tool, low effort",
+    "s9: no re-ask, three-line reply, extract and fragment paths, 500 lines, description line intact"
+  ],
+  "casesAdded": [
+    [
+      "py9",
+      "py10"
+    ],
+    [
+      "nb9",
+      "nb10"
+    ],
+    [
+      "pc8",
+      "pc9"
+    ],
+    [
+      "m12",
+      "m12b",
+      "m12c",
+      "m12d"
+    ],
+    [
+      "a5"
+    ],
+    [
+      "s9"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:9dba01cc7de04624ea53b6aaf9c6eadfac96ea43fd5962a6c3b3abb197112fd0\",\"dirtyDigest\":\"sha256:8d9a795af862966e4ba2b7b0b443d7d2f6e0f131a3ee4c6e94f0870348b63d2f\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"b2dd975a0008b21e\",\"scripts/lib/prescan/generic.mjs\":\"831be5920dd70c7e\",\"scripts/lib/prescan/node-backend.mjs\":\"84f858c3c3c8c63f\",\"scripts/lib/prescan/python.mjs\":\"e285374733ab2cbb\",\"scripts/lib/prescan/ts-frontend.mjs\":\"47468c9bfa8f43df\",\"scripts/merge.mjs\":\"fae1d14484154143\",\"scripts/prescan.mjs\":\"700b93a33058af3b\",\"skills/architecture-map/SKILL.md\":\"130b5b4b72dd6e91\",\"skills/architecture-map/references/discovery-generic.md\":\"4600788829e8aa40\",\"skills/architecture-map/references/model-schema.md\":\"738849ff0deb868c\",\"tests/agents.test.mjs\":\"58a798cb9cfd37f0\",\"tests/fixtures/repos/node-api/README.md\":\"bc3c1b4378c6d1c2\",\"tests/fixtures/repos/python-api/README.md\":\"7e934faee0271db4\",\"tests/merge.test.mjs\":\"e67beeb3e9a31032\",\"tests/prescan-core.test.mjs\":\"4330a6df57a1c686\",\"tests/prescan-node-backend.test.mjs\":\"8847f29e24e9a536\",\"tests/prescan-python.test.mjs\":\"8b47f95ccb782c4c\",\"tests/prescan-ts-frontend.test.mjs\":\"429b272d4c668b23\",\"tests/skill.test.mjs\":\"19eaf90d115c791e\"},\"head\":\"2b23e1a\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"scripts/lib/prescan/generic.mjs\",\"scripts/lib/prescan/inventory.mjs\",\"scripts/lib/prescan/node-backend.mjs\",\"scripts/lib/prescan/partition.mjs\",\"scripts/lib/prescan/python.mjs\",\"scripts/lib/prescan/ts-frontend.mjs\",\"scripts/merge.mjs\",\"scripts/prescan.mjs\",\"skills/architecture-map/SKILL.md\",\"skills/architecture-map/references/discovery-generic.md\",\"skills/architecture-map/references/model-schema.md\",\"tests/agents.test.mjs\",\"tests/fixtures/repos/node-api/README.md\",\"tests/fixtures/repos/node-api/src/books/books.service.ts\",\"tests/fixtures/repos/node-api/src/config.ts\",\"tests/fixtures/repos/python-api/README.md\",\"tests/fixtures/repos/python-api/app/config.py\",\"tests/fixtures/repos/python-api/app/jobs.py\",\"tests/fixtures/repos/python-api/app/tasks.py\",\"tests/merge.test.mjs\",\"tests/prescan-core.test.mjs\",\"tests/prescan-node-backend.test.mjs\",\"tests/prescan-python.test.mjs\",\"tests/prescan-ts-frontend.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:18d8074bab34af14170574d8ea09b714ca339c13ad10160468abd550bd6c1415\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

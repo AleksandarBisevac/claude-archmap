@@ -20,6 +20,8 @@ One realistic example of each pattern the Node backend extractor looks for:
 | Drizzle tables and relations | `src/db/schema.ts` |
 | OpenAPI document | `openapi.yaml` |
 | BullMQ queue, producer and worker | `src/queues/` |
+| Environment variables and SDK clients | `src/config.ts` |
+| A service that imports the config and a queue producer | `src/books/books.service.ts` |
 
 The Express, Hono and NestJS apps sit side by side only so one fixture covers all three; a real project would
 pick one. The unresolvable names in `src/books/books.controller.ts`, `src/express/orders.router.ts`,

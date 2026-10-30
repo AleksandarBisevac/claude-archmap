@@ -413,3 +413,96 @@ test('m11 unknown top-level keys and unknown meta keys in --previous are carried
   // a fresh build (no previous) has nothing to carry
   assert.equal('alpha' in built().model, false);
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.2: fragments are read from <work>/fragments/ and normalised or truncated, never re-asked.
+
+const runDir = (frags, extra = []) => {
+  const work = tmp();
+  const dir = join(work, 'fragments');
+  mkdirSync(dir);
+  for (const [name, body] of Object.entries(frags)) writeFileSync(join(dir, `${name}.json`), JSON.stringify(body));
+  const out = join(work, 'model.json');
+  const r = cli([dir, '--out', out, '--commit', 'c1', '--project', 'p', '--generated-at', '2026-01-01T00:00:00Z', ...extra]);
+  return { r, out, model: existsSync(out) ? readJson(out) : null };
+};
+const pad = (n, w = 2) => String(n).padStart(w, '0');
+
+test('m12 an over-cap fragment is truncated to the caps with a meta.sources note naming the area and the count dropped; exit stays 0', () => {
+  const nodes = Array.from({ length: 45 }, (_, i) => node(`n${pad(i)}`, { zone: 'z' }));
+  const edge = (id, to) => ({ id, from: 'n00', to, type: 'call', desc: 'd', evidence: ev('x/a.js'), confidence: 'verified' });
+  const edges = [...Array.from({ length: 90 }, (_, i) => edge(`e${pad(i)}`, 'n01')), ...['n44', 'n43', 'n42'].map((t, i) => edge(`z${i}`, t))];
+  const entities = Array.from({ length: 65 }, (_, i) => ({
+    id: `t${pad(i)}`, store: 'n00', name: `t${pad(i)}`, kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }],
+  }));
+  const access = [
+    ...Array.from({ length: 85 }, (_, i) => ({ node: `n${pad(i % 40)}`, entity: `t${pad(Math.floor(i / 40))}`, ops: 'R', evidence: ev('x/a.js') })),
+    { node: 'n00', entity: 't64', ops: 'R', evidence: ev('x/a.js') },
+    { node: 'n01', entity: 't64', ops: 'R', evidence: ev('x/a.js') },
+  ];
+  const { r, model } = runDir({ big: frag('big', { nodes, edges, entities, access }) }, ['--strict']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(model.nodes.length, 40, 'nodes cut to 40');
+  assert.deepEqual(ids(model.nodes), nodes.slice(0, 40).map((n) => n.id), 'the first nodes in the explorer order are the ones kept');
+  assert.equal(model.edges.length, 80);
+  assert.equal(model.entities.length, 60);
+  assert.equal(model.access.length, 80);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const note = model.meta.sources.find((s) => s.area === 'big' && s.type === 'truncation');
+  assert.ok(note, JSON.stringify(model.meta.sources));
+  // edges: 3 hang on dropped nodes, then 90 are cut to 80; access: 2 hang on a dropped entity, then 85 cut to 80
+  assert.deepEqual(note.dropped, { access: 7, edges: 13, entities: 5, nodes: 5 });
+  assert.match(note.note, /big/);
+  assert.match(note.note, /5 nodes/);
+  assert.match(note.note, /13 edges/);
+  assert.equal(model.meta.sources.filter((s) => s.area === 'big' && s.type === 'explorer').length, 1, 'the usual explorer row is still there');
+});
+
+test('m12b a fragment missing every optional field (coverage, skipped, edges, entities, access, area, node level and paths) still merges', () => {
+  const bare = { id: 'solo', zone: 'z', kind: 'service', title: 'solo', evidence: ev('x/solo.js') };
+  const lean = { nodes: [bare] };
+  const { r, model } = runDir({ lean });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(ids(model.nodes), ['solo']);
+  assert.deepEqual([model.nodes[0].level, model.nodes[0].paths], [2, ['x/solo.js']], 'level and paths get defaults');
+  assert.deepEqual(model.meta.coverage, { lean: [] });
+  const row = model.meta.sources.find((s) => s.area === 'lean' && s.type === 'explorer');
+  assert.deepEqual(row.skipped, { count: 0, reasons: [] });
+  assert.ok(!model.meta.sources.some((s) => s.type === 'truncation'), 'nothing was cut, so no truncation note');
+  assert.equal(merge({ fragments: [{ area: 'a' }], meta: META }).model.nodes.length, 0, 'an empty fragment is not an error');
+});
+
+test('m12c the usual explorer slips (numeric lines, string level, no paths, no confidence, lowercase ops) are normalised and counted', () => {
+  const messy = {
+    area: 'messy',
+    nodes: [{ id: 'a', zone: 'z', kind: 'service', title: 'A', level: '2', evidence: [{ path: 'x/a.js', lines: 7 }] }],
+    edges: [{ id: 'e1', from: 'a', to: 'a', type: 'call', desc: 'self', evidence: [{ path: 'x/a.js', lines: 'L3-L5' }] }],
+    entities: [{ id: 't', store: 'a', name: 't', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }] }],
+    access: [{ node: 'a', entity: 't', ops: 'ur', evidence: { path: 'x/a.js', lines: '9' } }],
+    coverage: ['x/**'],
+  };
+  const { r, model } = runDir({ messy });
+  assert.equal(r.status, 0, r.stderr);
+  const n = model.nodes[0];
+  assert.deepEqual([n.level, n.paths, n.evidence], [2, ['x/a.js'], [{ path: 'x/a.js', lines: '7' }]]);
+  assert.deepEqual([model.edges[0].confidence, model.edges[0].evidence], ['inferred', [{ path: 'x/a.js', lines: '3-5' }]]);
+  assert.deepEqual([model.access[0].ops, model.access[0].evidence], ['RU', [{ path: 'x/a.js', lines: '9' }]]);
+  const note = model.meta.sources.find((s) => s.area === 'messy' && s.type === 'normalisation');
+  assert.ok(note && note.fixed >= 5, JSON.stringify(model.meta.sources));
+});
+
+test('m12d a fragment file that is not valid JSON is recorded as a skipped area, not a reason to stop or to ask again', () => {
+  const work = tmp();
+  const dir = join(work, 'fragments');
+  mkdirSync(dir);
+  writeFileSync(join(dir, 'good.json'), JSON.stringify(frag('good', { nodes: [node('g', { zone: 'z' })], coverage: ['good/**'] })));
+  writeFileSync(join(dir, 'broken.json'), '{"area": "broken", "nodes": [');
+  const out = join(work, 'model.json');
+  const r = cli([dir, '--out', out, '--commit', 'c1', '--project', 'p', '--generated-at', '2026-01-01T00:00:00Z']);
+  assert.equal(r.status, 0, r.stderr);
+  const model = readJson(out);
+  assert.deepEqual(ids(model.nodes), ['g']);
+  const row = model.meta.sources.find((s) => s.area === 'broken');
+  assert.equal(row.skipped.count, 1);
+  assert.match(row.skipped.reasons[0], /broken\.json unreadable/);
+});

@@ -1,10 +1,12 @@
 // python.mjs - the python stack plug-in of prescan: static, regex/lightweight-parse extraction.
 //
 // extractPython(files, read) -> fragment
-//   { scanned, routes[], entities[], schemas[], migrations[], sqlTables[], httpCalls[],
-//     skipped{<kind>: n}, truncated{<kind>: n} }
+//   { scanned, routes[], entities[], schemas[], migrations[], sqlTables[], httpCalls[], envKeys[],
+//     clients[], queues[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (FastAPI/Flask decorators, Django urls), SQLAlchemy/Django entities with fields, Pydantic
-// schemas, Alembic migration ops, raw SQL table names and outbound HTTP calls. Every item carries
+// schemas, Alembic migration ops, raw SQL table names, outbound HTTP calls, environment variables
+// read (names only), SDK clients and base URLs, and task queues (Celery, Dramatiq, RQ, pika) with
+// their producers and consumers. Every item carries
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind is
 // capped, and what the cap drops is counted in `truncated`. A recognised shape whose arguments
 // cannot be resolved statically is counted in `skipped`, never guessed.
@@ -14,8 +16,9 @@
 // prescan.mjs loads. Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
+import { scanClients, scanEnvKeys } from './generic.mjs';
 
-export const KINDS = ['entities', 'httpCalls', 'migrations', 'routes', 'schemas', 'sqlTables'];
+export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables'];
 export const MAX_ITEMS = 300; // per kind
 const MAX_FIELDS = 60; // per entity, schema or migration op
 const MAX_TEXT = 200; // longest type / path / url string kept
@@ -656,6 +659,122 @@ function extractHttp(f, acc) {
 
 const lineNo = (item) => Number(item.evidence[0].lines.split('-')[0]);
 
+// ---------------------------------------------------------------------------------------------
+// Task queues. Consumers: Celery / Dramatiq task decorators, rq Worker(...), pika basic_consume.
+// Producers: <task>.delay / .apply_async / .send / .s, send_task("name"), rq Queue(...).enqueue(fn),
+// pika basic_publish. Rows are grouped by queue name: {name, producers[], workers[], evidence}.
+
+const DEFAULT_QUEUE = { task: 'celery', shared_task: 'celery', actor: 'default' };
+
+function extractQueues(parsed, acc) {
+  const queues = new Map();
+  const queue = (name) => {
+    if (!queues.has(name)) queues.set(name, { name, producers: [], workers: [] });
+    return queues.get(name);
+  };
+  const lit = (f, args, name) => {
+    const p = kwArg(f, args, name);
+    return p ? resolveArg(f, p) : null;
+  };
+  const tasks = new Map(); // task function name -> queue
+
+  for (const f of parsed) {
+    const m = f.masked;
+    for (const d of m.matchAll(/^[ \t]*@((?:[A-Za-z_]\w*\.)*(task|actor|shared_task))\b[ \t]*(\()?/gm)) {
+      let end = d.index + d[0].length;
+      let q = DEFAULT_QUEUE[d[2]];
+      if (d[3]) {
+        const call = callArgs(f, end - 1);
+        if (!call) {
+          acc.skipped.queues++;
+          continue;
+        }
+        q = lit(f, call.args, 'queue') ?? lit(f, call.args, 'queue_name') ?? q;
+        end = call.close + 1;
+      }
+      const def = /(?:[ \t]*(?:\n|\r\n)[ \t]*(?:@[^\n]*(?:\n|\r\n)[ \t]*)*)(?:async[ \t]+)?def[ \t]+(\w+)/y;
+      def.lastIndex = end;
+      const h = def.exec(m);
+      if (!h) {
+        acc.skipped.queues++;
+        continue;
+      }
+      tasks.set(h[1], q);
+      queue(q).workers.push({ handler: h[1], evidence: evidence(f, d.index + d[0].indexOf('@'), h.index + h[0].length) });
+    }
+  }
+
+  for (const f of parsed) {
+    const m = f.masked;
+    for (const c of m.matchAll(/(?<![\w])(?:[A-Za-z_]\w*\.)*([A-Za-z_]\w*)\.(delay|apply_async|send|send_with_options|s|si|signature)[ \t]*\(/g)) {
+      if (!tasks.has(c[1])) continue;
+      const call = callArgs(f, c.index + c[0].length - 1);
+      const q = (call && c[2] === 'apply_async' && lit(f, call.args, 'queue')) || tasks.get(c[1]);
+      queue(q).producers.push({ job: c[1], evidence: evidence(f, c.index, c.index + c[0].length) });
+    }
+    for (const c of m.matchAll(/\.send_task[ \t]*\(/g)) {
+      const call = callArgs(f, c.index + c[0].length - 1);
+      const first = call && call.args.find((p) => isPositional(f, p));
+      const job = first ? resolveArg(f, first) : null;
+      if (job === null) {
+        acc.skipped.queues++;
+        continue;
+      }
+      queue(lit(f, call.args, 'queue') ?? 'celery').producers.push({ job, evidence: evidence(f, c.index, c.index + c[0].length) });
+    }
+    if (/\brq\b/.test(m)) {
+      const vars = new Map();
+      for (const v of m.matchAll(/^[ \t]*([A-Za-z_]\w*)[ \t]*=[ \t]*(?:\w+\.)?Queue[ \t]*\(/gm)) {
+        const call = callArgs(f, v.index + v[0].length - 1);
+        const first = call && call.args.find((p) => isPositional(f, p));
+        vars.set(v[1], first ? resolveArg(f, first) ?? lit(f, call.args, 'name') : 'default');
+      }
+      for (const e of m.matchAll(/(?<![\w.])([A-Za-z_]\w*)\.enqueue[ \t]*\(\s*([A-Za-z_][\w.]*)/g)) {
+        if (!vars.has(e[1]) || vars.get(e[1]) === null) continue;
+        queue(vars.get(e[1])).producers.push({ job: e[2].slice(e[2].lastIndexOf('.') + 1), evidence: evidence(f, e.index, e.index + e[0].length) });
+      }
+      for (const w of m.matchAll(/(?<![\w.])Worker[ \t]*\(\s*\[([^\]]*)\]/g)) {
+        const a = w.index + w[0].indexOf('[') + 1;
+        for (const s of f.strings.filter((x) => x.start >= a && x.end <= a + w[1].length)) {
+          queue(s.value).workers.push({ handler: null, evidence: evidence(f, w.index, w.index + w[0].length) });
+        }
+      }
+    }
+    for (const c of m.matchAll(/\.basic_(publish|consume)[ \t]*\(/g)) {
+      const call = callArgs(f, c.index + c[0].length - 1);
+      if (!call) continue;
+      const name = lit(f, call.args, c[1] === 'publish' ? 'routing_key' : 'queue');
+      if (name === null) {
+        acc.skipped.queues++;
+        continue;
+      }
+      const ev = evidence(f, c.index, call.close + 1);
+      if (c[1] === 'publish') queue(name).producers.push({ job: null, evidence: ev });
+      else {
+        const cb = kwArg(f, call.args, 'on_message_callback');
+        queue(name).workers.push({ handler: cb ? f.src.slice(cb.a, cb.b).trim() : null, evidence: ev });
+      }
+    }
+  }
+
+  const sortRows = (rows) => {
+    const seen = new Set();
+    return rows
+      .filter((r) => {
+        const k = JSON.stringify(r);
+        return seen.has(k) ? false : seen.add(k);
+      })
+      .sort((a, b) => byCodeUnit(a.evidence[0].path, b.evidence[0].path) || lineNo(a) - lineNo(b));
+  };
+  for (const q of queues.values()) {
+    q.producers = sortRows(q.producers);
+    q.workers = sortRows(q.workers);
+    q.evidence = (q.workers[0] ?? q.producers[0]).evidence;
+    acc.queues.push(q);
+  }
+}
+
+
 /** Extract the python fragment from `files` (repo-relative paths), reading them through `read`. */
 export function extractPython(files, read) {
   const acc = { skipped: Object.fromEntries(KINDS.map((k) => [k, 0])) };
@@ -673,6 +792,10 @@ export function extractPython(files, read) {
     extractHttp(f, acc);
   }
   extractEntitiesAndSchemas(parsed, acc);
+  extractQueues(parsed, acc);
+  const pyFiles = files.filter((p) => /\.py$/.test(p));
+  acc.envKeys.push(...scanEnvKeys(pyFiles, read, 'py'));
+  acc.clients.push(...scanClients(pyFiles, read, 'py'));
 
   const truncated = {};
   const out = { scanned: parsed.length };

@@ -4592,10 +4592,16 @@
           "verifiedBy": [],
           "reviewPerTask": "phase",
           "testEvidence": {
-            "runId": "2026-10-30T23:03:12Z.77cb92",
+            "runId": "2026-10-30T23:03:48Z.6ef793",
             "status": "passed",
-            "at": "2026-10-30T23:03:12Z"
-          }
+            "at": "2026-10-30T23:03:48Z"
+          },
+          "notes": [
+            {
+              "at": "2026-10-30T23:04:51Z",
+              "text": "Work is committed as bac07c4 (denylist-clean amend of 0b5d5a2, which had carried a client term in one trigger query; amended before any push, old object unreachable). The task was reopened to allow the amend and could not be re-closed because HEAD had moved to the P10 branch (P10 stacks on P8). When P8 resumes on its own branch: start P8.6 --force, run the gate, done --commit bac07c4."
+            }
+          ]
         }
       ],
       "area": "evals",
@@ -5116,7 +5122,7 @@
         {
           "id": "P10.1-2xj",
           "title": "Honest cost accounting: offline profiler and a ledger that states what it cannot see",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add scripts/cost-profile.mjs: given one or more Claude Code stream-json transcripts (the `claude -p --output-format stream-json --verbose` output; also the session .jsonl under <outside-repo>), it prints a table of input, output, cache-read and cache-write tokens per model and per agent (orchestrator, archmap-explorer, archmap-synthesizer, archmap-reviewer, matched from the Agent tool calls and their subagent_type), the number of assistant turns and the median and maximum context size per agent, and a list-price cost per row from a rate table embedded in the script with its date (Opus, Sonnet, Haiku, Fable); exit 0, `--json` for the machine form. The totals must equal the sum of the transcript's result events' modelUsage, which is what the P8 harness used, and the script runs offline on a fixture. Then make scripts/usage.mjs honest: a row may carry --input, --output, --cache-read and --cache-write beside --tokens, the print shows the classes it has and states in one line that agent rows record what the completion notification reported and that the orchestrator's own context is not in the table; add `usage.mjs estimate` that, given the number of orchestrator turns and the context size, prints the cache-read estimate the ledger cannot observe. SKILL.md section 9 and the final report say the same in two sentences. Fixtures are synthetic (tests/fixtures/cost/), with no client path or name.",
           "files": [
             "scripts/cost-profile.mjs",
@@ -5146,25 +5152,39 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2b23e1a49081",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/cost-profile.mjs (offline; per-model and per-agent input/output/cache-read/cache-write, unique-message-id turns, median/max context, list-price cost from an embedded rate table dated 2026-10-30, unpriced models give null cost, --json, exit 2 on unreadable/malformed input, reconciles totals against the LAST result event's modelUsage since it is cumulative). Extended scripts/usage.mjs: --input/--output/--cache-read/--cache-write beside --tokens (all four with no --tokens sum into tokens; mismatch rejected; partial classes never invent a total), classes shown in print and in --json only when a row carries them (existing key order untouched), one-line note about completion notifications and orchestrator context, new `estimate --turns --context [--json]`. SKILL.md section 9 and Final report each say the same in two sentences. Synthetic fixture tests/fixtures/cost/stream-sample.jsonl (18 lines, 4 agents, 3 models, a repeated message id, two cumulative result events) plus expected.json. Tests: tests/cost-profile.test.mjs c1-c12, tests/usage.test.mjs u7-u11. Own tests: 23 pass, 0 fail (node --test tests/cost-profile.test.mjs tests/usage.test.mjs, exit 0). Initial red before implementation: 15 of 23 failed (all new behaviour cases; c2 and c12 pass as they test the fixture only). Full `node --test`: 301 tests, 300 pass, 1 fail d1 (denylist hit in skills/architecture-map/evals/trigger-evals.json term #3), a file outside my scope that I did not touch. Dependants: tests/e2e.test.mjs, tests/skill.test.mjs, tests/commands.test.mjs, tests/evals.test.mjs still pass; docs/design.md D11 still correct (ledger semantics extended, nothing removed). Plan gate allowed the SKILL.md edit (P10.4-2xj declared file) and usage.mjs edits. No other file touched.",
+            "descriptive": "Token and cost per model and agent can now be measured offline from a transcript, and the usage ledger states what it cannot see and estimates the orchestrator cache-read cost."
           },
           "startedAt": "2026-10-30T22:56:20Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-30T23:03:19Z",
+          "verifiedBy": [
+            "cost-profile c1-c12: reconciliation with last result modelUsage, expected.json match, agent rows, turns/median/max context, class sums, --json shape and rate table, text table, unpriced model, multiple files, exit 2 cases, synthetic fixture",
+            "usage u7-u11: four classes beside tokens, completion-notification note, estimate, unknown never 0, class-sum rules"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-30T23:03:18Z.a39d91",
             "status": "passed",
             "at": "2026-10-30T23:03:18Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2b23e1a49081",
+            "at": "2026-10-30T23:03:19Z"
+          },
+          "redFirst": {
+            "at": "2026-10-30T23:00:09Z",
+            "basis": "`node --test tests/cost-profile.test.mjs tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.2-2xj",
           "title": "Explorer diet: richer prescan extracts, hard fragment caps, no re-asks",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Move work from the Sonnet explorers into prescan.mjs and merge.mjs. Prescan extracts per area must already carry what explorers currently rediscover with Grep: entry points, HTTP routes with method, path, handler file and line (Python and Node backends, Next and React routes), import and call edges between the area's files and other areas, declared ORM or schema tables with their fields, environment variables and config keys read, queue producers and consumers, external clients (HTTP base URLs, SDK constructors); the per-area slice is written as one file per area, <work>/extracts/<area>.json, so the orchestrator never slices JSON by hand. The explorer brief (agents/archmap-explorer.md and SKILL.md step 2) becomes: here is the extract, confirm or correct it, add what prescan cannot see, write ONE JSON fragment under the caps to the fragment path named in the brief (<work>/fragments/<area>.json; the explorer's tool list gains Write for that one path), and reply with exactly three lines: the fragment path, the counts of nodes, edges, entities and access rows, and the number of tool calls spent. The reply never contains the fragment, prose or thinking-out-loud, so the orchestrating session's context never holds a fragment (measured 2026-10-30: the eight fragment replies took the orchestrator from 75 K to 173 K of context and every later turn paid for them). The brief states a fixed budget of tool calls; the explorer's frontmatter effort drops to low for balanced. merge.mjs reads the fragments from <work>/fragments/ and accepts fragments that are over the caps or missing optional fields by truncating with a recorded `meta.sources` note instead of the orchestrator re-asking; the re-ask path in SKILL.md is removed (eval 4 spent about 15 orchestrator turns and 5 explorer re-asks on it). Measure on the e2e fixture repos that the explorer brief plus extract is under 12 K characters per area.",
           "files": [
             "scripts/prescan.mjs",
@@ -5185,7 +5205,14 @@
             "tests/prescan-ts-frontend.test.mjs",
             "tests/merge.test.mjs",
             "tests/agents.test.mjs",
-            "tests/skill.test.mjs"
+            "tests/skill.test.mjs",
+            "tests/fixtures/repos/python-api/app/config.py",
+            "tests/fixtures/repos/python-api/app/tasks.py",
+            "tests/fixtures/repos/python-api/app/jobs.py",
+            "tests/fixtures/repos/python-api/README.md",
+            "tests/fixtures/repos/node-api/src/config.ts",
+            "tests/fixtures/repos/node-api/src/books/books.service.ts",
+            "tests/fixtures/repos/node-api/README.md"
           ],
           "tests": {
             "mode": "tdd",
@@ -5210,16 +5237,22 @@
           "dependsOn": [
             "P10.1-2xj"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-30T23:03:19Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-30T23:20:48Z.706739",
+            "status": "passed",
+            "at": "2026-10-30T23:20:48Z"
+          }
         },
         {
           "id": "P10.3-2xj",
@@ -5486,7 +5519,8 @@
       "P10.2-2xj"
     ],
     "tests/fixtures/repos/python-api/README.md": [
-      "P3.2"
+      "P3.2",
+      "P10.2-2xj"
     ],
     "tests/prescan-python.test.mjs": [
       "P3.2",
@@ -5508,7 +5542,8 @@
       "P10.2-2xj"
     ],
     "tests/fixtures/repos/node-api/README.md": [
-      "P3.4"
+      "P3.4",
+      "P10.2-2xj"
     ],
     "tests/prescan-node-backend.test.mjs": [
       "P3.4",
@@ -5957,6 +5992,21 @@
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
+    ],
+    "tests/fixtures/repos/python-api/app/config.py": [
+      "P10.2-2xj"
+    ],
+    "tests/fixtures/repos/python-api/app/tasks.py": [
+      "P10.2-2xj"
+    ],
+    "tests/fixtures/repos/python-api/app/jobs.py": [
+      "P10.2-2xj"
+    ],
+    "tests/fixtures/repos/node-api/src/config.ts": [
+      "P10.2-2xj"
+    ],
+    "tests/fixtures/repos/node-api/src/books/books.service.ts": [
+      "P10.2-2xj"
     ]
   },
   "bugs": [

@@ -14,8 +14,9 @@ npm dependencies. Run them from the analysed project's root so relative paths st
 
 ## Hard rules
 
-1. **Only the orchestrator writes the model.** Agents have no write tools for it and return JSON; scripts write HTML,
-   layout and issues files. Model + renderer: the model is the single source of truth (D1).
+1. **Only the orchestrator writes the model.** Agents never write it: the synthesizer and reviewer return JSON, an
+   explorer writes only its own fragment file; scripts write HTML, layout and issues files. Model + renderer: the
+   model is the single source of truth (D1).
 2. **Nothing without evidence.** Every node and edge carries a non-empty `evidence` of `{path, lines}`. An element that
    cannot cite a file and lines is left out and tallied in `skipped`. See [Evidence](#evidence-rules).
 3. **Never execute the code you map.** Read it as text. Do not import, build, start, test or migrate the project, and
@@ -48,13 +49,14 @@ Read a reference at the step named, not up front. Detail lives there; this file 
 
 | Agent | Default model | Reads | Returns |
 |---|---|---|---|
-| `archmap-explorer` | Sonnet, medium effort | One area's prescan slice plus excerpts (Grep, line ranges) | One size-capped JSON fragment, nothing else |
+| `archmap-explorer` | Sonnet, low effort | One area's extract file plus excerpts (Grep, line ranges) | Writes one size-capped fragment file; replies with three lines |
 | `archmap-synthesizer` | Opus, high effort | Fragments and the merged model; targeted reads only | One JSON object (no write tools): cross-area `edges`, 3-7 `sequences`, `access`, `relations`, `views`, `notes`, `conflicts` |
 | `archmap-reviewer` | Opus, high effort | The model and the issues catalogue; targeted reads only | One JSON object (no write tools): `issues`, optional `import`, `unreviewed`; you write it as `issues.json` |
 
 Dispatch each with the `Agent` tool and pass the `model` override the chosen profile requires (see
-[Token rules](#token-rules)). Give an agent exactly what it needs: its area, the relevant prescan slice and extract, the
-names of the references to read, and the fragment contract. Never paste whole files into a prompt.
+[Token rules](#token-rules)). Give an agent exactly what it needs: its area and, for an explorer, the paths of its extract
+and fragment files; for the others, the path of the model or fragments. Name the references to read. Never paste whole
+files, extracts or fragments into a prompt.
 
 ## Output locations
 
@@ -75,7 +77,8 @@ an issues-bearing HTML inside the analysed repo.
 
 Triggered by `/archmap:build [--issues] [--profile p] [--db dsn] [--scope path] [--publish]`. Work in a scratch
 directory (for example `.archmap-work/` outside version control, or the session scratchpad) for prescan output and
-fragments; only the artifacts in the table above land in `docs/architecture/`.
+fragments; only the artifacts in the table above land in `docs/architecture/`. Your own context never holds a
+fragment, an extract or the model: you pass paths and read three-line replies and script output.
 
 ### 1. Prescan (0 tokens)
 
@@ -84,23 +87,28 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/prescan.mjs" . --out <work>/prescan.json
 ```
 
 Add `--scope <path>` when the user limits the run to a subtree. Exit 0 is ok; exit 2 is a usage error or an unreadable
-repo: stop and report the message. Read the JSON's `stacks`, `areas`, `sources` and `extracts`. Never `cat` the whole
-file into a prompt if it is large; slice it per area.
+repo: stop and report the message. Besides `prescan.json` it writes one slice per area to `<work>/extracts/<area>.json`
+(routes with method, path, handler, file and line; tables with fields; env keys; queue producers and consumers; clients;
+imports and cross-area links). Do not `cat` `prescan.json` or an extract: read only the `stacks` and `areas` (`id`,
+`title`, `globs`, `files`, `stacks`) of `prescan.json`, for example with `node -e`.
 
-Partition the repo into at most **8 areas**. Start from the prescan `areas`; merge small neighbours and split huge ones
-until there are 8 or fewer, each owning a disjoint set of globs. Tell the user the partition in one short list before
-dispatching.
+The partition is the prescan `areas`: at most **8**, each owning a disjoint set of globs and each with its extract. Tell
+the user the partition in one short list before dispatching.
 
 ### 2. Explorers, in parallel
 
-Dispatch one `archmap-explorer` per area in a single message so they run concurrently. Each prompt carries: the area
-name and globs, that area's slice of `areas` and `extracts`, the stack reference(s) to read (from the table above, or
-[discovery-generic.md](references/discovery-generic.md)), and the instruction to follow the explorer fragment contract in
-[model-schema.md](references/model-schema.md). Apply the profile's `model` override.
+Create `<work>/fragments/`, then dispatch one `archmap-explorer` per area in a single message so they run
+concurrently. Each prompt is a few lines of paths and names, no JSON: the area name and globs, the extract path
+`<work>/extracts/<area>.json`, the fragment path `<work>/fragments/<area>.json`, the stack reference(s) to read (from the
+table above, or [discovery-generic.md](references/discovery-generic.md)), the profile and a budget of 20 tool calls.
+Apply the profile's `model` override.
 
-Save each returned fragment to `<work>/fragments/<area>.json`. If a reply is not a single JSON object, or is over its
-caps, re-ask that one explorer once with the problem stated; if it fails again, record the area in `meta.sources` as
-skipped with the reason and continue. Do not repair fragments by hand beyond trivial JSON syntax.
+The explorer reads its extract, confirms or corrects it, adds what prescan cannot see, writes the fragment to the
+fragment path and replies with exactly three lines: the fragment path, the node, edge, entity and access counts, and the
+tool calls spent. Do not open, paste or summarise a fragment. A reply that is not those three lines is not acted on; read
+the counts and move on. `merge.mjs` (step 4) normalises each fragment and truncates it to the caps, recording the area
+and the count dropped in `meta.sources`; it records an unreadable fragment file as a skipped area. A fragment that never
+appeared (`fragment: none` or no file) is named in the final report as an area that was not mapped.
 
 ### 3. Introspection (read-only)
 
@@ -122,15 +130,15 @@ identical elements, renames an id collision to `<id>-<area>` and rewrites the re
 (`schemaVersion`, `project`, `commit`, `generatedAt`, `profile`, `sources`, `coverage` from each fragment's `coverage`).
 `generatedAt` is never invented, so always pass it. When `docs/architecture/architecture.model.json` already exists, add
 `--previous docs/architecture/architecture.model.json` so `locked` and `notes` survive. The result is validated before
-anything is written. Exit 0 ok; exit 1 the result is invalid (print the findings, fix or re-dispatch the owning
-explorer); exit 2 is a usage error. It reports `conflicts` (for example a locked node the new analysis disagrees with):
+anything is written. Exit 0 ok; exit 1 the result is invalid (print the findings and report them; a cap violation never
+causes it); exit 2 is a usage error. It reports `conflicts` (for example a locked node the new analysis disagrees with):
 report them, do not resolve them silently. Then validate:
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/validate.mjs" docs/architecture/architecture.model.json --repo .
 ```
 
-Exit 0 valid; exit 1 has findings (print them and fix the model, or re-dispatch the owning explorer); exit 2 is a usage
+Exit 0 valid; exit 1 has findings (print them and report them; do not patch the model by hand); exit 2 is a usage
 error. `--repo .` also checks that every evidence path and line range exists at `meta.commit`. A run without `--repo`
 does not check evidence: say so if that is all you ran.
 
@@ -235,8 +243,9 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
    also when nothing is affected: if `areas`, `nodes`, `entities` and `uncovered` are all empty, re-render only (step 5)
    and stop. Exit 2 is a usage error, an unreadable model or an unknown base commit. Uncommitted edits to tracked files
    are not seen: say so.
-2. **Explorers** on the affected areas and on new files no area covers. Same dispatch as build step 2, with the old
-   fragment's node ids supplied so ids stay stable.
+2. **Explorers** on the affected areas and on new files no area covers. Same dispatch as build step 2 (run prescan
+   again first so the extracts are current), and tell each explorer the path of the previous model so it reuses the node
+   ids of its area and ids stay stable.
 3. **Merge, preserving user fields.**
 
    ```sh
@@ -298,9 +307,10 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
 
 - **Scripts first.** Prescan, merge, validate, layout, render, diffmap, export and staleness cost no tokens. Do not ask
   an agent for something a script can compute.
-- **Excerpts, not trees.** Explorers use Grep and line ranges, never whole-tree reads, and return fragments capped at
-  about 40 nodes, 80 edges, 60 entities and 80 access rows (split the area otherwise), one sentence per `desc` and
-  `role`, no source excerpts.
+- **Excerpts, not trees.** Explorers start from the prescan extract, use Grep and line ranges, never whole-tree reads,
+  stay within 20 tool calls, and write fragments capped at 40 nodes, 80 edges, 60 entities and 80 access rows (the merge
+  truncates beyond that), one sentence per `desc` and `role`, no source excerpts.
+- **Fragments stay out of your context.** Explorers write them to files and answer in three lines; a weak one is merged as it is, never sent back.
 - **Synthesizer and reviewer** receive fragments and the model, with targeted reads only to confirm a specific claim.
 - **Update touches only affected areas**; it never re-explores the whole repo.
 - **Profiles**, set with `--profile max|balanced|economy`, default `balanced`. A profile is applied as the `model`
@@ -309,7 +319,7 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
 | Profile | `archmap-explorer` | `archmap-synthesizer` | `archmap-reviewer` |
 |---|---|---|---|
 | `max` | Opus (high) | Opus (high) | Opus (high) |
-| `balanced` (default) | Sonnet (medium) | Opus (high) | Opus (high) |
+| `balanced` (default) | Sonnet (low) | Opus (high) | Opus (high) |
 | `economy` | Haiku | Sonnet | Sonnet |
 
 The agents' own frontmatter holds the `balanced` defaults, so for `balanced` no override is needed. Say in one line

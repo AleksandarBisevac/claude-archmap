@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -164,7 +164,7 @@ test('py6 every item carries {path, lines} evidence inside the file, output sort
 
 test('py7 unknown patterns are skipped and counted, never guessed; the fragment is size-capped', () => {
   // Fixture tally: Django include(), a bulk_insert whose table is not a literal, an f-string table.
-  assert.deepEqual(frag.skipped, { entities: 0, httpCalls: 0, migrations: 1, routes: 1, schemas: 0, sqlTables: 1 });
+  assert.deepEqual(frag.skipped, { clients: 0, entities: 0, envKeys: 0, httpCalls: 0, migrations: 1, queues: 0, routes: 1, schemas: 0, sqlTables: 1 });
 
   const odd = memFrag({
     'svc/odd.py':
@@ -174,7 +174,7 @@ test('py7 unknown patterns are skipped and counted, never guessed; the fragment 
       'def go(u):\n    requests.get(build_url(u))\n    requests.get(f"{BASE}/x")\n\n' +
       'class T(Base):\n    __tablename__ = compute()\n    id = Column(Integer, primary_key=True)\n',
   });
-  assert.deepEqual(odd.skipped, { entities: 1, httpCalls: 2, migrations: 0, routes: 2, schemas: 0, sqlTables: 0 });
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, httpCalls: 2, migrations: 0, queues: 0, routes: 2, schemas: 0, sqlTables: 0 });
   for (const k of KINDS) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
 
   const many = {};
@@ -219,5 +219,73 @@ test('py8 nothing is executed or imported from the scanned repo; the plug-in run
   } catch (e) {
     rmSync(dir, { recursive: true, force: true });
     throw e;
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.2: what the explorer used to rediscover with Grep now arrives in the extract.
+
+test('py9 env keys, task queues (producers and consumers) and shared clients are extracted with file and line, never with values', () => {
+  assert.deepEqual(
+    frag.envKeys.map((k) => `${k.name} ${ev(k)}`),
+    [
+      'DATABASE_URL app/config.py:7',
+      'APP_DEBUG app/config.py:8',
+      'REDIS_URL app/config.py:9',
+      'OBJECT_STORE_URL app/config.py:12',
+      'BROKER_URL app/tasks.py:6',
+    ],
+  );
+  const q = Object.fromEntries(frag.queues.map((x) => [x.name, x]));
+  assert.deepEqual(Object.keys(q).sort(), ['celery', 'emails', 'maintenance']);
+  const rows = (items, key) => items.map((i) => `${i[key]} ${ev(i)}`);
+  assert.deepEqual(rows(q.emails.workers, 'handler'), ['send_receipt app/tasks.py:9-10']);
+  assert.deepEqual(rows(q.emails.producers, 'job'), ['send_receipt app/jobs.py:7']);
+  assert.deepEqual(rows(q.celery.workers, 'handler'), ['rebuild_index app/tasks.py:14-15']);
+  assert.deepEqual(q.celery.producers, [], 'a shared_task with no queue= runs on the default queue');
+  assert.deepEqual(rows(q.maintenance.producers, 'job'), ['rebuild_index app/jobs.py:12']);
+  assert.deepEqual(q.maintenance.workers, []);
+
+  const clients = frag.clients.map((c) => `${c.client} ${c.kind} ${c.target} ${ev(c)}`);
+  for (const want of [
+    'boto3.client(s3) sdk env:OBJECT_STORE_URL app/config.py:12',
+    'redis.Redis.from_url sdk null app/config.py:11',
+    'Celery sdk env:BROKER_URL app/tasks.py:6',
+    'ISBN_URL baseUrl https://isbn.example.invalid/v1 app/clients.py:7',
+  ]) assert.ok(clients.includes(want), `${want} in ${JSON.stringify(clients)}`);
+  assert.ok(!JSON.stringify(frag.envKeys).includes('localhost'), 'only names are kept, never defaults or values');
+});
+
+test('py10 prescan writes one extracts/<area>.json per area with routes, tables, env keys and queues in the area that owns them', () => {
+  const work = mkdtempSync(join(tmpdir(), 'archmap-pywork-'));
+  try {
+    const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'prescan.mjs'), FIXTURE, '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const pre = JSON.parse(readFileSync(join(work, 'prescan.json'), 'utf8'));
+    const files = readdirSync(join(work, 'extracts')).sort();
+    assert.deepEqual(files, pre.areas.map((a) => `${a.id}.json`).sort(), 'exactly one extract per area');
+    const slice = (id) => JSON.parse(readFileSync(join(work, 'extracts', `${id}.json`), 'utf8'));
+
+    const app = slice('app');
+    assert.deepEqual(app.routes.find((x) => x.handler === 'list_books'), { method: 'GET', path: '/api/v1/books', handler: 'list_books', file: 'app/main.py', line: 17 });
+    assert.equal(app.routes.filter((x) => x.file === 'app/main.py').length, 5);
+    assert.ok(app.routes.some((x) => x.method === 'GET' && x.path === '/admin/stock' && x.file === 'app/admin.py' && x.line === 7));
+    const book = app.tables.find((t) => t.name === 'Book');
+    assert.deepEqual([book.table, book.file, book.line], ['books', 'app/models.py', 18]);
+    assert.deepEqual(book.fields, ['id int pk', 'title str', 'author_id int fk=authors.id']);
+    assert.deepEqual(app.envKeys.find((k) => k.name === 'DATABASE_URL'), { name: 'DATABASE_URL', at: ['app/config.py:7'] });
+    const emails = app.queues.find((x) => x.name === 'emails');
+    assert.deepEqual(emails.producers, [{ job: 'send_receipt', file: 'app/jobs.py', line: 7 }]);
+    assert.deepEqual(emails.consumers, [{ handler: 'send_receipt', file: 'app/tasks.py', line: 9 }]);
+
+    const shop = slice('shop');
+    assert.ok(shop.routes.some((x) => x.method === 'ANY' && x.path === '/catalog/' && x.file === 'shop/urls.py' && x.line === 9));
+    assert.deepEqual(shop.tables.map((t) => t.name), ['Publisher', 'Edition']);
+    assert.ok(!('queues' in shop) || shop.queues.length === 0, 'rows are kept in the area that owns their file');
+    assert.deepEqual(app.links.filter((l) => l.kind === 'import' && l.other === 'shop'), [
+      { kind: 'import', dir: 'out', from: 'app/jobs.py', to: 'shop/models.py', other: 'shop' },
+    ]);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
   }
 });

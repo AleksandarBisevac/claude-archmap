@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -187,8 +187,8 @@ test('nb5 every item carries {path, lines} evidence inside the file, output sort
 test('nb6 unknown patterns are skipped and counted, never guessed; the fragment is size-capped', () => {
   // Fixture tally: @Get(CONST), get(CONST), express .route(path) chain, a template path in Hono,
   // a pgTable whose name is not a literal, a queue.add whose job name is a variable.
-  assert.deepEqual(frag.skipped, { entities: 1, openapi: 0, queues: 1, routes: 4 });
-  assert.deepEqual(frag.truncated, { entities: 0, openapi: 0, queues: 0, routes: 0 });
+  assert.deepEqual(frag.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 0, queues: 1, routes: 4 });
+  assert.deepEqual(frag.truncated, { clients: 0, entities: 0, envKeys: 0, openapi: 0, queues: 0, routes: 0 });
 
   const odd = memFrag({
     'svc/odd.ts':
@@ -200,7 +200,7 @@ test('nb6 unknown patterns are skipped and counted, never guessed; the fragment 
     'docs/swagger-notes.json': '{"hello": 1}',
     'docs/openapi-broken.yaml': 'just: text\n',
   });
-  assert.deepEqual(odd.skipped, { entities: 1, openapi: 2, queues: 2, routes: 1 });
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, queues: 2, routes: 1 });
   for (const k of KINDS) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
 
   const lines = ["import express from 'express';", 'const app = express();'];
@@ -278,5 +278,58 @@ test('nb8 nothing is executed or imported from the scanned repo; the plug-in run
   } catch (e) {
     rmSync(dir, { recursive: true, force: true });
     throw e;
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.2: what the explorer used to rediscover with Grep now arrives in the extract.
+
+test('nb9 env keys and SDK clients are extracted with file and line, never with values; queue producers and workers stay paired', () => {
+  assert.deepEqual(
+    frag.envKeys.map((k) => `${k.name} ${ev(k)}`),
+    [
+      'DATABASE_URL src/config.ts:4',
+      'QUEUE_PREFIX src/config.ts:5',
+      'REDIS_URL src/config.ts:7',
+      'OBJECT_STORE_URL src/config.ts:8',
+      'LEGACY_SLUG src/hono/app.ts:14',
+    ],
+  );
+  const clients = frag.clients.map((c) => `${c.client} ${c.kind} ${c.target} ${ev(c)}`);
+  for (const want of ['Redis sdk env:REDIS_URL src/config.ts:7', 'S3Client sdk env:OBJECT_STORE_URL src/config.ts:8']) {
+    assert.ok(clients.includes(want), `${want} in ${JSON.stringify(clients)}`);
+  }
+  assert.ok(!clients.some((c) => /^(Queue|Worker) /.test(c)), 'queues are reported under queues, not as clients');
+  assert.ok(!JSON.stringify(frag.envKeys).includes("'q'"), 'defaults are not kept');
+  assert.equal(frag.queues[0].producers.length, 2);
+  assert.equal(frag.queues[0].workers.length, 1);
+});
+
+test('nb10 prescan writes one extracts/<area>.json per area with routes, tables, env keys and queues in the area that owns them', () => {
+  const work = mkdtempSync(join(tmpdir(), 'archmap-nbwork-'));
+  try {
+    const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'prescan.mjs'), FIXTURE, '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const pre = JSON.parse(readFileSync(join(work, 'prescan.json'), 'utf8'));
+    assert.deepEqual(readdirSync(join(work, 'extracts')).sort(), pre.areas.map((a) => `${a.id}.json`).sort());
+    const slice = (id) => JSON.parse(readFileSync(join(work, 'extracts', `${id}.json`), 'utf8'));
+
+    const src = slice('src');
+    assert.deepEqual(src.routes[0], { method: 'GET', path: '/api/v1/books', handler: 'list', file: 'src/books/books.controller.ts', line: 7 });
+    assert.equal(src.routes.length, 20);
+    assert.deepEqual(src.envKeys.find((k) => k.name === 'REDIS_URL'), { name: 'REDIS_URL', at: ['src/config.ts:7'] });
+    const email = src.queues.find((q) => q.name === 'email');
+    assert.deepEqual(email.producers.map((p) => `${p.job} ${p.file}:${p.line}`), ['welcome src/queues/email.producer.ts:4', 'receipt src/queues/email.producer.ts:8']);
+    assert.deepEqual(email.consumers, [{ handler: 'deliver', file: 'src/queues/email.worker.ts', line: 8 }]);
+    assert.ok(src.tables.some((t) => t.orm === 'typeorm') && !src.tables.some((t) => t.orm === 'prisma'), 'prisma models belong to the prisma area');
+    assert.ok(src.imports.includes('src/books/books.service.ts > src/config.ts'), JSON.stringify(src.imports));
+    assert.ok(src.imports.includes('src/books/books.service.ts > src/queues/email.producer.ts'));
+
+    const prisma = slice('prisma');
+    const order = prisma.tables.find((t) => t.name === 'Order');
+    assert.deepEqual([order.table, order.orm, order.file, order.line], ['orders', 'prisma', 'prisma/schema.prisma', 21]);
+    assert.ok(order.fields.includes('customerId Int fk=Customer.id'), JSON.stringify(order.fields));
+  } finally {
+    rmSync(work, { recursive: true, force: true });
   }
 });

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 const DESIGN = {
-  'archmap-explorer': { model: 'sonnet', effort: 'medium', tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  'archmap-explorer': { model: 'sonnet', effort: 'low', tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write'] },
   'archmap-synthesizer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob'] },
   'archmap-reviewer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob'] },
 };
@@ -42,10 +42,10 @@ test('a1 each agent frontmatter has exactly the designed name, model, effort and
   }
 });
 
-test('a2 no agent lists Edit, Write or Agent; synthesizer and reviewer have no Bash', () => {
+test('a2 no agent lists Edit or Agent; only the explorer lists Write (for its one fragment file); synthesizer and reviewer have no Bash', () => {
   for (const name of Object.keys(DESIGN)) {
     const tools = toolList(load(name).fm);
-    for (const banned of ['Edit', 'Write', 'Agent', 'NotebookEdit']) {
+    for (const banned of name === 'archmap-explorer' ? ['Edit', 'Agent', 'NotebookEdit'] : ['Edit', 'Write', 'Agent', 'NotebookEdit']) {
       assert.ok(!tools.includes(banned), `${name} must not list ${banned}`);
     }
     if (name !== 'archmap-explorer') assert.ok(!tools.includes('Bash'), `${name} must not list Bash`);
@@ -85,4 +85,18 @@ test('a4 explorer and model-schema state that a subtree coverage glob is dir/** 
     const line = text.split('\n').find((l) => /bare director/i.test(l) && /literal/i.test(l) && /\/\*\*/.test(l));
     assert.ok(line, `${name} has a line naming dir/** and that a bare directory matches only its literal path`);
   }
+});
+
+test('a5 the explorer states its tool-call budget, writes the fragment to the path in its brief and replies with three lines only', () => {
+  const { fm, body } = load('archmap-explorer');
+  assert.ok(toolList(fm).includes('Write'), 'Write is in the explorer tools');
+  assert.equal(fm.effort, 'low');
+  assert.match(body, /budget[^\n]*\b\d+ tool calls\b|\b\d+ tool calls\b[^\n]*budget/i, 'a numeric tool-call budget is stated');
+  assert.match(body, /fragment path|path (named|given) in (the|your) (brief|prompt)/i, 'the fragment goes to the path the brief names');
+  assert.match(body, /Write[^\n]*(only|one)[^\n]*(path|file)|(only|one)[^\n]*(path|file)[^\n]*Write/i, 'Write is limited to that one path');
+  assert.match(body, /exactly three lines/i);
+  for (const key of ['fragment:', 'counts:', 'tool calls:']) assert.ok(body.includes(key), `reply line ${key} is specified`);
+  assert.match(body, /never (contains?|includes?|returns?)[^\n]*(fragment|JSON)|no JSON|not (the )?(fragment|JSON)/i, 'the reply never carries the fragment');
+  assert.doesNotMatch(body, /re-requested|re-ask/i, 'no re-ask path');
+  assert.match(body, /extract/i, 'the explorer starts from the extract file');
 });

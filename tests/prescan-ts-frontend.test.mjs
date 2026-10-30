@@ -141,7 +141,7 @@ test('ts5 every item carries {path, lines} evidence inside the file, output sort
     const sorted = keys.slice().sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] - y[1]));
     assert.deepEqual(keys, sorted, `${kind} is ordered by path then line`);
   }
-  assert.deepEqual(Object.keys(frag), ['apiCalls', 'routes', 'scanned', 'skipped', 'stores', 'truncated']);
+  assert.deepEqual(Object.keys(frag), ['apiCalls', 'clients', 'envKeys', 'routes', 'scanned', 'skipped', 'stores', 'truncated']);
   const again = extractTsFrontend(fixtureFiles.slice().reverse(), fixtureRead);
   assert.equal(JSON.stringify(again), JSON.stringify(frag), 'input order does not change the output');
   assert.ok(!/\d{4}-\d{2}-\d{2}T/.test(JSON.stringify(frag)), 'no timestamps');
@@ -149,7 +149,7 @@ test('ts5 every item carries {path, lines} evidence inside the file, output sort
 
 test('ts6 unknown patterns are skipped and counted, never guessed; the fragment is size-capped', () => {
   // Fixture tally: two non-literal screen/route names, a fetch of a non-literal url, a fetch whose base is env.
-  assert.deepEqual(frag.skipped, { apiCalls: 2, routes: 2, stores: 0 });
+  assert.deepEqual(frag.skipped, { apiCalls: 2, clients: 0, envKeys: 0, routes: 2, stores: 0 });
 
   const odd = memFrag({
     'web/odd.tsx':
@@ -165,7 +165,7 @@ test('ts6 unknown patterns are skipped and counted, never guessed; the fragment 
       '    find: build.query({\n      query: (a) => buildQuery(a),\n    }),\n  }),\n});\n\n' +
       'export function go(u) {\n  fetch(build(u));\n  axios.get(`${BASE_URL}/x`);\n  fetch(`/ok/${u}`, { method: VERB });\n}\n',
   });
-  assert.deepEqual(odd.skipped, { apiCalls: 4, routes: 1, stores: 2 });
+  assert.deepEqual(odd.skipped, { apiCalls: 4, clients: 0, envKeys: 0, routes: 1, stores: 2 });
   assert.deepEqual(odd.routes, [], 'routes: nothing is guessed from unknown shapes');
   assert.deepEqual(odd.apiCalls, [], 'apiCalls: nothing is guessed from unknown shapes');
   assert.deepEqual(odd.stores.map((s) => `${s.library} ${s.name}`), ['rtk-query find'], 'only the endpoint with a recognisable shape is recorded');

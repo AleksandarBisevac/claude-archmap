@@ -1,7 +1,7 @@
 # Model schema
 
 The model is one JSON file, `docs/architecture/architecture.model.json`, validated against
-`schema/archmap-model.schema.json`. Agents write only this file; a bundled renderer turns it into HTML.
+`schema/archmap-model.schema.json`. Only the orchestrator writes this file; a bundled renderer turns it into HTML.
 Do not invent keys the schema lacks. Required keys per object are marked **req**.
 
 ## Top-level keys
@@ -33,7 +33,7 @@ A `node.level` is the C4 level: 1, 2 or 3.
 | `generatedAt` **req** | ISO timestamp of the run. |
 | `repoUrl` | Base URL used to turn evidence into links. |
 | `profile` **req** | `max`, `balanced` or `economy`. |
-| `sources` **req** | Array of introspections run or skipped, and why (a skipped step is recorded here, never dropped). |
+| `sources` **req** | Array of introspections run or skipped, and why (a skipped step is recorded here, never dropped); also one row per explorer fragment and a `truncation` or `normalisation` row, naming the area and the counts, when the merge cut or fixed one. |
 | `coverage` **req** | Object: area name to array of globs. Drives `update`, which re-analyses only areas whose files changed. |
 
 ## The evidence rule
@@ -66,9 +66,13 @@ needs a major `schemaVersion`; adding an optional key is minor.
 
 ## Explorer fragment contract
 
-An `archmap-explorer` returns exactly one JSON object per area. The merge script consumes it; prose around it is
-discarded, so return JSON only. Keep it size-capped: at most about 40 nodes, 80 edges, 60 entities and 80 access rows
-per fragment (split the area otherwise), `desc` and `role` one sentence each, no source excerpts.
+An `archmap-explorer` writes exactly one JSON object per area to the fragment path its brief names
+(`<work>/fragments/<area>.json`) and replies with three lines only (path, counts, tool calls); the fragment never travels
+in a reply. The merge script reads the directory. It does not bounce a fragment back: it normalises common slips
+(numeric or `L12-L14` evidence lines, a string `level`, a missing `level`, `paths` or `confidence`, lowercase `ops`) and
+truncates to the caps below, keeping the first elements listed, so list the most structural ones first. A truncation or a
+normalisation is recorded in `meta.sources` as a row with the area and the counts. Caps per fragment: 40 nodes, 80 edges,
+60 entities and 80 access rows (split the area otherwise), `desc` and `role` one sentence each, no source excerpts.
 
 ```json
 {
