@@ -1,0 +1,41 @@
+{
+  "gates": {
+    "node --test tests/cost-profile.test.mjs tests/usage.test.mjs": "pass",
+    "node --test (full, informational)": "fail"
+  },
+  "redFirst": {
+    "at": "2026-10-30T23:00:09Z",
+    "basis": "`node --test tests/cost-profile.test.mjs tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/cost-profile.mjs (offline; per-model and per-agent input/output/cache-read/cache-write, unique-message-id turns, median/max context, list-price cost from an embedded rate table dated 2026-10-30, unpriced models give null cost, --json, exit 2 on unreadable/malformed input, reconciles totals against the LAST result event's modelUsage since it is cumulative). Extended scripts/usage.mjs: --input/--output/--cache-read/--cache-write beside --tokens (all four with no --tokens sum into tokens; mismatch rejected; partial classes never invent a total), classes shown in print and in --json only when a row carries them (existing key order untouched), one-line note about completion notifications and orchestrator context, new `estimate --turns --context [--json]`. SKILL.md section 9 and Final report each say the same in two sentences. Synthetic fixture tests/fixtures/cost/stream-sample.jsonl (18 lines, 4 agents, 3 models, a repeated message id, two cumulative result events) plus expected.json. Tests: tests/cost-profile.test.mjs c1-c12, tests/usage.test.mjs u7-u11. Own tests: 23 pass, 0 fail (node --test tests/cost-profile.test.mjs tests/usage.test.mjs, exit 0). Initial red before implementation: 15 of 23 failed (all new behaviour cases; c2 and c12 pass as they test the fixture only). Full `node --test`: 301 tests, 300 pass, 1 fail d1 (denylist hit in skills/architecture-map/evals/trigger-evals.json term #3), a file outside my scope that I did not touch. Dependants: tests/e2e.test.mjs, tests/skill.test.mjs, tests/commands.test.mjs, tests/evals.test.mjs still pass; docs/design.md D11 still correct (ledger semantics extended, nothing removed). Plan gate allowed the SKILL.md edit (P10.4-2xj declared file) and usage.mjs edits. No other file touched.",
+    "descriptive": "Token and cost per model and agent can now be measured offline from a transcript, and the usage ledger states what it cannot see and estimates the orchestrator cache-read cost."
+  },
+  "testsAdded": [
+    "cost-profile c1-c12: reconciliation with last result modelUsage, expected.json match, agent rows, turns/median/max context, class sums, --json shape and rate table, text table, unpriced model, multiple files, exit 2 cases, synthetic fixture",
+    "usage u7-u11: four classes beside tokens, completion-notification note, estimate, unknown never 0, class-sum rules"
+  ],
+  "casesAdded": [
+    [
+      "c1",
+      "c3",
+      "c4",
+      "c5",
+      "c6",
+      "c7",
+      "c8",
+      "c11"
+    ],
+    [
+      "u7",
+      "u8",
+      "u9",
+      "u10"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:be913684e4c834c0fee4ba7bf6e2af485870a53176ea7ccd6c8b0492cdf6f02a\",\"dirtyDigest\":\"sha256:3718f2a0fcc0fd2477e6659347af5011a7acf44bbcbfc1753c9c0e65adf3ffad\",\"dirtyPaths\":{\"scripts/cost-profile.mjs\":\"8e843cedaaf08248\",\"scripts/usage.mjs\":\"d10cc07b6b850b8e\",\"skills/architecture-map/SKILL.md\":\"a91d3abde5a4f8aa\",\"tests/cost-profile.test.mjs\":\"0a8a5ee0876b03ec\",\"tests/fixtures/cost/expected.json\":\"9691c5cf97f8004f\",\"tests/fixtures/cost/stream-sample.jsonl\":\"ce70e3de4b6b87cf\",\"tests/usage.test.mjs\":\"f448f185d82a7bc1\"},\"head\":\"0b5d5a2\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/cost-profile.mjs\",\"scripts/usage.mjs\",\"skills/architecture-map/SKILL.md\",\"tests/cost-profile.test.mjs\",\"tests/fixtures/cost/expected.json\",\"tests/fixtures/cost/stream-sample.jsonl\",\"tests/usage.test.mjs\"],\"scopeDigest\":\"sha256:b0518514f2983b313d22466a065882042f8e6beef89bf478789fd5756efbb4ec\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

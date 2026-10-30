@@ -125,3 +125,67 @@ test('u6 usage errors and an unreadable ledger exit 2 with a message on stderr',
   writeFileSync(bad, '{"phase":"nope"}\n');
   assert.equal(run(['print', bad]).status, 2);
 });
+
+test('u7 a row may carry --input/--output/--cache-read/--cache-write beside --tokens and print shows all four classes and the total', () => {
+  const ledger = join(tmp(), 'l.jsonl');
+  add(ledger, '--phase', 'explorer', '--label', 'api', '--agent', 'archmap-explorer', '--tokens', '1000', '--input', '100', '--output', '200', '--cache-read', '300', '--cache-write', '400', '--duration-ms', '2000');
+  const [r] = rows(ledger);
+  assert.deepEqual(
+    { input: r.input, output: r.output, cacheRead: r.cacheRead, cacheWrite: r.cacheWrite, tokens: r.tokens },
+    { input: 100, output: 200, cacheRead: 300, cacheWrite: 400, tokens: 1000 },
+  );
+  const text = run(['print', ledger]).stdout;
+  assert.match(text, /input\s+100/);
+  assert.match(text, /output\s+200/);
+  assert.match(text, /cache-read\s+300/);
+  assert.match(text, /cache-write\s+400/);
+  assert.match(text, /explorer\s+1\s+1000\s+2\.0s/);
+  const j = JSON.parse(run(['print', ledger, '--json']).stdout);
+  assert.deepEqual(j.total.classes, { input: 100, output: 200, cacheRead: 300, cacheWrite: 400 });
+});
+
+test('u8 print says in one line that agent rows are what the completion notification reported and the orchestrator context is not counted', () => {
+  const ledger = join(tmp(), 'l.jsonl');
+  add(ledger, '--phase', 'explorer', '--tokens', '10');
+  const text = run(['print', ledger]).stdout;
+  const line = text.split('\n').find((l) => /completion notification/.test(l));
+  assert.ok(line, 'one line names the completion notification');
+  assert.match(line, /orchestrator's own context is not counted/);
+});
+
+test('u9 estimate --turns 300 --context 90000 prints the product as the cache-read estimate and says it is not observed', () => {
+  const r = run(['estimate', '--turns', '300', '--context', '90000']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /cache-read estimate:\s*27000000\b/);
+  assert.match(r.stdout, /not observ|estimate/i);
+  const j = JSON.parse(run(['estimate', '--turns', '300', '--context', '90000', '--json']).stdout);
+  assert.deepEqual(j, { turns: 300, context: 90000, cacheReadEstimate: 27000000 });
+  for (const args of [['estimate'], ['estimate', '--turns', '3'], ['estimate', '--turns', 'x', '--context', '5'], ['estimate', '--turns', '3', '--context', '-1']]) {
+    assert.equal(run(args).status, 2, args.join(' '));
+  }
+});
+
+test('u10 a row without figures still prints unknown for tokens and for every class, never 0', () => {
+  const ledger = join(tmp(), 'l.jsonl');
+  add(ledger, '--phase', 'synthesizer');
+  add(ledger, '--phase', 'explorer', '--input', '50');
+  const text = run(['print', ledger]).stdout;
+  assert.match(text, /synthesizer\s+1\s+unknown\s+unknown/);
+  assert.doesNotMatch(text, /synthesizer.*\b0\b/);
+  const j = JSON.parse(run(['print', ledger, '--json']).stdout);
+  const syn = j.phases.find((p) => p.phase === 'synthesizer');
+  assert.equal('classes' in syn, false, 'no classes key when no row carries one');
+  const ex = j.phases.find((p) => p.phase === 'explorer');
+  assert.deepEqual(ex.classes, { input: 50 });
+  assert.equal(ex.tokens, null, 'a partial set of classes does not invent a total');
+});
+
+test('u11 the four classes together are the total: a mismatch with --tokens is rejected, and all four without --tokens sums them', () => {
+  const ledger = join(tmp(), 'l.jsonl');
+  const bad = run(['add', ledger, '--phase', 'explorer', '--tokens', '999', '--input', '1', '--output', '2', '--cache-read', '3', '--cache-write', '4']);
+  assert.equal(bad.status, 2);
+  assert.equal(existsSync(ledger), false);
+  add(ledger, '--phase', 'explorer', '--input', '1', '--output', '2', '--cache-read', '3', '--cache-write', '4');
+  assert.equal(rows(ledger)[0].tokens, 10);
+  assert.equal(run(['add', ledger, '--phase', 'explorer', '--input', '-1']).status, 2);
+});

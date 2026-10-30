@@ -212,7 +212,12 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/usage.mjs" print <work>/usage.jsonl
 ```
 
 Phases are `prescan`, `explorer`, `introspection`, `merge`, `synthesizer`, `reviewer`, `layout`, `render`. Put the printed
-table in the final report (`print --json` for the machine form).
+table in the final report (`print --json` for the machine form). A row may also carry `--input`, `--output`,
+`--cache-read` and `--cache-write` beside `--tokens`, and the print shows the classes a row has.
+
+The ledger records what the agents' completion notifications reported, and the orchestrator's own context is not in it.
+`usage.mjs estimate --turns <n> --context <n>` prints the cache-read figure the ledger cannot observe, as an estimate;
+`scripts/cost-profile.mjs <transcript>` measures every token class per model and per agent from a transcript.
 
 ## Update flow
 
@@ -313,5 +318,6 @@ which profile ran and what it trades off; `economy` may miss cross-area links, s
 ## Final report
 
 End with: the files written (paths), the validate command and its exit code, element counts (nodes, edges, entities,
-sequences), what was skipped or not checked and why, the profile, and the usage ledger. If anything is unverified, say
-that plainly.
+sequences), what was skipped or not checked and why, the profile, and the usage ledger. State that the ledger shows what
+the agents' completion notifications reported and not the orchestrator's own context, and give the cache-read estimate
+for it as an estimate. If anything is unverified, say that plainly.
