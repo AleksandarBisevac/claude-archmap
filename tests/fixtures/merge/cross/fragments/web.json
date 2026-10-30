@@ -1,0 +1,11 @@
+{
+  "area": "web",
+  "nodes": [
+    { "id": "web-app", "zone": "browser", "kind": "app", "title": "Shop web", "role": "Browser client of the shop.", "paths": ["web/**"], "level": 2, "evidence": [{ "path": "web/src/app.ts", "lines": "1-20" }] }
+  ],
+  "edges": [],
+  "entities": [],
+  "access": [],
+  "coverage": ["web/**"],
+  "skipped": { "count": 0, "reasons": [] }
+}

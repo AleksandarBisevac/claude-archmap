@@ -1,0 +1,35 @@
+{
+  "area": "api",
+  "nodes": [
+    { "id": "orders-api", "zone": "service", "kind": "service", "title": "Orders API", "role": "Takes and stores orders.", "paths": ["api/**"], "level": 2, "evidence": [{ "path": "api/main.py", "lines": "1-30" }] },
+    { "id": "orders-db", "zone": "data", "kind": "store", "title": "Orders DB", "paths": ["db/**"], "level": 2, "evidence": [{ "path": "db/schema.sql", "lines": "1-20" }] },
+    { "id": "shared-utils", "zone": "service", "kind": "module", "title": "Shared utils", "paths": ["shared/**"], "level": 3, "evidence": [{ "path": "shared/fmt.py", "lines": "1-10" }] }
+  ],
+  "edges": [],
+  "entities": [
+    {
+      "id": "orders", "store": "orders-db", "name": "orders", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "int", "pk": true, "provenance": "declared" },
+        { "name": "customer_id", "type": "int", "provenance": "declared" }
+      ],
+      "evidence": [{ "path": "db/schema.sql", "lines": "1-8" }]
+    },
+    {
+      "id": "customers", "store": "orders-db", "name": "customers", "kind": "table",
+      "fields": [{ "name": "id", "type": "int", "pk": true, "provenance": "declared" }],
+      "evidence": [{ "path": "db/schema.sql", "lines": "10-14" }]
+    },
+    {
+      "id": "receipts", "store": "orders-db", "name": "receipts", "kind": "table",
+      "fields": [
+        { "name": "id", "type": "int", "pk": true, "provenance": "declared" },
+        { "name": "order_id", "type": "int", "provenance": "declared", "fk": { "entity": "orders", "field": "id" } }
+      ],
+      "evidence": [{ "path": "db/schema.sql", "lines": "16-20" }]
+    }
+  ],
+  "access": [],
+  "coverage": ["api/**", "db/**", "shared/**"],
+  "skipped": { "count": 0, "reasons": [] }
+}

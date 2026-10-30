@@ -71,7 +71,7 @@ test('m2 colliding ids are renamed deterministically and every reference is rewr
     edges: [{ id: 'e1', from: 'core', to: 'other', type: 'call', desc: 'a', evidence: ev('x/a.js'), confidence: 'verified' }],
   });
   const b = frag('beta', {
-    nodes: [node('core', { zone: 'z', title: 'Different core' }), node('store', { zone: 'z', kind: 'store' })],
+    nodes: [node('core', { zone: 'z', title: 'Different core', paths: ['y/**'] }), node('store', { zone: 'z', kind: 'store', paths: ['db/**'] })],
     edges: [{ id: 'e1', from: 'core', to: 'store', type: 'sql', desc: 'b', evidence: ev('x/b.js'), confidence: 'verified' }],
     entities: [{
       id: 'items', store: 'store', name: 'items', kind: 'table',
@@ -104,7 +104,7 @@ test('m2b entity id collisions rewrite access.entity, fk targets and relations',
   });
   const a = frag('alpha', { nodes: [node('db', { zone: 'z', kind: 'store' })], entities: [ent('users')] });
   const b = frag('beta', {
-    nodes: [node('app', { zone: 'z' })],
+    nodes: [node('app', { zone: 'z', paths: ['app/**'] })],
     entities: [
       ent('users', { name: 'accounts' }),
       ent('orders', { fields: [
@@ -115,7 +115,7 @@ test('m2b entity id collisions rewrite access.entity, fk targets and relations',
     relations: [{ from: { entity: 'orders', field: 'u' }, to: { entity: 'users', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' }],
     access: [{ node: 'app', entity: 'users', ops: 'R' }],
   });
-  b.nodes.push(node('db', { zone: 'z', kind: 'store', title: 'other db' }));
+  b.nodes.push(node('db', { zone: 'z', kind: 'store', title: 'other db', paths: ['other-db/**'] }));
   const { model } = merge({ fragments: [a, b], meta: META });
   const accounts = model.entities.find((e) => e.name === 'accounts');
   assert.notEqual(accounts.id, 'users');
@@ -217,26 +217,26 @@ test('m4c a locked node that the new fragment agrees with is kept without a conf
   assert.deepEqual(conflicts, []);
 });
 
-test('m5 synthesizer edges, sequences, views, access and relations merge by id and notes/conflicts are returned', () => {
+test('m5 synthesizer sequences and views merge by id, notes and conflicts are returned; edges, access and relations stay the script\'s', () => {
   const { model, notes, conflicts } = built();
   assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
-  // edge with an existing id replaced in place, new one added
+  // the explorer's edge is untouched: the synthesizer no longer supplies edges
   const e = model.edges.find((x) => x.id === 'ui-calls-api');
-  assert.equal(e.desc, 'UI calls the orders API');
-  assert.equal(e.confidence, 'verified');
-  assert.ok(model.edges.some((x) => x.id === 'svc-persists'));
+  assert.equal(e.desc, 'UI fetches orders');
   assert.equal(model.edges.filter((x) => x.id === 'ui-calls-api').length, 1);
   assert.deepEqual(ids(model.sequences), ['place-order']);
   assert.deepEqual(ids(model.views), ['system']);
-  assert.equal(model.relations.length, 1);
+  // the one relation is computed from the declared foreign key orders.user_id -> users.id, with its provenance
+  assert.deepEqual(model.relations, [
+    { from: { entity: 'orders', field: 'user_id' }, to: { entity: 'users', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'observed' },
+  ]);
   const acc = model.access.filter((a) => a.node === 'svc' && a.entity === 'orders');
-  assert.equal(acc.length, 1);
-  assert.equal(acc[0].ops, 'CRU');
+  assert.deepEqual(acc.map((a) => a.ops), ['R'], 'the explorer row, not a synthesizer one');
   assert.deepEqual(notes, ['Only one flow is distinct.']);
   assert.deepEqual(conflicts, []);
 });
 
-test('m5b synthesizer conflicts are returned, never resolved; synth cannot overwrite a locked node', () => {
+test('m5b synthesizer conflicts are returned, never resolved; a synth node, even for a locked node, is refused', () => {
   const prev = built().model;
   prev.nodes.find((n) => n.id === 'svc').locked = true;
   const synth = {
@@ -246,7 +246,29 @@ test('m5b synthesizer conflicts are returned, never resolved; synth cannot overw
   const r = merge({ fragments: [], previous: prev, areas: [], synth, meta: {} });
   assert.equal(r.model.nodes.find((n) => n.id === 'svc').title, 'Orders service');
   assert.ok(r.conflicts.some((c) => c.reason === 'fragments disagree on ownership'));
-  assert.ok(r.conflicts.some((c) => c.ids.includes('svc') && /locked/i.test(c.reason)));
+  assert.ok(r.conflicts.some((c) => c.ids.includes('svc') && /synthesizer may not add nodes/i.test(c.reason)));
+});
+
+test('m5c a synth object carrying nodes, edges, entities, access or relations has each refused and reported, the rest merged', () => {
+  const synth = {
+    nodes: [node('extra', { zone: 'api' })],
+    edges: [{ id: 'svc-persists', from: 'svc', to: 'store', type: 'persist', desc: 'x', evidence: ev('api/main.py'), confidence: 'verified' }],
+    entities: [{ id: 'ghost', store: 'store', name: 'ghost', kind: 'table', fields: [] }],
+    access: [{ node: 'svc', entity: 'orders', ops: 'CRU' }],
+    relations: [{ from: { entity: 'orders', field: 'id' }, to: { entity: 'users', field: 'id' }, cardinality: '1-1', kind: 'join', provenance: 'inferred' }],
+    views: [{ id: 'system', title: 'System', nodes: ['ui', 'svc'] }],
+  };
+  const { model, conflicts } = merge({ fragments: buildFrags(), synth, meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.equal(model.nodes.some((n) => n.id === 'extra'), false);
+  assert.equal(model.edges.some((e) => e.id === 'svc-persists'), false);
+  assert.equal(model.entities.some((e) => e.id === 'ghost'), false);
+  assert.deepEqual(model.access.map((a) => a.ops), ['R']);
+  assert.equal(model.relations.some((r) => r.kind === 'join'), false);
+  assert.deepEqual(ids(model.views), ['system']);
+  for (const key of ['nodes', 'edges', 'entities', 'access', 'relations']) {
+    assert.ok(conflicts.some((c) => new RegExp(`synthesizer may not add ${key}`).test(c.reason)), `${key}: ${JSON.stringify(conflicts)}`);
+  }
 });
 
 test('m6 two runs are byte-identical, whatever order the fragments arrive in', () => {
@@ -505,4 +527,187 @@ test('m12d a fragment file that is not valid JSON is recorded as a skipped area,
   const row = model.meta.sources.find((s) => s.area === 'broken');
   assert.equal(row.skipped.count, 1);
   assert.match(row.skipped.reasons[0], /broken\.json unreadable/);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.3: merge computes the cross-area layer the synthesizer used to loop for: edges from the prescan
+// links, dedup by path, zones, access rows from SQL evidence, relations from declared foreign keys, and a digest.
+
+const CROSS = join(FIX, 'cross');
+const crossFrags = () => loadDir(join(CROSS, 'fragments'));
+const crossExtracts = () => loadDir(join(CROSS, 'extracts'));
+const crossed = (extra = {}) =>
+  merge({ fragments: crossFrags(), extracts: crossExtracts(), repo: join(CROSS, 'repo'), meta: META, ...extra });
+const edgeOf = (model, from, to, type) => model.edges.filter((e) => e.from === from && e.to === to && e.type === type);
+const crossCli = (out, digest, extra = []) =>
+  cli([join(CROSS, 'fragments'), '--out', out, '--extracts', join(CROSS, 'extracts'), '--repo', join(CROSS, 'repo'),
+    '--digest', digest, '--commit', 'abc123', '--project', 'shop', '--profile', 'balanced', '--generated-at', '2026-01-01T00:00:00Z', ...extra]);
+
+test('m13 cross-area edges come from the prescan http, queue and import links, each with evidence, with no synth file', () => {
+  const { model } = crossed();
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const http = edgeOf(model, 'web-app', 'orders-api', 'api');
+  assert.equal(http.length, 1, JSON.stringify(model.edges));
+  // the caller's line first, so an update of the caller's area owns (and recomputes) the edge
+  assert.deepEqual(http[0].evidence, [{ path: 'web/src/api.ts', lines: '12' }, { path: 'api/main.py', lines: '20' }]);
+  assert.match(http[0].desc, /POST \/orders/);
+  assert.equal(http[0].confidence, 'verified');
+  assert.equal(http[0].foundBy, 'static');
+  const queue = edgeOf(model, 'orders-api', 'mailer-worker', 'queue');
+  assert.equal(queue.length, 1, JSON.stringify(model.edges));
+  assert.equal(queue[0].async, true);
+  assert.deepEqual(queue[0].evidence, [{ path: 'api/main.py', lines: '31' }, { path: 'worker/tasks.py', lines: '8' }]);
+  assert.match(queue[0].desc, /send_receipt/);
+  // an import link carries no line: the merge finds the import statement in the file (read as text, never run)
+  const imp = edgeOf(model, 'mailer-worker', 'orders-api', 'call');
+  assert.equal(imp.length, 1, JSON.stringify(model.edges));
+  assert.deepEqual(imp[0].evidence, [{ path: 'worker/tasks.py', lines: '2' }]);
+  // a link whose far end no node owns is not invented: it is counted in a derivation row
+  assert.equal(model.edges.some((e) => e.evidence.some((x) => x.path === 'web/src/legacy.ts')), false);
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.ok(row, JSON.stringify(model.meta.sources));
+  assert.equal(row.skipped.count >= 1, true);
+  assert.ok(row.skipped.reasons.some((r) => /ext\/server\.js/.test(r)), JSON.stringify(row));
+  // each computed edge is listed once, though the link appears in the slices of both its areas
+  assert.equal(new Set(ids(model.edges)).size, model.edges.length);
+});
+
+test('m13b with no repo an import link cannot be cited and is skipped, never given a guessed line; without extracts nothing is derived', () => {
+  const { model } = crossed({ repo: undefined });
+  assert.equal(edgeOf(model, 'mailer-worker', 'orders-api', 'call').length, 0);
+  assert.equal(edgeOf(model, 'web-app', 'orders-api', 'api').length, 1, 'line-carrying links still derive');
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.ok(row.skipped.reasons.some((r) => /worker\/tasks\.py/.test(r)), JSON.stringify(row));
+  const bare = merge({ fragments: crossFrags(), meta: META }).model;
+  assert.deepEqual(ids(bare.edges), ['mailer-uses-shared'], 'no extracts, no derived edges');
+  assert.deepEqual(bare.access ?? [], [], 'no extracts, no derived access rows');
+});
+
+test('m13c in update mode a derived edge belongs to its caller area: re-running that area with fresh extracts recomputes it', () => {
+  const first = crossed().model;
+  const fresh = crossExtracts().map((s) => ({ ...s, links: (s.links ?? []).filter((l) => l.kind !== 'http') }));
+  const webFrag = crossFrags().filter((f) => f.area === 'web');
+  const { model } = merge({ fragments: webFrag, extracts: fresh, repo: join(CROSS, 'repo'), previous: first, areas: ['web'], meta: {} });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.equal(edgeOf(model, 'web-app', 'orders-api', 'api').length, 0, 'the call is gone, so is its edge');
+  assert.equal(edgeOf(model, 'orders-api', 'mailer-worker', 'queue').length, 1, 'edges of other areas are kept, once');
+  assert.equal(edgeOf(model, 'mailer-worker', 'orders-api', 'call').length, 1);
+  assert.equal(model.meta.sources.filter((s) => s.type === 'derivation').length, 1, 'one derivation row, the fresh one');
+});
+
+test('m14 nodes of different areas with the same paths collapse to one, every reference rewritten', () => {
+  const { model, renames } = crossed();
+  assert.deepEqual(ids(model.nodes), ['mailer-worker', 'orders-api', 'orders-db', 'shared-utils', 'web-app']);
+  const e = model.edges.find((x) => x.id === 'mailer-uses-shared');
+  assert.equal(e.to, 'shared-utils', 'edge.to rewritten to the kept node');
+  assert.ok(renames.some((r) => r.from === 'shared' && r.to === 'shared-utils' && r.area === 'worker'), JSON.stringify(renames));
+  // the same node twice inside one area is the explorer's own business and is kept apart
+  const one = frag('solo', { nodes: [node('a', { zone: 'z' }), node('b', { zone: 'z' })] });
+  assert.equal(merge({ fragments: [one], meta: META }).model.nodes.length, 2);
+});
+
+test('m15 zones are derived once each: no duplicate ids, every node zone exists, kinds follow the nodes in them', () => {
+  const { model } = crossed();
+  const zoneIds = ids(model.zones);
+  assert.equal(new Set(zoneIds).size, zoneIds.length, `duplicate zone ids: ${zoneIds}`);
+  for (const n of model.nodes) assert.ok(zoneIds.includes(n.zone), `zone ${n.zone} of ${n.id} exists`);
+  assert.deepEqual(zoneIds, ['browser', 'data', 'service']);
+  assert.deepEqual(model.zones.map((z) => z.kind), ['browser', 'data', 'service']);
+  // a zone id spelled the same in two areas and one already in the previous model are still one zone
+  const prev = clone(model);
+  const again = merge({ fragments: crossFrags(), extracts: crossExtracts(), previous: prev, areas: ['api'], meta: {} }).model;
+  assert.deepEqual(ids(again.zones), zoneIds);
+  // spellings of one zone across areas ('Service', 'service', 'service ') are one zone; a node with no zone gets one
+  // from its kind and its area's stack (a ts-frontend app runs in the browser, a store sits in data)
+  const spelled = [
+    frag('a1', { nodes: [node('svc-a', { zone: 'Service', paths: ['a1/**'] })], zones: [{ id: 'Service', kind: 'service', label: 'Backend' }] }),
+    frag('a2', { nodes: [node('svc-b', { zone: 'service ', paths: ['a2/**'] })] }),
+    frag('a3', { nodes: [node('db', { zone: undefined, kind: 'store', paths: ['a3/db/**'] }), node('spa', { zone: undefined, kind: 'app', paths: ['a3/web/**'] })] }),
+  ];
+  const slices = [{ area: 'a3', stacks: ['ts-frontend'], links: [] }];
+  const z = merge({ fragments: spelled, extracts: slices, meta: META }).model;
+  assert.equal(validate(z).ok, true, JSON.stringify(validate(z).findings));
+  assert.deepEqual(ids(z.zones), ['browser', 'data', 'service']);
+  assert.equal(z.zones.find((x) => x.id === 'service').label, 'Backend', 'the declared zone keeps its label');
+  assert.deepEqual(z.nodes.map((n) => `${n.id}:${n.zone}`), ['db:data', 'spa:browser', 'svc-a:service', 'svc-b:service']);
+});
+
+test('m16 access rows come from the SQL evidence and relations from the declared foreign keys', () => {
+  const { model } = crossed();
+  const rows = model.access.map((a) => `${a.node} ${a.entity} ${a.ops} ${a.evidence.map((x) => `${x.path}:${x.lines}`).join(',')}`);
+  assert.deepEqual(rows, [
+    'mailer-worker orders R worker/tasks.py:12',
+    'orders-api customers R api/main.py:22',
+    'orders-api orders C api/main.py:25',
+  ]);
+  // a SQL table no entity models is not invented
+  assert.equal(model.entities.some((e) => e.id === 'orders_archive'), false);
+  // one fk declared on a model field, one declared in the ORM table of the prescan extract
+  assert.deepEqual(model.relations, [
+    { from: { entity: 'orders', field: 'customer_id' }, to: { entity: 'customers', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' },
+    { from: { entity: 'receipts', field: 'order_id' }, to: { entity: 'orders', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' },
+  ]);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+});
+
+test('m17 digest.json is written beside the model: ids, kinds, roles, edges, entities and a pre-drafted sequence, under 30 K characters', () => {
+  const dir = tmp();
+  const out = join(dir, 'model.json');
+  const dg = join(dir, 'digest.json');
+  const r = crossCli(out, dg);
+  assert.equal(r.status, 0, r.stderr);
+  const text = readFileSync(dg, 'utf8');
+  assert.ok(text.length < 30000, `${text.length} characters`);
+  const d = JSON.parse(text);
+  const model = readJson(out);
+  assert.deepEqual(d.nodes.map((n) => n.id), ids(model.nodes));
+  assert.equal(d.nodes.find((n) => n.id === 'orders-api').kind, 'service');
+  assert.equal(d.nodes.find((n) => n.id === 'orders-api').role, 'Takes and stores orders.');
+  assert.ok(d.edges.some((e) => e.from === 'web-app' && e.to === 'orders-api' && e.type === 'api'), JSON.stringify(d.edges));
+  assert.deepEqual(d.entities.map((e) => e.name).sort(), ['customers', 'orders', 'receipts']);
+  // the flow from the web entry point: route, handler, access rows and the queue hop, drafted in the step grammar
+  assert.ok(Array.isArray(d.drafts) && d.drafts.length >= 1, JSON.stringify(d.drafts));
+  const draft = d.drafts.find((s) => /POST \/orders/.test(s.title));
+  assert.ok(draft, JSON.stringify(d.drafts));
+  const lanes = draft.participants.map((p) => p.node);
+  for (const n of ['web-app', 'orders-api', 'orders-db', 'mailer-worker']) assert.ok(lanes.includes(n), `${n} in ${lanes}`);
+  const kinds = draft.steps.filter((s) => Array.isArray(s.m)).map((s) => s.k);
+  for (const k of ['api', 'sql', 'queue']) assert.ok(kinds.includes(k), `${k} step in ${kinds}`);
+  for (const s of draft.steps.filter((x) => Array.isArray(x.m))) assert.ok(s.r.length >= 1, `step ${s.t} cites its lines`);
+  // a draft is a valid sequence of this model as it stands
+  const withDraft = { ...model, sequences: d.drafts };
+  assert.equal(validate(withDraft).ok, true, JSON.stringify(validate(withDraft).findings));
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('m17b the digest keeps under its cap on a large model and counts what it left out', async () => {
+  const { buildDigest, digestText, DIGEST_CAP } = await import('../scripts/merge.mjs');
+  assert.equal(DIGEST_CAP <= 30000, true);
+  const long = 'x'.repeat(60);
+  const nodes = Array.from({ length: 400 }, (_, i) => node(`node-${pad(i, 3)}`, { zone: 'z', title: `${long} ${i}`, role: `${long} role` }));
+  const edges = Array.from({ length: 900 }, (_, i) => ({
+    id: `edge-${pad(i, 3)}`, from: nodes[i % 400].id, to: nodes[(i + 1) % 400].id, type: 'call', desc: long, evidence: ev('x/a.js'), confidence: 'verified',
+  }));
+  const model = { meta: META, zones: [{ id: 'z', kind: 'service', label: 'z' }], nodes, edges, entities: [], access: [] };
+  const d = buildDigest(model, { drafts: [] });
+  const text = digestText(d);
+  assert.ok(text.length <= DIGEST_CAP, `${text.length} > ${DIGEST_CAP}`);
+  assert.deepEqual(JSON.parse(text), d, 'the text is the digest');
+  assert.ok(d.truncated && (d.truncated.edges > 0 || d.truncated.nodes > 0), JSON.stringify(d.truncated));
+});
+
+test('m18 with extracts, repo and digest the merge output and the digest are byte-identical across two runs', () => {
+  const dir = tmp();
+  const outs = [1, 2].map((i) => [join(dir, `model${i}.json`), join(dir, `digest${i}.json`)]);
+  for (const [out, dg] of outs) {
+    const r = crossCli(out, dg);
+    assert.equal(r.status, 0, r.stderr);
+  }
+  assert.equal(readFileSync(outs[0][0], 'utf8'), readFileSync(outs[1][0], 'utf8'));
+  assert.equal(readFileSync(outs[0][1], 'utf8'), readFileSync(outs[1][1], 'utf8'));
+  // and the library result does not depend on the order fragments or extracts arrive in
+  const fwd = crossed();
+  const rev = merge({ fragments: crossFrags().reverse(), extracts: crossExtracts().reverse(), repo: join(CROSS, 'repo'), meta: META });
+  assert.equal(JSON.stringify(fwd.model), JSON.stringify(rev.model));
+  rmSync(dir, { recursive: true, force: true });
 });

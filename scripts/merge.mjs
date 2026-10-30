@@ -2,16 +2,33 @@
 // merge.mjs - merge explorer fragments (and the synthesizer's object) into the architecture model.
 //
 //   node scripts/merge.mjs <fragmentsDir> --out <model.json> [--previous <model.json>] [--synth <synth.json>]
+//        [--extracts <dir>] [--repo <dir>] [--digest <digest.json>]
 //        [--areas a,b] [--commit sha] [--project name] [--profile p] [--generated-at iso] [--repo-url url]
 //        [--strict] [--json]
 //
 // Fragments (<work>/fragments/*.json, written by the explorers; one object per area, contract in
 // skills/architecture-map/references/model-schema.md): nodes, edges, entities, access (and, tolerated,
 // relations and zones) are concatenated in area order. An element identical to one already present is
-// deduped; one that reuses an id with different content is renamed "<id>-<area>" (then -2, -3...) and every
-// reference inside that fragment is rewritten (edge from/to, entity store, fk targets, access node/entity,
-// relation endpoints). Access rows dedupe on node+entity with the ops unioned. Zones the nodes use but nobody
-// declared are created (kind from the zone id, else from its nodes' kinds, else "service").
+// deduped; a node of another area with the same `paths` is the same component and collapses into the first one
+// (by area order), every reference to it rewritten; one that reuses an id with different content is renamed
+// "<id>-<area>" (then -2, -3...) and every reference inside that fragment is rewritten (edge from/to, entity store,
+// fk targets, access node/entity, relation endpoints). Access rows dedupe on node+entity with the ops unioned.
+// Zone ids from fragments are matched by spelling ("Service", "service " and "service" are one zone); a node with
+// no zone gets one from its kind and its area's stacks; zones the nodes use but nobody declared are created (kind
+// from the zone id, else from its nodes' kinds, else "service").
+//
+// The cross-area layer is computed here, not asked of an agent. With --extracts <work>/extracts (the per-area
+// slices prescan.mjs writes) every cross-area link becomes an edge between the nodes that own its two files: an
+// HTTP call to a route an `api` edge, a queue producer to its consumer a `queue` edge (async), an import a `call`
+// edge. Each cites the link's file and line on both sides; an import link carries no line, so with --repo the merge
+// finds the import statement in the file (read as text, never run) and without it the link is skipped. SQL
+// statements in the slices become access rows (select R, insert C, update U, delete D) of the node owning the file on
+// the entity of that table. Declared foreign keys (an entity field's fk, an ORM table's fk=) become `relations[]`.
+// What cannot be cited or resolved (a file no node owns, a table no entity models) is never guessed: it is counted
+// in one meta.sources row of type "derivation". The result also carries a digest (written with --digest
+// <work>/digest.json, at most DIGEST_CAP characters): node ids, kinds, zones, one-line roles, the edge list,
+// entity names, access rows, and sequences pre-drafted from an HTTP entry point through its route, the handler's
+// access rows and its queue hops, for the synthesizer to confirm rather than discover.
 //
 // A fragment is never bounced back to its explorer. Before merging, each one is normalised (evidence lines given as a
 // number or "L12-L14", a string `level`, a missing `paths`, `confidence` or `level`, lowercase or unordered `ops`) and
@@ -27,15 +44,16 @@
 // Update mode (--previous with --areas a,b): only fragments of the listed areas are read. The elements owned
 // by those areas (first evidence path under a glob of the area's previous meta.coverage) are replaced; every
 // other element, zone, relation, sequence and view is kept as it was, ids unchanged. Cross-area edges and
-// access rows whose evidence sits in an affected area are replaced too: rerun the synthesizer for them.
+// access rows whose evidence sits in an affected area are replaced too, and --extracts recomputes them.
 // Globs are matched by lib/glob.mjs, the matcher diffmap.mjs uses, so both scripts agree on who owns a path
 // (a bare directory glob is literal; write `dir/**` to own a subtree).
 // --previous without --areas treats every area as affected (full rebuild that still carries user fields).
 // --areas and the fragment directory must name the same areas: an --areas entry with no fragment, and a fragment
 // whose area is not in --areas, are each reported as a conflict (exit 1 under --strict).
 //
-// Synthesizer object (--synth): edges, sequences, views merge by id; access and relations by key; notes and
-// conflicts are passed through. Conflicts are reported and never resolved silently.
+// Synthesizer object (--synth): sequences and views merge by id; notes and conflicts are passed through. The
+// synthesizer may not add nodes, edges, entities, access rows or relations: any it carries are ignored and each
+// kind is reported as a conflict. Conflicts are reported and never resolved silently.
 //
 // User-authored fields (node locked + notes) are never overwritten or dropped. A locked node keeps its
 // authored content; if the new analysis disagrees, or no longer finds it, a conflict is reported. Notes on an
@@ -47,7 +65,7 @@
 // Node >= 18, ESM, zero npm dependencies.
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, realpathSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
 import { matchAny } from './lib/glob.mjs';
@@ -71,6 +89,12 @@ function sortKeys(v) {
   return o;
 }
 const canon = (v) => JSON.stringify(sortKeys(v));
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const zoneSlug = (s) => slug(String(s).trim());
+const pathsKey = (n) => {
+  const p = list(n.paths).filter((g) => typeof g === 'string' && g.trim()).map((g) => g.trim()).sort(cmp);
+  return p.length ? JSON.stringify(p) : null;
+};
 const stripUser = (n) => {
   const c = clone(n);
   for (const k of USER_FIELDS) delete c[k];
@@ -130,10 +154,23 @@ function fixEvidence(ev, fixed) {
 
 const fixOps = (ops) => (typeof ops === 'string' ? [...OPS].filter((c) => ops.toUpperCase().includes(c)).join('') || ops : ops);
 
-function normaliseFragment(raw, area) {
+/** The zone of a node its explorer left without one: from its kind, and for an app from its area's stacks. */
+function zoneFor(n, stacks) {
+  const kind = String(n.kind ?? '').toLowerCase();
+  if (STORE_KINDS.has(kind) || kind === 'queue') return 'data';
+  if (kind === 'external') return 'external';
+  if (kind === 'app' && stacks.includes('ts-frontend')) return 'browser';
+  return 'service';
+}
+
+function normaliseFragment(raw, area, stacks = []) {
   const fixed = { n: 0 };
   const f = clone(raw);
   const nodes = list(f.nodes).filter(isObj).map((n) => {
+    if (typeof n.zone !== 'string' || !n.zone.trim()) {
+      n.zone = zoneFor(n, stacks);
+      fixed.n++;
+    }
     if (n.evidence !== undefined) n.evidence = fixEvidence(n.evidence, fixed);
     if (typeof n.level === 'string' && /^\d+$/.test(n.level.trim())) {
       n.level = Number(n.level);
@@ -194,7 +231,7 @@ function normaliseFragment(raw, area) {
   const keptAccess = cut('access', liveAccess);
 
   const notes = [];
-  if (fixed.n > 0) notes.push({ area, type: 'normalisation', fixed: fixed.n, note: `area ${area}: ${fixed.n} fragment field(s) normalised (evidence lines, level, paths, confidence, ops)` });
+  if (fixed.n > 0) notes.push({ area, type: 'normalisation', fixed: fixed.n, note: `area ${area}: ${fixed.n} fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)` });
   if (Object.keys(dropped).length) {
     const parts = Object.keys(CAPS).filter((k) => dropped[k]).map((k) => `${dropped[k]} ${CAP_LABEL[k]}`);
     notes.push({
@@ -237,19 +274,384 @@ function addAccess(map, row) {
   if (evidence.length) have.evidence = evidence;
 }
 
+// What the synthesizer may not supply, and how a refused element is named in the conflict.
+const SYNTH_REFUSED = {
+  nodes: (x) => x.id,
+  edges: (x) => x.id,
+  entities: (x) => x.id,
+  access: (x) => `${x.node}>${x.entity}`,
+  relations: (x) => relKey(x),
+};
+
+// ---------------------------------------------------------------------------
+// the cross-area layer, derived from the prescan slices: nothing here is guessed
+
+const MAX_EDGE_EVIDENCE = 4;
+const MAX_REASONS = 20;
+const SQL_OPS = { select: 'R', insert: 'C', update: 'U', delete: 'D' };
+const PROVENANCES = new Set(['declared', 'observed', 'inferred']);
+const byLoc = (a, b) => cmp(a.path, b.path) || Number(String(a.lines).split('-')[0]) - Number(String(b.lines).split('-')[0]) || cmp(a.lines, b.lines);
+const splitLoc = (loc) => {
+  const m = /^(.*):(\d+)$/.exec(String(loc));
+  return m ? { path: m[1], lines: m[2] } : { path: String(loc), lines: null };
+};
+const locText = (e) => `${e.path}:${e.lines}`;
+
+/** file path -> id of the node that owns it: the deepest level, then the longest glob; evidence paths only as a fallback. */
+function nodeResolver(nodes) {
+  const all = [...nodes.values()].sort(byId);
+  const cache = new Map();
+  return (path) => {
+    if (cache.has(path)) return cache.get(path);
+    let best = null;
+    let score = null;
+    let fallback = null;
+    for (const n of all) {
+      const hits = list(n.paths).filter((g) => typeof g === 'string' && matchAny([g], path));
+      if (hits.length) {
+        const s = [Number(n.level) || 0, Math.max(...hits.map((g) => g.length))];
+        if (score === null || s[0] > score[0] || (s[0] === score[0] && s[1] > score[1])) {
+          best = n.id;
+          score = s;
+        }
+      } else if (fallback === null && list(n.evidence).some((e) => isObj(e) && e.path === path)) fallback = n.id;
+    }
+    const id = best ?? fallback;
+    cache.set(path, id);
+    return id;
+  };
+}
+
+/** The line of the import statement in `from` that names `to`, read as text under `repo`; null when none is found. */
+function importLine(repo, from, to) {
+  if (typeof repo !== 'string' || from.startsWith('/') || from.split('/').includes('..')) return null;
+  const root = resolve(repo);
+  const file = resolve(root, from);
+  if (!file.startsWith(root + sep)) return null;
+  let text;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch {
+    return null;
+  }
+  const noExt = to.replace(/\.[^./]+$/, '');
+  const stem = basename(noExt);
+  const names = new Set([stem, noExt.replace(/\//g, '.')]);
+  if (stem === 'index' || stem === '__init__') names.add(basename(dirname(noExt)));
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const named = [...names].filter(Boolean).map((s) => new RegExp(`(^|[^\\w])${esc(s)}([^\\w]|$)`));
+  const isImport = /^\s*(import|from)\b|\brequire\s*\(|\bimport\s*\(/;
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (isImport.test(lines[i]) && named.some((re) => re.test(lines[i]))) return String(i + 1);
+  }
+  return null;
+}
+
 /**
- * Pure merge.
- * @param {{fragments?: object[], previous?: object, synth?: object, areas?: string[],
- *   meta?: {project?: string, commit?: string, profile?: string, generatedAt?: string, repoUrl?: string, schemaVersion?: string}}} input
- * @returns {{model: object, conflicts: {ids: string[], reason: string}[], renames: object[], notes: string[], zonesCreated: string[]}}
+ * Add the derived edges, access rows and relations to the maps in place. Returns the meta.sources row and the
+ * flows (http and queue hops with their node ends) the sequence drafts are built from.
  */
-export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}) {
+function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }) {
+  const owner = nodeResolver(nodes);
+  const skipped = [];
+  const count = { edges: 0, access: 0, relations: 0 };
+  const flows = [];
+
+  // --- edges from the links; each link is listed in the slices of both its areas, so key it without the side
+  const links = new Map();
+  for (const s of slices) {
+    if (typeof s.unreadable === 'string') skipped.push(s.unreadable);
+    for (const l of list(s.links)) {
+      if (!isObj(l) || typeof l.from !== 'string' || typeof l.to !== 'string') continue;
+      const key = `${l.kind}\u0000${l.from}\u0000${l.to}\u0000${l.via ?? ''}`;
+      if (!links.has(key)) links.set(key, { kind: String(l.kind), from: l.from, to: l.to, via: typeof l.via === 'string' ? l.via : null });
+    }
+  }
+  const queueNodes = [...nodes.values()].filter((n) => String(n.kind).toLowerCase() === 'queue').sort(byId);
+  const queueNode = (name) => queueNodes.find((n) => slug(n.id) === slug(name) || slug(n.title) === slug(name))?.id ?? null;
+  const groups = new Map();
+  const add = (from, type, to, evidence, via, extra = {}) => {
+    const key = `${from}\u0000${type}\u0000${to}`;
+    if (!groups.has(key)) groups.set(key, { from, type, to, evidence: [], vias: [], ...extra });
+    const g = groups.get(key);
+    g.evidence = unionEvidence(g.evidence, evidence);
+    if (via && !g.vias.includes(via)) g.vias.push(via);
+  };
+  for (const key of [...links.keys()].sort(cmp)) {
+    const l = links.get(key);
+    const a = splitLoc(l.from);
+    const b = splitLoc(l.to);
+    const from = owner(a.path);
+    const to = owner(b.path);
+    const what = `${l.kind} ${l.from} > ${l.to}`;
+    if (from === null || to === null) {
+      skipped.push(`${what}: no node owns ${from === null ? a.path : b.path}`);
+      continue;
+    }
+    if (from === to) continue; // inside one node: not a cross-node edge
+    if (l.kind === 'http' || l.kind === 'queue') {
+      if (a.lines === null || b.lines === null) {
+        skipped.push(`${what}: no line to cite`);
+        continue;
+      }
+      if (l.kind === 'http') {
+        add(from, 'api', to, [a, b], l.via ?? 'a route');
+        flows.push({ kind: 'http', from, to, a, b, via: l.via ?? `${from} > ${to}` });
+      } else {
+        const q = l.via ? queueNode(l.via) : null;
+        if (q !== null && q !== from && q !== to) {
+          add(from, 'queue', q, [a], l.via, { async: true });
+          add(to, 'queue', q, [b], l.via, { async: true });
+        } else add(from, 'queue', to, [a, b], l.via ?? 'a queue', { async: true });
+        flows.push({ kind: 'queue', from, to, a, b, via: l.via ?? 'queue' });
+      }
+    } else if (l.kind === 'import') {
+      const line = importLine(repo, a.path, b.path);
+      if (line === null) {
+        skipped.push(`${what}: no import line to cite${typeof repo === 'string' ? '' : ' (no --repo)'}`);
+        continue;
+      }
+      add(from, 'call', to, [{ path: a.path, lines: line }], b.path);
+    } else skipped.push(`${what}: unknown link kind`);
+  }
+  const mapped = new Set([...edges.values()].map((e) => `${e.from}\u0000${e.type}\u0000${e.to}`));
+  for (const [key, g] of [...groups].sort((p, q) => cmp(p[0], q[0]))) {
+    if (mapped.has(key)) continue; // the explorer already drew it
+    const more = g.vias.length > 1 ? ` and ${g.vias.length - 1} more` : '';
+    const desc =
+      g.type === 'api' ? `Calls ${g.vias[0]}${more} over HTTP.`
+      : g.type === 'queue' ? `Enqueues ${g.vias[0]}${more}; the sender does not wait.`
+      : `Imports ${g.vias[0]}${more}.`;
+    let id = slug(`${g.from}-${g.type}-${g.to}`);
+    for (let n = 2; edges.has(id); n++) id = slug(`${g.from}-${g.type}-${g.to}-${n}`);
+    const edge = {
+      id, from: g.from, to: g.to, type: g.type, desc,
+      // the caller's side first: update mode gives an edge to the area of its first evidence path, its source
+      evidence: g.evidence.slice(0, MAX_EDGE_EVIDENCE), confidence: 'verified', foundBy: 'static',
+    };
+    if (g.vias.length === 1 && g.type !== 'call') edge.label = g.vias[0];
+    if (g.async) edge.async = true;
+    edges.set(id, edge);
+    count.edges++;
+  }
+
+  // --- entity lookup: id, name, and the ORM class and table names the slices map to an entity
+  const entityOf = new Map();
+  const nameIt = (name, id) => {
+    if (typeof name === 'string' && name && !entityOf.has(name.toLowerCase())) entityOf.set(name.toLowerCase(), id);
+  };
+  const ents = [...entities.values()].sort(byId);
+  for (const e of ents) nameIt(e.id, e.id);
+  for (const e of ents) nameIt(e.name, e.id);
+  const tableRows = slices.flatMap((s) => list(s.tables).filter(isObj));
+  const lookup = (name) => {
+    if (typeof name !== 'string' || !name) return null;
+    const n = name.toLowerCase();
+    return entityOf.get(n) ?? entityOf.get(n.split('.').pop()) ?? null;
+  };
+  for (const t of tableRows) {
+    const id = lookup(t.table) ?? lookup(t.name);
+    if (id !== null) nameIt(t.name, id);
+  }
+
+  // --- access rows from the SQL the slices list ("<table> <op> <path>:<line>")
+  for (const s of slices) {
+    for (const row of list(s.sqlTables)) {
+      const m = /^(\S+)\s+(\S+)\s+(.+):(\d+)$/.exec(String(row));
+      if (!m) continue;
+      const [, table, op, path, line] = m;
+      const ops = SQL_OPS[op.toLowerCase()];
+      if (ops === undefined) continue; // ddl shapes the schema; it is not an access
+      const entity = lookup(table);
+      const node = owner(path);
+      if (entity === null || node === null) {
+        skipped.push(`sql ${table} ${op} at ${path}:${line}: ${entity === null ? 'no entity models the table' : `no node owns ${path}`}`);
+        continue;
+      }
+      addAccess(access, { node, entity, ops, evidence: [{ path, lines: line }] });
+      count.access++;
+    }
+  }
+
+  // --- relations from declared foreign keys: a model field's fk, then an ORM table's fk=
+  const hasField = (e, name) => list(e?.fields).some((f) => isObj(f) && f.name === name);
+  const pkOf = (e) => list(e?.fields).find((f) => isObj(f) && f.pk === true)?.name ?? null;
+  const addRel = (fromId, field, toId, toField, provenance) => {
+    const from = entities.get(fromId);
+    const to = entities.get(toId);
+    const tf = toField ?? pkOf(to);
+    if (!from || !to || !tf || !hasField(from, field) || !hasField(to, tf)) return;
+    const r = { from: { entity: fromId, field }, to: { entity: toId, field: tf }, cardinality: '1-n', kind: 'fk', provenance };
+    if (relations.has(relKey(r))) return;
+    relations.set(relKey(r), r);
+    count.relations++;
+  };
+  for (const e of ents) {
+    for (const f of list(e.fields)) {
+      if (!isObj(f) || !isObj(f.fk) || typeof f.fk.entity !== 'string') continue;
+      addRel(e.id, f.name, f.fk.entity, typeof f.fk.field === 'string' ? f.fk.field : null, PROVENANCES.has(f.provenance) ? f.provenance : 'declared');
+    }
+  }
+  for (const t of tableRows) {
+    const fromId = lookup(t.table) ?? lookup(t.name);
+    if (fromId === null) continue;
+    for (const fs of list(t.fields)) {
+      const m = /^(\S+)\s.*\bfk=(\S+)$/.exec(String(fs));
+      if (!m) continue;
+      const target = m[2];
+      const dot = target.lastIndexOf('.');
+      const toId = lookup(dot > 0 ? target.slice(0, dot) : target);
+      if (toId !== null) addRel(fromId, m[1], toId, dot > 0 ? target.slice(dot + 1) : null, 'declared');
+    }
+  }
+
+  const reasons = [...new Set(skipped)].sort(cmp);
+  const source = {
+    type: 'derivation',
+    derived: count,
+    skipped: { count: skipped.length, reasons: reasons.slice(0, MAX_REASONS) },
+    note: `merge.mjs derived ${count.edges} cross-area edge(s), ${count.access} SQL access row(s) and ${count.relations} fk relation(s) from the prescan extracts; ${skipped.length} link(s) or statement(s) could not be cited or resolved`,
+  };
+  return { source, flows };
+}
+
+// ---------------------------------------------------------------------------
+// sequence drafts and the digest the synthesizer reads instead of the model
+
+const MAX_DRAFTS = 12;
+const MAX_PARTICIPANTS = 7;
+const OPS_WORD = { C: 'insert', R: 'read', U: 'update', D: 'delete' };
+
+/**
+ * One draft per HTTP entry point: the call to the route, the access rows cited in the handler's file, and each queue
+ * hop that file starts with the consumer's own access rows. A draft is a sequence in the step grammar, every step citing
+ * its lines; the synthesizer confirms, edits or drops it.
+ */
+export function draftSequences({ flows, model }) {
+  const nodes = new Map(list(model.nodes).map((n) => [n.id, n]));
+  const entities = new Map(list(model.entities).map((e) => [e.id, e]));
+  const access = list(model.access);
+  const title = (id) => nodes.get(id)?.title ?? id;
+  const drafts = new Map();
+  for (const h of flows.filter((f) => f.kind === 'http').sort((p, q) => cmp(p.via, q.via) || cmp(p.from, q.from))) {
+    const id = `draft-${slug(h.via) || slug(`${h.from}-${h.to}`)}`;
+    if (drafts.has(id)) continue;
+    const parts = new Map();
+    const steps = [];
+    const msg = (from, to, k, t, d, r) => {
+      const fresh = [from, to].filter((x) => !parts.has(x));
+      if (parts.size + new Set(fresh).size > MAX_PARTICIPANTS) return;
+      for (const x of [from, to]) {
+        if (parts.has(x)) continue;
+        const n = nodes.get(x);
+        parts.set(x, { id: x, label: title(x), node: x, ...(typeof n?.zone === 'string' ? { zone: n.zone } : {}) });
+      }
+      steps.push({ m: [from, to], k, t, d, r });
+    };
+    const dataSteps = (nodeId, file) => {
+      for (const a of access.filter((x) => x.node === nodeId).sort((p, q) => cmp(accessKey(p), accessKey(q)))) {
+        const at = list(a.evidence).filter((e) => isObj(e) && e.path === file);
+        const ent = entities.get(a.entity);
+        if (!at.length || !ent || !nodes.has(ent.store) || ent.store === nodeId) continue;
+        const verb = [...a.ops].map((c) => OPS_WORD[c]).join('/');
+        msg(nodeId, ent.store, 'sql', `${verb} ${ent.name}`, `${title(nodeId)} runs ${verb} on ${ent.name} (ops ${a.ops}).`, at.sort(byLoc).map(locText));
+      }
+    };
+    msg(h.from, h.to, 'api', h.via, `${title(h.from)} calls ${h.via}.`, [locText(h.a), locText(h.b)]);
+    dataSteps(h.to, h.b.path);
+    const hops = flows.filter((q) => q.kind === 'queue' && q.from === h.to && q.a.path === h.b.path).sort((p, q) => cmp(p.via, q.via) || cmp(p.to, q.to));
+    for (const q of hops) {
+      msg(h.to, q.to, 'queue', q.via, `${title(h.to)} enqueues ${q.via} for ${title(q.to)}; it does not wait.`, [locText(q.a), locText(q.b)]);
+      dataSteps(q.to, q.b.path);
+    }
+    if (steps.length < 2) continue; // a lone call is an edge, not a flow
+    drafts.set(id, {
+      id,
+      title: h.via,
+      summary: `Drafted by merge.mjs from the prescan links and access rows: ${title(h.from)} to ${title(h.to)}${hops.length ? ' and its queue hops' : ''}. Confirm against the code.`,
+      participants: [...parts.values()],
+      steps,
+    });
+  }
+  return [...drafts.values()].sort(byId).slice(0, MAX_DRAFTS);
+}
+
+export const DIGEST_CAP = 29000; // characters of digest.json: under 30 K with room for the brief
+const DIGEST_ORDER = ['about', 'project', 'commit', 'counts', 'zones', 'nodes', 'edges', 'entities', 'access', 'sequences', 'drafts', 'truncated'];
+// kinds the cap trims, with the weight that protects the ones the synthesizer needs most
+const DIGEST_TRIM = { access: 1, edges: 2, drafts: 2, entities: 3, nodes: 6 };
+const clip = (s, n) => (typeof s === 'string' && s.length > n ? `${s.slice(0, n - 3)}...` : s);
+const compact = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null));
+
+/** The text of digest.json: one top-level key per line, one array element per line. */
+export function digestText(d) {
+  const keys = [...DIGEST_ORDER.filter((k) => k in d), ...Object.keys(d).filter((k) => !DIGEST_ORDER.includes(k)).sort(cmp)];
+  const line = (k) => {
+    const v = d[k];
+    if (Array.isArray(v) && v.length) return `${JSON.stringify(k)}:[\n${v.map((x) => JSON.stringify(x)).join(',\n')}\n]`;
+    return `${JSON.stringify(k)}:${JSON.stringify(v)}`;
+  };
+  return `{\n${keys.filter((k) => d[k] !== undefined).map(line).join(',\n')}\n}\n`;
+}
+
+/** The compact digest of a merged model, cut to DIGEST_CAP characters; what the cut drops is counted in `truncated`. */
+export function buildDigest(model, { drafts = [] } = {}) {
+  const d = compact({
+    about: 'archmap digest of the merged model. Ids are final: reference them, never add nodes, edges, entities or access rows. drafts are sequences merge.mjs derived from the prescan links and access rows.',
+    project: model.meta?.project,
+    commit: model.meta?.commit,
+    counts: {
+      nodes: list(model.nodes).length, edges: list(model.edges).length, entities: list(model.entities).length,
+      access: list(model.access).length, sequences: list(model.sequences).length, drafts: drafts.length,
+    },
+    zones: list(model.zones).map((z) => compact({ id: z.id, kind: z.kind })),
+    nodes: list(model.nodes).map((n) => compact({ id: n.id, kind: n.kind, zone: n.zone, level: n.level, title: clip(n.title, 80), role: clip(n.role, 140) })),
+    edges: list(model.edges).map((e) => compact({ id: e.id, from: e.from, to: e.to, type: e.type, async: e.async === true ? true : undefined })),
+    entities: list(model.entities).map((e) => compact({ id: e.id, name: e.name, store: e.store })),
+    access: list(model.access).map((a) => `${a.node} ${a.entity} ${a.ops}`),
+    sequences: list(model.sequences).map((s) => compact({ id: s.id, title: s.title })),
+    drafts: clone(drafts),
+  });
+  d.truncated = {};
+  const size = (x) => JSON.stringify(x).length + 2;
+  const sizes = Object.fromEntries(Object.keys(DIGEST_TRIM).map((k) => [k, d[k].reduce((n, x) => n + size(x), 0)]));
+  let over = digestText(d).length - DIGEST_CAP;
+  while (over > 0) {
+    let best = null;
+    for (const k of Object.keys(DIGEST_TRIM)) {
+      if (!d[k].length) continue;
+      if (best === null || sizes[k] / DIGEST_TRIM[k] > sizes[best] / DIGEST_TRIM[best]) best = k;
+    }
+    if (best === null) break;
+    const gone = d[best].pop();
+    sizes[best] -= size(gone);
+    d.truncated[best] = (d.truncated[best] ?? 0) + 1;
+    over -= size(gone);
+    if (over <= 0) over = digestText(d).length - DIGEST_CAP; // the estimate is close; the text decides
+  }
+  return d;
+}
+
+/**
+ * Pure merge (it reads files only under `repo`, as text, to cite an import line).
+ * @param {{fragments?: object[], previous?: object, synth?: object, areas?: string[], extracts?: object[], repo?: string,
+ *   meta?: {project?: string, commit?: string, profile?: string, generatedAt?: string, repoUrl?: string, schemaVersion?: string}}} input
+ *   `extracts` are the per-area prescan slices (<work>/extracts/*.json); `repo` is the analysed tree.
+ * @returns {{model: object, digest: object, conflicts: {ids: string[], reason: string}[], renames: object[], notes: string[], zonesCreated: string[]}}
+ */
+export function merge({ fragments = [], previous, synth, areas, meta = {}, extracts, repo } = {}) {
   const conflicts = [];
   const renames = [];
   const notes = [];
   const prev = isObj(previous) ? clone(previous) : null;
   const affected = prev && Array.isArray(areas) ? new Set(areas) : null; // null with prev = all areas
   const updateMode = prev !== null && affected !== null;
+  const slices = list(extracts)
+    .filter(isObj)
+    .map(clone)
+    .sort((a, b) => cmp(String(a.area ?? ''), String(b.area ?? '')) || cmp(canon(a), canon(b)));
+  const stacksOf = new Map(slices.map((s) => [s.area, list(s.stacks).map(String)]));
 
   // fragments in area order; in update mode only the affected areas
   const fixNotes = [];
@@ -257,7 +659,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     .map((f, i) => ({ f, area: typeof f?.area === 'string' && f.area ? f.area : `fragment${i}` }))
     .filter((x) => isObj(x.f) && (!updateMode || affected.has(x.area)))
     .map((x) => {
-      const n = normaliseFragment(x.f, x.area);
+      const n = normaliseFragment(x.f, x.area, stacksOf.get(x.area) ?? []);
       fixNotes.push(...n.notes);
       return { f: n.f, area: x.area };
     })
@@ -329,6 +731,20 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     for (let n = 2; pool.has(cand); n++) cand = `${id}-${area}-${n}`;
     return cand;
   };
+  // one zone per spelling: an exact id first, then any zone whose id reads the same once case and separators go
+  const seenZones = new Set([...zones.keys(), ...[...nodes.values()].map((n) => n.zone).filter((z) => typeof z === 'string')]);
+  const resolveZone = (id) => {
+    if (typeof id !== 'string') return id;
+    if (!seenZones.has(id)) {
+      const s = zoneSlug(id);
+      const twin = [...seenZones].sort(cmp).find((z) => zoneSlug(z) === s);
+      id = twin ?? (id.trim().toLowerCase().replace(/\s+/g, '-') || id);
+    }
+    seenZones.add(id);
+    return id;
+  };
+  const byPaths = new Map(); // paths key -> {id, area} of the first node this run that covers exactly those paths
+  const collapsed = new Map(); // node id dropped as a same-paths twin -> the id kept
 
   // --- fragments
   const sources = list(prev?.meta?.sources).filter(
@@ -347,21 +763,36 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     };
 
     for (const raw of list(f.zones)) {
-      if (isObj(raw) && typeof raw.id === 'string' && !zones.has(raw.id)) zones.set(raw.id, clone(raw));
+      if (!isObj(raw) || typeof raw.id !== 'string') continue;
+      const id = resolveZone(raw.id);
+      if (!zones.has(id)) zones.set(id, { ...clone(raw), id });
     }
 
     for (const raw of list(f.nodes)) {
       if (!isObj(raw)) continue;
       const n = stripUser(raw);
+      n.zone = resolveZone(n.zone);
       const have = nodes.get(n.id);
-      if (have === undefined) nodes.set(n.id, n);
-      else if (canon(stripUser(have)) === canon(n)) continue; // identical: deduped
-      else {
-        const id = uniqueId(nodes, n.id, area);
+      if (have !== undefined && canon(stripUser(have)) === canon(n)) continue; // identical: deduped
+      // the same paths in another area: one component two explorers both described; the first area's node stays
+      const key = pathsKey(n);
+      const twin = key === null ? undefined : byPaths.get(key);
+      if (twin !== undefined && twin.area !== area) {
+        if (twin.id !== n.id) {
+          nodeMap.set(n.id, twin.id);
+          collapsed.set(n.id, twin.id);
+          renames.push({ area, kind: 'node', from: n.id, to: twin.id, reason: `same paths as node "${twin.id}" of area ${twin.area}` });
+        }
+        continue;
+      }
+      let id = n.id;
+      if (have !== undefined) {
+        id = uniqueId(nodes, n.id, area);
         nodeMap.set(n.id, id);
         note('node', n.id, id);
-        nodes.set(id, { ...n, id });
       }
+      nodes.set(id, { ...n, id });
+      if (key !== null && !byPaths.has(key)) byPaths.set(key, { id, area });
     }
     const mapNode = (id) => nodeMap.get(id) ?? id;
 
@@ -422,6 +853,22 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
   }
   sources.push(...fixNotes);
 
+  // a reference from another fragment to a node that collapsed into its same-paths twin follows it
+  const follow = (id) => (collapsed.has(id) && !nodes.has(id) ? collapsed.get(id) : id);
+  if (collapsed.size) {
+    for (const e of edges.values()) {
+      e.from = follow(e.from);
+      e.to = follow(e.to);
+    }
+    for (const e of entities.values()) if (typeof e.store === 'string') e.store = follow(e.store);
+    for (const [k, a] of [...access]) {
+      const node = follow(a.node);
+      if (node === a.node) continue;
+      access.delete(k);
+      addAccess(access, { ...a, node });
+    }
+  }
+
   // --- user-authored fields of the nodes the affected areas owned
   for (const p of nodePart.gone) {
     const now = nodes.get(p.id);
@@ -446,31 +893,25 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
     }
   }
 
-  // --- synthesizer
+  // --- the cross-area layer, computed from the prescan slices and the declared keys
+  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo });
+  if (extracts !== undefined) {
+    for (let i = sources.length - 1; i >= 0; i--) if (isObj(sources[i]) && sources[i].type === 'derivation') sources.splice(i, 1);
+    sources.push(derived.source);
+  }
+
+  // --- synthesizer: sequences and views only; the structure is the script's
   if (isObj(synth)) {
-    for (const raw of list(synth.nodes)) {
-      if (!isObj(raw) || typeof raw.id !== 'string') continue;
-      const have = nodes.get(raw.id);
-      const n = stripUser(raw);
-      if (have === undefined) nodes.set(n.id, n);
-      else if (have.locked === true) {
-        if (canon(stripUser(have)) !== canon(n)) {
-          conflicts.push({
-            ids: [n.id],
-            reason: `synthesizer disagrees with locked node "${n.id}"; authored content kept`,
-          });
-        }
-      } else {
-        const next = { ...n };
-        for (const k of USER_FIELDS) if (have[k] !== undefined) next[k] = have[k];
-        nodes.set(n.id, next);
-      }
+    for (const [key, idOf] of Object.entries(SYNTH_REFUSED)) {
+      const items = list(synth[key]).filter(isObj);
+      if (!items.length) continue;
+      conflicts.push({
+        ids: [...new Set(items.map((x) => String(idOf(x))))].sort(cmp),
+        reason: `synthesizer may not add ${key}: ${items.length} ignored (merge.mjs computes nodes, edges, entities, access rows and relations; the synthesizer returns sequences, views, notes and conflicts only)`,
+      });
     }
-    for (const e of list(synth.edges)) if (isObj(e) && typeof e.id === 'string') edges.set(e.id, clone(e));
     for (const s of list(synth.sequences)) if (isObj(s) && typeof s.id === 'string') sequences.set(s.id, clone(s));
     for (const v of list(synth.views)) if (isObj(v) && typeof v.id === 'string') views.set(v.id, clone(v));
-    for (const a of list(synth.access)) if (isObj(a)) access.set(accessKey(a), clone(a));
-    for (const r of list(synth.relations)) if (isObj(r)) relations.set(relKey(r), clone(r));
     for (const n of list(synth.notes)) if (typeof n === 'string') notes.push(n);
     for (const c of list(synth.conflicts)) if (isObj(c)) conflicts.push(clone(c));
   }
@@ -535,7 +976,9 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
   const ordered = Object.fromEntries([...TOP_ORDER, ...unknownTop].filter((k) => k in sorted).map((k) => [k, sorted[k]]));
 
   const sortRenames = renames.sort((a, b) => cmp(a.kind, b.kind) || cmp(a.from, b.from) || cmp(a.area, b.area));
-  return { model: ordered, conflicts, renames: sortRenames, notes, zonesCreated };
+  const drafts = draftSequences({ flows: derived.flows, model: ordered });
+  const digest = buildDigest(ordered, { drafts });
+  return { model: ordered, digest, conflicts, renames: sortRenames, notes, zonesCreated };
 }
 
 // ---------------------------------------------------------------------------
@@ -543,12 +986,14 @@ export function merge({ fragments = [], previous, synth, areas, meta = {} } = {}
 
 const USAGE =
   'usage: node scripts/merge.mjs <fragmentsDir> --out <model.json> [--previous <model.json>] [--synth <synth.json>] ' +
+  '[--extracts <dir>] [--repo <dir>] [--digest <digest.json>] ' +
   '[--areas a,b] [--commit sha] [--project name] [--profile p] [--generated-at iso] [--repo-url url] [--strict] [--json]';
 
 class UsageError extends Error {}
 
 const VALUE_FLAGS = new Set([
   '--out', '--previous', '--synth', '--areas', '--commit', '--project', '--profile', '--generated-at', '--repo-url',
+  '--extracts', '--repo', '--digest',
 ]);
 
 function parseArgs(argv) {
@@ -625,11 +1070,34 @@ function main(argv) {
     const synth = o.synth === undefined ? undefined : readJson(o.synth, 'synthesizer output');
     if (synth !== undefined && !isObj(synth)) throw new UsageError('synthesizer output is not a JSON object');
     const areas = o.areas === undefined ? undefined : o.areas.split(',').map((s) => s.trim()).filter(Boolean);
+    let extracts;
+    if (o.extracts !== undefined) {
+      let isExtractDir = false;
+      try { isExtractDir = statSync(o.extracts).isDirectory(); } catch { /* not a dir */ }
+      if (!isExtractDir) throw new UsageError(`--extracts ${o.extracts} is not a directory`);
+      // a slice that cannot be read only costs its links: the derivation row says so
+      extracts = readdirSync(o.extracts).filter((f) => f.endsWith('.json')).sort(cmp).map((f) => {
+        try {
+          const s = readJson(join(o.extracts, f), 'extract');
+          return isObj(s) ? s : { area: f.replace(/\.json$/, ''), unreadable: `extract ${f} is not a JSON object` };
+        } catch (e) {
+          if (!(e instanceof UsageError)) throw e;
+          return { area: f.replace(/\.json$/, ''), unreadable: `extract ${f} unreadable` };
+        }
+      });
+    }
+    if (o.repo !== undefined) {
+      let isRepo = false;
+      try { isRepo = statSync(o.repo).isDirectory(); } catch { /* not a dir */ }
+      if (!isRepo) throw new UsageError(`--repo ${o.repo} is not a directory`);
+    }
     result = merge({
       fragments,
       previous,
       synth,
       areas,
+      extracts,
+      repo: o.repo,
       meta: {
         project: o.project, commit: o.commit, profile: o.profile, generatedAt: o.generatedAt, repoUrl: o.repoUrl,
       },
@@ -661,10 +1129,15 @@ function main(argv) {
   }
   mkdirSync(dirname(o.out), { recursive: true });
   writeFileSync(o.out, JSON.stringify(model, null, 2) + '\n');
+  if (o.digest !== undefined) {
+    mkdirSync(dirname(o.digest), { recursive: true });
+    writeFileSync(o.digest, digestText(result.digest));
+  }
   if (!o.json) {
     console.log(
       `merged ${model.nodes.length} nodes, ${model.edges.length} edges, ${list(model.entities).length} entities, ` +
-        `${list(model.access).length} access rows into ${o.out} (${renames.length} renamed, ${conflicts.length} conflict(s))`,
+        `${list(model.access).length} access rows into ${o.out} (${renames.length} renamed, ${conflicts.length} conflict(s))` +
+        (o.digest !== undefined ? `; digest with ${result.digest.drafts.length} drafted sequence(s) in ${o.digest}` : ''),
     );
   }
   return 0;

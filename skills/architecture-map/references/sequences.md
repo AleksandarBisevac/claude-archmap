@@ -65,6 +65,16 @@ Participants: `web` (browser), `api`, `db`, `mailer`.
 }
 ```
 
+## Drafts from the merge
+
+`merge.mjs` writes `drafts` into `<work>/digest.json`: one sequence per HTTP entry point it could follow, built from
+the cross-area links and access rows it computed. A draft starts with the client's call to the route, then each access
+row cited in the handler's file (`k: sql`, to the entity's store), then each queue hop that file starts (`k: queue`)
+with the consumer's own access rows. Participants are node ids (at most 7), every message cites its `path:line` in
+`r`, and the id starts with `draft-`. A draft is a proposal: confirm its cited lines, then keep it under a plain id,
+edit it (add the decision fragments, returns and notes a script cannot see) or drop it. A draft never needs a node or
+edge the digest lacks; if the code shows one, report it in `conflicts`.
+
 ## Picking sequences
 
 Choose 3 to 7 per model. Prefer flows a newcomer asks about first: the main user journey, authentication, the

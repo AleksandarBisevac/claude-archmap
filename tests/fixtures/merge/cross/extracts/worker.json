@@ -1,0 +1,15 @@
+{
+"area":"worker",
+"title":"worker",
+"globs":["worker/**"],
+"stacks":["python"],
+"files":1,
+"routes":[],
+"tables":[],
+"sqlTables":["orders select worker/tasks.py:12"],
+"envKeys":[],
+"queues":[{"name":"send_receipt","producers":[],"consumers":[{"handler":"send_receipt","file":"worker/tasks.py","line":8}]}],
+"imports":[],
+"links":[{"kind":"import","dir":"out","from":"worker/tasks.py","to":"api/models.py","other":"api"},{"kind":"queue","dir":"in","from":"api/main.py:31","to":"worker/tasks.py:8","other":"api","via":"send_receipt"}],
+"truncated":{}
+}

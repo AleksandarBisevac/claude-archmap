@@ -1,0 +1,15 @@
+{
+"area":"web",
+"title":"web",
+"globs":["web/**"],
+"stacks":["ts-frontend"],
+"files":3,
+"routes":[],
+"tables":[],
+"envKeys":[],
+"queues":[],
+"httpCalls":[{"method":"POST","url":"/orders","client":"fetch","file":"web/src/api.ts","line":12},{"method":"GET","url":"/status","client":"fetch","file":"web/src/legacy.ts","line":4}],
+"imports":[],
+"links":[{"kind":"http","dir":"out","from":"web/src/api.ts:12","to":"api/main.py:20","other":"api","via":"POST /orders"},{"kind":"http","dir":"out","from":"web/src/legacy.ts:4","to":"ext/server.js:3","other":"ext","via":"GET /status"}],
+"truncated":{}
+}

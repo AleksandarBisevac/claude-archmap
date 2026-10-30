@@ -33,7 +33,7 @@ A `node.level` is the C4 level: 1, 2 or 3.
 | `generatedAt` **req** | ISO timestamp of the run. |
 | `repoUrl` | Base URL used to turn evidence into links. |
 | `profile` **req** | `max`, `balanced` or `economy`. |
-| `sources` **req** | Array of introspections run or skipped, and why (a skipped step is recorded here, never dropped); also one row per explorer fragment and a `truncation` or `normalisation` row, naming the area and the counts, when the merge cut or fixed one. |
+| `sources` **req** | Array of introspections run or skipped, and why (a skipped step is recorded here, never dropped); also one row per explorer fragment and a `truncation` or `normalisation` row, naming the area and the counts, when the merge cut or fixed one; and one `derivation` row when the merge computed the cross-area layer from the prescan extracts, with the counts it derived and the links or statements it could not cite. |
 | `coverage` **req** | Object: area name to array of globs. Drives `update`, which re-analyses only areas whose files changed. |
 
 ## The evidence rule
@@ -95,5 +95,28 @@ Rules:
 - `coverage` lists the globs the explorer actually read. These become `meta.coverage[area]`.
 - A subtree in `coverage` is written `dir/**`; a bare directory glob such as `src/api` matches only that literal path, not the files under it (`merge.mjs` and `diffmap.mjs` match it that way).
 - `skipped` tallies what was seen and left out: `count` and short `reasons`. Never silently omit.
-- Do not emit `meta`, `zones`, `sequences`, `views`, `locked` or `notes`. The synthesizer owns those.
+- Do not emit `meta`, `zones`, `sequences`, `views`, `locked` or `notes`. `merge.mjs` fills `meta` and the zones,
+  the synthesizer writes sequences and views, and `locked` and `notes` belong to the user.
 - Do not emit an element without evidence, and do not guess lines: cite the lines you read.
+- Two areas that describe the same directory give the node the same `paths`; the merge keeps one (the first area's id)
+  and rewrites the references, so a shared module needs no coordination between explorers.
+
+## What the merge computes
+
+From the per-area prescan slices (`merge.mjs --extracts <work>/extracts --repo .`) the merge adds, each with evidence:
+
+- cross-area `edges[]`: an HTTP call to a route (`api`), a queue producer to its consumer (`queue`, `async`), an
+  import (`call`), between the nodes that own the two files (the node whose `paths` match, deepest `level` first),
+  `confidence: verified`, `foundBy: static`; an edge the explorer already drew between the same nodes is not repeated;
+- `access[]` rows from the SQL statements of the slices (`select` R, `insert` C, `update` U, `delete` D) for the node
+  owning the file, on the entity modelling the table;
+- `relations[]` from declared foreign keys: an entity field's `fk`, and an ORM table's `fk=` in the slice
+  (`kind: fk`, `cardinality: 1-n`, the field's provenance);
+- one zone per spelling of a zone id, and a zone for a node that had none (from its kind and its area's stacks).
+
+What it cannot cite (a file no node owns, a table no entity models, an import line it cannot find) is counted in the
+`derivation` row of `meta.sources`. It also writes `<work>/digest.json`, under 30 K characters: node ids with kind,
+zone, level, title and role; the edge list; entity names and stores; access rows; the model's sequence ids; and
+`drafts`, sequences derived from each HTTP entry point (see sequences.md). The synthesizer reads the digest, never
+the model or the fragments, and returns only `sequences`, `views`, `notes` and `conflicts`; merge refuses and
+reports any nodes, edges, entities, access rows or relations it sends.

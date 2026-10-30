@@ -10,7 +10,7 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 const DESIGN = {
   'archmap-explorer': { model: 'sonnet', effort: 'low', tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write'] },
-  'archmap-synthesizer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob'] },
+  'archmap-synthesizer': { model: 'sonnet', effort: 'medium', tools: ['Read', 'Grep', 'Glob', 'Write'] },
   'archmap-reviewer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob'] },
 };
 
@@ -42,10 +42,11 @@ test('a1 each agent frontmatter has exactly the designed name, model, effort and
   }
 });
 
-test('a2 no agent lists Edit or Agent; only the explorer lists Write (for its one fragment file); synthesizer and reviewer have no Bash', () => {
+test('a2 no agent lists Edit or Agent; only the explorer and the synthesizer list Write (each for its one file); synthesizer and reviewer have no Bash', () => {
+  const writers = ['archmap-explorer', 'archmap-synthesizer'];
   for (const name of Object.keys(DESIGN)) {
     const tools = toolList(load(name).fm);
-    for (const banned of name === 'archmap-explorer' ? ['Edit', 'Agent', 'NotebookEdit'] : ['Edit', 'Write', 'Agent', 'NotebookEdit']) {
+    for (const banned of writers.includes(name) ? ['Edit', 'Agent', 'NotebookEdit'] : ['Edit', 'Write', 'Agent', 'NotebookEdit']) {
       assert.ok(!tools.includes(banned), `${name} must not list ${banned}`);
     }
     if (name !== 'archmap-explorer') assert.ok(!tools.includes('Bash'), `${name} must not list Bash`);
@@ -99,4 +100,25 @@ test('a5 the explorer states its tool-call budget, writes the fragment to the pa
   assert.match(body, /never (contains?|includes?|returns?)[^\n]*(fragment|JSON)|no JSON|not (the )?(fragment|JSON)/i, 'the reply never carries the fragment');
   assert.doesNotMatch(body, /re-requested|re-ask/i, 'no re-ask path');
   assert.match(body, /extract/i, 'the explorer starts from the extract file');
+});
+
+test('a6 the synthesizer reads the digest, states a read budget, writes only sequences, views, notes and conflicts to its synth path and adds no nodes, edges, entities or access rows', () => {
+  const { fm, body } = load('archmap-synthesizer');
+  assert.ok(toolList(fm).includes('Write'), 'Write is in the synthesizer tools');
+  assert.match(body, /digest\.json/, 'its input is the digest');
+  assert.doesNotMatch(body, /read(s)? the (merged )?model and (the )?fragments/i, 'it no longer loops over the model and fragments');
+  assert.match(body, /(at most|no more than) \d+ (targeted )?(source )?reads/i, 'a numeric read budget is stated');
+  assert.match(body, /synth path|path (named|given) in (the|your) (brief|prompt)/i, 'the result goes to the path the brief names');
+  assert.match(body, /Write[^\n]*(only|one)[^\n]*(path|file)|(only|one)[^\n]*(path|file)[^\n]*Write/i, 'Write is limited to that one path');
+  assert.match(body, /exactly three lines/i);
+  for (const key of ['synth:', 'counts:', 'tool calls:']) assert.ok(body.includes(key), `reply line ${key} is specified`);
+  // the output object has exactly the four keys
+  const block = /```json\n([\s\S]*?)\n```/.exec(body);
+  assert.ok(block, 'an output example in a json block');
+  assert.deepEqual(Object.keys(JSON.parse(block[1])).sort(), ['conflicts', 'notes', 'sequences', 'views']);
+  for (const kind of ['nodes', 'edges', 'entities', 'access']) {
+    assert.match(body, new RegExp(`(never|not|no|may not)[^\\n.]*\\b${kind}\\b`, 'i'), `forbids adding ${kind}`);
+  }
+  assert.match(body, /draft/i, 'it confirms the pre-drafted sequences');
+  assert.match(body, /3-7|3 to 7/);
 });

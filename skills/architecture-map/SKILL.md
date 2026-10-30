@@ -14,9 +14,9 @@ npm dependencies. Run them from the analysed project's root so relative paths st
 
 ## Hard rules
 
-1. **Only the orchestrator writes the model.** Agents never write it: the synthesizer and reviewer return JSON, an
-   explorer writes only its own fragment file; scripts write HTML, layout and issues files. Model + renderer: the
-   model is the single source of truth (D1).
+1. **Only the orchestrator writes the model.** Agents never write it: the reviewer returns JSON, the synthesizer and
+   an explorer each write only their own JSON file in the work directory; scripts write HTML, layout and issues files.
+   Model + renderer: the model is the single source of truth (D1).
 2. **Nothing without evidence.** Every node and edge carries a non-empty `evidence` of `{path, lines}`. An element that
    cannot cite a file and lines is left out and tallied in `skipped`. See [Evidence](#evidence-rules).
 3. **Never execute the code you map.** Read it as text. Do not import, build, start, test or migrate the project, and
@@ -50,13 +50,13 @@ Read a reference at the step named, not up front. Detail lives there; this file 
 | Agent | Default model | Reads | Returns |
 |---|---|---|---|
 | `archmap-explorer` | Sonnet, low effort | One area's extract file plus excerpts (Grep, line ranges) | Writes one size-capped fragment file; replies with three lines |
-| `archmap-synthesizer` | Opus, high effort | Fragments and the merged model; targeted reads only | One JSON object (no write tools): cross-area `edges`, 3-7 `sequences`, `access`, `relations`, `views`, `notes`, `conflicts` |
+| `archmap-synthesizer` | Sonnet, medium effort | The merge digest (`<work>/digest.json`) with its drafted sequences; at most 12 targeted reads | Writes one JSON object to `<work>/synth.json`: 3-7 `sequences`, `views`, `notes`, `conflicts`; replies with three lines |
 | `archmap-reviewer` | Opus, high effort | The model and the issues catalogue; targeted reads only | One JSON object (no write tools): `issues`, optional `import`, `unreviewed`; you write it as `issues.json` |
 
 Dispatch each with the `Agent` tool and pass the `model` override the chosen profile requires (see
 [Token rules](#token-rules)). Give an agent exactly what it needs: its area and, for an explorer, the paths of its extract
-and fragment files; for the others, the path of the model or fragments. Name the references to read. Never paste whole
-files, extracts or fragments into a prompt.
+and fragment files; for the synthesizer, the digest and synth paths; for the reviewer, the model path. Name the
+references to read. Never paste whole files, extracts, fragments or the digest into a prompt.
 
 ## Output locations
 
@@ -78,7 +78,7 @@ an issues-bearing HTML inside the analysed repo.
 Triggered by `/archmap:build [--issues] [--profile p] [--db dsn] [--scope path] [--publish]`. Work in a scratch
 directory (for example `.archmap-work/` outside version control, or the session scratchpad) for prescan output and
 fragments; only the artifacts in the table above land in `docs/architecture/`. Your own context never holds a
-fragment, an extract or the model: you pass paths and read three-line replies and script output.
+fragment, an extract, the digest, `synth.json` or the model: you pass paths and read three-line replies and script output.
 
 ### 1. Prescan (0 tokens)
 
@@ -122,12 +122,17 @@ introspection`. Write the result as one more fragment, `<work>/fragments/introsp
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/merge.mjs" <work>/fragments --out docs/architecture/architecture.model.json \
+  --extracts <work>/extracts --repo . --digest <work>/digest.json \
   --commit "$(git rev-parse HEAD)" --project <name> --profile <profile> --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --json
 ```
 
 `merge.mjs` follows the fragment contract in model-schema.md: it concatenates the arrays in area order, dedupes
-identical elements, renames an id collision to `<id>-<area>` and rewrites the references, and fills `meta`
-(`schemaVersion`, `project`, `commit`, `generatedAt`, `profile`, `sources`, `coverage` from each fragment's `coverage`).
+identical elements, collapses nodes of different areas with the same `paths` into one, renames an id collision to
+`<id>-<area>` and rewrites the references, and fills `meta` (`schemaVersion`, `project`, `commit`, `generatedAt`,
+`profile`, `sources`, `coverage` from each fragment's `coverage`). From the extracts it computes the cross-area layer:
+edges from the HTTP, queue and import links (each citing both files and lines), zones without duplicates, `access[]`
+rows from the SQL statements and `relations[]` from declared foreign keys; what it cannot cite is counted in a
+`derivation` row of `meta.sources`, never guessed. It writes `<work>/digest.json` (under 30 K characters) for step 5.
 `generatedAt` is never invented, so always pass it. When `docs/architecture/architecture.model.json` already exists, add
 `--previous docs/architecture/architecture.model.json` so `locked` and `notes` survive. The result is validated before
 anything is written. Exit 0 ok; exit 1 the result is invalid (print the findings and report them; a cap violation never
@@ -144,12 +149,14 @@ does not check evidence: say so if that is all you ran.
 
 ### 5. Synthesizer
 
-Dispatch `archmap-synthesizer` with the merged model path. It reads the model and fragments, not the tree, plus
-targeted source reads to confirm a cross-area claim. It adds cross-area edges, 3-7 sequences (read
-[sequences.md](references/sequences.md)), `access[]` rows that drive the CRUD matrix and lineage, `relations[]`, and
-`views[]`. It has no write tools and returns one JSON object (`edges`, `sequences`, `access`, `relations`, `views`,
-`notes`, `conflicts`). Save it as `<work>/synth.json`. Then the orchestrating session merges that object into the model and runs validate (step 6),
-by re-running `merge.mjs` from step 4 with `--synth <work>/synth.json` and `--previous` on the model just written; a
+Dispatch `archmap-synthesizer` with two paths, `<work>/digest.json` and the synth path `<work>/synth.json`, and the
+profile. It reads the digest, not the model, the fragments or the tree, with at most 12 targeted source reads. It
+confirms the sequences the digest pre-drafted from each entry point (route, handler, access rows, queue hops), adds
+the flows they miss to reach 3-7 (read [sequences.md](references/sequences.md)), and writes `views[]`. It may not add
+nodes, edges, entities, access rows or relations. It writes one JSON object (`sequences`, `views`, `notes`,
+`conflicts`) to the synth path and replies with three lines: the path, the counts, the tool calls. Do not open or
+paste `synth.json`. Then the orchestrating session merges that object into the model and runs validate (step 6), by
+re-running `merge.mjs` from step 4 with `--synth <work>/synth.json` and `--previous` on the model just written; a
 non-empty `conflicts` is reported, not resolved silently. Only the orchestrator writes `architecture.model.json`.
 
 ### 6. Validate, layout, render
@@ -250,7 +257,7 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
 
    ```sh
    node "${CLAUDE_PLUGIN_ROOT}/scripts/merge.mjs" <work>/fragments --previous docs/architecture/architecture.model.json --out docs/architecture/architecture.model.json \
-     --areas <a,b> --commit "$(git rev-parse HEAD)" --generated-at <iso> --json
+     --areas <a,b> --extracts <work>/extracts --repo . --digest <work>/digest.json --commit "$(git rev-parse HEAD)" --generated-at <iso> --json
    ```
 
    Only the listed areas' fragments are read and only their elements are replaced; everything else keeps its ids.
@@ -259,13 +266,14 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
    mismatch is reported as a `conflict` and exits 1 under `--strict`; do not leave it unresolved, because an area named
    without a fragment has its elements removed and nothing replaces them. `locked` and `notes` and layout `pinned` survive; a locked node keeps its authored content, and a `conflict` is
    reported, not resolved silently. Cross-area edges and access rows whose evidence sits in an affected area are
-   replaced too, which is what step 4 refills.
-4. **Synthesizer only for touched edges and sequences**: pass it the list of affected ids. It returns only the touched or new elements with the same ids; you merge
-   them with the same `merge.mjs` call as step 3, with `--synth <work>/synth.json` added (keep `--areas <a,b>`):
+   replaced too, and `--extracts` recomputes them from the fresh prescan.
+4. **Synthesizer only for touched sequences and views**: pass it the digest and synth paths and the list of
+   affected ids. It writes only the touched or new sequences and views with the same ids; you merge them with the
+   same `merge.mjs` call as step 3, with `--synth <work>/synth.json` added (keep `--areas <a,b>`):
 
    ```sh
    node "${CLAUDE_PLUGIN_ROOT}/scripts/merge.mjs" <work>/fragments --previous docs/architecture/architecture.model.json --out docs/architecture/architecture.model.json \
-     --areas <a,b> --synth <work>/synth.json --commit "$(git rev-parse HEAD)" --generated-at <iso> --json
+     --areas <a,b> --extracts <work>/extracts --repo . --synth <work>/synth.json --commit "$(git rev-parse HEAD)" --generated-at <iso> --json
    ```
 
    Never run this without `--areas`: the fragments directory holds only the affected areas, and without `--areas`
@@ -311,7 +319,9 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
   stay within 20 tool calls, and write fragments capped at 40 nodes, 80 edges, 60 entities and 80 access rows (the merge
   truncates beyond that), one sentence per `desc` and `role`, no source excerpts.
 - **Fragments stay out of your context.** Explorers write them to files and answer in three lines; a weak one is merged as it is, never sent back.
-- **Synthesizer and reviewer** receive fragments and the model, with targeted reads only to confirm a specific claim.
+- **The synthesizer reads the digest only**: `merge.mjs` computes edges, zones, access rows and relations and
+  pre-drafts sequences, so the agent confirms flows and writes views within 12 targeted reads.
+- **The reviewer** receives the model, with targeted reads only to confirm a specific claim.
 - **Update touches only affected areas**; it never re-explores the whole repo.
 - **Profiles**, set with `--profile max|balanced|economy`, default `balanced`. A profile is applied as the `model`
   override on each `Agent` call, and recorded in `meta.profile`:
@@ -319,9 +329,12 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
 | Profile | `archmap-explorer` | `archmap-synthesizer` | `archmap-reviewer` |
 |---|---|---|---|
 | `max` | Opus (high) | Opus (high) | Opus (high) |
-| `balanced` (default) | Sonnet (low) | Opus (high) | Opus (high) |
+| `balanced` (default) | Sonnet (low) | Sonnet (medium) | Opus (high) |
 | `economy` | Haiku | Sonnet | Sonnet |
 
+The balanced synthesizer moved from Opus to Sonnet because the digest leaves it no structural reasoning: the edges,
+access rows and relations are computed and the main flows arrive drafted, so it confirms cited steps, picks 3-7
+flows and names views. Opus stays on `max`; if balanced sequences come out thin, rerun with `--profile max`.
 The agents' own frontmatter holds the `balanced` defaults, so for `balanced` no override is needed. Say in one line
 which profile ran and what it trades off; `economy` may miss cross-area links, so flag thin results instead of padding.
 

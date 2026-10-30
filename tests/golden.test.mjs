@@ -82,6 +82,31 @@ test('g6 meta is fictional: example.invalid repo URL and a fixed fake commit', (
   assert.equal(model.meta.project, 'Northwind Freight');
 });
 
+test('g8 the golden model passed through merge.mjs as the previous model still validates, keeps its elements and renders', async () => {
+  const { merge } = await import('../scripts/merge.mjs');
+  const { layoutModel } = await import('../scripts/layout.mjs');
+  const { renderHtml, checkInputs } = await import('../scripts/render.mjs');
+  // merge writes canonical JSON (sorted keys, elements in id order), so compare element sets in canonical form
+  const canon = (x) => JSON.stringify(x, (k, v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, v[key]])) : v));
+  const set = (arr) => (arr ?? []).map(canon).sort();
+  const r = merge({ fragments: [], previous: model, areas: [], meta: {} });
+  assert.deepEqual(validate(r.model).findings, []);
+  for (const key of ['nodes', 'edges', 'entities', 'access', 'sequences', 'views', 'zones']) {
+    assert.deepEqual(set(r.model[key]), set(model[key]), `${key} unchanged by the merge`);
+  }
+  const zoneIds = r.model.zones.map((z) => z.id);
+  assert.equal(new Set(zoneIds).size, zoneIds.length, 'no duplicate zones');
+  const rels = set(r.model.relations);
+  for (const rel of set(model.relations)) assert.ok(rels.includes(rel), `authored relation kept: ${rel}`);
+  const layout = await layoutModel(r.model);
+  assert.deepEqual(checkInputs({ model: r.model, layout }), []);
+  const html = renderHtml({ model: r.model, layout });
+  for (const n of model.nodes) assert.ok(html.includes(n.id), `${n.id} rendered`);
+  // and twice through the merge is byte-identical
+  assert.equal(JSON.stringify(merge({ fragments: [], previous: r.model, areas: [], meta: {} }).model), JSON.stringify(r.model));
+});
+
 test('g7 no fixture file contains any term from the private denylist (case-insensitive)', (t) => {
   if (!existsSync(DENYLIST)) {
     t.skip('denylist .private/anonymise-denylist.txt is absent (as in CI); denylist not checked here');

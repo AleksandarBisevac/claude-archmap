@@ -1,0 +1,15 @@
+{
+"area":"api",
+"title":"api",
+"globs":["api/**","db/**","shared/**"],
+"stacks":["python"],
+"files":6,
+"routes":[{"method":"POST","path":"/orders","handler":"create_order","file":"api/main.py","line":20}],
+"tables":[{"name":"Order","table":"orders","orm":"sqlalchemy","fields":["id int pk","customer_id int fk=customers.id"],"file":"api/models.py","line":5},{"name":"Customer","table":"customers","orm":"sqlalchemy","fields":["id int pk"],"file":"api/models.py","line":14}],
+"sqlTables":["customers select api/main.py:22","orders insert api/main.py:25","orders_archive select api/main.py:27"],
+"envKeys":[],
+"queues":[{"name":"send_receipt","producers":[{"file":"api/main.py","line":31}],"consumers":[]}],
+"imports":["api/main.py > api/models.py"],
+"links":[{"kind":"http","dir":"in","from":"web/src/api.ts:12","to":"api/main.py:20","other":"web","via":"POST /orders"},{"kind":"import","dir":"in","from":"worker/tasks.py","to":"api/models.py","other":"worker"},{"kind":"queue","dir":"out","from":"api/main.py:31","to":"worker/tasks.py:8","other":"worker","via":"send_receipt"}],
+"truncated":{}
+}

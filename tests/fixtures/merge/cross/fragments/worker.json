@@ -1,0 +1,14 @@
+{
+  "area": "worker",
+  "nodes": [
+    { "id": "mailer-worker", "zone": "service", "kind": "job", "title": "Mailer worker", "role": "Sends order receipts.", "paths": ["worker/**"], "level": 2, "evidence": [{ "path": "worker/tasks.py", "lines": "1-14" }] },
+    { "id": "shared", "zone": "service", "kind": "module", "title": "Shared helpers", "paths": ["shared/**"], "level": 3, "evidence": [{ "path": "shared/fmt.py", "lines": "1-10" }] }
+  ],
+  "edges": [
+    { "id": "mailer-uses-shared", "from": "mailer-worker", "to": "shared", "type": "call", "desc": "Worker formats amounts with the shared helpers.", "evidence": [{ "path": "worker/tasks.py", "lines": "3" }], "confidence": "verified" }
+  ],
+  "entities": [],
+  "access": [],
+  "coverage": ["worker/**"],
+  "skipped": { "count": 0, "reasons": [] }
+}
