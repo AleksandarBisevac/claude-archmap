@@ -243,3 +243,46 @@ test('e14 output is byte-identical across runs, in text and in --json, and the h
   assert.match(head, /keyword/i);
   assert.match(head, /0\.6|60/);
 });
+
+// P8.6: the trigger eval set for skill-creator's run_loop, and the description it tunes.
+const triggerPath = new URL('trigger-evals.json', evalsDir);
+// A trigger query may name an HTTP route (/api/export); what it may not carry is a machine path.
+const MACHINE_PATH = new RegExp(
+  [
+    '(^|[\\s"\'`(=:])~[\\/\\\\]', // ~/x
+    '[A-Za-z]:[\\\\/]', // C:\\x
+    '(^|[\\s"\'`(=:])\\/(tmp|etc|var|opt|usr|mnt|private|home|Users)\\b', // a bare system root
+    '\\.\\.[\\/\\\\]', // ../x
+  ].join('|'),
+);
+const skillMdPath = new URL('../skills/architecture-map/SKILL.md', import.meta.url);
+
+test('e15 trigger-evals.json is a list of {query, should_trigger} with >= 16 entries, >= 40 percent of each side, no duplicate queries and no machine path', () => {
+  assert.ok(existsSync(triggerPath), 'skills/architecture-map/evals/trigger-evals.json exists');
+  const set = JSON.parse(readFileSync(triggerPath, 'utf8'));
+  assert.ok(Array.isArray(set), 'a JSON array');
+  assert.ok(set.length >= 16, `at least 16 entries (got ${set.length})`);
+  for (const item of set) {
+    assert.deepEqual(Object.keys(item).sort(), ['query', 'should_trigger'], `entry keys: ${JSON.stringify(item)}`);
+    assert.equal(typeof item.query, 'string');
+    assert.ok(item.query.trim().length >= 15, `a realistic query: ${item.query}`);
+    assert.equal(typeof item.should_trigger, 'boolean');
+    assert.doesNotMatch(item.query, MACHINE_PATH, `no machine path in: ${item.query}`);
+  }
+  const yes = set.filter((i) => i.should_trigger).length;
+  const no = set.length - yes;
+  assert.ok(yes >= set.length * 0.4, `at least 40 percent should trigger (${yes}/${set.length})`);
+  assert.ok(no >= set.length * 0.4, `at least 40 percent should not trigger (${no}/${set.length})`);
+  const norm = set.map((i) => i.query.trim().toLowerCase());
+  assert.equal(new Set(norm).size, norm.length, 'no duplicate queries');
+});
+
+test('e16 SKILL.md frontmatter description is one line under 1024 characters and names the skill', () => {
+  const text = readFileSync(skillMdPath, 'utf8');
+  const fm = text.match(/^---\n([\s\S]*?)\n---\n/);
+  assert.ok(fm, 'SKILL.md starts with a frontmatter block');
+  const desc = fm[1].match(/^description:\s*(.*)$/m);
+  assert.ok(desc, 'frontmatter has a description');
+  assert.ok(desc[1].length > 0 && desc[1].length < 1024, `description length ${desc[1].length} is under 1024`);
+  assert.match(fm[1], /^name:\s*architecture-map\s*$/m);
+});

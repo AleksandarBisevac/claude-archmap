@@ -1,0 +1,22 @@
+[
+  {"query": "Can you map out the architecture of this repo? It's a FastAPI backend under services/api with a React frontend in web/, and I need a diagram with the components and how they talk to each other for the onboarding doc.", "should_trigger": true},
+  {"query": "we just inherited a nestjs monorepo (apps/gateway, apps/billing, packages/db with prisma) and nobody knows how it fits together. generate an architecture map i can hand to the new team lead", "should_trigger": true},
+  {"query": "I need an ER diagram of our Postgres schema plus a sequence diagram for the checkout flow. The Drizzle schema is in packages/db/src/schema.ts and the checkout handlers are in apps/api/src/routes/checkout.", "should_trigger": true},
+  {"query": "run /archmap:build --issues on this project", "should_trigger": true},
+  {"query": "we changed a lot in src/orders/ last sprint (new routes, a new column on the orders table). refresh the architecture map so docs/architecture is current again, dont rebuild everything", "should_trigger": true},
+  {"query": "Document the system architecture of this Django + Celery project as an interactive HTML page: which modules call which, which tables each service reads and writes, and the main request flows. It should work offline so I can attach it to the Confluence page.", "should_trigger": true},
+  {"query": "which parts of this codebase talk to redis and which background jobs consume the queues? i want a C4-style container diagram with evidence (file + line) for every box, not a guess", "should_trigger": true},
+  {"query": "visualise the data lineage in this repo: from the upstream datasets pulled by the refresh script through the duckdb tables to the api endpoints and the react screens that show them", "should_trigger": true},
+  {"query": "Is the architecture map in docs/architecture still up to date with HEAD? If not, update it and tell me which nodes changed.", "should_trigger": true},
+  {"query": "review this system's structure for architecture-level problems: unauthenticated admin endpoints, process-global state, cache invalidation in the wrong process, that kind of thing. anchor each finding to the component it belongs to", "should_trigger": true},
+  {"query": "Explain what src/services/payment.ts does line by line, especially the retry logic around the Stripe call on line 88.", "should_trigger": false},
+  {"query": "code review please: here's my PR adding a /api/export endpoint, check for bugs and security issues in the diff", "should_trigger": false},
+  {"query": "draw me a flowchart in mermaid for our hiring process: application -> phone screen -> onsite -> offer, with a loop back if the onsite panel is split", "should_trigger": false},
+  {"query": "Run the full audit on this codebase and fix everything it finds, phase by phase, like we did last time with /audit:init.", "should_trigger": false},
+  {"query": "write a sequence diagram for the OAuth2 authorization code flow in general (not for this repo), for a blog post", "should_trigger": false},
+  {"query": "our postgres queries on the orders table are slow, can you look at the indexes in migrations/ and suggest which ones to add", "should_trigger": false},
+  {"query": "generate the openapi spec from the fastapi app and write the markdown API reference for the public endpoints", "should_trigger": false},
+  {"query": "make a slide deck for leadership summarising our cloud spend by team for Q3, the numbers are in finance/cloud-costs-q3.csv", "should_trigger": false},
+  {"query": "set up the architecture decision records folder (adr/) with a template and write ADR-001 for why we picked Drizzle over Prisma", "should_trigger": false},
+  {"query": "refactor the god object in src/core/AppContext.ts into smaller modules without changing behaviour, keep the tests green", "should_trigger": false}
+]

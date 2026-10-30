@@ -1,6 +1,6 @@
 ---
 name: architecture-map
-description: Build or update an evidence-backed architecture map of a codebase - components, typed relations, data entities, CRUD access, sequence diagrams and optional architecture-level issues - as one JSON model plus a self-contained offline HTML viewer. Use when the user asks to map, diagram, document or visualise a system's architecture, to refresh an existing map after code changes, to review a system's structure for architecture-level issues, or runs /archmap:build, /archmap:update, /archmap:issues, /archmap:render or /archmap:check.
+description: Use to map or refresh the architecture of a code repository: which components or services exist, what calls what, what each reads or writes in databases, queues and external APIs, and how requests and background jobs flow. Trigger on requests for C4 or container diagrams, architecture or onboarding docs (including Confluence pages), mapping an inherited or multi-service monorepo, updating an existing architecture doc after code changes, and system-level checks such as auth boundaries, shared state or cross-service coupling. Output is evidence-cited with an offline HTML viewer. Do not use for explaining a single file, reviewing a PR, writing ADRs, API specs, slide decks or refactors. Also runs the commands /archmap:build, /archmap:update, /archmap:issues, /archmap:render and /archmap:check.
 ---
 
 # architecture-map
