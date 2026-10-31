@@ -5352,7 +5352,7 @@
         {
           "id": "P10.4-2xj",
           "title": "Driver script: the orchestrator runs the build in a bounded number of turns",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add scripts/pipeline.mjs so the orchestrating session stops being the pipeline. `pipeline.mjs plan <repo> --work <dir> [--scope --profile --issues]` runs prescan, partitions the areas, writes the per-area extracts and one ready-to-send explorer brief per area (<work>/briefs/<area>.md, each under the character cap, carrying the caps, the fragment path and the merge contract so the explorer needs no reference file) and prints the list of Agent calls to make, as JSON. `pipeline.mjs finish --work <dir> [--usage <area>=<tokens> ...]` reads the fragments from <work>/fragments/, runs introspection when a file database is listed and a CLI is present, merge, validate with --repo, writes the digest and the synthesizer brief (with the synth path) and records the explorer ledger rows from the --usage pairs the orchestrator copies off the Agent completion lines, plus the script rows; `pipeline.mjs render --work <dir> [--usage synthesizer=<tokens>]` merges <work>/synth.json, validates, lays out, renders, records the remaining ledger rows and prints the final report skeleton with the ledger. The orchestrator never calls usage.mjs itself (eval 4 spent 12 turns on ledger rows). Every step is idempotent and prints exit codes and findings in one JSON object; nothing is hidden. SKILL.md's build flow becomes: run plan, dispatch the explorers it lists as foreground Agent calls in ONE message and wait for them in that turn (no ScheduleWakeup, Monitor or background dispatch for a build; eval 4 spent 11 polling turns re-reading a 250 K context), run finish, dispatch the synthesizer the same way, run render, report; the update flow and commands/build.md and commands/update.md use the same driver with diffmap. SKILL.md carries the cap table and the three-line reply contract, and the orchestrator reads SKILL.md once and no reference, script or agent file during a build (eval 4 grepped merge.mjs and model-schema.md to learn the caps); references move behind the briefs. Targets measured on the e2e fixture with canned fragments: the orchestrating session needs at most 12 assistant turns for a build without --issues, and scripts/cost-profile.mjs on that transcript shows the orchestrator's maximum context under 80 K tokens.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5394,25 +5394,53 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b4eddc143de4",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/pipeline.mjs (the build driver, 4 steps). plan <repo> --work --out --scope --profile --issues --update --since --project --generated-at: refuses a work dir inside the repo that git does not ignore and a non-empty dir plan did not make; clears its own files, runs prescan.mjs, takes the prescan areas (<=8), writes <work>/briefs/<area>.md (cap BRIEF_CAP=4000 chars; carries area, globs, extract and fragment paths, 20 tool calls, 40/80/60/80 caps, the fragment contract with vocabularies, the evidence rule and the three-line reply; drops the optional stack-reference line if a long path would overflow), prints one foreground Agent call per area (prompt = pointer to the brief, model only for max/economy). --update runs diffmap.mjs against <out>/architecture.model.json, briefs only affected areas plus areas of uncovered files, names the previous model; nothing affected -> no agents, next = render. finish --work [--usage <area>=<tokens>[@<duration>]] [--allow-missing]: missing fragment -> exit 2 naming the path and `missing`; introspects prescan-listed sqlite/duckdb files when the CLI is on PATH (schema only, read-only, duckdb on a temp copy; store node from a pre-merge of the fragments; new tables become observed entities, declared ones counted), else records a skipped source row; merge.mjs --extracts --repo --digest (--previous when a model exists in out, --areas on update) into <work>/model.json, validate.mjs --repo, writes <work>/briefs/synthesizer.md and prints the synthesizer call. render --work [--usage synthesizer=..]: merge --synth --previous <work>/model.json into <out>, validate --repo, layout.mjs seeded, render.mjs (+theme if present), prints files, counts, conflicts, notMapped, skipped, ledger total and a report skeleton with the usage table; with --issues prints the reviewer call. ledger --work --usage reviewer=..: records the reviewer row. Each step owns <work>/ledger/<step>.jsonl and rebuilds <work>/usage.jsonl, so reruns record rows once; script rows are tokens 0 with no wall-clock duration so outputs are byte-identical; run records print <work>/<out>/<repo> aliases; every step prints ONE JSON line with each script's exit and capped messages; exit 0/1/2. usage.mjs: exported makeRow and readLedger, added phases diffmap and validate. SKILL.md rewritten (318 lines, frontmatter lines 1-4 md5-identical): build flow = 1 Plan, 2 Dispatch the explorers, 3 Finish, 4 Dispatch the synthesizer, 5 Render, 6 Report; ONE foreground message per dispatch, forbids run_in_background, ScheduleWakeup, Monitor and polling; cap table; both three-line reply contracts; names no file to read and no script but pipeline.mjs; update flow uses plan --update; issues section keeps issues.mjs commands and records the reviewer row through pipeline.mjs ledger; usage.mjs add is no longer in SKILL.md. commands/build.md and update.md: frontmatter unchanged, name the driver and rule out polling. Edited outside the declared files, and the plan gate allowed each Edit: agents/archmap-explorer.md (the line 94 zones fix: merge.mjs fills meta and zones; Input and References now say the brief carries the contract and references are read only for what it leaves open), agents/archmap-synthesizer.md (the same Input and References change), docs/design.md (D11, the agent and script listing at lines 81-87, the build and update flows at lines 123-139). Tests: tests/pipeline.test.mjs p1-p12 (new); tests/e2e.test.mjs e5; tests/skill.test.mjs s10 and s11 (new), s3 and s7 rewritten for the driver; tests/commands.test.mjs c10. Fixture: tests/fixtures/e2e/pipeline/fragments/{prisma,root,src}.json, canned fragments named after the prescan areas, synthetic. Before the fix the new cases failed: `node --test` on the four files gave 14 failures (pipeline.mjs missing, SKILL not updated). After: `node --test` exit 0, 341/341; `node --test tests/denylist.test.mjs` 2/2 pass; the archmap-review scan over the worktree raised one med lead (new Date() in plan's default generatedAt), now documented in the header and fixed by --generated-at for reruns. New files staged; nothing committed. Measured on the e2e fixture with canned fragments (scratch paths about 110 characters): plan prints 2,616 characters, finish 1,633, render 3,955; with SKILL.md (21,759) and commands/build.md (798) the orchestrator holds 30,761 characters, about 7.7 K tokens at 4 characters per token (p11 asserts under 48 K characters, each step under 8 K). Briefs: about 3.5 K characters each, synthesizer 2.3 K. The flow implies 7 orchestrator turns without --issues: the skill load, plan, the explorer dispatch with the partition list, finish, the synthesizer dispatch, render, the report. That is within 12. NOT measured: no live headless session was run, so cost-profile.mjs has no transcript to profile. The 80 K maximum-context target is unverified; the measured driver surface (about 8 K tokens) excludes Claude Code's own system prompt and tool definitions. The duckdb introspection branch never ran: no duckdb CLI on this host. The sqlite ok branch and the no-CLI skip branch did run (p8). Dependants: scripts/usage.mjs -> tests/usage.test.mjs passes 11/11 (additive exports and phases); SKILL.md names usage.mjs only in its 'What the driver runs' table; tests/e2e.test.mjs e4 phase order is unchanged; docs/design.md D11 updated. SKILL.md -> tests/commands.test.mjs c5 passes (pipeline.mjs exists); tests/evals.test.mjs e16 passes (description unchanged); tests/skill.test.mjs updated; scripts/issues.mjs and tests/issues.test.mjs i6 rely on 'Output locations', kept verbatim; .agents/skills/node/tile.json and skills-lock.json are basename matches and unaffected; docs/design.md updated. commands/build.md and update.md -> docs/design.md section 4 listing still correct. tests/fixtures/e2e -> tests/e2e.test.mjs e1-e4 untouched and passing; scripts/lib/prescan/generic.mjs is a basename match, not affected. Explored outside the brief (to pick a test command the red helper can tally): stamp-verification.py _TALLY_KEYS lists house, pytest, unittest, jest and vitest, and no node:test TAP reader.",
+            "descriptive": "A build is now three driver steps and two dispatch messages: pipeline.mjs does prescan, the briefs, introspection, merge, validate, layout, render and the ledger, and SKILL.md forbids polling, background dispatch and reading files during a build."
           },
           "startedAt": "2026-10-30T23:41:29Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T00:08:21Z",
+          "verifiedBy": [
+            "tests/pipeline.test.mjs p1: plan on the e2e fixture writes prescan, extracts and one brief per area under the 4000-character cap, each carrying the extract and fragment paths, the caps and the reply lines, and prints one pointer-prompt Agent call per area",
+            "tests/pipeline.test.mjs p2: profile max/economy put opus/haiku on every call; a bad profile exits 2 with step plan",
+            "tests/pipeline.test.mjs p3: finish with canned fragments and --usage pairs writes a model that passes validate --repo, a digest under 30 K, the synthesizer brief and call, and the explorer ledger rows (34.5k@62s parsed); stdout carries no fragment or model content",
+            "tests/pipeline.test.mjs p4: render with a canned synth writes model, layout and a self-contained HTML, merges the sequences, records the synthesizer, layout and render rows, and its report carries the printed ledger table",
+            "tests/pipeline.test.mjs p5: a second plan, finish and render with the same inputs is byte-identical in stdout, every work file and every out file; plan clears the last build's fragments, synth and later ledger rows",
+            "tests/pipeline.test.mjs p6: a missing work dir exits 2 naming finish or render; a missing fragment exits 2 naming its path and area; --allow-missing merges and names it not mapped; render without synth.json exits 2 naming it",
+            "tests/pipeline.test.mjs p7: usage errors exit 2 (no repo, an unknown step, a --usage label that is no area, a malformed token count)",
+            "tests/pipeline.test.mjs p8: a listed sqlite file with no CLI on PATH is recorded as skipped in finish and in meta.sources; with sqlite3 present, a new table becomes an observed entity on the owning store node and a declared table is not duplicated",
+            "tests/pipeline.test.mjs p9: plan --update briefs only the affected area, names the previous model, and finish and render merge with --areas; nothing affected lists no agent and render re-renders",
+            "tests/pipeline.test.mjs p10: with --issues render prints the reviewer call; ledger --usage reviewer records the row once across reruns",
+            "tests/pipeline.test.mjs p11: SKILL.md, build.md and the three steps' output with the replies stay under 48 K characters, each step under 8 K",
+            "tests/pipeline.test.mjs p12: plan refuses a non-empty dir it did not make and a work dir inside the repo that git does not ignore; a half-finished plan is refused by finish",
+            "tests/e2e.test.mjs e5: the plan, finish, render chain on the fixture passes validate --repo and the HTML is self-contained",
+            "tests/skill.test.mjs s10: the build flow is exactly plan, explorer dispatch, finish, synthesizer dispatch, render, report; names only pipeline.mjs; forbids ScheduleWakeup, Monitor and background dispatch; carries the cap table and both three-line replies; names no file to read; 7 turns <= 12; SKILL.md <= 500 lines",
+            "tests/skill.test.mjs s11: the s10 guard catches a flow that greps a reference or polls",
+            "tests/commands.test.mjs c10: build.md and update.md keep their exact frontmatter, point at the skill, name the driver, rule out polling and do not restate the flow"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T00:08:20Z.0fc095",
             "status": "passed",
             "at": "2026-10-31T00:08:20Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "b4eddc143de4",
+            "at": "2026-10-31T00:08:21Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T00:07:13Z",
+            "basis": "`node --test` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.5-2xj",
           "title": "Re-run evals 1, 2 and 4 on the P8 harness and prove the cost targets",
-          "status": "pending",
+          "status": "blocked",
           "description": "Owner-run, like P8.3: the eval repositories live only on the owner's machine and are pointed at by ARCHMAP_EVAL_REPO_A/B (never named in a tracked file). Run evals 1, 2 and 4 with the skill, headless, on the P8 harness into <home>/.claude/archmap/evals/iteration-2/, on the same orchestrator model as the baseline you compare against, grade them with the P8 grader and the issue-recall scorer, and profile each stream with scripts/cost-profile.mjs (take the LAST result event's modelUsage; it is cumulative). Pass when every expectation that passed in iteration-1 still passes, eval 2 recall is at least 60 percent, and the profiled list-price cost is under 5 USD for each of evals 1, 2 and 4 and at most twice that eval's no-skill baseline, with the orchestrator, synthesizer and explorer shares recorded. Record the before and after table in .private/evals/ and a repo-free summary (costs and shares only) in skills/architecture-map/evals/README.md. If a target is missed, file the gap as a note on this task with the profiler table and stop; the owner decides the next iteration.",
           "files": [
             "skills/architecture-map/evals/README.md"
@@ -5433,6 +5461,55 @@
           "dependsOn": [
             "P10.4-2xj"
           ],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T00:08:22Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-10-31T00:14:29Z",
+              "text": "Iteration-2 round 1 (2026-10-31), evals 1 and 2 with skill: orchestrator 9-11 turns, median context 48-56 K, max 60-62 K, total list cost 0.75 and 0.70 USD (iteration-1: 13.84 and 9.79). Both builds stopped at finish: merge refused the model over fragment edges naming an area id (dangling-ref), and the explorers only transcribed the extract (2 Reads + 1 Write each; 19 nodes against 58 in iteration-1). Grading 0/7 both. Fix tasks added to P10 (merge dangling refs, explorer coverage, profiler output reconciliation); this task re-runs after they land."
+            }
+          ],
+          "blockedReason": "iteration-2 round 1 stopped at merge (dangling area-id refs) with transcribing explorers; P10.5 waits for the fix tasks P10.6, P10.7 and P10.8, then re-runs evals 1, 2 and 4"
+        },
+        {
+          "id": "P10.6-6rm",
+          "title": "Merge never refuses a build over a fragment's dangling reference: resolve area ids to nodes, drop the rest with a note",
+          "status": "pending",
+          "description": "Measured on the iteration-2 runs of evals 1 and 2 (2026-10-31): every build stopped at `pipeline.mjs finish` because validate.mjs reported `dangling-ref /edges/N/to node \"<area id>\" does not exist` and merge.mjs refused the whole result. The explorer brief says `to` may be another area's node id, the explorer does not know those ids, so it wrote the area id. merge.mjs must treat fragment references like it treats caps (P10.2): before validation it resolves a `to` or `from` that equals an area id, or `area:<id>`, to that area's level-2 node (kind app or service; else the fragment's first node), keeps the edge's evidence, and drops any edge, access row or entity whose reference still resolves to nothing, recording one `meta.sources` row {area, type:'dropped-ref', id, target} per drop. merge exits 1 only when it cannot write a valid model after that. pipeline.mjs plan's brief and agents/archmap-explorer.md say: name another area's node as `area:<id>` unless you read its id. No client or repository name in fixtures or tests.",
+          "files": [
+            "scripts/merge.mjs",
+            "scripts/pipeline.mjs",
+            "agents/archmap-explorer.md",
+            "tests/merge.test.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/fixtures/merge"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: a fragment edge whose to or from names another area's id (or area:<id>) is rewritten to that area's level-2 node (kind app or service, else the fragment's first node) and the edge keeps its evidence; an edge whose target resolves to nothing is dropped and meta.sources carries a dropped-ref row naming the area, the edge id and the target; merge exits 0 and writes the model in both cases; an access row or entity pointing at a missing node is dropped the same way",
+              "tests/pipeline.test.mjs: the explorer brief written by plan states that to may name another area by area:<id> and that merge resolves it, and finish with a fragment carrying such an edge produces a valid model"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
           "attempts": 0,
           "maxAttempts": 3,
           "commit": null,
@@ -5443,6 +5520,87 @@
           "startedAt": null,
           "completedAt": null,
           "verifiedBy": []
+        },
+        {
+          "id": "P10.7-6rm",
+          "title": "Explorer coverage: the brief demands one node per structural element of the extract and the effort is medium",
+          "status": "pending",
+          "description": "Measured on the iteration-2 run of eval 1 (2026-10-31): each of the 8 explorers made exactly two Reads (the brief, the extract) and one Write, 3 to 4 tool calls of the 20 allowed, and the fragments carried 19 nodes in total against 58 nodes (34 modules, 9 route groups, 6 jobs) in the iteration-1 build of the same repository; three areas came back empty and the 208-file frontend area had 4 nodes. The brief's \"do not re-derive the rest\" plus effort low turned the explorer into a transcriber of the extract. Fix: pipeline.mjs plan computes a coverage floor from the extract (entry-point groups by directory, route groups, stores, queues, jobs, external clients) and writes it into the brief as the minimum number of nodes with the list of what each must cover; the brief requires at least 6 and at most 20 tool calls, Grep for the next fact then a line-range Read, one node per feature directory of a frontend and per router or handler module of a backend, and says a fragment under the floor is incomplete. agents/archmap-explorer.md goes back to effort medium (low saved nothing: the explorers were 0.4 USD of a 0.75 USD build) and states the same floor rule. SKILL.md's agents table and profile table follow. Briefs stay under their cap. No client or repository name in tests.",
+          "files": [
+            "scripts/pipeline.mjs",
+            "agents/archmap-explorer.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/pipeline.test.mjs",
+            "tests/agents.test.mjs",
+            "tests/skill.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/pipeline.test.mjs: the brief written by plan lists the coverage floor computed from the extract (number of entry-point groups, route groups, stores, queues, jobs, external clients) and says a fragment with fewer nodes than that floor is incomplete; it tells the explorer to spend at least 6 and at most 20 tool calls on Grep and line-range Reads beyond the extract and the brief; the brief stays under its cap",
+              "tests/agents.test.mjs: archmap-explorer.md has effort medium, states the coverage floor rule and the minimum of 6 tool calls, and keeps Write for the fragment path only",
+              "tests/skill.test.mjs: SKILL.md's agents table says explorers run at medium effort and SKILL.md stays at or under 500 lines"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P10.8-6rm",
+          "title": "cost-profile.mjs reconciles output tokens with the result event instead of the stream's partial counts",
+          "status": "in_progress",
+          "description": "On the iteration-2 streams (2026-10-31) the profiler's cache-read, cache-write and input totals equalled the last result event's modelUsage exactly, but output did not (891 against 5981 for Opus): assistant events in stream-json carry the output_tokens counted at emission time, not the message's final count, so summing them under-counts output and the profile printed \"totals DO NOT equal\". Fix scripts/cost-profile.mjs: the per-model table and the cost take every class from the LAST result event's modelUsage when one exists (the stream's per-message sums are used only when no result event is present, and then flagged as a lower bound); the per-agent table keeps the stream's turns, context sizes and cache figures (which do reconcile) and labels its output column as the stream's lower bound; the reconciliation line says MATCH, or names the class and the difference. The fixture gains partial output_tokens on its assistant events so the test fails before the fix. No client or repository name in the fixture.",
+          "files": [
+            "scripts/cost-profile.mjs",
+            "tests/cost-profile.test.mjs",
+            "tests/fixtures/cost/stream-sample.jsonl",
+            "tests/fixtures/cost/expected.json"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/cost-profile.test.mjs: on a fixture whose assistant events carry partial output_tokens (as real stream-json does) and whose last result event carries the full modelUsage, the per-model table takes input, output, cache-read and cache-write from the last result event and reports MATCH; the per-agent table states that its output column is the stream's lower bound; the profile prints the orchestrator's turns, median and max context unchanged"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T00:14:51Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase"
         }
       ],
       "area": "cost",
@@ -5837,7 +5995,8 @@
       "P10.1-2xj",
       "P10.2-2xj",
       "P10.3-2xj",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.7-6rm"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -5847,13 +6006,16 @@
       "P6.4",
       "P7.6",
       "P10.2-2xj",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.7-6rm"
     ],
     "agents/archmap-explorer.md": [
       "P4.5",
       "BF1.3",
       "P10.2-2xj",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.6-6rm",
+      "P10.7-6rm"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5",
@@ -5867,7 +6029,8 @@
       "P4.5",
       "BF1.3",
       "P10.2-2xj",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.7-6rm"
     ],
     "scripts/merge.mjs": [
       "P5.1",
@@ -5875,7 +6038,8 @@
       "P5.10-2zy",
       "P5.11-2zy",
       "P10.2-2xj",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.6-6rm"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -5884,7 +6048,8 @@
       "P5.11-2zy",
       "P10.2-2xj",
       "P10.3-2xj",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.6-6rm"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -6034,25 +6199,34 @@
       "P8.6"
     ],
     "scripts/cost-profile.mjs": [
-      "P10.1-2xj"
+      "P10.1-2xj",
+      "P10.8-6rm"
     ],
     "tests/cost-profile.test.mjs": [
-      "P10.1-2xj"
+      "P10.1-2xj",
+      "P10.8-6rm"
     ],
     "tests/fixtures/cost/stream-sample.jsonl": [
-      "P10.1-2xj"
+      "P10.1-2xj",
+      "P10.8-6rm"
     ],
     "tests/fixtures/cost/expected.json": [
-      "P10.1-2xj"
+      "P10.1-2xj",
+      "P10.8-6rm"
     ],
     "tests/fixtures/merge": [
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.6-6rm"
     ],
     "scripts/pipeline.mjs": [
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.6-6rm",
+      "P10.7-6rm"
     ],
     "tests/pipeline.test.mjs": [
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.6-6rm",
+      "P10.7-6rm"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
