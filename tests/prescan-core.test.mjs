@@ -592,3 +592,49 @@ test('pc16 partition with 8 workspace apps and 20 leftover units over maxAreas 8
   assert.deepEqual(two.map((a) => a.id), ['apps-a', 'apps-b', 'apps-c', 'docs', 'lib']);
   for (const a of two.filter((x) => x.id.startsWith('apps-'))) assert.equal(a.globs.length, 1, `${a.id} holds only its app`);
 });
+
+// P8.5: test data is not the product. A fictional express service with a python app under tests/fixtures, a react
+// demo under examples, and data under __fixtures__, testdata and samples directories at several depths.
+const TEST_DATA_REPO = {
+  'package.json': JSON.stringify({ name: 'relay', main: 'src/server.js', dependencies: { express: '4.19.0' } }),
+  'src/server.js': 'const express = require("express");\nconst app = express();\n',
+  'src/routes.js': 'module.exports = {};\n',
+  'tests/server.test.js': 'module.exports = {};\n',
+  'tests/fixtures/repos/shop/pyproject.toml': '[project]\nname = "shop-api"\ndependencies = ["fastapi"]\n',
+  'tests/fixtures/repos/shop/app/main.py': 'from fastapi import FastAPI\napp = FastAPI()\n',
+  'examples/demo/package.json': JSON.stringify({ name: 'demo', dependencies: { react: '18.0.0', vite: '5.0.0' } }),
+  'examples/demo/src/main.tsx': 'export {};\n',
+  'src/__fixtures__/order.json': '{"id": 1}\n',
+  'pkg/parse/testdata/input.txt': 'one\n',
+  'docs/samples/client.ts': 'export const c = 1;\n',
+  'src/fixture/seed.sqlite': PNG,
+};
+const TEST_DATA_PATHS = Object.keys(TEST_DATA_REPO).filter((f) => /(^|\/)(fixtures?|__fixtures__|testdata|examples?|samples?)\//.test(f));
+
+test('pc17 a file under a fixtures, __fixtures__, testdata, examples or samples directory of the scan root is inventoried as skipped with a reason naming test data, contributes to no stack and to no area; a scan whose root sits under a fixtures directory is unaffected', async () => {
+  const { buildInventory } = await import(pathToFileURL(join(ROOT, 'scripts', 'lib', 'prescan', 'inventory.mjs')).href);
+  const repo = makeRepo(TEST_DATA_REPO);
+  const inv = buildInventory(repo);
+  const text = TEST_DATA_PATHS.filter((f) => !f.endsWith('.sqlite'));
+  assert.deepEqual(inv.files, ['package.json', 'src/routes.js', 'src/server.js', 'tests/server.test.js'], 'only the product is inventoried');
+  assert.deepEqual(inv.skipped.map((s) => s.path), [...text].sort(), 'every test data file is listed as skipped');
+  for (const s of inv.skipped) assert.match(s.reason, /test data directory (fixtures?|__fixtures__|testdata|examples?|samples?)\b/, s.path);
+  assert.deepEqual(inv.sources.map(({ path, status }) => [path, status]), [['src/fixture/seed.sqlite', 'skipped']]);
+  assert.match(inv.sources[0].reason, /test data/, 'a database file in a fixture directory is skipped with a reason, as a vendored one is');
+
+  const out = scan(repo);
+  assert.ok(!out.stacks.includes('python') && !out.stacks.includes('ts-frontend'), `no stack from test data: ${out.stacks}`);
+  assert.equal(out.areas.reduce((n, a) => n + a.files, 0), 4, 'the areas count only the product files');
+  for (const a of out.areas) assert.ok(a.stacks.every((s) => s !== 'python' && s !== 'ts-frontend'), `${a.id}: ${a.stacks}`);
+  const shown = JSON.stringify({ areas: out.areas, extracts: out.extracts });
+  for (const f of TEST_DATA_PATHS) assert.ok(!shown.includes(f), `${f} reaches no area and no extract`);
+
+  // judged relative to the scan root: a root, or a --scope, under a fixtures directory is the product of that scan
+  const inner = scan(join(repo, 'tests', 'fixtures', 'repos', 'shop'));
+  assert.ok(inner.stacks.includes('python'), `the fixture app scanned as its own root keeps its stack: ${inner.stacks}`);
+  assert.equal(inner.areas.reduce((n, a) => n + a.files, 0), 2);
+  const scoped = scan(repo, '--scope', 'tests/fixtures/repos/shop');
+  assert.ok(scoped.stacks.includes('python'), `a scope under fixtures keeps its stack: ${scoped.stacks}`);
+  assert.equal(scoped.areas.reduce((n, a) => n + a.files, 0), 2);
+  assert.deepEqual(buildInventory(repo, { scope: 'tests/fixtures/repos/shop' }).skipped, []);
+});

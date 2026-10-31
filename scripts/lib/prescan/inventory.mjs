@@ -2,7 +2,8 @@
 //
 // Files come from `git ls-files -co --exclude-standard` (tracked + untracked-not-ignored), so
 // .gitignore is honoured. Vendored/generated directories, binaries, lockfiles, minified bundles
-// and files over a size cap are dropped. Database files are only LISTED (as `sources`); they are
+// and files over a size cap are dropped; files under a fixture, example or sample directory are listed as skipped
+// with a reason, so test data drives neither stack detection nor the areas. Database files are only LISTED (as `sources`); they are
 // never opened here, so no rows can ever be read (build's finish step reads a schema, never rows). Node >= 18, zero dependencies.
 
 import { execFileSync } from 'node:child_process';
@@ -51,6 +52,22 @@ export const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 /** The vendored/generated directory a repo-relative path sits in, or null. */
 export const skippedDirOf = (p) => p.split('/').slice(0, -1).find((s) => SKIP_DIRS.has(s)) ?? null;
 
+// Test data: fixture, example and sample directories at any depth. The same non-runtime notion the generic extract
+// uses when it looks for entry points (fixtures, examples), narrowed to directories that hold data or demo code
+// rather than the product's own tests and docs.
+export const TEST_DATA_DIR = /^(fixtures?|__fixtures__|testdata|examples?|samples?)$/;
+
+/**
+ * The test data directory a path sits in, judged on the path relative to the scan root (the root, or `scope` under
+ * it): a scan whose root itself lies under a fixtures directory is not test data to itself. Null when there is none.
+ */
+export const testDataDirOf = (p, scope = '') => {
+  const s = String(scope ?? '').replace(/^(\.\/)+/, '').replace(/\/+$/, '');
+  const own = s && p.startsWith(`${s}/`) ? p.slice(s.length + 1) : p;
+  return own.split('/').slice(0, -1).find((seg) => TEST_DATA_DIR.test(seg)) ?? null;
+};
+const testDataReason = (dir) => `inside test data directory ${dir}: fixtures, examples and samples are not the product`;
+
 function listGit(root, scope) {
   const args = ['ls-files', '-co', '--exclude-standard', '-z'];
   if (scope) args.push('--', scope);
@@ -60,13 +77,15 @@ function listGit(root, scope) {
 
 /**
  * Build the inventory of `root`.
- * Returns { root, files, sources, read } - `files` sorted repo-relative paths that survive every
- * filter, `sources` the DB files found (sorted), `read(rel)` a utf8 reader (null when unreadable).
+ * Returns { root, files, sources, skipped, read } - `files` sorted repo-relative paths that survive every
+ * filter, `sources` the DB files found (sorted), `skipped` the text files under a test data directory as
+ * {path, reason} (sorted; they reach no stack, no area and no extract), `read(rel)` a utf8 reader (null when unreadable).
  */
 export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } = {}) {
   const abs = resolve(root);
   const files = [];
   const sources = [];
+  const skipped = [];
   for (const rel of [...new Set(listGit(abs, scope))].sort(byCodeUnit)) {
     let st;
     try {
@@ -77,15 +96,22 @@ export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } =
     if (!st.isFile()) continue; // symlinks, submodule gitlinks
     const kind = DB_KIND.get(ext(rel));
     const skipDir = skippedDirOf(rel);
+    const dataDir = skipDir ? null : testDataDirOf(rel, scope);
     if (kind) {
       sources.push(
         skipDir
           ? { kind, path: rel, status: 'skipped', reason: `inside vendored or generated directory ${skipDir}` }
-          : { kind, path: rel, status: 'found' },
+          : dataDir
+            ? { kind, path: rel, status: 'skipped', reason: testDataReason(dataDir) }
+            : { kind, path: rel, status: 'found' },
       );
       continue;
     }
     if (skipDir) continue;
+    if (dataDir) {
+      skipped.push({ path: rel, reason: testDataReason(dataDir) });
+      continue;
+    }
     const base = rel.slice(rel.lastIndexOf('/') + 1);
     if (BINARY_EXT.has(ext(rel)) || LOCKFILES.has(base) || /\.min\.(js|css)$/.test(base) || base.endsWith('.map')) continue;
     if (st.size > maxBytes) continue;
@@ -100,7 +126,7 @@ export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } =
       return null;
     }
   };
-  return { root: abs, files, sources, read };
+  return { root: abs, files, sources, skipped, read };
 }
 
 // ---------------------------------------------------------------------------------------------

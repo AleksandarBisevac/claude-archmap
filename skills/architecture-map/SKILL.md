@@ -302,7 +302,7 @@ Each step of `pipeline.mjs` wraps the bundled scripts, which stay usable on thei
 
 | Script | Does | Exit codes |
 |---|---|---|
-| `prescan.mjs` | Inventory, stacks, the area partition, one full extract and one explorer summary per area | 0 ok, 2 usage or unreadable repo |
+| `prescan.mjs` | Inventory, stacks, the area partition, one full extract and one explorer summary per area; files under a fixtures, testdata, examples or samples directory are test data, skipped with a reason and in no stack or area | 0 ok, 2 usage or unreadable repo |
 | `diffmap.mjs` | Maps the commits since `meta.commit` onto areas, nodes, entities and sequences (update) | 0 ok, 2 usage or unknown base |
 | `merge.mjs` | Normalises and truncates the fragments, makes the entities and queue nodes the extracts declare, computes cross-area and queue edges, zones, access rows and relations, writes the digest, merges the synthesizer's object | 0 ok, 1 invalid result, 2 usage |
 | `validate.mjs` | Schema, references and, with `--repo`, every evidence path and line range at `meta.commit` | 0 valid, 1 findings, 2 usage |

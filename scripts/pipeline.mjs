@@ -88,7 +88,7 @@ export const PROFILE_MODELS = {
 };
 const PROFILE_WORDS = {
   max: 'explorer Opus high, synthesizer Opus high, reviewer Opus high',
-  balanced: 'explorer Sonnet low, synthesizer Sonnet medium, reviewer Opus high',
+  balanced: 'explorer Sonnet medium, synthesizer Sonnet medium, reviewer Opus high',
   economy: 'explorer Haiku, synthesizer Sonnet, reviewer Sonnet; may miss cross-area links',
 };
 const STACK_REFS = { python: 'stack-python-backend.md', 'ts-frontend': 'stack-ts-frontend.md', 'node-backend': 'stack-node-backend.md' };

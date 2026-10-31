@@ -45,7 +45,8 @@ fragment with what you have and count the rest in `skipped`.
 The brief states a coverage floor: the least number of nodes the fragment may carry, counted from prescan. A
 fragment with fewer nodes than the floor is incomplete. Give one node per feature directory of a frontend and per router
 or handler module of a backend, and one for every store, queue, job and external client the brief lists. The floor is
-the minimum; the summary is a start, not the fragment.
+the minimum; the summary is a start, not the fragment. Data and log files (json, jsonl, csv, markdown records) are not
+modules: one becomes a `store` node only when code you read reads or writes it.
 
 ## References
 

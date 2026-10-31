@@ -1381,3 +1381,19 @@ test('p37 finish in update mode passes the diffmap report\'s changed files to me
     assert.equal(JSON.stringify(final[kind].find((y) => y.id === x.id)), prev.get(x.id), `${x.id} still the previous model's after render`);
   }
 });
+
+test('p38 the balanced profile description in the report names the explorer on Sonnet medium, the model and effort the explorer agent file declares', () => {
+  const agent = readFileSync(join(ROOT, 'agents/archmap-explorer.md'), 'utf8');
+  const fm = (key) => new RegExp(`^${key}:\\s*(\\S+)\\s*$`, 'm').exec(agent)?.[1];
+  assert.deepEqual([fm('model'), fm('effort')], ['sonnet', 'medium'], 'the explorer agent runs on Sonnet medium');
+  const r0 = fixtureRepo('node-api-profile');
+  const w = join(tmp, 'work-profile');
+  assert.equal(step(['plan', r0, '--work', w, '--out', join(tmp, 'out-profile'), '--project', 'node-api', '--generated-at', GENERATED_AT]).status, 0);
+  cannedInto(w);
+  assert.equal(step(['finish', '--work', w]).status, 0);
+  cpSync(SYNTH, join(w, 'synth.json'));
+  const r = step(['render', '--work', w]);
+  assert.equal(r.status, 0, r.stdout);
+  const line = r.json.report.split('\n').find((l) => l.startsWith('Profile: '));
+  assert.match(line, /^Profile: balanced \(explorer Sonnet medium, /, line);
+});
