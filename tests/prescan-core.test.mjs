@@ -313,3 +313,23 @@ test('pc9 the explorer brief plus the extract is under 12 K characters for every
   assert.ok(s.routes.length > 0 && s.truncated.routes > 0, 'what the budget cut is counted in truncated');
   assert.equal(s.routes.length + s.truncated.routes, 280);
 });
+
+test('pc10 a merged leftover bucket is named misc (misc-2, misc-3 for more) and its title lists its member directories, never an id joined with plus signs', () => {
+  const files = {};
+  for (let i = 0; i < 14; i++) for (let j = 0; j < 4; j++) files[`mod${String(i).padStart(2, '0')}/f${j}.py`] = `x = ${j}\n`;
+  files['top.py'] = 'x = 1\n';
+  const { areas } = scan(makeRepo(files));
+  const ids = areas.map((a) => a.id);
+  assert.ok(!ids.some((i) => i.includes('+')), ids.join(','));
+  assert.equal(new Set(ids).size, ids.length);
+  const miscs = areas.filter((a) => /^misc(-\d+)?$/.test(a.id));
+  assert.ok(miscs.length >= 1, ids.join(','));
+  assert.equal(miscs[0].id, 'misc');
+  assert.ok(miscs.length >= 2, `further buckets are misc-2, misc-3: ${ids.join(',')}`);
+  for (const [i, a] of miscs.entries()) {
+    assert.equal(a.id, i === 0 ? 'misc' : `misc-${i + 1}`, 'misc, misc-2, misc-3 in order');
+    const dirs = a.globs.map((g) => g.split('/')[0]).filter((d) => /^mod\d+$/.test(d));
+    assert.ok(dirs.length >= 1, `${a.id} holds ${dirs.length} directories`);
+    for (const d of dirs) assert.ok(a.title.includes(d), `${a.id}: title ${a.title} lists ${d}`);
+  }
+});

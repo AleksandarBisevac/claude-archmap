@@ -315,16 +315,13 @@ test('m7 an invalid result is refused with exit 1 and nothing is written', () =>
   const dir = tmp();
   const fragDir = join(dir, 'frags');
   mkdirSync(fragDir);
-  // edge to a node nobody defined => dangling reference
-  const bad = frag('only', {
-    nodes: [node('a', { zone: 'z' })],
-    edges: [{ id: 'e', from: 'a', to: 'ghost', type: 'call', desc: 'x', evidence: ev('x/a.js'), confidence: 'verified' }],
-  });
+  // a node the schema cannot accept (no title): a dangling reference is dropped and noted (m19b), this is not repairable
+  const bad = frag('only', { nodes: [node('ghost', { zone: 'z', title: undefined })] });
   writeFileSync(join(fragDir, 'only.json'), JSON.stringify(bad));
   const out = join(dir, 'model.json');
   const r = cli([fragDir, '--out', out, '--commit', 'c', '--project', 'p', '--generated-at', '2026-01-01T00:00:00Z']);
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /ghost/);
+  assert.match(r.stderr, /title/);
   assert.equal(existsSync(out), false);
   // an existing out file is left untouched too
   writeFileSync(out, 'KEEP');
@@ -710,4 +707,66 @@ test('m18 with extracts, repo and digest the merge output and the digest are byt
   const rev = merge({ fragments: crossFrags().reverse(), extracts: crossExtracts().reverse(), repo: join(CROSS, 'repo'), meta: META });
   assert.equal(JSON.stringify(fwd.model), JSON.stringify(rev.model));
   rmSync(dir, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.6: a reference to something that is not there never costs the build. An area id (or area:<id>) in
+// `to` or `from` resolves to that area's level-2 node; what still resolves to nothing is dropped and noted.
+
+const refFrags = () => ({
+  web: frag('web', {
+    nodes: [node('web-app', { zone: 'z', kind: 'app' }), node('web-db', { zone: 'z', kind: 'store', paths: ['web/db/**'] })],
+    edges: [
+      { id: 'w-to-api', from: 'web-app', to: 'api', type: 'api', desc: 'by area id', evidence: ev('x/web.js', '3-4'), confidence: 'verified' },
+      { id: 'w-to-api2', from: 'web-app', to: 'area:api', type: 'api', desc: 'by area:id', evidence: ev('x/web.js', '5-6'), confidence: 'inferred' },
+      { id: 'w-to-data', from: 'web-app', to: 'area:data', type: 'call', desc: 'area with no app or service', evidence: ev('x/web.js', '7-8'), confidence: 'inferred' },
+      { id: 'api-to-w', from: 'api', to: 'web-app', type: 'call', desc: 'from side', evidence: ev('x/web.js', '9-10'), confidence: 'inferred' },
+      { id: 'w-ghost', from: 'web-app', to: 'area:ghost', type: 'call', desc: 'nothing there', evidence: ev('x/web.js', '11-12'), confidence: 'inferred' },
+      { id: 'w-ghost2', from: 'web-app', to: 'no-such-node', type: 'call', desc: 'nothing there', evidence: ev('x/web.js', '13-14'), confidence: 'inferred' },
+    ],
+    entities: [
+      { id: 'e-ok', store: 'web-db', name: 'ok', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }] },
+      { id: 'e-lost', store: 'gone-db', name: 'lost', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }] },
+    ],
+    access: [
+      { node: 'web-app', entity: 'e-ok', ops: 'R', evidence: ev('x/web.js', '15-16') },
+      { node: 'gone-node', entity: 'e-ok', ops: 'R', evidence: ev('x/web.js', '17-18') },
+    ],
+  }),
+  api: frag('api', {
+    nodes: [
+      node('api-db', { zone: 'z', kind: 'store', paths: ['api/db/**'] }),
+      node('api-handler', { zone: 'z', kind: 'service', level: 3, paths: ['api/h/**'] }),
+      node('api-svc', { zone: 'z', kind: 'service', paths: ['api/**'] }),
+    ],
+  }),
+  data: frag('data', { nodes: [node('data-first', { zone: 'z', kind: 'store', paths: ['data/a/**'] }), node('data-second', { zone: 'z', kind: 'store', paths: ['data/b/**'] })] }),
+});
+
+test('m19 an edge to or from an area id (or area:<id>) lands on that area\'s level-2 app or service node, else its first node, and keeps its evidence', () => {
+  const { r, model } = runDir(refFrags(), ['--strict']);
+  assert.equal(r.status, 0, r.stderr);
+  const e = (id) => model.edges.find((x) => x.id === id);
+  assert.equal(e('w-to-api').to, 'api-svc');
+  assert.deepEqual(e('w-to-api').evidence, ev('x/web.js', '3-4'), 'the evidence stays');
+  assert.equal(e('w-to-api2').to, 'api-svc');
+  assert.equal(e('w-to-data').to, 'data-first');
+  assert.equal(e('api-to-w').from, 'api-svc');
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+});
+
+test('m19b a reference that resolves to nothing is dropped with one dropped-ref row each, and the merge still exits 0 and writes a valid model', () => {
+  const { r, model } = runDir(refFrags());
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(model, 'the model was written');
+  assert.equal(model.edges.some((x) => x.id === 'w-ghost' || x.id === 'w-ghost2'), false);
+  assert.equal(model.entities.some((x) => x.id === 'e-lost'), false, 'an entity whose store is missing is dropped');
+  assert.equal(model.access.some((x) => x.node === 'gone-node'), false, 'an access row on a missing node is dropped');
+  assert.equal(model.access.length, 1);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const rows = model.meta.sources.filter((s) => s.type === 'dropped-ref');
+  const key = (s) => `${s.area}:${s.id}:${s.target}`;
+  assert.deepEqual(rows.map(key).sort(), [
+    'web:access:gone-node/e-ok:gone-node', 'web:e-lost:gone-db', 'web:w-ghost2:no-such-node', 'web:w-ghost:area:ghost',
+  ].sort());
 });

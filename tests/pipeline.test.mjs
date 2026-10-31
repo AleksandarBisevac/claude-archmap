@@ -263,11 +263,11 @@ test('p6 a missing work dir or fragment exits 2 with the step named; --allow-mis
   assert.ok(noSynth.json.error.includes(join(w, 'synth.json')));
 });
 
-test('p7 usage errors exit 2 with the step named: no repo, an unknown step, a --usage label that is no area, a malformed token count', () => {
+test('p7 usage errors exit 2 with the step named: no repo, an unknown step, a malformed token count', () => {
   assert.equal(step(['plan', '--work', join(tmp, 'w7')]).status, 2);
   const unknown = step(['deploy', '--work', work]);
   assert.equal(unknown.status, 2);
-  for (const bad of ['nowhere=100', 'src=lots']) {
+  for (const bad of ['src=lots']) {
     const r = step(['finish', '--work', work, '--usage', bad]);
     assert.equal(r.status, 2, bad);
     assert.equal(r.json.step, 'finish');
@@ -400,4 +400,133 @@ test('p12 plan never clears a directory it did not make, and a plan that stopped
   assert.equal(inRepo.status, 2);
   assert.match(inRepo.json.error, /inside the repo/);
   assert.deepEqual(inRepo.json.runs, []);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.6: what a real monorepo build tripped on: area ids as references, odd --usage labels, a brief over its cap,
+// a work dir the subagents could not write to.
+
+const planInto = (w, extra = [], env) =>
+  step(['plan', repo, '--work', w, '--out', join(tmp, `out-${w.split('/').pop()}`), '--project', 'node-api', '--generated-at', GENERATED_AT, ...extra], env);
+
+test('p13 the explorer brief says to name another area as area:<id>, and finish resolves such an edge into a valid model', () => {
+  const w = join(tmp, 'work-ref');
+  const r = planInto(w);
+  assert.equal(r.status, 0, r.stdout);
+  const brief = readFileSync(join(w, 'briefs', 'src.md'), 'utf8');
+  assert.match(brief, /area:<id>/);
+  assert.match(brief, /merge resolves/i);
+  cannedInto(w);
+  const fp = join(w, 'fragments', 'src.json');
+  const frag = readJson(fp);
+  frag.edges.push({
+    id: 'orders-reads-prisma', from: 'orders-api', to: 'area:prisma', type: 'sql', desc: 'by area id',
+    evidence: [{ path: 'src/books/books.controller.ts', lines: '3-4' }], confidence: 'inferred',
+  });
+  frag.edges.push({
+    id: 'orders-reads-ghost', from: 'orders-api', to: 'area:ghost', type: 'call', desc: 'nothing there',
+    evidence: [{ path: 'src/books/books.controller.ts', lines: '5-6' }], confidence: 'inferred',
+  });
+  writeFileSync(fp, JSON.stringify(frag));
+  const f = step(['finish', '--work', w]);
+  assert.equal(f.status, 0, f.stdout);
+  const model = readJson(join(w, 'model.json'));
+  const e = model.edges.find((x) => x.id === 'orders-reads-prisma');
+  assert.equal(e.to, 'orders-db');
+  assert.equal(model.edges.some((x) => x.id === 'orders-reads-ghost'), false);
+  assert.ok(model.meta.sources.some((x) => x.type === 'dropped-ref' && x.target === 'area:ghost'));
+});
+
+test('p14 --usage takes any label without an equals sign: exact id, then unique prefix, then position; an unmatched label is kept under its own name with a warning', () => {
+  const w = join(tmp, 'work-usage');
+  assert.equal(planInto(w).status, 0);
+  cannedInto(w);
+  const odd = '.claude+packages-ui+root/x.y';
+  const r = step(['finish', '--work', w, '--usage', 'src=34.5k@62s', '--usage', 'pri=12000', '--usage', `${odd}=8100@9500ms`, '--usage', 'extra/one.two+three=5']);
+  assert.equal(r.status, 0, r.stdout);
+  const rows = ledgerRows(w).filter((x) => x.phase === 'explorer');
+  const byLabel = Object.fromEntries(rows.map((x) => [x.label, x]));
+  assert.deepEqual(Object.keys(byLabel).sort(), ['extra/one.two+three', 'prisma', 'root', 'src']);
+  assert.equal(byLabel.src.tokens, 34500);
+  assert.equal(byLabel.prisma.tokens, 12000, 'a unique prefix finds its area');
+  assert.equal(byLabel.root.tokens, 8100, 'the label left over takes the area that still lacks a row');
+  assert.equal(byLabel.root.durationMs, 9500);
+  assert.equal(byLabel['extra/one.two+three'].tokens, 5, 'no area left: recorded under its own label');
+  assert.ok(Array.isArray(r.json.warnings) && r.json.warnings.length >= 1, JSON.stringify(r.json));
+  assert.ok(r.json.warnings.some((x) => x.includes('extra/one.two+three')), JSON.stringify(r.json.warnings));
+  // an exact id given after a stray label still wins the area
+  const w2 = join(tmp, 'work-usage2');
+  assert.equal(planInto(w2).status, 0);
+  cannedInto(w2);
+  const r2 = step(['finish', '--work', w2, '--usage', 'a.b+c=7', '--usage', 'src=9', '--usage', 'prisma=8']);
+  assert.equal(r2.status, 0, r2.stdout);
+  const rows2 = Object.fromEntries(ledgerRows(w2).filter((x) => x.phase === 'explorer').map((x) => [x.label, x.tokens]));
+  assert.deepEqual(rows2, { src: 9, prisma: 8, root: 7 });
+});
+
+/** Three ordinary directories and a dozen one-file directories with long names: the small ones merge into misc. */
+function wideRepo(name, tiny = 12, len = 60) {
+  const dir = join(tmp, name);
+  const put = (d, f) => {
+    mkdirSync(join(dir, d), { recursive: true });
+    writeFileSync(join(dir, d, f), 'x = 1\n');
+  };
+  for (const d of ['core', 'web', 'api']) for (let j = 0; j < 4; j++) put(d, `f${j}.py`);
+  for (let i = 0; i < tiny; i++) put(`module-${String(i).padStart(2, '0')}-${'x'.repeat(len)}`, 'only.py');
+  git(dir, 'init', '-q');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'initial');
+  return dir;
+}
+
+test('p15 a merged leftover area is named misc, lists its directories in the boundary globs, and a brief over its cap is trimmed and noted, never a refusal', () => {
+  const wr = wideRepo('wide-repo');
+  const w = join(tmp, 'work-wide');
+  const r = step(['plan', wr, '--work', w, '--out', join(tmp, 'out-wide'), '--generated-at', GENERATED_AT]);
+  assert.equal(r.status, 0, r.stdout);
+  const ids = r.json.areas.map((a) => a.id);
+  assert.ok(ids.some((i) => /^misc(-\d+)?$/.test(i)), ids.join(','));
+  assert.ok(!ids.some((i) => i.includes('+')), ids.join(','));
+  const misc = readJson(join(w, 'prescan.json')).areas.find((a) => a.id === 'misc');
+  assert.ok(misc && misc.globs.length >= 2, 'misc holds several directories');
+  for (const id of ids) {
+    const brief = readFileSync(join(w, 'briefs', `${id}.md`), 'utf8');
+    assert.ok(brief.length <= BRIEF_CAP, `${id}: ${brief.length} characters`);
+  }
+  const miscBrief = readFileSync(join(w, 'briefs', 'misc.md'), 'utf8');
+  assert.ok(miscBrief.includes(misc.globs[0]), 'a member directory shows in the boundary globs');
+  assert.ok(Array.isArray(r.json.trimmed) && r.json.trimmed.some((t) => t.area === 'misc'), `a note says misc was trimmed: ${JSON.stringify(r.json.trimmed)}`);
+});
+
+test('p16 plan without --work uses a directory under the OS temp dir named from the repo path hash and prints it; a --work it did not make is accepted when empty or holding only its own files', () => {
+  const home = join(tmp, 'os-tmp');
+  mkdirSync(home);
+  const env = { PATH: process.env.PATH, TMPDIR: home, TEMP: home, TMP: home };
+  const a = step(['plan', repo, '--out', join(tmp, 'out-default'), '--generated-at', GENERATED_AT], env);
+  assert.equal(a.status, 0, a.stdout);
+  const wd = a.json.work;
+  assert.equal(typeof wd, 'string');
+  assert.equal(join(wd, '..', '..'), home, wd);
+  assert.match(wd.split('/').pop(), /^[0-9a-f]{8,16}$/);
+  assert.equal(wd.split('/').slice(-2)[0], 'archmap');
+  assert.ok(existsSync(join(wd, 'prescan.json')));
+  assert.match(a.json.workNote, /subagents? must be able to write/i);
+  const again = step(['plan', repo, '--out', join(tmp, 'out-default'), '--generated-at', GENERATED_AT], env);
+  assert.equal(again.json.work, wd, 'the same repo path gives the same directory');
+  const other = step(['plan', fixtureRepo('node-api-other'), '--out', join(tmp, 'out-default2'), '--generated-at', GENERATED_AT], env);
+  assert.notEqual(other.json.work, wd, 'another repo path gives another directory');
+  // a directory somebody else made: empty is fine, one with only an empty fragments/ is fine
+  const empty = join(tmp, 'made-by-hand');
+  mkdirSync(empty);
+  assert.equal(planInto(empty).status, 0);
+  const own = join(tmp, 'made-by-hand-2');
+  mkdirSync(join(own, 'fragments'), { recursive: true });
+  assert.equal(planInto(own).status, 0);
+  // but one holding somebody's files is still refused
+  const foreign = join(tmp, 'made-by-hand-3');
+  mkdirSync(foreign);
+  writeFileSync(join(foreign, 'notes.txt'), 'mine');
+  const bad = planInto(foreign);
+  assert.equal(bad.status, 2);
+  assert.ok(existsSync(join(foreign, 'notes.txt')));
 });

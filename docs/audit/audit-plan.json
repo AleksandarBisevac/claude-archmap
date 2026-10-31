@@ -5476,6 +5476,10 @@
             {
               "at": "2026-10-31T00:14:29Z",
               "text": "Iteration-2 round 1 (2026-10-31), evals 1 and 2 with skill: orchestrator 9-11 turns, median context 48-56 K, max 60-62 K, total list cost 0.75 and 0.70 USD (iteration-1: 13.84 and 9.79). Both builds stopped at finish: merge refused the model over fragment edges naming an area id (dangling-ref), and the explorers only transcribed the extract (2 Reads + 1 Write each; 19 nodes against 58 in iteration-1). Grading 0/7 both. Fix tasks added to P10 (merge dangling refs, explorer coverage, profiler output reconciliation); this task re-runs after they land."
+            },
+            {
+              "at": "2026-10-31T00:16:45Z",
+              "text": "Eval 4 round 1 (2026-10-31, Opus orchestrator): 25 orchestrator turns, median ctx 64 K, max 82 K, total 1.93 USD (iteration-1: 12.79); stopped at finish with a dangling ref (node 'api'); plan refused a 4019-char brief (area id joined with plus signs), subagents were denied writing fragments into the harness work dir (outside the repo), --usage rejected labels with dots and pluses; 19 nodes over 5 fragments. Grading 0/8. Covered by P10.6 and P10.7."
             }
           ],
           "blockedReason": "iteration-2 round 1 stopped at merge (dangling area-id refs) with transcribing explorers; P10.5 waits for the fix tasks P10.6, P10.7 and P10.8, then re-runs evals 1, 2 and 4"
@@ -5483,21 +5487,26 @@
         {
           "id": "P10.6-6rm",
           "title": "Merge never refuses a build over a fragment's dangling reference: resolve area ids to nodes, drop the rest with a note",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Measured on the iteration-2 runs of evals 1 and 2 (2026-10-31): every build stopped at `pipeline.mjs finish` because validate.mjs reported `dangling-ref /edges/N/to node \"<area id>\" does not exist` and merge.mjs refused the whole result. The explorer brief says `to` may be another area's node id, the explorer does not know those ids, so it wrote the area id. merge.mjs must treat fragment references like it treats caps (P10.2): before validation it resolves a `to` or `from` that equals an area id, or `area:<id>`, to that area's level-2 node (kind app or service; else the fragment's first node), keeps the edge's evidence, and drops any edge, access row or entity whose reference still resolves to nothing, recording one `meta.sources` row {area, type:'dropped-ref', id, target} per drop. merge exits 1 only when it cannot write a valid model after that. pipeline.mjs plan's brief and agents/archmap-explorer.md say: name another area's node as `area:<id>` unless you read its id. No client or repository name in fixtures or tests.",
           "files": [
             "scripts/merge.mjs",
             "scripts/pipeline.mjs",
+            "scripts/lib/prescan/partition.mjs",
             "agents/archmap-explorer.md",
             "tests/merge.test.mjs",
             "tests/pipeline.test.mjs",
+            "tests/prescan-core.test.mjs",
             "tests/fixtures/merge"
           ],
           "tests": {
             "mode": "tdd",
             "add": [
               "tests/merge.test.mjs: a fragment edge whose to or from names another area's id (or area:<id>) is rewritten to that area's level-2 node (kind app or service, else the fragment's first node) and the edge keeps its evidence; an edge whose target resolves to nothing is dropped and meta.sources carries a dropped-ref row naming the area, the edge id and the target; merge exits 0 and writes the model in both cases; an access row or entity pointing at a missing node is dropped the same way",
-              "tests/pipeline.test.mjs: the explorer brief written by plan states that to may name another area by area:<id> and that merge resolves it, and finish with a fragment carrying such an edge produces a valid model"
+              "tests/pipeline.test.mjs: the explorer brief written by plan states that to may name another area by area:<id> and that merge resolves it, and finish with a fragment carrying such an edge produces a valid model",
+              "tests/pipeline.test.mjs: --usage accepts any label without an equals sign (dots, pluses, slashes included) and matches it to an area by exact id, then by unique prefix, then by position among the areas that still lack a row; an unmatched label is recorded as a ledger row under its own label with a warning in the JSON, never exit 2",
+              "tests/pipeline.test.mjs: a brief that would exceed its cap is trimmed (optional lines first, then the extract summary) and written under the cap with a note in the JSON, never exit 2; a merged leftover area gets a short id (misc, misc-2) and its member directories appear in the brief's boundary globs; plan without --work uses a directory under the OS temp dir named from the repo path hash and prints it; plan accepts a --work it did not create when the directory is empty or holds only its own files",
+              "tests/prescan-core.test.mjs: partition gives a merged leftover bucket the id misc (misc-2, misc-3 for further buckets) with a title that lists its member directories, never an id joined with plus signs"
             ],
             "expectRedFirst": true,
             "gate": [
@@ -5510,22 +5519,28 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T00:15:26Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T00:25:18Z.7f65a6",
+            "status": "passed",
+            "at": "2026-10-31T00:25:18Z"
+          }
         },
         {
           "id": "P10.7-6rm",
           "title": "Explorer coverage: the brief demands one node per structural element of the extract and the effort is medium",
           "status": "pending",
-          "description": "Measured on the iteration-2 run of eval 1 (2026-10-31): each of the 8 explorers made exactly two Reads (the brief, the extract) and one Write, 3 to 4 tool calls of the 20 allowed, and the fragments carried 19 nodes in total against 58 nodes (34 modules, 9 route groups, 6 jobs) in the iteration-1 build of the same repository; three areas came back empty and the 208-file frontend area had 4 nodes. The brief's \"do not re-derive the rest\" plus effort low turned the explorer into a transcriber of the extract. Fix: pipeline.mjs plan computes a coverage floor from the extract (entry-point groups by directory, route groups, stores, queues, jobs, external clients) and writes it into the brief as the minimum number of nodes with the list of what each must cover; the brief requires at least 6 and at most 20 tool calls, Grep for the next fact then a line-range Read, one node per feature directory of a frontend and per router or handler module of a backend, and says a fragment under the floor is incomplete. agents/archmap-explorer.md goes back to effort medium (low saved nothing: the explorers were 0.4 USD of a 0.75 USD build) and states the same floor rule. SKILL.md's agents table and profile table follow. Briefs stay under their cap. No client or repository name in tests.",
+          "description": "Measured on the iteration-2 run of eval 1 (2026-10-31): each of the 8 explorers made exactly two Reads (the brief, the extract) and one Write, 3 to 4 tool calls of the 20 allowed, and the fragments carried 19 nodes in total against 58 nodes (34 modules, 9 route groups, 6 jobs) in the iteration-1 build of the same repository; three areas came back empty and the 208-file frontend area had 4 nodes. Eval 4 (a monorepo) gave the same 19 nodes over 5 fragments. The brief's \"do not re-derive the rest\" plus effort low turned the explorer into a transcriber of the extract. Fix: pipeline.mjs plan computes a coverage floor from the extract (entry-point groups by directory, route groups, stores, queues, jobs, external clients) and writes it into the brief as the minimum number of nodes with the list of what each must cover; the brief requires at least 6 and at most 20 tool calls, Grep for the next fact then a line-range Read, one node per feature directory of a frontend and per router or handler module of a backend, and says a fragment under the floor is incomplete. agents/archmap-explorer.md goes back to effort medium (low saved nothing: the explorers were 0.4 USD of a 0.75 USD build) and states the same floor rule. SKILL.md's agents table and profile table follow, and SKILL.md's build flow gains the work-dir rule that P10.6 reports (the work dir must be writable by subagents: plan's default under the OS temp dir, or a git-ignored directory; never a directory the subagents cannot write, and copy the ledger to where the caller asked after render). Briefs stay under their cap. This task runs after P10.6 (same files: pipeline.mjs, archmap-explorer.md, tests/pipeline.test.mjs). No client or repository name in tests.",
           "files": [
             "scripts/pipeline.mjs",
             "agents/archmap-explorer.md",
@@ -5551,7 +5566,9 @@
           "skills": [],
           "risk": "low",
           "blockedBy": [],
-          "dependsOn": [],
+          "dependsOn": [
+            "P10.6-6rm"
+          ],
           "attempts": 0,
           "maxAttempts": 3,
           "commit": null,
@@ -5722,7 +5739,8 @@
     ],
     "scripts/lib/prescan/partition.mjs": [
       "P3.1",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.6-6rm"
     ],
     "scripts/lib/prescan/generic.mjs": [
       "P3.1",
@@ -5730,7 +5748,8 @@
     ],
     "tests/prescan-core.test.mjs": [
       "P3.1",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.6-6rm"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",

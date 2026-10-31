@@ -2,13 +2,15 @@
 // pipeline.mjs - the build driver: the orchestrating session runs three steps and two dispatch messages, and this
 // script runs everything deterministic between them (docs/design.md D11, SKILL.md "Build flow").
 //
-//   node scripts/pipeline.mjs plan <repo> --work <dir> [--out <dir>] [--scope <path>] [--profile max|balanced|economy]
+//   node scripts/pipeline.mjs plan <repo> [--work <dir>] [--out <dir>] [--scope <path>] [--profile max|balanced|economy]
 //        [--issues] [--update [--since <sha>]] [--project <name>] [--generated-at <iso>]
 //   node scripts/pipeline.mjs finish --work <dir> [--usage <area>=<tokens>[@<duration>] ...] [--allow-missing]
 //   node scripts/pipeline.mjs render --work <dir> [--usage synthesizer=<tokens>[@<duration>]]
 //   node scripts/pipeline.mjs ledger --work <dir> [--usage reviewer=<tokens>[@<duration>]]
 //
-// plan    starts a fresh build in <work> (it removes the files an earlier build left there), runs prescan.mjs (the
+// plan    starts a fresh build in <work> (it removes the files an earlier build left there; without --work that is
+//         <os tmpdir>/archmap/<short hash of the repo path>, a place a subagent may write, which Claude Code does not
+//         allow outside the project and the OS temp dir), runs prescan.mjs (the
 //         per-area extracts), takes its areas as the partition (at most 8), and writes one explorer brief per area,
 //         <work>/briefs/<area>.md, under BRIEF_CAP characters: the area, its globs, the extract and fragment paths,
 //         the caps, the fragment contract and the three-line reply, so the explorer needs no reference file. It
@@ -42,6 +44,7 @@
 // (merge, validate, layout or render exit 1); 2 usage error, missing work dir, plan, fragment or synth file, or a
 // wrapped script's usage error. Node >= 18, ESM, zero npm dependencies.
 
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync,
@@ -120,7 +123,7 @@ function parseArgs(step, argv) {
     else o.positional.push(a);
   }
   if (o.positional.length > spec.positional) throw new StepError(`unexpected argument ${o.positional[spec.positional]}`);
-  if (o.work === undefined) throw new StepError('missing --work <dir>');
+  if (o.work === undefined && step !== 'plan') throw new StepError('missing --work <dir>');
   return o;
 }
 
@@ -128,7 +131,8 @@ const MULT = { '': 1, k: 1e3, K: 1e3, m: 1e6, M: 1e6 };
 
 /** Parse one --usage pair: `<label>=<tokens>[@<duration>]`. */
 export function parseUsage(pair) {
-  const m = /^([A-Za-z0-9._-]+)=(\d+(?:\.\d+)?)([kKmM]?)(?:@(.+))?$/.exec(pair);
+  // the label is whatever the orchestrator copied off the completion line: dots, pluses and slashes included
+  const m = /^([^=]+)=(\d+(?:\.\d+)?)([kKmM]?)(?:@(.+))?$/.exec(pair);
   if (!m) throw new StepError(`--usage ${pair}: expected <label>=<tokens>[@<duration>], tokens as 34500, 34.5k or 1.2M`);
   const row = { label: m[1], tokens: Math.round(Number(m[2]) * MULT[m[3]]) };
   if (m[4] !== undefined) {
@@ -155,6 +159,41 @@ function usageMap(pairs, allowed, step) {
     map.set(row.label, row);
   }
   return map;
+}
+
+/**
+ * Match the explorers' --usage labels to areas, never refusing over a label: the exact area id first, then a unique
+ * prefix of one, then position among the areas that still have no row; what is left over is recorded under its own
+ * label. Returns the row for each area, the unmatched rows and a warning for every guess.
+ */
+export function matchUsage(pairs, areas) {
+  const byArea = new Map();
+  const warnings = [];
+  let pending = [];
+  for (const p of pairs) {
+    const row = parseUsage(p);
+    if (areas.includes(row.label) && !byArea.has(row.label)) byArea.set(row.label, row);
+    else pending.push(row);
+  }
+  pending = pending.filter((row) => {
+    const hits = areas.filter((a) => a.startsWith(row.label));
+    if (hits.length !== 1 || byArea.has(hits[0])) return true;
+    byArea.set(hits[0], { ...row, label: hits[0] });
+    return false;
+  });
+  const free = areas.filter((a) => !byArea.has(a));
+  const extras = [];
+  for (const row of pending) {
+    const area = free.shift();
+    if (area === undefined) {
+      extras.push(row);
+      warnings.push(`--usage ${row.label}: no area is left without a row; recorded under its own label`);
+    } else {
+      byArea.set(area, { ...row, label: area });
+      warnings.push(`--usage ${row.label} is not an area id; matched to ${area} by position`);
+    }
+  }
+  return { byArea, extras, warnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +244,17 @@ function readJson(path, what) {
   } catch (e) {
     throw new StepError(`${what} ${path} is not valid JSON: ${e.message}`);
   }
+}
+
+/** Every file under `dir` (relative), empty directories not counted; [] when `dir` does not exist. */
+function filesUnder(dir, base = dir) {
+  let names;
+  try {
+    names = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return names.flatMap((d) => (d.isDirectory() ? filesUnder(join(dir, d.name), base) : [relative(base, join(dir, d.name))])).sort(cmp);
 }
 
 const isDir = (p) => {
@@ -278,15 +328,17 @@ function capGlobs(globs, room) {
   return out.join(', ');
 }
 
-export function explorerBrief({ area, extract, fragment, profile, previous, stackRef }) {
+export function explorerBrief({ area, extract, fragment, profile, previous, stackRef, short = false, globRoom = 600 }) {
   const lines = [
     `# archmap explorer brief: ${area.id}`,
     '',
     'You map one area into one JSON fragment. This brief carries the contract, the caps and the vocabulary; you need no',
     'reference file.',
     '',
-    `- Area: ${code(area.id)} (${area.title}), ${area.files} files, stacks: ${list(area.stacks).join(', ') || 'none recognised'}.`,
-    `- Globs, your boundary (map nothing outside them): ${capGlobs(list(area.globs), 600)}.`,
+    short
+      ? `- Area: ${code(area.id)}, ${area.files} files.`
+      : `- Area: ${code(area.id)} (${area.title}), ${area.files} files, stacks: ${list(area.stacks).join(', ') || 'none recognised'}.`,
+    `- Globs, your boundary (map nothing outside them): ${capGlobs(list(area.globs), globRoom)}.`,
     extract
       ? `- Extract, read it first: ${extract}`
       : '- Extract: none (this area is not in the current prescan partition); start from the globs.',
@@ -314,7 +366,8 @@ export function explorerBrief({ area, extract, fragment, profile, previous, stac
     '  zone: browser, edge, service, data, external, platform, delivery.',
     '- edge: `id`, `from`, `to`, `type`, `desc` (one sentence), `confidence`, `evidence`; `async` optional. type: api,',
     '  static, auth, pull, sql, cache, persist, call, link, deploy, event, queue. confidence: verified (you read both',
-    '  ends), inferred, external (a third party). `to` may be another area\'s node id.',
+    '  ends), inferred, external (a third party). To reach another area\'s node write `to: "area:<id>"` unless you read',
+    '  its node id: merge resolves it to that area\'s main node. Never invent a node id.',
     '- entity: `id`, `store` (a node id), `name`, `kind` (table, view, collection, dataset), `fields`: `name`, `type`,',
     '  `provenance` (declared, observed, inferred), optional `pk`, `nullable`, `fk` {`entity`, `field`}; `evidence`.',
     '- access: `node`, `entity`, `ops` (letters of CRUD in that order, e.g. CR), `evidence`.',
@@ -393,6 +446,29 @@ function writeBrief(path, text) {
   writeFileSync(path, text);
 }
 
+// What an explorer brief gives up, in order, when it would pass the cap: the optional lines (the stack reference),
+// then the extract summary (the area's title and stacks, the long glob list). The contract and the paths stay.
+const BRIEF_TRIMS = [
+  { drop: 'stack reference line', opts: { stackRef: null } },
+  { drop: 'area title and stacks', opts: { stackRef: null, short: true } },
+  { drop: 'globs beyond 200 characters', opts: { stackRef: null, short: true, globRoom: 200 } },
+  { drop: 'globs beyond 80 characters', opts: { stackRef: null, short: true, globRoom: 80 } },
+];
+
+/** The explorer brief under BRIEF_CAP, with the note of what was trimmed (null when nothing was). */
+function fitExplorerBrief(input, id) {
+  let text = explorerBrief(input);
+  if (text.length <= BRIEF_CAP) return { text, note: null };
+  const before = text.length;
+  const dropped = [];
+  for (const t of BRIEF_TRIMS) {
+    text = explorerBrief({ ...input, ...t.opts });
+    dropped.push(t.drop);
+    if (text.length <= BRIEF_CAP) break;
+  }
+  return { text, note: { area: id, before, after: text.length, dropped } };
+}
+
 const agentCall = (subagentType, description, prompt, model) => ({
   subagent_type: subagentType,
   description,
@@ -412,7 +488,9 @@ function plan(o, ctx) {
   if (o.since !== undefined && !o.update) throw new StepError('--since needs --update');
   const repo = resolve(repoArg);
   if (!isDir(repo)) throw new StepError(`repo ${repoArg} is not a directory`);
-  const work = resolve(o.work);
+  // subagents write their fragments here, and Claude Code denies a subagent a Write outside the project and the OS
+  // temp dir when nobody can approve it: the default is a directory under the OS temp dir, one per repo path
+  const work = resolve(o.work ?? join(tmpdir(), 'archmap', createHash('sha256').update(repo).digest('hex').slice(0, 12)));
   const out = resolve(o.out ?? join(repo, 'docs/architecture'));
   const inside = relative(repo, work);
   if (inside === '' || (!inside.startsWith('..') && !isAbsolute(inside))) {
@@ -423,10 +501,13 @@ function plan(o, ctx) {
   ctx.cwd = repo;
   ctx.aliases = aliasesFor({ work, out, repo });
 
-  // a fresh build: clear what an earlier plan left, but never a directory plan did not make
-  const leftover = BUILD_FILES.filter((f) => existsSync(join(work, f)));
-  if (leftover.length && !existsSync(statePath(work))) {
-    throw new StepError(`work dir ${work} holds ${leftover.join(', ')} but no pipeline.json: use an empty directory or one plan made`);
+  // a fresh build: clear what an earlier plan left, but never a directory plan did not make. A directory somebody
+  // else made is fine when it holds no file at all (an empty one, or only the empty directories plan itself uses).
+  if (!existsSync(statePath(work))) {
+    const files = filesUnder(work);
+    if (files.length) {
+      throw new StepError(`work dir ${work} holds ${files.slice(0, 5).join(', ')}${files.length > 5 ? ', ...' : ''} but no pipeline.json: use an empty directory or one plan made`);
+    }
   }
   mkdirSync(work, { recursive: true });
   for (const f of BUILD_FILES) rmSync(join(work, f), { recursive: true, force: true });
@@ -473,15 +554,15 @@ function plan(o, ctx) {
   mkdirSync(join(work, 'fragments'), { recursive: true });
   const agents = [];
   const planned = [];
+  const trimmed = [];
   for (const a of targets) {
     const brief = join(work, 'briefs', `${a.id}.md`);
     const fragment = join(work, 'fragments', `${a.id}.json`);
     const stack = list(a.stacks).map((s) => STACK_REFS[s]).find(Boolean) ?? 'discovery-generic.md';
     const input = { area: a, extract: a.extractPath, fragment, profile, previous: update ? previous : null, stackRef: join(REFS, stack) };
-    let text = explorerBrief(input);
-    // a long path can push a brief over the cap: the optional stack-reference line goes first
-    if (text.length > BRIEF_CAP) text = explorerBrief({ ...input, stackRef: null });
-    writeBrief(brief, text);
+    const fitted = fitExplorerBrief(input, a.id);
+    if (fitted.note) trimmed.push(fitted.note);
+    writeBrief(brief, fitted.text);
     planned.push({ id: a.id, title: a.title, files: a.files, brief });
     agents.push(agentCall('archmap-explorer', `archmap explorer: ${a.id}`.slice(0, 60),
       `Your brief is ${brief}. Read it first and follow it: it names your extract and the one fragment file you write. Reply with the three lines it specifies.`,
@@ -506,7 +587,9 @@ function plan(o, ctx) {
   const nothing = update?.nothing === true;
   return {
     work, repo, out, mode: state.mode, commit: state.commit, profile, stacks: list(pre.stacks),
+    workNote: `subagents must be able to write under ${work}: it is under the OS temp dir, which Claude Code lets a subagent write; a --work outside the project and the OS temp dir is denied`,
     areas: planned,
+    trimmed,
     agents,
     next: nothing
       ? `nothing is affected: run pipeline.mjs render --work ${work} (re-render only)`
@@ -670,7 +753,9 @@ function finish(o, ctx) {
   const state = loadState(work);
   ctx.cwd = state.repo;
   ctx.aliases = aliasesFor(state);
-  const usage = usageMap(o.usage, state.areas, 'finish');
+  const matched = matchUsage(o.usage, state.areas);
+  const usage = matched.byArea;
+  ctx.warnings = matched.warnings;
   if (state.update?.nothing) {
     return { counts: null, agents: [], next: `nothing is affected: run pipeline.mjs render --work ${work}` };
   }
@@ -701,6 +786,7 @@ function finish(o, ctx) {
   const done = { areas: mergedAreas, notMapped: missing, introspection, conflicts: report.conflicts };
   const ledger = () => writeLedger(work, 'finish', [
     ...state.areas.map((a) => agentRow('explorer', a, 'archmap-explorer', PROFILE_MODELS[state.profile].explorer, usage)),
+    ...matched.extras.map((x) => agentRow('explorer', x.label, 'archmap-explorer', PROFILE_MODELS[state.profile].explorer, new Map([[x.label, x]]))),
     ...ctx.ledger,
   ]);
   if (m.exit !== 0) {
@@ -848,7 +934,7 @@ function ledgerStep(o) {
 
 const STEPS = { plan, finish, render, ledger: ledgerStep };
 const USAGE_TEXT =
-  'usage: node scripts/pipeline.mjs plan <repo> --work <dir> [--out <dir>] [--scope <path>] [--profile p] [--issues] [--update [--since sha]] ' +
+  'usage: node scripts/pipeline.mjs plan <repo> [--work <dir>] [--out <dir>] [--scope <path>] [--profile p] [--issues] [--update [--since sha]] ' +
   '[--project name] [--generated-at iso] | finish --work <dir> [--usage <area>=<tokens>[@<duration>] ...] [--allow-missing] | ' +
   'render --work <dir> [--usage synthesizer=<tokens>[@<duration>]] | ledger --work <dir> [--usage reviewer=<tokens>[@<duration>]]';
 
@@ -860,7 +946,10 @@ export function main(argv) {
     if (!STEPS[step]) throw new StepError(step === undefined ? 'missing step (plan|finish|render|ledger)' : `unknown step ${step}`);
     const o = parseArgs(step, rest);
     const { exitCode = 0, findings = [], ...body } = STEPS[step](o, ctx);
-    result = { step, ok: exitCode === 0, exit: exitCode, ...body, runs: ctx.runs, findings: [...ctx.findings, ...findings] };
+    result = {
+      step, ok: exitCode === 0, exit: exitCode, ...body, runs: ctx.runs, findings: [...ctx.findings, ...findings],
+      ...(ctx.warnings?.length ? { warnings: ctx.warnings } : {}),
+    };
   } catch (e) {
     const known = e instanceof StepError;
     result = {

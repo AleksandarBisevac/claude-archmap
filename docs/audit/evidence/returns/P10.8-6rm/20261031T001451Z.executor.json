@@ -1,0 +1,29 @@
+{
+  "gates": {
+    "node --test tests/cost-profile.test.mjs": "pass",
+    "node --test (full suite, includes tests/denylist.test.mjs)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T00:16:55Z",
+    "basis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/cost-profile.mjs: per-model table, total and cost now take all four classes from the LAST result event's modelUsage (turns still from unique stream message ids; a model the result omits keeps stream figures); without a result event the stream sums are used and flagged lower bound. reconcile() compares input/cacheRead/cacheWrite for equality and output only as stream<=result, returning per-file mismatches [{model,class,stream,result,difference}]. New top-level JSON key 'basis' {byModel, byAgentOutput}. Text: per-agent output column headed 'output (stream, lower bound)', agent cost column 'cost USD (stream)', agent total row summed from agent rows; reconciliation line prints MATCH or 'DO NOT equal ...: <model> <class> differs by N (stream, result)'. Fixture: partial output_tokens on every assistant event (result events unchanged, still cumulative); expected.json byAgent output/cost updated (costs computed independently in python). Tests: c1/c2/c6/c7 adjusted to the new contract, added c13 (MATCH, lower-bound label, orchestrator turns 4/median 8555/max 9570 unchanged) and c14 (drift names class and difference; no-result stream flagged lower bound). First run of the new/updated suite before the implementation: 8 fail of 14; after: node --test tests/cost-profile.test.mjs 14/14 pass; node --test full suite 343/343 pass (exit 0), denylist test included. No new untracked files (fixtures were already tracked). Dependants: pipeline.mjs:829, usage.mjs:191, SKILL.md:297, pipeline.test.mjs:211 and docs/design.md only name cost-profile.mjs/the script in prose or a string match, none read its JSON keys - still correct; stream-sample.jsonl and expected.json are read only by tests/cost-profile.test.mjs, updated here.",
+    "descriptive": "cost-profile.mjs no longer under-counts output 5-7x: per-model figures and cost come from the result event, the per-agent output is labelled a stream lower bound, and reconciliation says MATCH or names the class and gap."
+  },
+  "testsAdded": [
+    "c13: partial-output fixture, model table from last result event reports MATCH, agent table labelled lower bound, orchestrator turns/median/max context unchanged",
+    "c14: drifted result names model, class and difference; stream without result event flagged as lower bound"
+  ],
+  "casesAdded": [
+    [
+      "c13",
+      "c14"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:87363c88952875c8698d64647cddd7957697851d6218f7103ce329f69f074ee8\",\"dirtyDigest\":\"sha256:6732d119379b6566fcd5665fc200c435da56b986b67e55e5e3fc969ef3cfef20\",\"dirtyPaths\":{\"scripts/cost-profile.mjs\":\"d06540d70a46134f\",\"tests/cost-profile.test.mjs\":\"8c05d2017ba39b6a\",\"tests/fixtures/cost/expected.json\":\"2391020035a38240\",\"tests/fixtures/cost/stream-sample.jsonl\":\"0b790eac9c13fc63\"},\"head\":\"c457b1a\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/cost-profile.mjs\",\"tests/cost-profile.test.mjs\",\"tests/fixtures/cost/expected.json\",\"tests/fixtures/cost/stream-sample.jsonl\"],\"scopeDigest\":\"sha256:ca64482b4952a8275d5f319159d2b18314ac23323dc5c0b11d5f6c878e396e5e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

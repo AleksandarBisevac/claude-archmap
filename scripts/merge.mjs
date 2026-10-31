@@ -745,6 +745,8 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   };
   const byPaths = new Map(); // paths key -> {id, area} of the first node this run that covers exactly those paths
   const collapsed = new Map(); // node id dropped as a same-paths twin -> the id kept
+  const placed = new Map(); // area -> ids of the nodes it ended up with, in the explorer's order
+  const origin = { edges: new Map(), entities: new Map(), access: new Map(), relations: new Map() }; // element key -> area
 
   // --- fragments
   const sources = list(prev?.meta?.sources).filter(
@@ -758,6 +760,8 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   for (const { f, area } of frags) {
     const nodeMap = new Map();
     const entityMap = new Map();
+    const mine = [];
+    placed.set(area, mine);
     const note = (kind, from, to) => {
       renames.push({ area, kind, from, to });
     };
@@ -773,11 +777,15 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       const n = stripUser(raw);
       n.zone = resolveZone(n.zone);
       const have = nodes.get(n.id);
-      if (have !== undefined && canon(stripUser(have)) === canon(n)) continue; // identical: deduped
+      if (have !== undefined && canon(stripUser(have)) === canon(n)) {
+        mine.push(n.id);
+        continue; // identical: deduped
+      }
       // the same paths in another area: one component two explorers both described; the first area's node stays
       const key = pathsKey(n);
       const twin = key === null ? undefined : byPaths.get(key);
       if (twin !== undefined && twin.area !== area) {
+        mine.push(twin.id);
         if (twin.id !== n.id) {
           nodeMap.set(n.id, twin.id);
           collapsed.set(n.id, twin.id);
@@ -792,6 +800,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
         note('node', n.id, id);
       }
       nodes.set(id, { ...n, id });
+      mine.push(id);
       if (key !== null && !byPaths.has(key)) byPaths.set(key, { id, area });
     }
     const mapNode = (id) => nodeMap.get(id) ?? id;
@@ -813,7 +822,10 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     const mapEntity = (id) => entityMap.get(id) ?? id;
     for (const e of incoming) {
       for (const fld of list(e.fields)) if (isObj(fld?.fk)) fld.fk.entity = mapEntity(fld.fk.entity);
-      if (!entities.has(e.id)) entities.set(e.id, e);
+      if (!entities.has(e.id)) {
+        entities.set(e.id, e);
+        origin.entities.set(e.id, area);
+      }
     }
 
     for (const raw of list(f.edges)) {
@@ -822,24 +834,32 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       e.from = mapNode(e.from);
       e.to = mapNode(e.to);
       const have = edges.get(e.id);
-      if (have === undefined) edges.set(e.id, e);
-      else if (canon(have) === canon(e)) continue;
+      if (have === undefined) {
+        edges.set(e.id, e);
+        origin.edges.set(e.id, area);
+      } else if (canon(have) === canon(e)) continue;
       else {
         const id = uniqueId(edges, e.id, area);
         note('edge', e.id, id);
         edges.set(id, { ...e, id });
+        origin.edges.set(id, area);
       }
     }
 
     for (const raw of list(f.access)) {
       if (!isObj(raw)) continue;
-      addAccess(access, { ...clone(raw), node: mapNode(raw.node), entity: mapEntity(raw.entity) });
+      const row = { ...clone(raw), node: mapNode(raw.node), entity: mapEntity(raw.entity) };
+      addAccess(access, row);
+      if (!origin.access.has(accessKey(row))) origin.access.set(accessKey(row), area);
     }
     for (const raw of list(f.relations)) {
       if (!isObj(raw)) continue;
       const r = clone(raw);
       for (const side of ['from', 'to']) if (isObj(r[side])) r[side].entity = mapEntity(r[side].entity);
-      if (!relations.has(relKey(r))) relations.set(relKey(r), r);
+      if (!relations.has(relKey(r))) {
+        relations.set(relKey(r), r);
+        origin.relations.set(relKey(r), area);
+      }
     }
 
     coverage[area] = list(f.coverage).filter((g) => typeof g === 'string');
@@ -855,6 +875,73 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
 
   // a reference from another fragment to a node that collapsed into its same-paths twin follows it
   const follow = (id) => (collapsed.has(id) && !nodes.has(id) ? collapsed.get(id) : id);
+
+  // --- references that point at nothing. An explorer cannot know another area's node ids, so it names the area
+  // (`to: "api"` or `to: "area:api"`): that is the area's level-2 app or service node, else its first node. What
+  // still resolves to nothing is dropped, one dropped-ref row each, so a stray reference never costs the build.
+  {
+    const isHub = (n) => Number(n.level) === 2 && ['app', 'service'].includes(String(n.kind).toLowerCase());
+    const hubOf = (area) => {
+      const ids = list(placed.get(area)).filter((id) => nodes.has(id));
+      return ids.find((id) => isHub(nodes.get(id))) ?? ids[0] ?? null;
+    };
+    const resolveNode = (ref) => {
+      if (typeof ref !== 'string') return null;
+      if (nodes.has(follow(ref))) return ref;
+      return hubOf(ref.startsWith('area:') ? ref.slice('area:'.length) : ref);
+    };
+    const dropRow = (area, id, target, what) => {
+      sources.push({ area, type: 'dropped-ref', id, target: String(target), note: `area ${area}: ${what} dropped: "${target}" does not exist` });
+    };
+    const areaOf = (map, key) => map.get(key) ?? 'previous';
+    for (const [id, e] of [...edges]) {
+      const from = resolveNode(e.from);
+      const to = resolveNode(e.to);
+      if (from === null || to === null) {
+        edges.delete(id);
+        dropRow(areaOf(origin.edges, id), id, from === null ? e.from : e.to, `edge ${id}`);
+        continue;
+      }
+      e.from = from;
+      e.to = to;
+    }
+    for (const [id, e] of [...entities]) {
+      const store = resolveNode(e.store);
+      if (store === null) {
+        entities.delete(id);
+        dropRow(areaOf(origin.entities, id), id, e.store, `entity ${id}`);
+        continue;
+      }
+      e.store = store;
+    }
+    for (const [k, a] of [...access]) {
+      const node = resolveNode(a.node);
+      const missing = node === null ? a.node : !entities.has(a.entity) ? a.entity : null;
+      if (missing !== null) {
+        access.delete(k);
+        dropRow(areaOf(origin.access, k), `access:${a.node}/${a.entity}`, missing, `access row ${a.node}/${a.entity}`);
+      } else if (node !== a.node) {
+        access.delete(k);
+        addAccess(access, { ...a, node });
+        origin.access.set(accessKey({ ...a, node }), areaOf(origin.access, k));
+      }
+    }
+    // what pointed at a dropped entity or a field it does not have goes with it
+    const hasField = (ent, field) => entities.has(ent) && list(entities.get(ent).fields).some((f) => isObj(f) && f.name === field);
+    for (const [k, r] of [...relations]) {
+      const bad = ['from', 'to'].map((side) => r?.[side]).find((side) => isObj(side) && !hasField(side.entity, side.field));
+      if (bad === undefined) continue;
+      relations.delete(k);
+      dropRow(areaOf(origin.relations, k), `relation:${k}`, bad.entity, `relation ${k}`);
+    }
+    for (const [id, e] of entities) {
+      for (const fld of list(e.fields)) {
+        if (!isObj(fld) || !isObj(fld.fk) || hasField(fld.fk.entity, fld.fk.field)) continue;
+        dropRow(areaOf(origin.entities, id), `${id}.${fld.name}`, fld.fk.entity, `foreign key ${id}.${fld.name}`);
+        delete fld.fk;
+      }
+    }
+  }
   if (collapsed.size) {
     for (const e of edges.values()) {
       e.from = follow(e.from);

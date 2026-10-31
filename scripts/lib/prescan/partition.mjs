@@ -45,12 +45,20 @@ function split(dir, paths) {
   return { direct, children };
 }
 
-const merge = (list) => {
+/**
+ * Merge areas into one bucket. The id is the first free of misc, misc-2, misc-3 (never an id joined from the
+ * members', which grew with every directory and was repeated in every path and glob of the brief); the title
+ * lists the member directories so the explorer still sees what the bucket holds.
+ */
+const merge = (list, inUse) => {
   const sorted = [...list].sort((a, b) => byCodeUnit(a.id, b.id));
-  const n = sorted.length;
+  let id = 'misc';
+  for (let n = 2; inUse.has(id); n++) id = `misc-${n}`;
+  const members = sorted.flatMap((u) => u.members ?? [u.title]);
   return {
-    id: n === 2 ? `${sorted[0].id}+${sorted[1].id}` : `${sorted[0].id}+${n - 1}`,
-    title: n === 2 ? `${sorted[0].title} + ${sorted[1].title}` : `${sorted[0].title} + ${n - 1} more`,
+    id,
+    title: `Misc: ${members.join(', ')}`,
+    members,
     globs: [...new Set(sorted.flatMap((u) => u.globs))].sort(byCodeUnit),
     paths: sorted.flatMap((u) => u.paths).sort(byCodeUnit),
   };
@@ -97,15 +105,15 @@ export function partition(paths, { containers = [], maxAreas = MAX_AREAS } = {})
   // Merge small leftovers into one bucket (only when there are at least two of them).
   const small = areas.filter((a) => a.paths.length < SMALL);
   if (small.length >= 2) {
-    const bucket = merge(small);
-    areas = [...areas.filter((a) => !small.includes(a)), { ...bucket, id: taken.has('misc') ? bucket.id : 'misc', title: 'Misc and small leftovers' }];
+    const rest = areas.filter((a) => !small.includes(a));
+    areas = [...rest, merge(small, new Set(rest.map((a) => a.id)))];
   }
 
   // Still too many: merge the two smallest until the cap holds.
   while (areas.length > maxAreas) {
     areas.sort((a, b) => a.paths.length - b.paths.length || byCodeUnit(a.id, b.id));
     const [a, b, ...rest] = areas;
-    areas = [...rest, merge([a, b])];
+    areas = [...rest, merge([a, b], new Set(rest.map((x) => x.id)))];
   }
-  return areas.sort((a, b) => byCodeUnit(a.id, b.id));
+  return areas.map(({ id, title, globs, paths }) => ({ id, title, globs, paths })).sort((a, b) => byCodeUnit(a.id, b.id));
 }

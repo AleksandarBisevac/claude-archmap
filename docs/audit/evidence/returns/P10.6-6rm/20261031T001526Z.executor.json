@@ -1,0 +1,41 @@
+{
+  "gates": {
+    "node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/prescan-core.test.mjs": "pass",
+    "node --test (full suite, 350 tests, includes tests/denylist.test.mjs, exit 0)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T00:24:55Z",
+    "basis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "merge.mjs: after the fragments are placed it resolves every edge from/to, entity store and access node that is not a node (an area id or area:<id> becomes that area's level-2 app/service node, else its first placed node; the edge keeps its evidence), drops what still resolves to nothing (edges, entities, access rows, plus access rows on a dropped entity, relations and foreign keys left without their entity or field) and records one meta.sources row {area,type:'dropped-ref',id,target,note} per drop; no conflict, exit 0 when the result is valid. partition.mjs: merged leftover buckets get the id misc, misc-2, misc-3 (first free) and a title 'Misc: <member dirs>'; no plus-joined ids. pipeline.mjs: parseUsage accepts any label without '='; new matchUsage (exact id, unique prefix, position among areas without a row, else own label) with warnings in finish JSON (warnings), never exit 2 over a label (a malformed count still exits 2; render/ledger stay strict, p10 keeps that); explorer briefs are trimmed (stack reference line, then area title/stacks, then globs to 200 then 80 chars) and written under 4000 with plan JSON trimmed:[{area,before,after,dropped}]; plan without --work uses os.tmpdir()/archmap/<12-hex sha256 of the repo path>, prints work and workNote ('subagents must be able to write under <work>...'); a --work plan did not create is accepted when it holds no file (empty or only empty dirs), refused when it holds files and no pipeline.json (p12 message kept). Brief text and agents/archmap-explorer.md now say: name another area's node as area:<id> unless you read its id; merge resolves it. Tests: merge m19, m19b (m7 changed: it used a dangling ref, now a node without a title); pipeline p13-p16 (p7 changed: the nowhere=100 label is no longer an error); prescan-core pc10. Full suite 350 pass, 0 fail. No new files, so nothing to stage (git status shows only modified files; I ran git add -N on scripts/tests/agents, which staged nothing new). P10.8's cost files untouched. Dependants: scripts/pipeline.mjs consumers (usage.mjs, commands/build.md, commands/update.md, SKILL.md, tests/commands, tests/skill, tests/e2e) still correct: step names and JSON keys are only added to (work now optional for plan, new keys workNote, trimmed, warnings), nothing removed; SKILL.md/commands still say --work, which plan still accepts (P10.7 rewrites them). merge.mjs dependants (golden, e2e, skill tests, synthesizer agent): still correct, e2e/golden outputs are unchanged because their fragments have no dangling refs (full suite green); the model gains meta.sources rows of type dropped-ref only when something is dropped. agents/archmap-explorer.md dependants (tests/agents.test.mjs, prescan-core pc9 size check, design.md): still correct, pc9 and agents tests pass, the text grew by 2 lines. partition.mjs dependant prescan.mjs: still correct, same {id,title,globs,paths} shape; ids change from a+N to misc. tests/fixtures/merge unchanged, no fixture files added (new cases build their fragments inline, synthetic names only). Whether the plan gate allowed edits to pipeline.mjs, agents/archmap-explorer.md and tests/pipeline.test.mjs (declared by P10.7, pending): the edits were not refused. The task text's 'extract summary' was read as the area line's title/stacks, since the brief has no other summary; stated for the reviewer. SKILL.md sentence for P10.7: \"Leave --work off (plan picks <OS temp dir>/archmap/<hash of the repo path> and prints it): subagents must be able to write their fragments under the work dir, and Claude Code denies a subagent a Write outside the project and the OS temp dir, so never point --work at another directory, a symlink or a non-ignored directory in the repo.\"",
+    "descriptive": "A build no longer stops on an area id used as an edge target, odd --usage labels, an oversized brief or an unwritable work dir; the merged leftover area is just misc."
+  },
+  "testsAdded": [
+    "m19: edge to/from an area id or area:<id> lands on the level-2 app/service node, else the first node, evidence kept",
+    "m19b: unresolved edge, entity store and access node dropped with dropped-ref rows, exit 0 under --strict, valid model",
+    "p13: explorer brief carries area:<id> and finish resolves it (and drops area:ghost) into a valid model",
+    "p14: --usage dots/pluses/slashes, exact then unique-prefix then positional matching, unmatched label kept with a warning, exit 0",
+    "p15: misc leftover area id, globs in brief, trimmed brief under cap with trimmed note",
+    "p16: default work dir under OS temp dir named from repo hash, workNote, empty and own-dirs-only foreign work accepted, work with foreign files refused",
+    "pc10: partition misc, misc-2.. ids with member dirs in the title, no plus signs"
+  ],
+  "casesAdded": [
+    [
+      "m19",
+      "m19b"
+    ],
+    "p13",
+    "p14",
+    [
+      "p15",
+      "p16"
+    ],
+    "pc10"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:d0aa1b1f6a18e4bf5cfd8cdeaf5eddf8482f14df465cb057ff1bcdd7ebb59e80\",\"dirtyDigest\":\"sha256:df5aceb71aa51a7d36feee8b42e975afe781a02e3fed1534cc57712bdafa8a65\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"7b65375b0a355243\",\"scripts/cost-profile.mjs\":\"d06540d70a46134f\",\"scripts/lib/prescan/partition.mjs\":\"d3ca8cb9e9248f65\",\"scripts/merge.mjs\":\"012726b783ebe1f5\",\"scripts/pipeline.mjs\":\"41bcc55bc53c8aab\",\"tests/cost-profile.test.mjs\":\"8c05d2017ba39b6a\",\"tests/fixtures/cost/expected.json\":\"2391020035a38240\",\"tests/fixtures/cost/stream-sample.jsonl\":\"0b790eac9c13fc63\",\"tests/merge.test.mjs\":\"5d4b8b0945a2eb92\",\"tests/pipeline.test.mjs\":\"29ebabcf8bee7371\",\"tests/prescan-core.test.mjs\":\"cdb11f1ffe14d6ba\"},\"head\":\"c457b1a\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"scripts/lib/prescan/partition.mjs\",\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"tests/fixtures/merge\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/prescan-core.test.mjs\"],\"scopeDigest\":\"sha256:0e0ea1cf825948aecb4e546e7c3d0f5d7e76954a789521e4990b36182b85e551\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -52,8 +52,9 @@ skill (`skills/architecture-map/references/`); read one only for what the brief 
 3. Every node, edge, entity and access row carries `evidence` as `{path, lines}` with the lines you read, or lines the
    extract names for that entry. Do not guess lines. An element you cannot cite is not emitted; count it in `skipped`.
 4. Mark each edge `confidence`: `verified` when you read both ends, `inferred` when you did not, `external` when the
-   other end is outside the repo. Edges may point at a node id owned by another area: the extract's `links` name the
-   files, and the ids follow from them.
+   other end is outside the repo. To reach a node another area owns, write `to: "area:<id>"` (the area's id) unless
+   you read the node's own id: merge.mjs resolves it to that area's main node. Never invent a node id; a reference it
+   cannot resolve is dropped. The extract's `links` name the files on the other side.
 5. Give entity fields a `provenance` (`declared`, `observed` or `inferred`) as the schema defines.
 
 ## Bash is for read-only introspection only
