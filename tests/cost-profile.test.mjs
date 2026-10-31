@@ -33,10 +33,10 @@ test('c1 per-model totals equal the LAST result event modelUsage (cumulative), n
     assert.equal(row.cacheWrite, u.cacheCreationInputTokens);
   }
   assert.equal(j.byModel.length, Object.keys(last).length);
-  assert.deepEqual(j.reconciliation, { files: [{ file: SAMPLE, resultEvents: 2, matchesModelUsage: true }], matchesModelUsage: true });
+  assert.deepEqual(j.reconciliation, { files: [{ file: SAMPLE, resultEvents: 2, matchesModelUsage: true, mismatches: [] }], matchesModelUsage: true });
 });
 
-test('c2 the fixture is built so summing unique assistant message usage equals the last result modelUsage', () => {
+test('c2 the fixture is built like a real stream: input and cache sums over unique assistant ids equal the last result modelUsage, output_tokens are partial', () => {
   const byId = new Map();
   for (const e of events()) if (e.type === 'assistant') byId.set(e.message.id, e.message);
   const sum = {};
@@ -48,7 +48,8 @@ test('c2 the fixture is built so summing unique assistant message usage equals t
   const last = events().filter((e) => e.type === 'result').at(-1).modelUsage;
   assert.deepEqual(Object.keys(sum).sort(), Object.keys(last).sort());
   for (const [model, u] of Object.entries(last)) {
-    assert.deepEqual(sum[model], { i: u.inputTokens, o: u.outputTokens, r: u.cacheReadInputTokens, w: u.cacheCreationInputTokens });
+    assert.deepEqual({ i: sum[model].i, r: sum[model].r, w: sum[model].w }, { i: u.inputTokens, r: u.cacheReadInputTokens, w: u.cacheCreationInputTokens });
+    assert.ok(sum[model].o * 10 < u.outputTokens, `${model}: the stream's output is a small fraction of the result's`);
   }
 });
 
@@ -76,11 +77,11 @@ test('c5 turn counts count unique assistant message ids; median and max context 
   assert.equal(j.total.turns, j.byAgent.reduce((n, r) => n + r.turns, 0));
 });
 
-test('c6 every agent row and model row sums to the total in each token class', () => {
+test('c6 model rows sum to the total in each class; agent rows do too except output, which is a lower bound', () => {
   const j = profile(SAMPLE);
-  for (const rows of [j.byModel, j.byAgent]) {
-    for (const c of CLASSES) assert.equal(rows.reduce((n, r) => n + r[c], 0), j.total[c], c);
-  }
+  for (const c of CLASSES) assert.equal(j.byModel.reduce((n, r) => n + r[c], 0), j.total[c], c);
+  for (const c of CLASSES.filter((k) => k !== 'output')) assert.equal(j.byAgent.reduce((n, r) => n + r[c], 0), j.total[c], c);
+  assert.ok(j.byAgent.reduce((n, r) => n + r.output, 0) < j.total.output, 'agent output is the stream lower bound, below the result total');
 });
 
 test('c7 --json validates: fixed top-level keys, the rate table with its date, integers for tokens, a number cost per row', () => {
@@ -88,7 +89,7 @@ test('c7 --json validates: fixed top-level keys, the rate table with its date, i
   assert.equal(r.status, 0);
   assert.equal(r.stdout.endsWith('\n'), true);
   const j = JSON.parse(r.stdout);
-  assert.deepEqual(Object.keys(j), ['rates', 'byModel', 'byAgent', 'total', 'reconciliation']);
+  assert.deepEqual(Object.keys(j), ['rates', 'basis', 'byModel', 'byAgent', 'total', 'reconciliation']);
   assert.equal(j.rates.date, '2026-10-30');
   assert.deepEqual(j.rates.perMillion['claude-opus-5-5'], { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
   assert.deepEqual(j.rates.perMillion['claude-fable-5-1'], { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 });
@@ -146,4 +147,42 @@ test('c11 an unreadable file, malformed JSON and no arguments exit 2 with a mess
 test('c12 the fixture is synthetic: no path, user name or repository name in it', () => {
   const text = readFileSync(SAMPLE, 'utf8') + readFileSync(new URL('./fixtures/cost/expected.json', import.meta.url), 'utf8');
   assert.doesNotMatch(text, /\/Users\/|\/home\/|C:\\|github\.com|@/);
+});
+
+test('c13 with partial stream output_tokens, the model table is the last result event and reports MATCH; the agent table says its output is the stream lower bound', () => {
+  const last = events().filter((e) => e.type === 'result').at(-1).modelUsage;
+  const j = profile(SAMPLE);
+  const outputOfResult = Object.values(last).reduce((n, u) => n + u.outputTokens, 0);
+  assert.equal(j.total.output, outputOfResult, 'total output is the result event, not the stream partials');
+  assert.deepEqual(j.basis, { byModel: 'result-event', byAgentOutput: 'stream-lower-bound' });
+  const r = run([SAMPLE]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /MATCH/);
+  assert.doesNotMatch(r.stdout, /DO NOT equal/);
+  const agentSection = r.stdout.slice(r.stdout.indexOf('per agent'));
+  assert.match(agentSection, /lower bound/i);
+  const orch = j.byAgent.find((a) => a.agent === 'orchestrator');
+  assert.deepEqual([orch.turns, orch.medianContext, orch.maxContext], [4, 8555, 9570]);
+  assert.match(r.stdout, /orchestrator\s+4\s.*8555\s+9570/);
+});
+
+test('c14 a differing input or cache class is named with its difference; a stream with no result event is a flagged lower bound', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-cost-'));
+  const evs = events();
+  evs.at(-1).modelUsage['claude-opus-5-5'].cacheReadInputTokens += 7;
+  const f = join(dir, 'drift.jsonl');
+  writeFileSync(f, evs.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  const j = profile(f);
+  assert.equal(j.reconciliation.matchesModelUsage, false);
+  assert.deepEqual(j.reconciliation.files[0].mismatches, [{ model: 'claude-opus-5-5', class: 'cacheRead', stream: 33000, result: 33007, difference: 7 }]);
+  const out = run([f]).stdout;
+  assert.match(out, /DO NOT equal.*claude-opus-5-5.*cache-?read.*7/is);
+  assert.doesNotMatch(out, /MATCH\b(?!ES)/);
+
+  const g = join(dir, 'noresult.jsonl');
+  writeFileSync(g, evs.filter((e) => e.type !== 'result').map((e) => JSON.stringify(e)).join('\n') + '\n');
+  const k = profile(g);
+  assert.deepEqual(k.basis, { byModel: 'stream-lower-bound', byAgentOutput: 'stream-lower-bound' });
+  assert.equal(k.total.output, 34 + 25 + 2 + 15);
+  assert.match(run([g]).stdout, /lower bound/i);
 });

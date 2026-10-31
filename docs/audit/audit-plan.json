@@ -5487,7 +5487,7 @@
         {
           "id": "P10.6-6rm",
           "title": "Merge never refuses a build over a fragment's dangling reference: resolve area ids to nodes, drop the rest with a note",
-          "status": "in_progress",
+          "status": "done",
           "description": "Measured on the iteration-2 runs of evals 1 and 2 (2026-10-31): every build stopped at `pipeline.mjs finish` because validate.mjs reported `dangling-ref /edges/N/to node \"<area id>\" does not exist` and merge.mjs refused the whole result. The explorer brief says `to` may be another area's node id, the explorer does not know those ids, so it wrote the area id. merge.mjs must treat fragment references like it treats caps (P10.2): before validation it resolves a `to` or `from` that equals an area id, or `area:<id>`, to that area's level-2 node (kind app or service; else the fragment's first node), keeps the edge's evidence, and drops any edge, access row or entity whose reference still resolves to nothing, recording one `meta.sources` row {area, type:'dropped-ref', id, target} per drop. merge exits 1 only when it cannot write a valid model after that. pipeline.mjs plan's brief and agents/archmap-explorer.md say: name another area's node as `area:<id>` unless you read its id. No client or repository name in fixtures or tests.",
           "files": [
             "scripts/merge.mjs",
@@ -5521,19 +5521,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "953760451587",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "merge.mjs: after the fragments are placed it resolves every edge from/to, entity store and access node that is not a node (an area id or area:<id> becomes that area's level-2 app/service node, else its first placed node; the edge keeps its evidence), drops what still resolves to nothing (edges, entities, access rows, plus access rows on a dropped entity, relations and foreign keys left without their entity or field) and records one meta.sources row {area,type:'dropped-ref',id,target,note} per drop; no conflict, exit 0 when the result is valid. partition.mjs: merged leftover buckets get the id misc, misc-2, misc-3 (first free) and a title 'Misc: <member dirs>'; no plus-joined ids. pipeline.mjs: parseUsage accepts any label without '='; new matchUsage (exact id, unique prefix, position among areas without a row, else own label) with warnings in finish JSON (warnings), never exit 2 over a label (a malformed count still exits 2; render/ledger stay strict, p10 keeps that); explorer briefs are trimmed (stack reference line, then area title/stacks, then globs to 200 then 80 chars) and written under 4000 with plan JSON trimmed:[{area,before,after,dropped}]; plan without --work uses os.tmpdir()/archmap/<12-hex sha256 of the repo path>, prints work and workNote ('subagents must be able to write under <work>...'); a --work plan did not create is accepted when it holds no file (empty or only empty dirs), refused when it holds files and no pipeline.json (p12 message kept). Brief text and agents/archmap-explorer.md now say: name another area's node as area:<id> unless you read its id; merge resolves it. Tests: merge m19, m19b (m7 changed: it used a dangling ref, now a node without a title); pipeline p13-p16 (p7 changed: the nowhere=100 label is no longer an error); prescan-core pc10. Full suite 350 pass, 0 fail. No new files, so nothing to stage (git status shows only modified files; I ran git add -N on scripts/tests/agents, which staged nothing new). P10.8's cost files untouched. Dependants: scripts/pipeline.mjs consumers (usage.mjs, commands/build.md, commands/update.md, SKILL.md, tests/commands, tests/skill, tests/e2e) still correct: step names and JSON keys are only added to (work now optional for plan, new keys workNote, trimmed, warnings), nothing removed; SKILL.md/commands still say --work, which plan still accepts (P10.7 rewrites them). merge.mjs dependants (golden, e2e, skill tests, synthesizer agent): still correct, e2e/golden outputs are unchanged because their fragments have no dangling refs (full suite green); the model gains meta.sources rows of type dropped-ref only when something is dropped. agents/archmap-explorer.md dependants (tests/agents.test.mjs, prescan-core pc9 size check, design.md): still correct, pc9 and agents tests pass, the text grew by 2 lines. partition.mjs dependant prescan.mjs: still correct, same {id,title,globs,paths} shape; ids change from a+N to misc. tests/fixtures/merge unchanged, no fixture files added (new cases build their fragments inline, synthetic names only). Whether the plan gate allowed edits to pipeline.mjs, agents/archmap-explorer.md and tests/pipeline.test.mjs (declared by P10.7, pending): the edits were not refused. The task text's 'extract summary' was read as the area line's title/stacks, since the brief has no other summary; stated for the reviewer. SKILL.md sentence for P10.7: \"Leave --work off (plan picks <OS temp dir>/archmap/<hash of the repo path> and prints it): subagents must be able to write their fragments under the work dir, and Claude Code denies a subagent a Write outside the project and the OS temp dir, so never point --work at another directory, a symlink or a non-ignored directory in the repo.\"",
+            "descriptive": "A build no longer stops on an area id used as an edge target, odd --usage labels, an oversized brief or an unwritable work dir; the merged leftover area is just misc."
           },
           "startedAt": "2026-10-31T00:15:26Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T00:25:19Z",
+          "verifiedBy": [
+            "m19: edge to/from an area id or area:<id> lands on the level-2 app/service node, else the first node, evidence kept",
+            "m19b: unresolved edge, entity store and access node dropped with dropped-ref rows, exit 0 under --strict, valid model",
+            "p13: explorer brief carries area:<id> and finish resolves it (and drops area:ghost) into a valid model",
+            "p14: --usage dots/pluses/slashes, exact then unique-prefix then positional matching, unmatched label kept with a warning, exit 0",
+            "p15: misc leftover area id, globs in brief, trimmed brief under cap with trimmed note",
+            "p16: default work dir under OS temp dir named from repo hash, workNote, empty and own-dirs-only foreign work accepted, work with foreign files refused",
+            "pc10: partition misc, misc-2.. ids with member dirs in the title, no plus signs"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T00:25:18Z.7f65a6",
             "status": "passed",
             "at": "2026-10-31T00:25:18Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "953760451587",
+            "at": "2026-10-31T00:25:19Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T00:24:55Z",
+            "basis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
@@ -5617,7 +5636,12 @@
           "startedAt": "2026-10-31T00:14:51Z",
           "completedAt": null,
           "verifiedBy": [],
-          "reviewPerTask": "phase"
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T00:25:29Z.a86be8",
+            "status": "passed",
+            "at": "2026-10-31T00:25:29Z"
+          }
         }
       ],
       "area": "cost",

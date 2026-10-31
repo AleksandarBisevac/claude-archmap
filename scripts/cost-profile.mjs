@@ -9,8 +9,13 @@
 // size per agent (cache read + cache write + input of one turn) and a list-price cost per row from RATES below.
 //
 // Counting: a message is counted once per message.id (stream-json repeats a message once per content block; the
-// last copy wins). Every `result` event's modelUsage is CUMULATIVE for the session, so the figure to reconcile
-// against is the LAST result event's modelUsage, never the sum of them; the profile says whether it matched.
+// last copy wins). Every `result` event's modelUsage is CUMULATIVE for the session, so the figure to use is the
+// LAST result event's modelUsage, never the sum of them. The per-model table and the cost take every token class
+// from it when one exists. An assistant event carries output_tokens as counted at emission time (a handful of
+// tokens), so summing them under-counts output several times over; input and the cache classes do reconcile.
+// The per-agent table therefore keeps the stream's turns, context sizes and cache figures but labels its output
+// column the stream's lower bound. Without a result event the model table is the stream's sums, flagged as a
+// lower bound. The reconciliation line says MATCH (input and cache classes equal) or names the class and the gap.
 // A model without a rate is reported "unpriced" and its cost is null, never 0.
 // Nothing is read except the files named on the command line; nothing is sent anywhere.
 // Exit 0 ok, 2 usage error or unreadable/malformed transcript. Node >= 18, ESM, zero dependencies.
@@ -123,26 +128,34 @@ const median = (xs) => {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 };
 
-function reconcile(file, byModel, { lastResult, resultEvents }) {
-  if (!lastResult) return { file, resultEvents, matchesModelUsage: null };
-  const keys = new Set([...Object.keys(byModel), ...Object.keys(lastResult)]);
-  const field = { input: 'inputTokens', output: 'outputTokens', cacheRead: 'cacheReadInputTokens', cacheWrite: 'cacheCreationInputTokens' };
-  let ok = true;
-  for (const k of keys) {
-    for (const c of CLASSES) if ((byModel[k]?.[c] ?? 0) !== num(lastResult[k]?.[field[c]])) ok = false;
+const FIELD = { input: 'inputTokens', output: 'outputTokens', cacheRead: 'cacheReadInputTokens', cacheWrite: 'cacheCreationInputTokens' };
+const fromResult = (u) => ({ input: num(u?.[FIELD.input]), output: num(u?.[FIELD.output]), cacheRead: num(u?.[FIELD.cacheRead]), cacheWrite: num(u?.[FIELD.cacheWrite]) });
+
+// Compare the stream's per-model sums with the last result event. Input and the cache classes must be equal;
+// output is only a lower bound in the stream, so it is a mismatch only when the stream exceeds the result.
+function reconcile(file, streamModels, { lastResult, resultEvents }) {
+  if (!lastResult) return { file, resultEvents, matchesModelUsage: null, mismatches: [] };
+  const mismatches = [];
+  for (const model of [...new Set([...Object.keys(streamModels), ...Object.keys(lastResult)])].sort()) {
+    const r = fromResult(lastResult[model]);
+    for (const c of CLASSES) {
+      const st = streamModels[model]?.[c] ?? 0;
+      if (c === 'output' ? st > r[c] : st !== r[c]) mismatches.push({ model, class: c, stream: st, result: r[c], difference: Math.abs(st - r[c]) });
+    }
   }
-  return { file, resultEvents, matchesModelUsage: ok };
+  return { file, resultEvents, matchesModelUsage: mismatches.length === 0, mismatches };
 }
 
 export function profile(files, readFn = readTranscript) {
   const models = {};
+  let fromResultFiles = 0;
+  let fromStreamFiles = 0;
   const agents = {}; // agent -> { total, byModel, contexts }
   const reconciliation = [];
   for (const file of files) {
     const c = collect(readFn(file));
     const fileModels = {};
     for (const m of c.messages) {
-      add((models[m.model] ??= zero()), m);
       add((fileModels[m.model] ??= zero()), m);
       const a = (agents[m.agent] ??= { total: zero(), byModel: {}, contexts: [] });
       add(a.total, m);
@@ -150,6 +163,17 @@ export function profile(files, readFn = readTranscript) {
       a.contexts.push(m.cacheRead + m.cacheWrite + m.input);
     }
     reconciliation.push(reconcile(file, fileModels, c));
+    // The model table: every class from the last result event when there is one (a model the result does not
+    // list keeps the stream's figures), otherwise the stream's sums.
+    if (c.lastResult) fromResultFiles++;
+    else fromStreamFiles++;
+    for (const model of new Set([...Object.keys(fileModels), ...Object.keys(c.lastResult ?? {})])) {
+      const into = (models[model] ??= zero());
+      const stream = fileModels[model] ?? zero();
+      into.turns += stream.turns;
+      const src = c.lastResult && model in c.lastResult ? fromResult(c.lastResult[model]) : stream;
+      for (const k of CLASSES) into[k] += src[k];
+    }
   }
   const tokens = (b) => ({ turns: b.turns, input: b.input, output: b.output, cacheRead: b.cacheRead, cacheWrite: b.cacheWrite });
   const byModel = Object.keys(models).sort().map((model) => ({ model, ...tokens(models[model]), costUsd: costOf({ [model]: models[model] }) }));
@@ -169,6 +193,10 @@ export function profile(files, readFn = readTranscript) {
   const states = reconciliation.map((r) => r.matchesModelUsage);
   return {
     rates: RATES,
+    basis: {
+      byModel: !fromStreamFiles ? 'result-event' : !fromResultFiles ? 'stream-lower-bound' : 'mixed',
+      byAgentOutput: 'stream-lower-bound',
+    },
     byModel,
     byAgent,
     total: { ...tokens(total), costUsd: costOf(models) },
@@ -190,17 +218,28 @@ export function renderText(p) {
     return [fmt(head), '-'.repeat(fmt(head).length), ...rows.map(fmt)];
   };
   const tok = (r) => [n(r.turns), n(r.input), n(r.output), n(r.cacheRead), n(r.cacheWrite)];
+  const fromStream = p.basis.byModel !== 'result-event';
   const out = [`cost at list prices, rate table dated ${p.rates.date} (USD per million tokens)`, ''];
-  out.push('per model', ...table(['model', 'turns', 'input', 'output', 'cache-read', 'cache-write', 'cost USD'],
-    [...p.byModel.map((r) => [r.model, ...tok(r), usd(r.costUsd)]), ['total', ...tok(p.total), usd(p.total.costUsd)]]));
-  out.push('', 'per agent', ...table(['agent', 'turns', 'input', 'output', 'cache-read', 'cache-write', 'median ctx', 'max ctx', 'cost USD'],
-    [...p.byAgent.map((r) => [r.agent, ...tok(r), n(r.medianContext), n(r.maxContext), usd(r.costUsd)]), ['total', ...tok(p.total), '', '', usd(p.total.costUsd)]]));
+  out.push(fromStream ? 'per model (no result event for some or all files: stream sums, output is a lower bound)' : "per model (last result event's modelUsage)",
+    ...table(['model', 'turns', 'input', fromStream ? 'output (lower bound)' : 'output', 'cache-read', 'cache-write', 'cost USD'],
+      [...p.byModel.map((r) => [r.model, ...tok(r), usd(r.costUsd)]), ['total', ...tok(p.total), usd(p.total.costUsd)]]));
+  const sum = (k) => p.byAgent.reduce((x, r) => x + r[k], 0);
+  const agentCost = p.byAgent.some((r) => r.costUsd === null) ? null : Number(p.byAgent.reduce((x, r) => x + r.costUsd, 0).toFixed(6));
+  out.push('', 'per agent (stream: turns, context and cache figures reconcile; output is the stream\'s lower bound, counted at emission time)',
+    ...table(['agent', 'turns', 'input', 'output (stream, lower bound)', 'cache-read', 'cache-write', 'median ctx', 'max ctx', 'cost USD (stream)'],
+      [...p.byAgent.map((r) => [r.agent, ...tok(r), n(r.medianContext), n(r.maxContext), usd(r.costUsd)]),
+        ['total', n(sum('turns')), n(sum('input')), n(sum('output')), n(sum('cacheRead')), n(sum('cacheWrite')), '', '', usd(agentCost)]]));
   const unpriced = p.byModel.filter((r) => r.costUsd === null).map((r) => r.model);
   if (unpriced.length) out.push('', `unpriced (no rate in the table, cost not counted as 0): ${unpriced.join(', ')}`);
   const r = p.reconciliation;
-  out.push('', r.matchesModelUsage === null
-    ? 'no result event with modelUsage: totals are the sum of the assistant messages, not reconciled'
-    : `totals ${r.matchesModelUsage ? 'equal' : 'DO NOT equal'} the last result event's modelUsage (cumulative per session)`);
+  if (r.matchesModelUsage === null) {
+    out.push('', 'no result event with modelUsage: totals are the sum of the assistant messages (a lower bound, output especially), not reconciled');
+  } else if (r.matchesModelUsage) {
+    out.push('', "MATCH: the stream's input, cache-read and cache-write equal the last result event's modelUsage (cumulative per session); output is taken from it");
+  } else {
+    const gaps = r.files.flatMap((f) => f.mismatches).map((m) => `${m.model} ${m.class} differs by ${m.difference} (stream ${m.stream}, result ${m.result})`);
+    out.push('', `totals DO NOT equal the last result event's modelUsage: ${gaps.join('; ')}`);
+  }
   return out.join('\n') + '\n';
 }
 
