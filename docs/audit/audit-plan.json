@@ -5114,7 +5114,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P10-R1",
@@ -5331,45 +5331,65 @@
             "severity": "low",
             "file": "scripts/lib/prescan/generic.mjs:547",
             "issue": "A CTE that shadows a real table drops that table's access row. The filter `kw !== 'table' && ctes.has(table.toLowerCase())` applies to every FROM/JOIN in the statement, including the one inside the CTE's own body. In `WITH orders AS (SELECT * FROM orders WHERE open) SELECT ... FROM orders` the inner FROM orders reads the real table, but both refs are dropped, so merge.mjs makes no entity or access row for it. Shadowing a table with a filtered CTE of the same name is a common pattern in the analytics SQL this task targets. py15 only covers a CTE-named table in another statement. Judged from reading; I did not run it.",
-            "resolution": "Keep a ref to a CTE name when it sits inside that CTE's own definition parentheses (or when the name has no earlier CTE definition ending before the ref). At minimum record the shadowing case in the sqlStatements comment and add a py15 case for it.",
-            "fixTask": "P10.20-6rm"
+            "resolution": "fixed in P10.20-6rm (a1794a7eec8d): Keep a ref to a CTE name when it sits inside that CTE's own definition parentheses (or when the name has no earlier CTE definition ending before the ref). At minimum record the shadowing case in the sqlStatements comment and add a py15 case for it.",
+            "fixTask": "P10.20-6rm",
+            "commit": "a1794a7eec8d",
+            "status": "fixed"
           },
           {
             "id": "P10-R23",
             "severity": "low",
             "file": "scripts/pipeline.mjs:674-677",
             "issue": "privateDir is applied to the shared parent <tmpdir>/archmap as well as the per-repo directory. On a multi-user host where tmpdir is /tmp, the first user to run plan owns /tmp/archmap at 0o700, and every other user's plan then exits 2 with 'not owned by the current user'. The remedy the message offers, `--work <dir>`, is the one SKILL.md forbids (subagents can only write under the project or the OS temp dir). R11 asked to refuse a foreign-owned directory, but not to lock the other users out of the default.",
-            "resolution": "Give the first level a per-user name (<tmpdir>/archmap-<uid>/<hash>, or fall back to fs.mkdtempSync under the tmpdir) so the parent is never shared. Keep the lstat/owner checks on that name.",
-            "fixTask": "P10.20-6rm"
+            "resolution": "fixed in P10.20-6rm (a1794a7eec8d): Give the first level a per-user name (<tmpdir>/archmap-<uid>/<hash>, or fall back to fs.mkdtempSync under the tmpdir) so the parent is never shared. Keep the lstat/owner checks on that name.",
+            "fixTask": "P10.20-6rm",
+            "commit": "a1794a7eec8d",
+            "status": "fixed"
           },
           {
             "id": "P10-R24",
             "severity": "low",
             "file": "scripts/pipeline.mjs:833",
             "issue": "`python3 -I` also drops the per-user site directory (it implies -s), not only the cwd and PYTHON* variables. A duckdb installed with `pip install --user` was importable by the old call and now is not, and readerFor reports 'the python duckdb module is not installed', which is wrong. The isolation is right for rule 7; the false reason is the cost. Judged from reading.",
-            "resolution": "Make the skip reason name the isolated-mode limit (duckdb must be in the interpreter's own or a virtualenv's site-packages), or keep -I and also check `python3 -c 'import sys; print(sys.flags.isolated)'` is not needed. Add the sentence to the reason string.",
-            "fixTask": "P10.20-6rm"
+            "resolution": "fixed in P10.20-6rm (a1794a7eec8d): Make the skip reason name the isolated-mode limit (duckdb must be in the interpreter's own or a virtualenv's site-packages), or keep -I and also check `python3 -c 'import sys; print(sys.flags.isolated)'` is not needed. Add the sentence to the reason string.",
+            "fixTask": "P10.20-6rm",
+            "commit": "a1794a7eec8d",
+            "status": "fixed"
           },
           {
             "id": "P10-R25",
             "severity": "low",
             "file": "skills/architecture-map/SKILL.md:107-114",
             "issue": "The post-dispatch check says to run `git status --porcelain` with plan and again after every dispatch, and that it 'must not change'. finish and render write architecture.model.json, the layout and the HTML into <out>, which is docs/architecture inside the repository by default. After the synthesizer or reviewer dispatch the status therefore differs from plan's, and read literally the orchestrator is told to stop and report a write outside the agent's path on a normal build. The baseline for 'must not change' is not named.",
-            "resolution": "Name the baseline: compare with the status printed by the driver step that ran immediately before the dispatch (explorers: plan's; synthesizer: finish's; reviewer: render's). Extend s16 to pin that sentence.",
-            "fixTask": "P10.20-6rm"
+            "resolution": "fixed in P10.20-6rm (a1794a7eec8d): Name the baseline: compare with the status printed by the driver step that ran immediately before the dispatch (explorers: plan's; synthesizer: finish's; reviewer: render's). Extend s16 to pin that sentence.",
+            "fixTask": "P10.20-6rm",
+            "commit": "a1794a7eec8d",
+            "status": "fixed"
           },
           {
             "id": "P10-R26",
             "severity": "low",
             "file": "scripts/lib/prescan/node-backend.mjs:940",
             "issue": "The diff changes `const cv = call.args[2]` to `const cv =call.args[2]` (space lost) on a line the task did not need to touch. It is harmless but a stray edit in a file the task owns.",
-            "resolution": "Restore the space.",
-            "fixTask": "P10.20-6rm"
+            "resolution": "fixed in P10.20-6rm (a1794a7eec8d): Restore the space.",
+            "fixTask": "P10.20-6rm",
+            "commit": "a1794a7eec8d",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 26 - 1 high, 10 med, 15 low; 21 with a recorded fix commit]"
+        "outcome": "phase review filed at head 8e44193bbc23 [findings: 26 - 1 high, 10 med, 15 low; 26 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "sha256": "f8753ca2b2a4405bda9e33efc528746d5afa2fb41851f3296e785275c347dafd"
+          },
+          {
+            "return": "returns/P10/8e44193bbc238f6e4c0fc2e75d2c98b88942216c.reviewer.json",
+            "sha256": "59791198ec986d7663ceb8d9855348d94b1223632c59842a89f5df02c3a410cb"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P10 moved the build from an orchestrator that held every fragment and the whole model to a script-driven flow: pipeline.mjs plan/finish/render/issues, prescan extracts and briefs under the cap, Sonnet explorers writing fragment files and replying in three lines, merge.mjs computing entities, relations, cross-area edges, zones and access rows, the synthesizer only sequencing. Round 6 on the Opus orchestrator: eval 1 7/7 at 1.22 USD (iteration 1 13.84, no-skill baseline 1.55), eval 2 7/7 with issue recall 0.67 at 2.09 USD (9.79, baseline 2.29), eval 4 8/8 at 1.66 USD (12.79, baseline 1.82); orchestrator context at or under 72 K, 11 to 17 turns. The phase review's 21 findings and the second round's 5 were fixed in P10.16 to P10.20 (isolated python for the DuckDB probe, realpath and per-user work dir, floor clamp, zones and access rows from the slices, inferred confidence on wildcard matches, update-mode handling, SQL ref precision, documentation and tests made able to fail). Accepted open: eval 2 takes 17 orchestrator turns against the 12-turn target, documented in the evals README with the SKILL.md guidance that closes the cause; the balanced synthesizer stays on Sonnet on the round-6 results. Reviewer answers accepted: Owner accepts the five intent answers: P10.3 diverges on zones and access rows, covered by the fix tasks for findings P10-R2 and P10-R4; P10.4 measured the 12-turn and 80 K targets live in the P10.5 eval rounds instead of on the fixture; P10.5 keeps its measurements in the private results log by design, the README carries the repo-free table; P10.13's return said PARTIAL while the code and its tests do what the description asked; the phase's 12-turn ceiling was missed on eval 2 (17 turns), documented in the README and closed through the SKILL.md fix for P10-R14 and P10-R16.",
       "tasks": [
         {
           "id": "P10.1-2xj",
@@ -5422,9 +5442,14 @@
             "at": "2026-10-30T23:03:18Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2b23e1a49081",
-            "at": "2026-10-30T23:03:19Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/cost-profile.test.mjs tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.1-2xj/20261030T225620Z.executor.json, at 2026-10-30T23:00:09Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-30T23:00:09Z",
@@ -5513,9 +5538,14 @@
             "at": "2026-10-30T23:20:48Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "f39a917da5e1",
-            "at": "2026-10-30T23:20:49Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.2-2xj/20261030T230319Z.executor.json, at 2026-10-30T23:20:28Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-30T23:20:28Z",
@@ -5590,9 +5620,14 @@
             "at": "2026-10-30T23:41:27Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "ba55582c1b41",
-            "at": "2026-10-30T23:41:28Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/merge.test.mjs tests/agents.test.mjs tests/golden.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.3-2xj/20261030T232049Z.executor.json, at 2026-10-30T23:40:45Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-30T23:40:45Z",
@@ -5678,9 +5713,14 @@
             "at": "2026-10-31T00:08:20Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "b4eddc143de4",
-            "at": "2026-10-31T00:08:21Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.4-2xj/20261030T234129Z.executor.json, at 2026-10-31T00:07:13Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T00:07:13Z",
@@ -5788,9 +5828,14 @@
             "at": "2026-10-31T14:22:14Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2f5debea72f2",
-            "at": "2026-10-31T14:22:34Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "cannot-tell",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "tests.add is none and the task changes only documentation (README and design.md), so it owes no red; no executor return is filed to quote.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           }
         },
         {
@@ -5853,9 +5898,14 @@
             "at": "2026-10-31T00:25:18Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "953760451587",
-            "at": "2026-10-31T00:25:19Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.6-6rm/20261031T001526Z.executor.json, at 2026-10-31T00:24:55Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T00:24:55Z",
@@ -5920,9 +5970,14 @@
             "at": "2026-10-31T00:31:25Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "ecbc1ef7d70a",
-            "at": "2026-10-31T00:31:26Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.7-6rm/20261031T002530Z.executor.json, at 2026-10-31T00:30:59Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T00:30:59Z",
@@ -5978,9 +6033,14 @@
             "at": "2026-10-31T00:25:29Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "d5519aa9a283",
-            "at": "2026-10-31T00:25:29Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.8-6rm/20261031T001451Z.executor.json, at 2026-10-31T00:16:55Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T00:16:55Z",
@@ -6039,9 +6099,14 @@
             "at": "2026-10-31T00:39:51Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "10170a9f9039",
-            "at": "2026-10-31T00:39:52Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.9-6rm/20261031T003500Z.executor.json, at 2026-10-31T00:38:37Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T00:38:37Z",
@@ -6126,9 +6191,14 @@
             "at": "2026-10-31T01:11:15Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "69c442e3e705",
-            "at": "2026-10-31T01:11:16Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.10-6rm/20261031T004719Z.executor.json, at 2026-10-31T01:10:18Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T01:10:18Z",
@@ -6199,9 +6269,14 @@
             "at": "2026-10-31T01:20:03Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "14f5ecb1185f",
-            "at": "2026-10-31T01:20:04Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.11-6rm/20261031T011118Z.executor.json, at 2026-10-31T01:18:57Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T01:18:57Z",
@@ -6270,9 +6345,14 @@
             "at": "2026-10-31T01:30:47Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "cafd08bc21b8",
-            "at": "2026-10-31T01:30:48Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.12-6rm/20261031T012006Z.executor.json, at 2026-10-31T01:29:53Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T01:29:53Z",
@@ -6346,9 +6426,14 @@
             "at": "2026-10-31T01:56:59Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "a871e3791f2a",
-            "at": "2026-10-31T01:57:00Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/merge.test.mjs tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.13-6rm/20261031T013806Z.executor.json, at 2026-10-31T01:53:25Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T01:53:25Z",
@@ -6420,9 +6505,14 @@
             "at": "2026-10-31T02:11:20Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "b7dfb737b45b",
-            "at": "2026-10-31T14:19:47Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-core.test.mjs tests/prescan-node-backend.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.14-6rm/20261031T015701Z.executor.json, at 2026-10-31T02:09:48Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T02:09:48Z",
@@ -6492,9 +6582,14 @@
             "at": "2026-10-31T14:20:46Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "b1963e8391c2",
-            "at": "2026-10-31T14:20:47Z"
+            "at": "2026-10-31T16:13:07Z",
+            "return": "returns/P10/2f5debea72f205d8187c7674221756b59580428a.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/pipeline.test.mjs tests/prescan-core.test.mjs tests/prescan-python.test.mjs tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.15-6rm/20261031T141949Z.executor.json, at 2026-10-31T02:32:18Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T02:32:18Z",
@@ -6890,7 +6985,7 @@
         {
           "id": "P10.20-6rm",
           "title": "Second-round lows: CTE shadowing keeps the real table's ref, per-user work dir parent, isolated-mode skip reason, SKILL.md names the status baseline per dispatch, stray whitespace restored",
-          "status": "in_progress",
+          "status": "done",
           "description": "Second review round of P10 over the fix tasks P10.16 to P10.19: five low findings grouped into one task. Fix every one; the finding texts and the resolutions the reviewer asked for follow. For P10-R24 keep python3 -I (scanner safety) and make the skip reason say that duckdb must be importable from the interpreter's own or a virtualenv's site-packages because the probe runs in isolated mode. For P10-R23 give the first directory level a per-user name so no parent under the OS temp dir is shared between users, keeping the owner and symlink checks.\n\nP10-R22 (low, scripts/lib/prescan/generic.mjs:547): A CTE that shadows a real table drops that table's access row. The filter `kw !== 'table' && ctes.has(table.toLowerCase())` applies to every FROM/JOIN in the statement, including the one inside the CTE's own body. In `WITH orders AS (SELECT * FROM orders WHERE open) SELECT ... FROM orders` the inner FROM orders reads the real table, but both refs are dropped, so merge.mjs makes no entity or access row for it. Shadowing a table with a filtered CTE of the same name is a common pattern in the analytics SQL this task targets. py15 only covers a CTE-named table in another statement. Judged from reading; I did not run it.\nResolution asked: Keep a ref to a CTE name when it sits inside that CTE's own definition parentheses (or when the name has no earlier CTE definition ending before the ref). At minimum record the shadowing case in the sqlStatements comment and add a py15 case for it.\n\nP10-R23 (low, scripts/pipeline.mjs:674-677): privateDir is applied to the shared parent <tmpdir>/archmap as well as the per-repo directory. On a multi-user host where tmpdir is /tmp, the first user to run plan owns /tmp/archmap at 0o700, and every other user's plan then exits 2 with 'not owned by the current user'. The remedy the message offers, `--work <dir>`, is the one SKILL.md forbids (subagents can only write under the project or the OS temp dir). R11 asked to refuse a foreign-owned directory, but not to lock the other users out of the default.\nResolution asked: Give the first level a per-user name (<tmpdir>/archmap-<uid>/<hash>, or fall back to fs.mkdtempSync under the tmpdir) so the parent is never shared. Keep the lstat/owner checks on that name.\n\nP10-R24 (low, scripts/pipeline.mjs:833): `python3 -I` also drops the per-user site directory (it implies -s), not only the cwd and PYTHON* variables. A duckdb installed with `pip install --user` was importable by the old call and now is not, and readerFor reports 'the python duckdb module is not installed', which is wrong. The isolation is right for rule 7; the false reason is the cost. Judged from reading.\nResolution asked: Make the skip reason name the isolated-mode limit (duckdb must be in the interpreter's own or a virtualenv's site-packages), or keep -I and also check `python3 -c 'import sys; print(sys.flags.isolated)'` is not needed. Add the sentence to the reason string.\n\nP10-R25 (low, skills/architecture-map/SKILL.md:107-114): The post-dispatch check says to run `git status --porcelain` with plan and again after every dispatch, and that it 'must not change'. finish and render write architecture.model.json, the layout and the HTML into <out>, which is docs/architecture inside the repository by default. After the synthesizer or reviewer dispatch the status therefore differs from plan's, and read literally the orchestrator is told to stop and report a write outside the agent's path on a normal build. The baseline for 'must not change' is not named.\nResolution asked: Name the baseline: compare with the status printed by the driver step that ran immediately before the dispatch (explorers: plan's; synthesizer: finish's; reviewer: render's). Extend s16 to pin that sentence.\n\nP10-R26 (low, scripts/lib/prescan/node-backend.mjs:940): The diff changes `const cv = call.args[2]` to `const cv =call.args[2]` (space lost) on a line the task did not need to touch. It is harmless but a stray edit in a file the task owns.\nResolution asked: Restore the space.",
           "files": [
             "scripts/lib/prescan/generic.mjs",
@@ -6927,14 +7022,19 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "a1794a7eec8d",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "P10-R22 scripts/lib/prescan/generic.mjs: cteNames replaced by cteEnds (name -> offsets where each CTE definition's body closes, via a new quote-aware closingParen) and readsCte: a ref names the CTE only when a definition of that name ended before the ref, or always under WITH RECURSIVE (self and forward refs are in scope there). WITH orders AS (SELECT * FROM orders WHERE open) ... FROM orders now keeps the inner ref to the real table and drops the outer one; a ref in an earlier sibling's body to a later CTE name is the table. sqlStatements doc comment records the shadowing case. P10-R23 scripts/pipeline.mjs: the default work dir is <tmpdir>/archmap-<uid>/<hash> (userWorkRoot(); Windows falls back to the user name reduced to [\\w.-]); privateDir (lstat symlink, directory, owner, 0o700) still runs on both levels. Header comment and SKILL.md build flow name archmap-<uid>. P10-R24: python3 -I kept; the skip reason now reads '... the python duckdb module is not installed: python3 runs in isolated mode (-I), so duckdb must be importable from the interpreter's own or a virtualenv's site-packages; a pip install --user copy is not seen'; the python() docblock says -I implies -s. P10-R25 SKILL.md 'After each dispatch': git status --porcelain runs with each driver step that precedes a dispatch, after it, and again before the next one; the baseline is the status printed by the driver step run immediately before the dispatch (explorers: plan's; synthesizer: finish's; reviewer: render's), since finish and render write into <out>. P10-R26 scripts/lib/prescan/node-backend.mjs:940 space restored ('const cv = call.args[2]'). Tests: py16 added; p35, p36 added; s16 extended; p16 and p32 updated from the shared 'archmap' parent to USER_DIR = archmap-<uid>; s13 updated to the new default path in SKILL.md. Runs: node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs tests/skill.test.mjs exit 0, 69/69 pass; full node --test 425/425 pass (I ran it as a wider check, not as an owed gate). Edits to tests/pipeline.test.mjs for p16/p32 and the import were made with a python3 replace in Bash (auto-mode tool guidance), all other edits with Edit; no plan-gate refusal at any point. Dependants: generic.mjs importers (node-backend, python, ts-frontend, prescan.mjs) still correct - sqlStatements' signature and output shape are unchanged, only which CTE-named refs are kept, and the full suite is green; pipeline.mjs dependants (usage.mjs, commands/build.md, commands/update.md, tests/commands.test.mjs, evals README) still correct - git grep finds the old <tmpdir>/archmap/ path only in pipeline.mjs's header and SKILL.md, both updated; tests/pipeline.test.mjs changed as listed; SKILL.md dependants (commands, evals, pipeline, skill tests) still correct - all green, SKILL.md is 383 lines; skills-lock.json and .agents/skills/node/tile.json match by basename only and are unaffected; node-backend.mjs dependants unaffected (whitespace only); tests/prescan-python.test.mjs and tests/skill.test.mjs have no dependants.",
+            "descriptive": "A CTE shadowing a table keeps the real table's ref, the default work dir parent is per user, the duckdb skip reason names the isolated-mode limit, SKILL.md names the status baseline per dispatch, and the stray space is restored."
           },
           "startedAt": "2026-10-31T16:02:35Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T16:12:13Z",
+          "verifiedBy": [
+            "py16: a CTE shadowing a real table keeps the ref from inside its own body (also a nested subquery), drops the outer ref, a forward ref to a later CTE name is the table, and a WITH RECURSIVE self-reference is not a table",
+            "p35: a <tmpdir>/archmap held by somebody else (a symlink, a plain file) never blocks plan; the work dir sits under a private <tmpdir>/archmap-<uid>; a planted symlink at the per-user name is refused and a per-user dir of another uid is refused by privateDir",
+            "p36: the duckdb skip reason, when the isolated probe cannot import duckdb, names isolated mode, the interpreter's own or a virtualenv's site-packages, and the unseen --user install",
+            "s16 extended: the post-dispatch status check names its baseline as the driver step run immediately before the dispatch (plan, finish, render) and no longer compares with plan's after every dispatch"
+          ],
           "notes": [
             {
               "at": "2026-10-31T16:02:34Z",
@@ -6969,6 +7069,18 @@
             "runId": "2026-10-31T16:12:12Z.65a4c7",
             "status": "passed",
             "at": "2026-10-31T16:12:12Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "a1794a7eec8d",
+            "at": "2026-10-31T16:12:13Z",
+            "basis": "a fix task for P10-R22, P10-R23, P10-R24, P10-R25, P10-R26, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-10-31T16:11:24Z",
+            "basis": "`node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
@@ -6980,7 +7092,12 @@
       ],
       "parentBranch": "audit/p8-skill-evals-and-trigger-descri",
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-30T22:56:20Z"
+      "startedAt": "2026-10-30T22:56:20Z",
+      "testEvidence": {
+        "runId": "2026-10-31T16:13:04Z.69ff11",
+        "status": "passed",
+        "at": "2026-10-31T16:13:04Z"
+      }
     }
   ],
   "fileIndex": {
