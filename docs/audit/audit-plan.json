@@ -7589,7 +7589,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P11-R1",
@@ -7606,20 +7606,30 @@
             "severity": "low",
             "file": "docs/architecture/architecture.model.json:904-912",
             "issue": "The committed public example map has an edge misc-hooks-to-scripts (desc 'The SessionStart hook runs scripts/staleness.mjs.', evidence hooks/hooks.json:5-12) whose target is scripts-pipeline. staleness.mjs belongs to the scripts-diffmap node (paths scripts/diffmap.mjs, scripts/staleness.mjs), and the same model's session-staleness sequence correctly routes the hook to scripts-diffmap. hooks/hooks.json runs only staleness.mjs, so the edge points at the wrong node in the map the README offers as the plugin's own example.",
-            "resolution": "Retarget the edge to scripts-diffmap (and its id to misc-hooks-to-diffmap) in docs/architecture/architecture.model.json, re-render the viewer and layout, and re-check the README counts (unchanged). If the map must stay byte-identical to the owner-run build, add a sentence in the evals README saying the committed map is unedited and may contain such inferred-edge errors."
+            "resolution": "Retarget the edge to scripts-diffmap (and its id to misc-hooks-to-diffmap) in docs/architecture/architecture.model.json, re-render the viewer and layout, and re-check the README counts (unchanged). If the map must stay byte-identical to the owner-run build, add a sentence in the evals README saying the committed map is unedited and may contain such inferred-edge errors.",
+            "status": "carried",
+            "carriedTo": "BUG-5-6o1"
           },
           {
             "id": "P11-R3",
             "severity": "low",
             "file": "skills/architecture-map/evals/README.md:140-149",
             "issue": "The new run-1 paragraph states '32 of the 63 nodes and 15 of the 16 entities cite only files under tests/fixtures/'. The run 1 model is not tracked (the same section says so), so the figure points at no script or log a reader can run; the phase outcome requires every number to point at its producing script or log. The executor measured it privately.",
-            "resolution": "Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private.",
-            "fixTask": "P11.9-6o1"
+            "resolution": "fixed in P11.9-6o1 (76b56ed3d8e8): Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private.",
+            "fixTask": "P11.9-6o1",
+            "commit": "76b56ed3d8e8",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 0 med, 3 low; 1 with a recorded fix commit]"
+        "outcome": "phase review filed at head fa5116799444 [findings: 3 - 0 high, 0 med, 3 low; 2 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "sha256": "b9b2d401d84e3a2e7fa635b41b98c855cb255be72cad6faf79516e831d25b930"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P11 delivers the user-facing documentation with evidence. P11.1 gave the issues reviewer per-pattern targeted reads and a readiness pattern (P16); P11.2, owner-run, reran eval 2 three times at recall 0.93 each (before: 0.67, 0.53, 0.53), 7/7, 12 to 14 turns, 2.40 to 2.61 USD. P11.3 tracks 21 cost-profile JSON evidence files (iteration 1 and 2, self-build) with a --basename switch and a test (e19, e20) that derives every cost, turn and context figure of the evals README from them; three iteration-1 cells were re-derived at the current rate table (13.78, 9.71, 12.55 USD) and P11.7 says why (Sonnet cache-read rate halved in P8.8). P11.4 corrected the eval 2 record (four issues missed in all three first runs, by category), named the source run of every figure and added the P11.2 result and the self-build rows. P11.5 rewrote README.md for a prospective user (status, the real command table, what a build delivers and costs, how it was measured) with tests/readme.test.mjs tying the command table and every figure to its source. P11.6 committed the plugin's own map built at 8174e41 (30 nodes, 18 edges, 1 entity, 4 sequences, 5 views; 1.00 USD, 10 turns) as the public example. Phase review: intent matches for every task, review scan 0 leads, denylist clean; three low findings: R1 and R3 fixed (P11.8, P11.9), R2 carried to BUG-5-6o1 (the committed map keeps one mis-targeted hook edge, stated in the evals README). Not verifiable from tracked files, and stated as such: recall values and the run-1 model counts rest on private overlays and models. Gate node --test 449/449.",
       "tasks": [
         {
           "id": "P11.1",
@@ -7671,9 +7681,14 @@
             "at": "2026-10-31T21:14:08Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "9c80074546e5",
-            "at": "2026-10-31T21:14:45Z"
+            "at": "2026-10-31T23:03:38Z",
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed. The filed red-first run of `node --test tests/skill-issues-catalog.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1 but its output carried no test tally, so an assertion failure cannot be told from a crash.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run."
           },
           "redFirst": {
             "at": "2026-10-31T21:11:25Z",
@@ -7776,9 +7791,14 @@
             "at": "2026-10-31T21:21:16Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "a18b73beb97e",
-            "at": "2026-10-31T21:21:18Z"
+            "at": "2026-10-31T23:03:38Z",
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed. The filed run of `node --test tests/cost-profile.test.mjs tests/evals.test.mjs` at HEAD exited 1 with no readable tally.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run."
           },
           "redFirst": {
             "at": "2026-10-31T21:19:35Z",
@@ -7847,9 +7867,14 @@
             "at": "2026-10-31T21:52:49Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "8620f77fe63c",
-            "at": "2026-10-31T21:52:50Z"
+            "at": "2026-10-31T23:03:38Z",
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed. The filed run of `node --test tests/evals.test.mjs` at HEAD exited 1 with no readable tally. The return also says e17 to e20 were seen red on the unchanged README (16 pass, 4 fail), but that is a narrative without a recorded command and exit code.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run; the recorded gate also had no overlap with this task's files."
           },
           "redFirst": {
             "at": "2026-10-31T21:51:02Z",
@@ -7909,9 +7934,14 @@
             "at": "2026-10-31T21:58:58Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "8174e41149ab",
-            "at": "2026-10-31T21:58:59Z"
+            "at": "2026-10-31T23:03:38Z",
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Computed. The filed run of `node --test tests/readme.test.mjs` at HEAD exited 1 with no readable tally; the file was new, so the failure could be a missing file.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run; the recorded gate had no overlap with this task's files."
           },
           "redFirst": {
             "at": "2026-10-31T21:57:27Z",
@@ -7972,9 +8002,14 @@
             "at": "2026-10-31T22:11:32Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "6b5f702d4a9e",
-            "at": "2026-10-31T22:11:34Z"
+            "at": "2026-10-31T23:03:38Z",
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The task owes none: tests.add is none, gate-only, expectRedFirst false. The executor filed not-attempted with that basis; its r5 and e18 assert.throws cases are mutation checks on adjusted existing tests, not added tests, and none was seen red.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the single command 'node --test', which runs the whole project, so the question is not asked."
           },
           "redFirst": {
             "status": "not-attempted",
@@ -8028,9 +8063,14 @@
             "at": "2026-10-31T22:14:20Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "fa5116799444",
-            "at": "2026-10-31T22:14:21Z"
+            "at": "2026-10-31T23:03:38Z",
+            "return": "returns/P11/fa511679944478184f66084e2a853631214d0b28.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "The red-first helper's block: 'node --test tests/evals.test.mjs in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected'. The executor's prose says e17 and e18 failed (18 pass, 2 fail) but names no output line the helper accepts, so no red is proved.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "tests.gate is the single command 'node --test', a whole-project run, so the question is not asked."
           },
           "redFirst": {
             "at": "2026-10-31T22:13:18Z",
@@ -8109,7 +8149,7 @@
         {
           "id": "P11.9-6o1",
           "title": "fix P11-R3: The new run-1 paragraph states '32 of the 63 nodes and 15 of the ...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The new run-1 paragraph states '32 of the 63 nodes and 15 of the 16 entities cite only files under tests/fixtures/'. The run 1 model is not tracked (the same section says so), so the figure points at no script or log a reader can run; the phase outcome requires every number to point at its producing script or log. The executor measured it privately.\n\nResolution asked: Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private.",
           "files": [
             "skills/architecture-map/evals/README.md"
@@ -8130,13 +8170,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "76b56ed3d8e8",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Edited skills/architecture-map/evals/README.md only. (1) P11-R3: the Run 1 bullet now says the model is private and not tracked and gives the one-line node command (path as <model>, no machine path) that derives the 32/63 nodes and 15/16 entities citing only tests/fixtures/ via evidence[].path; I ran it on the private run-1 model (iteration-2 workspace real-1-build-self/with_skill/run-1) and it printed '32/63 15/16'. I chose the command over a tracked evidence file because the e19/e20 evidence check requires every json under evidence/ to be a named cost profile. (2) P11-R2 owner decision: added to the Run 2 bullet that the committed map is unchanged from the run and keeps one known build error, the SessionStart hook edge targeting the pipeline script node instead of the node holding scripts/staleness.mjs, tracked as BUG-5-6o1. README.md untouched. Gate: node --test, 449 tests, 449 pass, 0 fail (includes e17 to e20, r1 to r5 and the denylist test). Dependants (docs/architecture/architecture.model.json, archmap.html, tests/evals.test.mjs, tests/readme.test.mjs, README.md, audit config, diffmap test, issues.json): all still correct, since only prose in the evals README changed and no number, table, evidence file or path they read moved; the full suite is green.",
+            "descriptive": "The evals README now says how the run 1 fixture figures (32/63, 15/16) are derived and flags the committed map's known hook-edge error as BUG-5-6o1."
           },
           "startedAt": "2026-10-31T22:59:29Z",
-          "completedAt": null,
+          "completedAt": "2026-10-31T23:02:19Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -8164,13 +8204,29 @@
             "runId": "2026-10-31T23:02:18Z.b73158",
             "status": "passed",
             "at": "2026-10-31T23:02:18Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "76b56ed3d8e8",
+            "at": "2026-10-31T23:02:19Z",
+            "basis": "a fix task for P11-R3, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task on a document; tests.add is none and expectRedFirst is false",
+            "at": "n/a"
           }
         }
       ],
       "priority": 1,
       "parentBranch": "audit/p9-release-v1-0-0-and-roadmap",
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-31T21:02:18Z"
+      "startedAt": "2026-10-31T21:02:18Z",
+      "testEvidence": {
+        "runId": "2026-10-31T23:03:37Z.cecb92",
+        "status": "passed",
+        "at": "2026-10-31T23:03:37Z"
+      }
     }
   ],
   "fileIndex": {
