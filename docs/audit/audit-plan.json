@@ -5227,7 +5227,7 @@
         {
           "id": "P9.4",
           "title": "docs/roadmap.md: v1.1 data platforms and infrastructure, CI drift gate, overlays, entity state machines, architecture diff, the open bug and the post-1.0.0 benchmark",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write docs/roadmap.md, the roadmap after 1.0.0, from docs/design.md section 9 step 11 and the open items of the audit plan: v1.1 adds data platform, pipeline and infrastructure extraction (dbt projects, data platform transforms and datasets described generically, Docker and compose, GitHub Actions and Azure Pipelines workflows, Terraform and Bicep) to the stack references and the prescan; then a CI drift gate on /archmap:check, ownership, churn and coverage overlays on the application graph, entity state machines, and an architecture diff between two commits; the open bug BUG-5-6o1 (an edge target resolved to the wrong script node); the reviewer recall tracked per release; and, after 1.0.0, the benchmark of the same build task against other architecture and codebase-mapping plugins for Claude Code (parked proposal PROP-2), with a repo-free report. Each item gets a sentence on what it delivers and what evidence closes it. docs/design.md is exempt from the denylist test and names a vendor data platform; docs/roadmap.md is not exempt, so name no vendor platform, product or client and describe data platforms generically. Link the roadmap from README.md (one line) and extend tests/readme.test.mjs so it fails when the roadmap file is missing, lacks a v1.1 heading or the benchmark item, or when the README does not link it.",
           "files": [
             "docs/roadmap.md",
@@ -5254,25 +5254,39 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "34df6bd8c7b4",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote docs/roadmap.md (v1.1 data platform/pipeline/infra extraction described generically with dbt, Docker/compose, GitHub Actions, Azure Pipelines, Terraform, Bicep; CI drift gate; ownership/churn/coverage overlays; entity state machines; architecture diff; BUG-5-6o1; reviewer recall per release; post-1.0.0 benchmark PROP-2 with repo-free report), each with what it delivers and the evidence that closes it. Added one line to README.md Status linking docs/roadmap.md. Extended tests/readme.test.mjs with checkRoadmap, r6 (real roadmap + README) and r7 (fails on missing file, missing v1.1 heading, missing benchmark, unlinked README). Staged docs/roadmap.md with git add (no commit) because the denylist scans tracked files only; denylist test passes. Full node --test: 453 tests, 453 pass. Dependants: docs/design.md (already names docs/roadmap.md in its tree; still correct, unchanged), README.md dependants (architecture model/viewer, evals README tests, etc.): still correct, since only one prose line was added and no table, number or path they read moved; r1-r5 and the full suite pass. tests/readme.test.mjs dependant README: still correct.",
+            "descriptive": "The post-1.0.0 roadmap exists, is linked from the README, and a test now fails if it goes missing or loses its v1.1 heading or benchmark item."
           },
           "startedAt": "2026-10-31T23:52:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T23:57:01Z",
+          "verifiedBy": [
+            "r6: docs/roadmap.md exists with a v1.1 heading, the benchmark item and the other roadmap items, and the README links it",
+            "r7: the roadmap check throws on a missing file, no v1.1 heading, no benchmark item, and an unlinked README"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T23:57:00Z.8a7e70",
             "status": "passed",
             "at": "2026-10-31T23:57:00Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "34df6bd8c7b4",
+            "at": "2026-10-31T23:57:01Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T23:54:29Z",
+            "basis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P9.5",
           "title": "Marketplace listing text for 1.0.0 prepared in this repository, aligned with the dev marketplace and plugin.json",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The published listing of this plugin in the quality-gates marketplace (repository AleksandarBisevac/claude-plugins, outside this plan) ends its description with a pre-release note and its tag list lacks crud-matrix. Prepare the exact replacement entry in this repository as docs/release/marketplace-entry.json: the same shape as the published entry (name, github source with the repo, description, category documentation, tags, homepage, strict), with a description that matches .claude-plugin/marketplace.json's description word for word and carries no pre-release note, and tags equal to plugin.json's keywords. Align the dev marketplace description if it needs the wording of README.md's first paragraph. Extend tests/manifest.test.mjs so it fails when the two descriptions differ, when the entry's tags differ from plugin.json's keywords, or when either carries the words pre-release. The owner copies the entry into the claude-plugins repository by hand; this task does not touch that repository.",
           "files": [
             "docs/release/marketplace-entry.json",
@@ -5297,16 +5311,22 @@
           "dependsOn": [
             "P9.3"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T23:57:01Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T23:59:46Z.071ff1",
+            "status": "passed",
+            "at": "2026-10-31T23:59:46Z"
+          }
         },
         {
           "id": "P9.6",

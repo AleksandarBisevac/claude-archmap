@@ -9,7 +9,7 @@
     {
       "name": "archmap",
       "source": "./",
-      "description": "Evidence-backed, incrementally updated architecture maps: application graph, ER, sequences, CRUD matrix and lineage in one offline HTML viewer.",
+      "description": "Maps a repository's architecture into one evidence-backed model and renders it as a self-contained, offline HTML viewer: application graph, ER diagram, sequence diagrams, CRUD matrix and data lineage, updated incrementally from git diffs.",
       "category": "documentation",
       "strict": true
     }

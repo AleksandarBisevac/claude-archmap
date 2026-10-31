@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/manifest.test.mjs": "pass",
+    "node --test (full suite, 456 pass, 0 fail)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T23:58:30Z",
+    "basis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote mf5, mf6, mf7 in tests/manifest.test.mjs before creating anything else and saw mf5 and mf6 fail (docs/release/marketplace-entry.json did not exist; 5 pass, 2 fail). Then created docs/release/marketplace-entry.json (name, github source with repo AleksandarBisevac/claude-archmap, description, category documentation, tags = plugin.json keywords including crud-matrix, homepage, strict true) and aligned .claude-plugin/marketplace.json's plugin description to the wording of README's first paragraph; the release entry description is the same string. mf5 checks shape, description equality with the dev marketplace, no pre-release in either; mf6 checks tags equal keywords in order and include crud-matrix; mf7 proves the comparison helpers (sameText, sameList, preRelease) reject a differing description, a differing tag list and a pre-release note. After: node --test tests/manifest.test.mjs 7 pass 0 fail; node --test 456 pass 0 fail. Dependants: docs/architecture model and archmap.html and docs/design.md only name marketplace.json by path; grep for the old description text finds no other file, so they are still correct. tests/manifest.test.mjs and the new entry have no dependants. The claude-plugins repository was not touched.",
+    "descriptive": "Release-ready marketplace entry for 1.0.0 prepared in docs/release, dev marketplace description aligned, and tests that fail on description drift, tag drift or a pre-release note."
+  },
+  "testsAdded": [
+    "mf5: release entry shape, description equals dev marketplace description, no pre-release in either",
+    "mf6: release entry tags equal plugin.json keywords and include crud-matrix",
+    "mf7: the comparison helpers reject a differing description, a differing tag list and a pre-release note"
+  ],
+  "casesAdded": [
+    [
+      "mf5",
+      "mf6",
+      "mf7"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:6552736ee4babf33a2b9bd3f5953d0bfebdc7a735beca63ca11e6358a86218a1\",\"dirtyDigest\":\"sha256:62c35a64d5281add4113fa1bec793462ff6c905744942993ceb0049e8cbdd211\",\"dirtyPaths\":{\".claude-plugin/marketplace.json\":\"b4aaca05d3273c2a\",\"docs/release/marketplace-entry.json\":\"e344a8f3831b6c59\",\"tests/manifest.test.mjs\":\"b55abff098c89b7c\"},\"head\":\"34df6bd\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\".claude-plugin/marketplace.json\",\"docs/release/marketplace-entry.json\",\"tests/manifest.test.mjs\"],\"scopeDigest\":\"sha256:aa8df595e10051079ca3f033a4c2ae4a25fcae3df472593eea68b271523aafbb\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

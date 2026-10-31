@@ -42,3 +42,45 @@ test('dev marketplace lists archmap from the repo root', () => {
   assert.ok(entry);
   assert.equal(entry.source, './');
 });
+
+// The comparisons the release-entry cases make, as pure functions so a case can prove they bite on a bad pair.
+const sameText = (a, b) => a === b;
+const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+const preRelease = (s) => /pre-?release/i.test(s);
+
+const devEntry = () => read('.claude-plugin/marketplace.json').plugins.find((p) => p.name === 'archmap');
+const releaseEntry = () => read('docs/release/marketplace-entry.json');
+
+test('mf5 the release entry has the published shape, its description equals the dev marketplace\'s and neither says pre-release', () => {
+  const entry = releaseEntry();
+  assert.equal(entry.name, 'archmap');
+  assert.deepEqual(entry.source, { source: 'github', repo: 'AleksandarBisevac/claude-archmap' });
+  assert.equal(entry.category, 'documentation');
+  assert.equal(entry.strict, true);
+  assert.equal(entry.homepage, read('.claude-plugin/plugin.json').homepage);
+  assert.equal(typeof entry.description, 'string');
+  assert.ok(entry.description.length > 0, 'the release entry has a description');
+  assert.ok(sameText(entry.description, devEntry().description), 'the release entry description equals the dev marketplace description word for word');
+  assert.ok(!preRelease(entry.description), 'the release entry description carries no pre-release note');
+  assert.ok(!preRelease(devEntry().description), 'the dev marketplace description carries no pre-release note');
+});
+
+test('mf6 the release entry\'s tags equal plugin.json\'s keywords, crud-matrix included', () => {
+  const { keywords } = read('.claude-plugin/plugin.json');
+  const { tags } = releaseEntry();
+  assert.ok(Array.isArray(tags));
+  assert.ok(tags.includes('crud-matrix'), 'crud-matrix is a tag');
+  assert.ok(sameList(tags, keywords), 'the tags equal the keywords, in order');
+});
+
+test('mf7 the release-entry comparisons fail on a differing description, a differing tag list and a pre-release note', () => {
+  assert.ok(sameText('a b', 'a b'));
+  assert.ok(!sameText('a b', 'a  b'), 'a one-space difference is a difference');
+  assert.ok(!sameText('Maps architecture.', 'Maps architecture. Pre-release.'), 'a trailing note is a difference');
+  assert.ok(sameList(['a', 'b'], ['a', 'b']));
+  assert.ok(!sameList(['a'], ['a', 'crud-matrix']), 'a missing tag is a difference');
+  assert.ok(!sameList(['a', 'b'], ['a', 'c']), 'a different tag is a difference');
+  assert.ok(preRelease('Maps architecture. Pre-release: 0.9.0.'));
+  assert.ok(preRelease('a prerelease build'));
+  assert.ok(!preRelease('The first release.'));
+});
