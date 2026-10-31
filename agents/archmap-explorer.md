@@ -27,8 +27,11 @@ If the summary is missing or empty, say so in `skipped.reasons` and write an oth
 whole repo.
 
 Entities, relations and queue edges are made by script (merge.mjs) from the full extract: one entity per declared table
-with its fields, one relation per foreign key, one queue node per queue with its producer and consumer edges.
-Never transcribe tables, fields or foreign keys into the fragment; give an entity only for a store prescan cannot read.
+with its fields (a model class, or a CREATE TABLE statement in the code), one relation per foreign key, one queue node per
+queue with its producer and consumer edges, and one inferred entity per table that SQL in the code names and nothing
+declares (the summary's `counts.inferredTables` says how many).
+Never transcribe tables, fields or foreign keys the summary lists into the fragment, and never re-list the ones it shows.
+Do add entities for tables, datasets or collections you find that the summary lacks, each with evidence.
 
 ## Budget
 

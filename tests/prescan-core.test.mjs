@@ -397,3 +397,48 @@ test('pc12 file databases opened by path in js and ts (new duckdb.Database, new 
   ]);
   assert.deepEqual(out.sources, [], 'none of the three files is in the repository');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.13: SQL in string literals is a schema: python strings and js/ts template literals give statement rows in the
+// owning area's extract, CREATE TABLE statements give tables with their columns, and the summary counts the tables
+// that queries name and nothing declares.
+
+test('pc13 SQL in python strings and js/ts template literals reaches the area extract: sqlTables rows per statement, CREATE TABLE as a table with fields and fk, and the summary counts the tables only queries name', () => {
+  const repo = makeRepo({
+    'tools/etl.py':
+      'def run(conn):\n' +
+      '    conn.executescript("""\n' +
+      '        CREATE TABLE IF NOT EXISTS depots (id INTEGER PRIMARY KEY, name TEXT);\n' +
+      '        CREATE TABLE IF NOT EXISTS pallets (id INTEGER PRIMARY KEY, depot_id INTEGER REFERENCES depots(id));\n' +
+      '    """)\n' +
+      '    conn.execute("INSERT INTO pallets (depot_id) VALUES (1)")\n' +
+      '    conn.execute("SELECT * FROM depots d JOIN forklifts f ON f.depot = d.id")\n',
+    'api/package.json': '{"name":"api","dependencies":{"express":"4"}}',
+    'api/db.js':
+      "const rows = await db.query(`\n  SELECT * FROM forklifts\n  WHERE depot = ${depot}\n`);\n" +
+      'await db.query(`INSERT INTO shifts (a) VALUES ($1)`, [1]);\n' +
+      'await db.query(`DELETE FROM ${table}`);\n' +
+      "// await db.query('SELECT * FROM commented_out');\n" +
+      "const note = 'select the best from the rest';\n",
+  });
+  const { pre, slice, work } = sliceOf(repo);
+  const rows = (id) => slice(id).sqlTables;
+  const all = pre.areas.flatMap((a) => rows(a.id));
+  assert.deepEqual(
+    all.slice().sort(),
+    [
+      'depots ddl tools/etl.py:3', 'depots select tools/etl.py:7', 'forklifts select api/db.js:2', 'forklifts select tools/etl.py:7',
+      'pallets ddl tools/etl.py:4', 'pallets insert tools/etl.py:6', 'shifts insert api/db.js:5',
+    ].sort(),
+  );
+  const tables = pre.areas.flatMap((a) => slice(a.id).tables.filter((t) => t.orm === 'sql'));
+  const pallets = tables.find((t) => t.name === 'pallets');
+  assert.deepEqual(pallets.fields, ['id INTEGER pk', 'depot_id INTEGER fk=depots.id']);
+  assert.deepEqual([pallets.file, pallets.line], ['tools/etl.py', 4]);
+  const area = pre.areas.find((a) => slice(a.id).sqlTables.some((r) => r.startsWith('pallets')));
+  const sum = readJson(join(work, area.summary));
+  assert.equal(sum.counts.inferredTables, 2, 'forklifts and shifts: queried, declared nowhere (depots and pallets are declared by CREATE TABLE)');
+  assert.equal(sum.counts.sqlTables, slice(area.id).sqlTables.length);
+  assert.ok(!('inferredTables' in slice(area.id)), 'the full extract holds rows only');
+  assert.match(sum.note, /inferred/i);
+});

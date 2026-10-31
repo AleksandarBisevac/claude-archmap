@@ -190,8 +190,8 @@ test('nb5 every item carries {path, lines} evidence inside the file, output sort
 test('nb6 unknown patterns are skipped and counted, never guessed; a large file keeps every route', () => {
   // Fixture tally: @Get(CONST), get(CONST), express .route(path) chain, a template path in Hono,
   // a pgTable whose name is not a literal, a queue.add whose job name is a variable.
-  assert.deepEqual(frag.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 0, queues: 1, routes: 4 });
-  assert.deepEqual(frag.truncated, { clients: 0, entities: 0, envKeys: 0, openapi: 0, queues: 0, routes: 0 });
+  assert.deepEqual(frag.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 0, queues: 1, routes: 4, sqlTables: 0 });
+  assert.deepEqual(frag.truncated, { clients: 0, entities: 0, envKeys: 0, openapi: 0, queues: 0, routes: 0, sqlTables: 0 });
 
   const odd = memFrag({
     'svc/odd.ts':
@@ -203,7 +203,7 @@ test('nb6 unknown patterns are skipped and counted, never guessed; a large file 
     'docs/swagger-notes.json': '{"hello": 1}',
     'docs/openapi-broken.yaml': 'just: text\n',
   });
-  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, queues: 2, routes: 1 });
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, queues: 2, routes: 1, sqlTables: 0 });
   for (const k of KINDS) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
 
   const lines = ["import express from 'express';", 'const app = express();'];

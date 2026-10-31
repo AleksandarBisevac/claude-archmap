@@ -14,7 +14,7 @@ Do not invent keys the schema lacks. Required keys per object are marked **req**
 | `zones[]` | Trust and deployment regions. `{id, kind, label, parent?, outside?}`. Kinds are in relation-taxonomy.md. |
 | `nodes[]` | Architecture components. `{id, zone, kind, title, paths, level, evidence}` req; `sub[]`, `role`, `facts[]`, `locked`, `notes` optional. |
 | `edges[]` | Typed relations between nodes. `{id, from, to, type, desc, evidence, confidence}` req; `label`, `foundBy` (`static`, `llm`, `introspection`), `async` optional. |
-| `entities[]` | Stored data shapes. `{id, store, name, kind, fields}` req; `indexes`, `evidence` optional. `kind` is `table`, `view`, `collection` or `dataset`. |
+| `entities[]` | Stored data shapes. `{id, store, name, kind, fields}` req; `indexes`, `evidence`, `provenance` optional. `kind` is `table`, `view`, `collection` or `dataset`. `provenance` is `declared`, `observed` or `inferred`; merge sets `inferred` (no fields) on a table that SQL in the code names and nothing declares. |
 | `relations[]` | ER links between entity fields. `{from{entity, field}, to{entity, field}, cardinality, kind, provenance}`, all req. `cardinality` is `1-1`, `1-n` or `n-m`; `kind` is `fk`, `join` or `name-convention`. |
 | `access[]` | CRUD matrix rows. `{node, entity, ops}` req, `evidence` optional. `ops` is a non-empty subset of `CRUD` with no letter repeated, in that order (for example `CR`, `RU`). |
 | `sequences[]` | Sequence diagrams. Grammar in sequences.md. |

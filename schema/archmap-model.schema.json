@@ -116,6 +116,7 @@
         "kind": { "enum": ["table", "view", "collection", "dataset"] },
         "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } },
         "indexes": { "type": "array" },
+        "provenance": { "enum": ["declared", "observed", "inferred"] },
         "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
       }
     },

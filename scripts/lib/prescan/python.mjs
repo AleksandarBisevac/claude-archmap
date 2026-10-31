@@ -18,7 +18,7 @@
 // prescan.mjs loads. Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
-import { scanClients, scanDatabases, scanEnvKeys } from './generic.mjs';
+import { scanClients, scanDatabases, scanEnvKeys, sqlStatements } from './generic.mjs';
 
 export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables', 'stores'];
 export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
@@ -74,6 +74,7 @@ function lex(src) {
       strings.push({
         start: ps,
         end,
+        bodyStart,
         value: src.slice(bodyStart, bodyEnd),
         prefix,
         standalone: depth === 0 && (a === 0 || src[a - 1] === '\n') && (b >= n || src[b] === '\n' || src[b] === '\r' || src[b] === '#'),
@@ -568,52 +569,21 @@ function extractMigrations(f, acc) {
   }
 }
 
-// Raw SQL inside string literals. A string must read as a statement; a docstring that merely
-// starts with "Select ..." is a standalone expression statement and is ignored.
-const SQL_KEYWORDS = new Set(['select', 'lateral', 'only', 'if', 'not', 'exists', 'values', 'set', 'where', 'unnest', 'table', 'temp', 'temporary']);
-
+// Raw SQL inside string literals, one row per table, op and statement: {table, op, evidence} with op select, insert,
+// update, delete or ddl; a CREATE TABLE statement adds its `columns` [{name, type, pk, fk}], which makes it a declared
+// table (prescan.mjs turns it into a `tables` row). A string must read as a statement; a docstring that merely
+// starts with "Select ..." is a standalone expression statement and is ignored. The evidence is the statement's
+// own lines, so a script holding several statements cites each where it is. The statement parser is shared with the
+// js scanner (generic.mjs).
 function extractSql(f, acc) {
   for (const s of f.strings) {
     if (s.standalone || s.prefix.includes('b')) continue;
-    const body = s.value;
-    const verb = /^\s*(select|with|insert|update|delete|create|alter|drop|truncate|replace|merge)\b/i.exec(body)?.[1]?.toLowerCase();
-    if (!verb) continue;
-    const shaped =
-      verb === 'select' || verb === 'with' ? /\bfrom\s+[\w"`{[]/i.test(body)
-      : verb === 'update' ? /^\s*update\s+[\w."`{]+\s+set\b/i.test(body)
-      : verb === 'insert' ? /^\s*insert\s+(?:or\s+\w+\s+)?into\s/i.test(body)
-      : verb === 'delete' ? /^\s*delete\s+from\s/i.test(body)
-      : verb === 'create' || verb === 'alter' || verb === 'drop' || verb === 'truncate' ? /\btable\b|^\s*truncate\s/i.test(body)
-      : true;
-    if (!shaped) continue;
-    const ev = evidence(f, s.start, s.end);
-    const seen = new Set();
-    let firstFrom = true;
-    const re = /\b(from|join|into|update|table)\s+(?:if\s+(?:not\s+)?exists\s+)?(\{|[A-Za-z_"`][\w."`$]*)/gi;
-    for (const m of body.matchAll(re)) {
-      const kw = m[1].toLowerCase();
-      const tableRaw = m[2];
-      if (kw === 'update' && verb !== 'update') continue;
-      if (kw === 'table' && !['create', 'alter', 'drop', 'truncate'].includes(verb)) continue;
-      if (kw === 'into' && verb !== 'insert') continue;
-      if (tableRaw === '{') {
-        acc.skipped.sqlTables++;
-        continue;
-      }
-      const table = tableRaw.replace(/["`]/g, '');
-      if (SQL_KEYWORDS.has(table.toLowerCase())) continue;
-      let op;
-      if (kw === 'join') op = 'select';
-      else if (kw === 'from') {
-        op = verb === 'delete' && firstFrom ? 'delete' : 'select';
-        firstFrom = false;
-      } else if (kw === 'into') op = 'insert';
-      else if (kw === 'update') op = 'update';
-      else op = 'ddl';
-      const key = `${table}\0${op}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      acc.sqlTables.push({ table: clip(table), op, evidence: ev });
+    // an escaped newline or tab in a one-line string is blank to the parser, same length so offsets hold
+    const { statements, skipped } = sqlStatements(s.value.replace(/\\[nrt]/g, '  '));
+    acc.skipped.sqlTables += skipped;
+    for (const st of statements) {
+      const ev = evidence(f, s.bodyStart + st.a, s.bodyStart + st.b);
+      for (const r of st.refs) acc.sqlTables.push({ ...r, table: clip(r.table), evidence: ev });
     }
   }
 }

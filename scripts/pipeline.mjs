@@ -404,7 +404,7 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
       ? `- Summary of prescan's extract, read it first: ${summary}`
       : '- Summary: none (this area is not in the current prescan partition); start from the globs.',
     `- Fragment, the one file you write: ${fragment}`,
-    `- Profile ${profile}. Budget: ${EXPLORER_TOOL_CALLS} tool calls, the final Write included.`,
+    `- Profile ${profile}.`,
     ...floorLines(coverage ?? coverageFloor(null), floorRoom),
   ];
   if (previous) lines.push(`- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
@@ -413,7 +413,7 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
     '',
     '## Work',
     '',
-    '1. Read the summary, then make at least 6 and at most 20 tool calls in all, the Write included.',
+    `1. Read the summary, then make at least 6 and at most ${EXPLORER_TOOL_CALLS} tool calls in all, the Write included.`,
     '   Grep for the next fact, then a line-range Read; never read a whole tree or walk it file by file.',
     '2. One node per feature directory of a frontend and per router or handler module of a backend, plus every store,',
     '   queue, job and external client; then what prescan cannot see: what a handler does, which store a service uses.',
@@ -430,7 +430,7 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
     '  static, auth, pull, sql, cache, persist, call, link, deploy, event, queue. confidence: verified (you read both',
     '  ends), inferred, external (a third party). To reach another area\'s node write `to: "area:<id>"` unless you read',
     '  its node id: merge resolves it to that area\'s main node. Never invent a node id.',
-    '- entity, only for a store prescan cannot read: `id`, `store` (node id), `name`, `kind` (table, view, collection,',
+    '- entity, only what the summary does not list: `id`, `store` (node id), `name`, `kind` (table, view, collection,',
     '  dataset), `fields` [{`name`, `type`, `provenance`: declared|observed|inferred}], `evidence`.',
     '- access: `node`, `entity`, `ops` (letters of CRUD in that order, e.g. CR), `evidence`.',
     '- evidence: [{"path":"<repo-relative>","lines":"12-30"}], the lines you read or the summary names. No citable',
@@ -439,7 +439,9 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
     `- Caps: ${CAPS.nodes} nodes, ${CAPS.edges} edges, ${CAPS.entities} entities, ${CAPS.access} access rows. List the most structural first:`,
     '  merge.mjs keeps the first and drops the rest, and fixes slips in field shapes itself.',
     '- Entities, relations and queue edges come from the script (merge.mjs), as do cross-area edges, zones and SQL',
-    '  access rows: never list tables or fields. Never emit meta, zones, sequences, views, locked or notes.',
+    '  access rows; tables the summary lists are made by script, so never list tables or fields it shows. Add entities',
+    '  for tables, datasets or collections it does not list, each with evidence. Never emit meta, zones, sequences,',
+    '  views, locked or notes.',
     '',
     '## Reply',
     '',

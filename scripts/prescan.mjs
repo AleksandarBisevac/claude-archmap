@@ -204,7 +204,14 @@ export function areaExtracts(out) {
     put(s, 'schemas', compact({ name: s.name, bases: plain ? null : s.bases, fields: s.fields.slice(0, MAX_TABLE_FIELDS).map((f) => `${f.name} ${f.type}`), ...where(s) }));
   }
   for (const m of py.migrations ?? []) put(m, 'migrations', `${m.revision} ${m.direction} ${m.op} ${m.table ?? '-'} ${at(m).path}:${firstLine(m)}`);
-  for (const t of py.sqlTables ?? []) put(t, 'sqlTables', `${t.table} ${t.op} ${at(t).path}:${firstLine(t)}`);
+  // SQL in string literals (python strings, js/ts template literals): one row per statement, table and op; a CREATE
+  // TABLE with columns is also a declared table, so merge makes its entity with fields like any ORM model
+  for (const t of [...(py.sqlTables ?? []), ...(nb.sqlTables ?? [])]) {
+    put(t, 'sqlTables', `${t.table} ${t.op} ${at(t).path}:${firstLine(t)}`);
+    if (t.op === 'ddl' && Array.isArray(t.columns)) {
+      put(t, 'tables', { name: t.table, table: t.table, orm: 'sql', fields: t.columns.map(fieldStr), ...where(t), lines: at(t).lines });
+    }
+  }
   for (const d of nb.openapi ?? []) {
     put(d, 'openapi', compact({ title: d.title, servers: d.servers?.length ? d.servers : null, operations: (d.operations ?? []).length, ...where(d) }));
   }
@@ -329,8 +336,10 @@ export function areaExtracts(out) {
 
 const SUMMARY_NOTE =
   'The explorer summary of this area: counts are the full extract\'s, rows are its first ones. Entities, relations and ' +
-  'queue edges are made by script (merge.mjs) from the full extract, every table with its fields and foreign keys: ' +
-  'never transcribe tables, fields or foreign keys into the fragment, and do not read the full extract.';
+  'queue edges are made by script (merge.mjs) from the full extract, every table with its fields and foreign keys, ' +
+  'and one inferred entity per table the SQL in the code names and nothing declares (counts.inferredTables): ' +
+  'never transcribe the tables, fields or foreign keys listed here into the fragment, and do not read the full extract. ' +
+  'Do add entities for tables, datasets or collections that this summary does not list, each with evidence.';
 const SUMMARY_ROWS = 12; // rows of one kind before the budget loop starts
 // Kinds trimmed to fit the budget, with the weight that protects the ones an explorer needs most: tables are the
 // script's, so they go first.
@@ -344,6 +353,25 @@ const SUMMARY_KEYS = ['area', 'title', 'globs', 'stacks', 'files', 'extract', 'n
 const kindsOf = (slice) =>
   KEY_ORDER.filter((k) => Array.isArray(slice[k]) && k !== 'globs' && k !== 'stacks' && (ALWAYS.has(k) || slice[k].length));
 
+/**
+ * How many tables the area's queries (select, insert, update, delete) name that nothing in the area declares: no
+ * table row, no CREATE TABLE statement. merge.mjs makes an inferred entity for each (it also knows the other areas'
+ * declarations, so the count is an upper bound on what it makes).
+ */
+function inferredTables(slice) {
+  const bare = (t) => t.toLowerCase().split('.').pop();
+  const declared = new Set();
+  for (const t of slice.tables) for (const n of [t.name, t.table]) if (typeof n === 'string') declared.add(bare(n));
+  const queried = new Set();
+  for (const row of slice.sqlTables) {
+    const m = /^(\S+)\s+(\S+)\s/.exec(String(row));
+    if (!m) continue;
+    if (m[2] === 'ddl') declared.add(bare(m[1]));
+    else queried.add(bare(m[1]));
+  }
+  return [...queried].filter((t) => !declared.has(t)).length;
+}
+
 export function areaSummary(slice) {
   const kinds = kindsOf(slice);
   const sum = {
@@ -351,6 +379,8 @@ export function areaSummary(slice) {
     extract: `extracts/${slice.area}.json`, note: SUMMARY_NOTE,
     counts: Object.fromEntries(kinds.map((k) => [k, slice[k].length])),
   };
+  const inferred = inferredTables(slice);
+  if (inferred > 0) sum.counts.inferredTables = inferred;
   for (const k of kinds) sum[k] = slice[k].slice(0, SUMMARY_ROWS);
   let text = summaryText(sum);
   while (text.length > SUMMARY_BUDGET) {

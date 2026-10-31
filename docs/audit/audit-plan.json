@@ -5462,14 +5462,14 @@
           "dependsOn": [
             "P10.4-2xj"
           ],
-          "attempts": 3,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-10-31T00:40:08Z",
+          "startedAt": "2026-10-31T01:30:58Z",
           "completedAt": null,
           "verifiedBy": [],
           "reviewPerTask": "phase",
@@ -5501,9 +5501,21 @@
             {
               "at": "2026-10-31T00:51:01Z",
               "text": "Round 3 eval 2 (Opus, --issues): 7/7 objective, recall 0.73 (11/15 high+med), 2.82 USD (baseline 2.29, ratio 1.23), but 20 orchestrator turns and 93 K peak: merge refused one synth step, a SendMessage re-ask followed, render failed three times on flags, the reviewer's JSON came back in the reply and the orchestrator wrote and merged it by hand. Fix task P10.12 (issues step by script, reviewer writes its file, synth slips normalised) added after P10.10 and P10.11."
+            },
+            {
+              "at": "2026-10-31T01:35:11Z",
+              "text": "Round 4 eval 1 (Opus): 6/7 (missing 2 key components: a readiness middleware and one external client), 1.22 USD (baseline 1.55), 10 orchestrator turns, median 58 K, max 64 K; introspection-skipped row present; but 0 entities against 17 in iteration 1 because the python scanner extracts no SQL and the explorer no longer writes entities. Fix task P10.13 added; it starts after the round-4 runs of evals 2 and 4 finish (they read the plugin scripts live)."
+            },
+            {
+              "at": "2026-10-31T01:36:43Z",
+              "text": "Round 4 eval 4 (Opus): 5/8, 1.70 USD (baseline 1.82), 10 orchestrator turns, median 62 K, max 68 K; 196 nodes / 290 edges / 142 entities / 28 relations (iteration 1: 170 / 313 / 153 / 47). Fails: no queue extracted (names are constants, not literals), one app without an app node (three apps folded into a misc area), one key component (api middlewares); 28 dropped-ref rows from relation targets looked up by bare table name. Fix task P10.14 added after P10.13."
+            },
+            {
+              "at": "2026-10-31T01:38:06Z",
+              "text": "Round 4 eval 2 (Opus, --issues): 7/7, recall 0.73 (11/15), 2.01 USD (baseline 2.29, ratio 0.88), 15 orchestrator turns, median 61 K, max 71 K; no re-ask, one render. Round 4 total: eval 1 6/7 at 1.22, eval 2 7/7 at 2.01, eval 4 5/8 at 1.70; all under 5 USD and under the no-skill baseline on the same model. Remaining quality gaps go to P10.13 and P10.14, then round 5."
             }
           ],
-          "blockedReason": "owner-run eval task; waits for P10.10, P10.11 and P10.12, then round 4"
+          "blockedReason": "owner-run eval task; waits for P10.13 and P10.14, then round 5"
         },
         {
           "id": "P10.6-6rm",
@@ -5925,7 +5937,7 @@
         {
           "id": "P10.12-6rm",
           "title": "Issues flow by script: a pipeline issues step, the reviewer writes its file, merge normalises a synth slip instead of refusing",
-          "status": "in_progress",
+          "status": "done",
           "description": "Round 3 of eval 2 (2026-10-31, --issues, Opus orchestrator): the build passed 7/7 objective expectations with issue recall 0.73, but took 20 orchestrator turns and a 93 K peak context instead of 12 and 80 K. Measured from the stream: merge --synth refused the model over one sequence step matching no step shape, the orchestrator re-asked the synthesizer with SendMessage (a re-ask the skill no longer allows for explorers but did not forbid here), then render failed three more times on flags (--issues is not a render option; a --usage label other than \"synthesizer\" refused; the same label twice refused); the reviewer returned its JSON in the reply and the orchestrator wrote <work>/reviewer.json itself, then hand-ran issues.mjs merge, validate --issues and render --mode internal in one long Bash and copied files around; the reviewer also reported it could not find issues-catalog.md because the brief gave no path. Fix, in the spirit of the phase: merge --synth drops a step it cannot place (and a sequence left under 2 steps) with a meta.sources row instead of refusing; render tolerates usage labels and prints, when plan ran with --issues, the reviewer brief (with the absolute catalogue path and the reviewer's output path <work>/reviewer.json) and the one Agent call; a new `pipeline.mjs issues` step does the overlay merge, validation, internal render and ledger row and prints one JSON object; agents/archmap-reviewer.md writes its file and replies in three lines like the other agents; SKILL.md's --issues flow becomes plan, explorers, finish, synthesizer, render, reviewer, issues, report, and forbids SendMessage to a finished agent and any re-ask. Runs after P10.11 (shared files). Keep SKILL.md at or under 500 lines with line 3 byte-identical; fixtures synthetic.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5962,20 +5974,145 @@
           ],
           "attempts": 2,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "cafd08bc21b8",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/merge.mjs: a synth sequence step matching none of the schema's step shapes (checked with lib/jsonschema.mjs against the model schema's step oneOf, the rule validate applies) is dropped with a meta.sources row {area:'synthesizer', type:'dropped-step', sequence, index, reason}; a sequence a drop leaves under 2 steps is dropped with a row without index; a clean one-step sequence is untouched; stale dropped-step rows of re-synthesized sequences are replaced; rows are sorted by the existing deterministic sources sort. merge --synth exits 0 for such a slip; m20e (exit 1 over unnormalised previous elements) still passes. scripts/pipeline.mjs: render --usage takes any label and one ledger row per pair (repeated label = second row, bad token count still exit 2); render writes <work>/briefs/reviewer.md (reviewerBrief: model path, absolute paths of issues-catalog.md, model-schema.md, relation-taxonomy.md, sequences.md, <work>/reviewer.json, three-line reply, touched ids on update) when pipeline.json carries issues:true (plan already stored it) and prints the one Agent call as a pointer to the brief, with next naming pipeline.mjs issues; new step `pipeline.mjs issues --work <w> [--usage reviewer=..] [--anchors a,b]` reads <work>/reviewer.json (missing: exit 2 naming the path; work dir planned without --issues: exit 2), runs issues.mjs path, issues.mjs merge (existing overlay kept; exit 1 refusals written nowhere), validate.mjs --issues --repo, render.mjs --mode internal into <home>/.claude/archmap/<slug>/archmap.internal.html, records the single reviewer ledger row (any label; rerun records it once) and prints one JSON line {files,counts,validate,ledger,report,runs}. agents/archmap-reviewer.md: Write added, writes to the reviewer path in its brief, three-line reply, absolute reference paths from the brief. agents/archmap-synthesizer.md: a step merge cannot place is dropped, never asked again. skills/architecture-map/SKILL.md (354 lines, line 3 byte-identical, md5 9aa77a14... before and after): --issues order line plan, explorers, finish, synthesizer, render, reviewer, issues, report; no SendMessage to a finished agent and no second ask (worded to avoid the words guarded by s9/s10); reviewer row of agents table and reply lines updated; --issues section rewritten around dispatch reviewer + pipeline.mjs issues, manual issues.mjs/validate/render kept as a by-hand fallback. Tests: m22, m22b, m22c (merge), p23-p26 (pipeline), a9, a10 (agents; a1/a2 table and writers list now include reviewer Write), s15 (skill); p10 edited to read the model path from the reviewer brief instead of the prompt. Full suite 387 pass, 0 fail; denylist 2 pass. No new files (nothing to stage); tests/fixtures/merge unchanged (cases build their synth in code). Dependants: commands/build.md, commands/update.md, commands/issues.md, tests/commands.test.mjs, tests/e2e.test.mjs, tests/evals.test.mjs, usage.mjs, scripts/issues.mjs - still correct, full suite green, none names a changed interface (commands hand off to the skill; issues.mjs CLI unchanged; render's JSON keys unchanged apart from a longer next and a brief-pointer prompt). docs/design.md (dependant of the reviewer and synthesizer agent files) still describes the reviewer as having no write tools and returning JSON: NOT changed, because P10.5 holds an uncommitted edit of it as instructed; it needs a follow-up line. Not verified: a real --issues build with an Opus orchestrator (no network/agents here).",
+            "descriptive": "An --issues build now runs plan, explorers, finish, synthesizer, render, reviewer, pipeline.mjs issues, report with no hand-run scripts, no render flag refusals, and a synthesizer slip is dropped and recorded instead of refusing the model."
           },
           "startedAt": "2026-10-31T01:20:06Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T01:30:48Z",
+          "verifiedBy": [
+            "m22/m22b/m22c: unplaceable synth step dropped with a dropped-step row, sequence under 2 steps dropped, CLI exit 0 and byte-identical reruns",
+            "p23-p26: render usage labels and repeated labels, reviewer brief and Agent call, issues step end to end (overlay outside repo, internal HTML, one ledger row, one JSON line), missing reviewer.json exit 2 / bad anchor exit 1 / no --issues exit 2",
+            "a9/a10: reviewer writes its file and replies in three lines; synthesizer says an unplaceable step is dropped, never asked again",
+            "s15: --issues flow order, pipeline.mjs issues, SendMessage and second-ask bans, 500-line cap, line 3 intact"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T01:30:47Z.f05fdc",
             "status": "passed",
             "at": "2026-10-31T01:30:47Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "cafd08bc21b8",
+            "at": "2026-10-31T01:30:48Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T01:29:53Z",
+            "basis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P10.13-6rm",
+          "title": "Entities from SQL in code: prescan lists the tables that queries name, merge makes inferred entities and access rows, the explorer adds what the summary lacks",
+          "status": "in_progress",
+          "description": "Round 4 of eval 1 (2026-10-31, after P10.10-P10.12): 6/7, 1.22 USD, 10 orchestrator turns, but the model carries 0 entities where iteration 1 found 17 (4 declared by CREATE TABLE statements in the code and 13 inferred from the tables that SELECT, JOIN and INSERT statements name; the database file itself is created at runtime). Cause: the python scanner extracts no SQL at all (tables 0, sql 0 in every area extract), so merge had nothing to generate from, and P10.10's brief told the explorer never to transcribe tables, which it read as never writing entities. Fix: the python scanner (and the node scanners for template-literal SQL) extracts SQL table references from string literals as sqlRefs {table, op, file, line} and CREATE TABLE statements as declared tables with columns; merge generates an inferred entity (no fields, evidence at the first citing statement) for a table named by queries and declared nowhere, and access rows from the owning node with the CRUD letters of the ops, on top of the declared entities of P10.10; the summary states the count of such tables; the brief and agents/archmap-explorer.md say: tables the summary lists are made by script, but add entities (tables, datasets, collections) the summary does not list, with evidence. Keep merge deterministic, goldens green, SKILL.md untouched or at most one sentence (at or under 500 lines, line 3 byte-identical). Fixtures stay synthetic: no client, dataset or table name from an eval repository.",
+          "files": [
+            "scripts/prescan.mjs",
+            "scripts/lib/prescan/python.mjs",
+            "scripts/lib/prescan/generic.mjs",
+            "scripts/lib/prescan/node-backend.mjs",
+            "scripts/merge.mjs",
+            "scripts/pipeline.mjs",
+            "agents/archmap-explorer.md",
+            "schema/archmap-model.schema.json",
+            "skills/architecture-map/references/model-schema.md",
+            "tests/prescan-python.test.mjs",
+            "tests/prescan-core.test.mjs",
+            "tests/prescan-node-backend.test.mjs",
+            "tests/merge.test.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/agents.test.mjs",
+            "tests/fixtures/repos/python-api"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-python.test.mjs: SQL string literals in the python fixture (SELECT ... FROM t, JOIN t, INSERT INTO t, UPDATE t, DELETE FROM t, CREATE TABLE t (...)) yield sqlRefs rows {table, op, file, line} and CREATE TABLE statements yield tables with their declared columns; a table named only in a query appears once with every op letter it is used with",
+              "tests/merge.test.mjs: a table named by sqlRefs but declared nowhere becomes an entity with provenance inferred, no fields, evidence at the first citing statement, and an access row from the node owning the file to that entity with the CRUD letters of its ops; a declared table keeps its declared fields and gains the access rows; the digest lists inferred entities too",
+              "tests/pipeline.test.mjs: the brief tells the explorer that tables the summary lists are made by script and that it must add entities for tables, datasets or collections it finds that the summary does not list, each with evidence; the summary states the count of sqlRefs tables",
+              "tests/agents.test.mjs: archmap-explorer.md says to add entities the summary lacks, with evidence, and never to re-list the ones it shows"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T01:38:06Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T01:56:59Z.58c16f",
+            "status": "passed",
+            "at": "2026-10-31T01:56:59Z"
+          }
+        },
+        {
+          "id": "P10.14-6rm",
+          "title": "Monorepo containers and queues by script: one app node per workspace app, queue names from identifiers, relations resolved by table name",
+          "status": "pending",
+          "description": "Round 4 of eval 4 (2026-10-31, a workspace monorepo, after P10.10-P10.12): 196 nodes, 290 edges, 142 entities and 28 relations at 1.70 USD and 10 orchestrator turns, but 5/8. Measured causes: (1) the extracts carry 0 queues although the code constructs 6 Workers, 3 Queues and a FlowProducer, because the queue names are a parameter, a constant member (QUEUES.x) or a literal in only one case, and the scanner wants a literal; (2) the partition folded three apps (hub, atlas, tenant-router) into one misc area and the explorer named them as a service or a module, so one app had no level-2 app node; (3) 28 meta.sources dropped-ref rows read \"previous relation:<table>.<col>-><table>.<col> -> <table>\": the relation pass looks the target up by bare table name while the generated entities carry other ids; (4) a key component (the middleware layer of the api) was not mapped because the floor has no middleware kind. Fix, by script: prescan lists workspace apps from pnpm-workspace.yaml, package.json workspaces or turbo.json; partition keeps every apps/* directory as its own area or the head of its area; the node scanner names queues from the literal, a same-file constant or the identifier text; merge generates a level-2 app node per workspace app the explorers did not produce (evidence at its package.json) and reparents the area's nodes under it, resolves relation targets by table name to the entity ids it generated, and emits each relation once; the brief names the app and the floor counts middleware modules. Runs after P10.13 (shared files). Keep merge deterministic, goldens green; fixtures synthetic with no client or repository name.",
+          "files": [
+            "scripts/lib/prescan/partition.mjs",
+            "scripts/lib/prescan/inventory.mjs",
+            "scripts/lib/prescan/node-backend.mjs",
+            "scripts/prescan.mjs",
+            "scripts/merge.mjs",
+            "scripts/pipeline.mjs",
+            "tests/prescan-core.test.mjs",
+            "tests/prescan-node-backend.test.mjs",
+            "tests/merge.test.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/fixtures/repos/node-api"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-core.test.mjs: prescan reads pnpm-workspace.yaml packages globs, package.json workspaces or a turbo.json and lists every workspace member under apps/* as a deployable app {name, dir, manifest}; partition never folds two apps/* directories into one misc bucket: each app is its own area or the head of its area, and leftovers merge among themselves only",
+              "tests/prescan-node-backend.test.mjs: new Queue(NAME_CONST), new Queue(QUEUES.x), new Worker(name, ...) and new FlowProducer(...) yield queue rows whose name is the literal when there is one, else the resolved constant from the same file, else the identifier text, each with file and line; a Worker without a resolvable name is named after its file",
+              "tests/merge.test.mjs: for every workspace app without a level-2 app node from the explorers, merge generates one (kind app, level 2, paths <dir>/**, evidence at its package.json) and reparents that area's nodes under it; relations from declared foreign keys resolve the target by table name to the generated or explorer entity id, so no relation is dropped as dangling when the entity exists; a repeated relation is emitted once",
+              "tests/pipeline.test.mjs: the explorer brief of an area holding a workspace app names the app and says its app node is made by script, and the coverage floor counts middleware modules (files or directories named middleware, middlewares, guards, interceptors) as elements to cover"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P10.13-6rm"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
         }
       ],
       "area": "cost",
@@ -5992,7 +6129,8 @@
   "fileIndex": {
     "schema/archmap-model.schema.json": [
       "P1.1",
-      "BF1.1"
+      "BF1.1",
+      "P10.13-6rm"
     ],
     "schema/archmap-issues.schema.json": [
       "P1.1"
@@ -6091,36 +6229,44 @@
       "P3.1",
       "P10.2-2xj",
       "P10.10-6rm",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.14-6rm",
+      "P10.13-6rm"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
       "P10.2-2xj",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.14-6rm"
     ],
     "scripts/lib/prescan/partition.mjs": [
       "P3.1",
       "P10.2-2xj",
-      "P10.6-6rm"
+      "P10.6-6rm",
+      "P10.14-6rm"
     ],
     "scripts/lib/prescan/generic.mjs": [
       "P3.1",
       "P10.2-2xj",
       "P10.10-6rm",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.13-6rm"
     ],
     "tests/prescan-core.test.mjs": [
       "P3.1",
       "P10.2-2xj",
       "P10.6-6rm",
       "P10.10-6rm",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.13-6rm",
+      "P10.14-6rm"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",
       "P10.2-2xj",
       "P10.10-6rm",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.13-6rm"
     ],
     "tests/fixtures/repos/python-api/README.md": [
       "P3.2",
@@ -6130,7 +6276,8 @@
       "P3.2",
       "P10.2-2xj",
       "P10.10-6rm",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.13-6rm"
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
@@ -6148,7 +6295,9 @@
     "scripts/lib/prescan/node-backend.mjs": [
       "P3.4",
       "P10.2-2xj",
-      "P10.10-6rm"
+      "P10.10-6rm",
+      "P10.13-6rm",
+      "P10.14-6rm"
     ],
     "tests/fixtures/repos/node-api/README.md": [
       "P3.4",
@@ -6157,7 +6306,9 @@
     "tests/prescan-node-backend.test.mjs": [
       "P3.4",
       "P10.2-2xj",
-      "P10.10-6rm"
+      "P10.10-6rm",
+      "P10.14-6rm",
+      "P10.13-6rm"
     ],
     "tests/fixtures/repos/python-api/pyproject.toml": [
       "P3.2"
@@ -6333,7 +6484,8 @@
       "BF1.3",
       "P10.2-2xj",
       "P10.3-2xj",
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.13-6rm"
     ],
     "skills/architecture-map/references/relation-taxonomy.md": [
       "P4.1"
@@ -6414,7 +6566,8 @@
       "P10.4-2xj",
       "P10.6-6rm",
       "P10.7-6rm",
-      "P10.10-6rm"
+      "P10.10-6rm",
+      "P10.13-6rm"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5",
@@ -6433,7 +6586,8 @@
       "P10.3-2xj",
       "P10.7-6rm",
       "P10.10-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.13-6rm"
     ],
     "scripts/merge.mjs": [
       "P5.1",
@@ -6446,7 +6600,9 @@
       "P10.9-6rm",
       "P10.10-6rm",
       "P10.11-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.13-6rm",
+      "P10.14-6rm"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -6459,7 +6615,9 @@
       "P10.6-6rm",
       "P10.9-6rm",
       "P10.10-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.13-6rm",
+      "P10.14-6rm"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -6638,7 +6796,9 @@
       "P10.7-6rm",
       "P10.10-6rm",
       "P10.11-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.13-6rm",
+      "P10.14-6rm"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -6646,7 +6806,9 @@
       "P10.7-6rm",
       "P10.10-6rm",
       "P10.11-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.13-6rm",
+      "P10.14-6rm"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -6667,10 +6829,12 @@
       "P10.2-2xj"
     ],
     "tests/fixtures/repos/node-api": [
-      "P10.10-6rm"
+      "P10.10-6rm",
+      "P10.14-6rm"
     ],
     "tests/fixtures/repos/python-api": [
-      "P10.11-6rm"
+      "P10.11-6rm",
+      "P10.13-6rm"
     ]
   },
   "bugs": [

@@ -1,11 +1,12 @@
 // node-backend.mjs - the node-backend stack plug-in of prescan: static, regex/lightweight-parse extraction.
 //
 // extractNodeBackend(files, read) -> fragment
-//   { scanned, routes[], entities[], openapi[], queues[], envKeys[], clients[], skipped{<kind>: n}, truncated{<kind>: n} }
+//   { scanned, routes[], entities[], openapi[], queues[], envKeys[], clients[], sqlTables[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (NestJS controllers, Express and Hono routers, with router mounts resolved), ORM entities
 // (Prisma models, TypeORM entities, Drizzle tables) with fields, PK/FK and relations, OpenAPI
 // documents (YAML or JSON), BullMQ queues with their producers and workers, environment variables read
-// (names only) and SDK clients / base URLs. Every item carries
+// (names only), SDK clients / base URLs, and SQL statements in string and template literals (sqlTables: {table, op,
+// evidence}, a CREATE TABLE with its columns). Every item carries
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
 // ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
 // counted in `truncated`. A recognised shape whose arguments cannot be resolved statically (a computed
@@ -19,9 +20,9 @@
 // Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
-import { detectStacks, scanClients, scanEnvKeys } from './generic.mjs';
+import { detectStacks, scanClients, scanEnvKeys, scanJsSql } from './generic.mjs';
 
-export const KINDS = ['clients', 'entities', 'envKeys', 'openapi', 'queues', 'routes'];
+export const KINDS = ['clients', 'entities', 'envKeys', 'openapi', 'queues', 'routes', 'sqlTables'];
 export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_FIELDS = 60; // per entity
 const MAX_NESTED = 2000; // producers / workers per queue, operations per OpenAPI document
@@ -977,6 +978,9 @@ export function extractNodeBackend(files, read) {
   extractQueues(ctx, acc);
   acc.envKeys.push(...scanEnvKeys(sorted, read, 'js'));
   acc.clients.push(...scanClients(sorted, read, 'js'));
+  const sql = scanJsSql(sorted.filter((p) => CODE_RE.test(p) && !SKIP_CODE_RE.test(p)), read);
+  acc.sqlTables.push(...sql.rows);
+  acc.skipped.sqlTables += sql.skipped;
 
   const truncated = {};
   const out = { scanned };

@@ -119,12 +119,25 @@ test('py5 raw SQL tables and outbound HTTP calls', () => {
   assert.deepEqual(
     frag.sqlTables.map((t) => `${t.table} ${t.op} ${ev(t)}`),
     [
-      'authors select app/reports.py:6-10',
-      'books select app/reports.py:6-10',
+      'authors select app/reports.py:7-9',
+      'books select app/reports.py:7-9',
       'orders delete app/reports.py:14',
       'order_archive insert app/reports.py:15',
       'orders select app/reports.py:15',
       'stock update app/reports.py:16',
+      'shelves ddl app/stockroom.py:4-8',
+      'shelf_moves ddl app/stockroom.py:9-15',
+      'courier_slots ddl app/stockroom.py:22',
+      'shelves select app/stockroom.py:29-33',
+      'shelf_moves select app/stockroom.py:29-33',
+      'shelf_moves insert app/stockroom.py:40',
+      'shelves update app/stockroom.py:41',
+      'courier_slots update app/stockroom.py:45',
+      'returns_desk select app/stockroom.py:49',
+      'returns_desk insert app/stockroom.py:50',
+      'returns_desk delete app/stockroom.py:51',
+      'price_checks select app/stockroom.py:52',
+      'returns_desk select app/stockroom.py:52',
       'books update migrations/versions/0002_add_isbn.py:14',
     ],
   );
@@ -315,4 +328,67 @@ test('py11 duckdb.connect and sqlite3.connect with a path literal give a store r
   });
   assert.deepEqual(odd.stores.map((s) => `${s.kind} ${s.path}`), ['sqlite data/orders.db'], 'in-memory and non-literal paths give no row');
   assert.equal(odd.skipped.stores, 2, 'a path that is not a literal is counted, never guessed');
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.13: the SQL a program runs over a connection is the only schema some repositories hold (the database file is
+// made at runtime), so the CREATE TABLE statements are declared tables with their columns and the tables queries
+// name are references merge turns into inferred entities.
+
+test('py12 CREATE TABLE statements in string literals (a multi-statement script, a single-line call) give a ddl row with their columns, primary keys and REFERENCES targets; a constraint line is not a column', () => {
+  const ddl = Object.fromEntries(frag.sqlTables.filter((t) => t.op === 'ddl').map((t) => [t.table, t]));
+  assert.deepEqual(Object.keys(ddl).sort(), ['courier_slots', 'shelf_moves', 'shelves']);
+  assert.deepEqual(pick(ddl.shelves.columns, ['name', 'type', 'pk', 'fk']), [
+    { name: 'id', type: 'INTEGER', pk: true, fk: null },
+    { name: 'label', type: 'TEXT', pk: false, fk: null },
+    { name: 'floor', type: 'INTEGER', pk: false, fk: null },
+  ]);
+  assert.deepEqual(pick(ddl.shelf_moves.columns, ['name', 'type', 'pk', 'fk']), [
+    { name: 'id', type: 'INTEGER', pk: true, fk: null },
+    { name: 'shelf_id', type: 'INTEGER', pk: false, fk: 'shelves.id' },
+    { name: 'copy_ref', type: 'TEXT', pk: false, fk: null },
+    { name: 'moved_at', type: 'TEXT', pk: false, fk: null },
+  ]);
+  assert.deepEqual(ddl.courier_slots.columns.map((c) => `${c.name} ${c.type}${c.pk ? ' pk' : ''}`), ['slot_id TEXT pk', 'day TEXT', 'taken INTEGER']);
+  assert.deepEqual(ddl.shelf_moves.evidence, [{ path: 'app/stockroom.py', lines: '9-15' }], 'the evidence is the statement, not the whole script');
+
+  const odd = memFrag({
+    'svc/schema.py':
+      'SQL = """\n' +
+      'CREATE TABLE "ledger_rows" (\n' +
+      "  a INTEGER, b INTEGER, price DECIMAL(10, 2) NOT NULL, note VARCHAR(40) DEFAULT 'x,y',\n" +
+      '  PRIMARY KEY (a, b),\n' +
+      '  FOREIGN KEY (b) REFERENCES "other_rows" (id),\n' +
+      '  CHECK (price > 0)\n' +
+      ');\n' +
+      'CREATE TABLE snapshot AS SELECT * FROM ledger_rows;\n' +
+      'CREATE INDEX ix_rows ON ledger_rows (a);\n' +
+      '"""\n',
+  });
+  const rows = odd.sqlTables.map((t) => `${t.table} ${t.op} ${t.evidence[0].lines}`);
+  assert.deepEqual(rows, ['ledger_rows ddl 2-7', 'snapshot ddl 8', 'ledger_rows select 8']);
+  assert.deepEqual(
+    odd.sqlTables[0].columns.map((c) => `${c.name} ${c.type}${c.pk ? ' pk' : ''}${c.fk ? ` fk=${c.fk}` : ''}`),
+    ['a INTEGER pk', 'b INTEGER pk fk=other_rows.id', 'price DECIMAL(10, 2)', 'note VARCHAR(40)'],
+  );
+  assert.equal('columns' in odd.sqlTables[1], false, 'CREATE TABLE ... AS SELECT declares no columns');
+});
+
+test('py13 a table only queries name is a reference with every op it is used with (SELECT, JOIN, INSERT INTO, UPDATE, DELETE FROM), one row per op and statement; a placeholder in the table position is skipped and counted, never guessed', () => {
+  const ops = {};
+  for (const t of frag.sqlTables.filter((x) => x.evidence[0].path === 'app/stockroom.py')) (ops[t.table] ??= new Set()).add(t.op);
+  assert.deepEqual([...ops.returns_desk].sort(), ['delete', 'insert', 'select'], 'declared nowhere, used three ways');
+  assert.deepEqual([...ops.price_checks], ['select']);
+  assert.ok(frag.sqlTables.every((t) => t.op === 'ddl' || !('columns' in t)), 'only a declaration carries columns');
+
+  const odd = memFrag({
+    'svc/q.py':
+      'def f(c, t):\n' +
+      '    c.execute(f"SELECT * FROM {t}")\n' +
+      '    c.execute(f"INSERT INTO audit_{t} (a) VALUES (1)")\n' +
+      '    c.execute("SELECT 1")\n' +
+      '    c.execute("select a from pilots where id = 1")\n',
+  });
+  assert.deepEqual(odd.sqlTables.map((t) => `${t.table} ${t.op}`), ['pilots select'], 'nothing is guessed from a placeholder');
+  assert.equal(odd.skipped.sqlTables, 2);
 });

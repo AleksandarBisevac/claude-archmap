@@ -642,9 +642,12 @@ test('m16 access rows come from the SQL evidence and relations from the declared
     'mailer-worker orders R worker/tasks.py:12',
     'orders-api customers R api/main.py:22',
     'orders-api orders C api/main.py:25',
+    'orders-api orders-archive R api/main.py:27',
   ]);
-  // a SQL table no entity models is not invented
-  assert.equal(model.entities.some((e) => e.id === 'orders_archive'), false);
+  // P10.13: a SQL table no entity models is an inferred entity (no fields), cited at its statement
+  const archive = model.entities.find((e) => e.name === 'orders_archive');
+  assert.equal(archive.provenance, 'inferred');
+  assert.deepEqual(archive.evidence, ev('api/main.py', '27'));
   // one fk declared on a model field, one declared in the ORM table of the prescan extract
   assert.deepEqual(model.relations, [
     { from: { entity: 'orders', field: 'customer_id' }, to: { entity: 'customers', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' },
@@ -667,7 +670,7 @@ test('m17 digest.json is written beside the model: ids, kinds, roles, edges, ent
   assert.equal(d.nodes.find((n) => n.id === 'orders-api').kind, 'service');
   assert.equal(d.nodes.find((n) => n.id === 'orders-api').role, 'Takes and stores orders.');
   assert.ok(d.edges.some((e) => e.from === 'web-app' && e.to === 'orders-api' && e.type === 'api'), JSON.stringify(d.edges));
-  assert.deepEqual(d.entities.map((e) => e.name).sort(), ['customers', 'orders', 'receipts']);
+  assert.deepEqual(d.entities.map((e) => e.name).sort(), ['customers', 'orders', 'orders_archive', 'receipts']);
   // the flow from the web entry point: route, handler, access rows and the queue hop, drafted in the step grammar
   assert.ok(Array.isArray(d.drafts) && d.drafts.length >= 1, JSON.stringify(d.drafts));
   const draft = d.drafts.find((s) => /POST \/orders/.test(s.title));
@@ -1125,4 +1128,76 @@ test('m22c through the CLI a synth with an unplaceable step exits 0 and writes a
   assert.equal(model.meta.sources.filter((x) => x.type === 'dropped-step').length, 1);
   assert.deepEqual(model.sequences.find((s) => s.id === 'place-order').steps.map((s) => s.t), ['A', 'B']);
   rmSync(dir, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.13: a repository whose only schema is the SQL its code runs (the database file is made at runtime) still gets
+// entities: the CREATE TABLE statements are declared tables, and a table that queries name and nothing declares is an
+// inferred entity with no fields, cited at its first statement, with access rows from the node that runs the queries.
+
+const sqlExtracts = () => [
+  {
+    area: 'app', stacks: ['python'], links: [], queues: [],
+    tables: [{ name: 'shelves', table: 'shelves', orm: 'sql', fields: ['id INTEGER pk', 'label TEXT'], file: 'app/stock.py', line: 4, lines: '4-8' }],
+    sqlTables: [
+      'shelves ddl app/stock.py:4',
+      'shelves select app/stock.py:30',
+      'shelves update app/stock.py:41',
+      'returns_desk select app/stock.py:50',
+      'returns_desk insert app/stock.py:51',
+      'returns_desk delete app/stock.py:52',
+      'price_checks select app/stock.py:53',
+      'main.shelves select app/stock.py:60',
+    ],
+  },
+];
+const sqlFrags = () => [frag('app', { nodes: [node('stock-svc', { zone: 'svc', paths: ['app/**'] })] })];
+const sqlMerged = (extra = {}) => merge({ fragments: sqlFrags(), extracts: sqlExtracts(), meta: META, ...extra });
+
+test('m23 a table named by SQL and declared nowhere becomes an entity with provenance inferred, no fields and evidence at its first statement, with one access row from the node that owns the file carrying the CRUD letters of its ops; a declared table keeps its fields and gains access rows', () => {
+  const { model } = sqlMerged();
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(model.entities.map((e) => e.name).sort(), ['price_checks', 'returns_desk', 'shelves'], 'one entity per table, a schema-qualified name is the same table');
+  const byName = Object.fromEntries(model.entities.map((e) => [e.name, e]));
+  assert.equal(byName.returns_desk.provenance, 'inferred');
+  assert.deepEqual(byName.returns_desk.fields, []);
+  assert.deepEqual(byName.returns_desk.evidence, ev('app/stock.py', '50'), 'the first citing statement');
+  assert.equal(byName.price_checks.provenance, 'inferred');
+  assert.deepEqual(byName.price_checks.evidence, ev('app/stock.py', '53'));
+  assert.equal(byName.shelves.provenance, undefined, 'a declared table is not marked');
+  assert.deepEqual(byName.shelves.fields.map((f) => `${f.name}:${f.provenance}`), ['id:declared', 'label:declared']);
+  const store = model.nodes.find((n) => n.id === byName.returns_desk.store);
+  assert.equal(store && store.kind, 'store', 'an entity has a store, made for the area when no node is one');
+  assert.equal(byName.shelves.store, byName.returns_desk.store);
+  const rows = Object.fromEntries(model.access.map((a) => [model.entities.find((e) => e.id === a.entity).name, a]));
+  assert.equal(rows.returns_desk.node, 'stock-svc');
+  assert.equal(rows.returns_desk.ops, 'CRD');
+  assert.deepEqual(rows.returns_desk.evidence.map((e) => e.lines), ['50', '51', '52']);
+  assert.equal(rows.price_checks.ops, 'R');
+  assert.equal(rows.shelves.ops, 'RU', 'ddl is not an access; both spellings of the table are one entity');
+  assert.equal(model.access.length, 3);
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.equal(row.derived.entitiesInferred, 2);
+  assert.match(row.note, /2 inferred/);
+});
+
+test('m23b an explorer entity named like a queried table is the table\'s entity (not a second, inferred one); the digest lists inferred entities and marks them; two runs and either input order are byte-identical', async () => {
+  const mine = sqlFrags();
+  mine[0].nodes.push(node('app-db', { zone: 'data', kind: 'store', paths: ['db/**'] }));
+  mine[0].entities.push({ id: 'desk', store: 'app-db', name: 'Returns_Desk', kind: 'table', fields: [], evidence: ev('app/stock.py', '50') });
+  const { model } = merge({ fragments: mine, extracts: sqlExtracts(), meta: META });
+  assert.deepEqual(model.entities.map((e) => e.name).sort(), ['Returns_Desk', 'price_checks', 'shelves']);
+  assert.equal(model.entities.find((e) => e.id === 'desk').provenance, undefined);
+  assert.ok(model.access.some((a) => a.entity === 'desk' && a.ops === 'CRD'), JSON.stringify(model.access));
+
+  const { buildDigest, digestText } = await import('../scripts/merge.mjs');
+  const m = sqlMerged().model;
+  const d = buildDigest(m, { drafts: [] });
+  assert.deepEqual(d.entities.map((e) => `${e.name}${e.provenance ? ` ${e.provenance}` : ''}`).sort(), ['price_checks inferred', 'returns_desk inferred', 'shelves']);
+  assert.ok(digestText(d).includes('"provenance":"inferred"'));
+
+  const fwd = JSON.stringify(sqlMerged().model);
+  const rev = JSON.stringify(merge({ fragments: sqlFrags(), extracts: [{ ...sqlExtracts()[0], sqlTables: sqlExtracts()[0].sqlTables.slice().reverse() }], meta: META }).model);
+  assert.equal(fwd, rev, 'the order of the statements does not change the model');
+  assert.equal(JSON.stringify(sqlMerged().model), fwd, 'two runs are identical');
 });

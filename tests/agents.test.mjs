@@ -168,3 +168,13 @@ test('a10 the synthesizer says a step merge cannot place is dropped and recorded
   assert.match(body, /never (re-?asked|asked again|sent back)|not (re-?asked|asked again|sent back)|is never asked again/i, 'never asked again');
   assert.match(body, /step grammar|sequences\.md/i);
 });
+
+// P10.13: the script makes the tables the summary lists, but a table, dataset or collection it lacks is the explorer's to add.
+test('a10 the explorer adds the entities the summary lacks, each with evidence, and never re-lists the ones the summary shows', () => {
+  const { body } = load('archmap-explorer');
+  assert.match(body, /add (an )?entit(y|ies)[^\n.]*(summary|prescan)[^\n.]*(lacks|does not list|doesn't list|missing)/i, 'it adds entities the summary lacks');
+  assert.match(body, /\b(tables|datasets|collections)\b[^\n]*\b(tables|datasets|collections)\b/i, 'tables, datasets or collections');
+  assert.match(body, /evidence/i);
+  assert.match(body, /(never|do not|don't) (re-list|list again|transcribe)[^\n.]*(summary|shows|lists)/i, 'the listed ones are not re-listed');
+  assert.match(body, /entities, relations and queue edges[^\n.]*\b(script|merge\.mjs)\b/i, 'the script still makes the rest');
+});

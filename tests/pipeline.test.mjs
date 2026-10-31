@@ -885,3 +885,49 @@ test('p26 the issues step exits 2 naming the path when <work>/reviewer.json is m
   writeFileSync(join(w2, 'reviewer.json'), '{"issues":[]}');
   assert.equal(step(['issues', '--work', w2], env).status, 2);
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.13: SQL run over a connection is a schema too. The summary states how many tables queries name that nothing
+// declares, the brief and the agent say the script makes the tables the summary lists and the explorer adds the
+// entities the summary lacks, and finish turns the statements into entities.
+
+test('p27 the summary states the count of tables only queries name; the brief tells the explorer the listed tables are made by script and to add entities for tables, datasets or collections the summary does not list, each with evidence; finish makes declared and inferred entities from the SQL', () => {
+  const code =
+    'import sqlite3\n\n' +
+    'def run(conn):\n' +
+    '    conn.executescript("CREATE TABLE IF NOT EXISTS kiosk_visits (id INTEGER PRIMARY KEY, kiosk_id INTEGER, seen_at TEXT)")\n' +
+    '    conn.execute("INSERT INTO kiosk_visits (kiosk_id) VALUES (1)")\n' +
+    '    rows = conn.execute("SELECT * FROM kiosk_visits v JOIN kiosk_notes n ON n.vid = v.id").fetchall()\n' +
+    '    conn.execute("DELETE FROM kiosk_alerts WHERE seen = 1")\n' +
+    '    return rows\n';
+  const { r, w } = dbRepo('sql-code', { code });
+  const sums = readdirSync(join(w, 'extracts')).filter((f) => f.endsWith('.summary.json')).map((f) => readJson(join(w, 'extracts', f)));
+  const sum = sums.find((s) => s.counts.sqlTables > 0);
+  assert.ok(sum, 'an area lists the statements');
+  assert.equal(sum.counts.inferredTables, 2, 'kiosk_notes and kiosk_alerts: queried, declared nowhere');
+  assert.match(sum.note, /inferred/i, 'the note says what the count means');
+  const full = readJson(join(w, 'extracts', `${sum.area}.json`));
+  assert.ok(!('inferredTables' in (full.counts ?? {})), 'the full extract holds rows, not the summary count');
+  for (const a of readJson(join(w, 'prescan.json')).areas) {
+    const brief = readFileSync(join(w, 'briefs', `${a.id}.md`), 'utf8');
+    assert.match(brief, /tables the summary lists[^.]*\bscript\b/i, `${a.id}: the listed tables are the script's`);
+    assert.match(brief, /add\s+entities\s+for\s+tables, datasets or collections[^.]*(not list|lacks|does not)/i, `${a.id}: the explorer adds what the summary lacks`);
+    assert.match(brief, /evidence/i);
+    assert.ok(brief.length <= BRIEF_CAP, `${a.id}: ${brief.length} characters`);
+  }
+
+  const none = step(['finish', '--work', w]);
+  assert.equal(none.status, 0, none.stdout);
+  const model = readJson(join(w, 'model.json'));
+  const byName = Object.fromEntries(model.entities.map((e) => [e.name, e]));
+  assert.deepEqual(byName.kiosk_visits.fields.map((f) => `${f.name}:${f.provenance}`), ['id:declared', 'kiosk_id:declared', 'seen_at:declared']);
+  for (const t of ['kiosk_notes', 'kiosk_alerts']) {
+    assert.equal(byName[t].provenance, 'inferred', t);
+    assert.deepEqual(byName[t].fields, []);
+    assert.equal(byName[t].evidence[0].path, 'src/entities/load.py');
+  }
+  assert.deepEqual(byName.kiosk_notes.evidence, [{ path: 'src/entities/load.py', lines: '6' }]);
+  assert.ok(model.access.some((a) => a.entity === byName.kiosk_alerts.id && a.ops === 'D'), JSON.stringify(model.access));
+  const v = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', r], { encoding: 'utf8' });
+  assert.equal(v.status, 0, v.stdout + v.stderr);
+});

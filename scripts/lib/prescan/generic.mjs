@@ -307,6 +307,318 @@ export function scanDatabases(files, read, lang) {
   return { rows, skipped };
 }
 
+// --- SQL in string literals -------------------------------------------------------------------
+
+const MAX_COLUMNS = 200; // per CREATE TABLE: the extract is the full record, this is a ceiling against a pathological file
+const MAX_SQL_TEXT = 200;
+const SQL_VERB = /^\s*(select|with|insert|update|delete|create|alter|drop|truncate|replace|merge)\b/i;
+const SQL_TABLE_REF = /\b(from|join|into|update|table)\s+(?:if\s+(?:not\s+)?exists\s+)?(\{|[A-Za-z_"`][\w."`$]*)/gi;
+const SQL_NOT_TABLE = new Set(['select', 'lateral', 'only', 'if', 'not', 'exists', 'values', 'set', 'where', 'unnest', 'table', 'temp', 'temporary']);
+// prose that starts like a statement ("Select an option from the menu"): a table is never one of these
+const PROSE_WORDS = new Set(['the', 'a', 'an', 'your', 'this', 'that', 'these', 'those', 'each', 'every', 'all', 'any', 'one', 'its', 'our', 'my']);
+const unquote = (s) => s.replace(/^["`[]|["`\]]$/g, '');
+
+/** `text` with SQL comments (-- to the end of the line, and block comments) blanked, same length, quotes respected. */
+function blankSqlComments(text) {
+  const out = text.split('');
+  let q = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === "'" || c === '"' || c === '`') q = c;
+    else if (c === '-' && text[i + 1] === '-') {
+      while (i < text.length && text[i] !== '\n') out[i++] = ' ';
+    } else if (c === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2);
+      const stop = end < 0 ? text.length : end + 2;
+      for (; i < stop; i++) if (text[i] !== '\n') out[i] = ' ';
+      i--;
+    }
+  }
+  return out.join('');
+}
+
+/** Offsets [a, b) of the statements of `text` (comments already blanked): cut at a semicolon outside quotes and parentheses. */
+function splitSql(text) {
+  const cuts = [];
+  let q = null;
+  let depth = 0;
+  let from = 0;
+  const push = (to) => {
+    let a = from;
+    let b = to;
+    while (a < b && /\s/.test(text[a])) a++;
+    while (b > a && /\s/.test(text[b - 1])) b--;
+    if (b > a) cuts.push({ a, b });
+  };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === "'" || c === '"' || c === '`') q = c;
+    else if (c === '(') depth++;
+    else if (c === ')') depth = Math.max(0, depth - 1);
+    else if (c === ';' && depth === 0) {
+      push(i);
+      from = i + 1;
+    }
+  }
+  push(text.length);
+  return cuts;
+}
+
+/** Split `s` at top-level commas (outside quotes and parentheses). */
+function splitTopLevel(s) {
+  const out = [];
+  let q = null;
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === "'" || c === '"' || c === '`') q = c;
+    else if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) {
+      out.push(s.slice(from, i));
+      from = i + 1;
+    }
+  }
+  out.push(s.slice(from));
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+
+const COLUMN_STOP = /^(?:not|null|primary|references|default|unique|check|constraint|generated|collate|autoincrement|auto_increment|identity|comment|on|as)$/i;
+const TABLE_ITEM = /^(?:constraint\s+\S+\s+)?(primary\s+key|foreign\s+key|unique|check|key|index|exclude|fulltext|spatial|period)\b/i;
+const REFERENCES = /\breferences\s+("[^"]+"|`[^`]+`|[\w$.]+)\s*(?:\(\s*("[^"]+"|`[^`]+`|[\w$]+)\s*\))?/i;
+const nameList = (s) => splitTopLevel(s).map((x) => unquote(x.replace(/\s+(?:asc|desc)\s*$/i, '').trim()));
+
+/**
+ * The columns a CREATE TABLE statement declares, from the "(" at `open` in `st`: [{name, type, pk, fk}] with fk
+ * "<table>.<column>" (or just the table) from REFERENCES, a table-level PRIMARY KEY (...) and FOREIGN KEY (...)
+ * applied to the columns they name. null when no parenthesis follows (CREATE TABLE x AS SELECT ...).
+ */
+function sqlColumns(st, open) {
+  let i = open;
+  while (i < st.length && /\s/.test(st[i])) i++;
+  if (st[i] !== '(') return null;
+  let q = null;
+  let depth = 0;
+  let close = -1;
+  for (let j = i; j < st.length; j++) {
+    const c = st[j];
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === "'" || c === '"' || c === '`') q = c;
+    else if (c === '(') depth++;
+    else if (c === ')' && --depth === 0) {
+      close = j;
+      break;
+    }
+  }
+  if (close < 0) return null;
+  const columns = [];
+  const tableLevel = [];
+  for (const item of splitTopLevel(st.slice(i + 1, close))) {
+    const t = TABLE_ITEM.exec(item);
+    if (t) {
+      tableLevel.push({ kind: t[1].toLowerCase().replace(/\s+/g, ' '), item });
+      continue;
+    }
+    const m = /^("[^"]+"|`[^`]+`|\[[^\]]+\]|[\w$]+)\s*([\s\S]*)$/.exec(item);
+    if (!m) continue;
+    const rest = m[2];
+    const type = [];
+    for (const tok of rest.match(/[A-Za-z_][\w.]*(?:\s*\([^)]*\))?|\S/g) ?? []) {
+      if (!/^[A-Za-z_]/.test(tok) || COLUMN_STOP.test(tok.replace(/\s*\(.*$/s, ''))) break;
+      type.push(tok);
+    }
+    const ref = REFERENCES.exec(rest);
+    columns.push({
+      name: unquote(m[1]),
+      type: type.join(' ').slice(0, MAX_SQL_TEXT),
+      pk: /\bprimary\s+key\b/i.test(rest),
+      fk: ref ? (ref[2] ? `${unquote(ref[1])}.${unquote(ref[2])}` : unquote(ref[1])) : null,
+    });
+  }
+  const byName = (n) => columns.find((c) => c.name.toLowerCase() === n.toLowerCase());
+  for (const { kind, item } of tableLevel) {
+    const cols = /\(([^)]*)\)/.exec(item);
+    if (!cols) continue;
+    if (kind === 'primary key') for (const n of nameList(cols[1])) if (byName(n)) byName(n).pk = true;
+    if (kind === 'foreign key') {
+      const ref = /\breferences\s+("[^"]+"|`[^`]+`|[\w$.]+)\s*(?:\(([^)]*)\))?/i.exec(item);
+      if (!ref) continue;
+      const targets = ref[2] ? nameList(ref[2]) : [];
+      nameList(cols[1]).forEach((n, k) => {
+        if (byName(n)) byName(n).fk = targets[k] ? `${unquote(ref[1])}.${targets[k]}` : unquote(ref[1]);
+      });
+    }
+  }
+  return columns.slice(0, MAX_COLUMNS);
+}
+
+/** Does `st` (a statement that starts with `verb`) read as SQL? `strict` is for code that also holds prose (js, ts). */
+function readsAsSql(verb, st, strict) {
+  if (verb === 'select' || verb === 'with') {
+    if (!/\bfrom\s+[\w"`{[]/i.test(st)) return false;
+    if (!strict) return true;
+    // "Select an option from the menu" is a label: SQL has a select list that is not one bare word, an uppercase
+    // SELECT ... FROM, or another clause
+    return /\bSELECT\b[\s\S]*\bFROM\b/.test(st) || /[*,(.]/.test(/^\s*(?:select|with)\b([\s\S]*?)\bfrom\b/i.exec(st)?.[1] ?? '') ||
+      /\b(?:where|join|group\s+by|order\s+by|limit|having|union)\b/i.test(st);
+  }
+  if (verb === 'update') return /^\s*update\s+[\w."`{]+\s+set\b/i.test(st);
+  if (verb === 'insert') return /^\s*insert\s+(?:or\s+\w+\s+)?into\s/i.test(st);
+  if (verb === 'delete') return /^\s*delete\s+from\s/i.test(st);
+  if (verb === 'create' || verb === 'alter' || verb === 'drop' || verb === 'truncate') return /\btable\b|^\s*truncate\s/i.test(st);
+  return !strict;
+}
+
+/**
+ * The statements in one string body: { statements: [{ a, b, refs: [{ table, op, columns? }] }], skipped }.
+ * `a` and `b` are the statement's offsets in `body` (leading and trailing blanks and comments excluded); `op` is
+ * select (FROM, JOIN), insert, update, delete or ddl (CREATE, ALTER, DROP, TRUNCATE TABLE); a CREATE TABLE ... (...)
+ * carries its `columns`. A table position holding a placeholder ({name}, ${name}, audit_{name}) is counted in
+ * `skipped`, never guessed. One row per table and op in a statement.
+ */
+export function sqlStatements(body, { strict = false } = {}) {
+  const text = blankSqlComments(body);
+  const statements = [];
+  let skipped = 0;
+  for (const { a, b } of splitSql(text)) {
+    const st = text.slice(a, b);
+    const verb = SQL_VERB.exec(st)?.[1]?.toLowerCase();
+    if (!verb || !readsAsSql(verb, st, strict)) continue;
+    const refs = [];
+    const seen = new Set();
+    let firstFrom = true;
+    for (const m of st.matchAll(SQL_TABLE_REF)) {
+      const kw = m[1].toLowerCase();
+      const tableRaw = m[2];
+      if (kw === 'update' && verb !== 'update') continue;
+      if (kw === 'table' && !['create', 'alter', 'drop', 'truncate'].includes(verb)) continue;
+      if (kw === 'into' && verb !== 'insert') continue;
+      const end = m.index + m[0].length;
+      if (tableRaw === '{' || st[end] === '{') {
+        skipped++;
+        continue;
+      }
+      const table = tableRaw.replace(/["`]/g, '');
+      if (SQL_NOT_TABLE.has(table.toLowerCase()) || (strict && PROSE_WORDS.has(table.toLowerCase()))) continue;
+      let op;
+      if (kw === 'join') op = 'select';
+      else if (kw === 'from') {
+        op = verb === 'delete' && firstFrom ? 'delete' : 'select';
+        firstFrom = false;
+      } else if (kw === 'into') op = 'insert';
+      else if (kw === 'update') op = 'update';
+      else op = 'ddl';
+      const key = `${table}\0${op}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const ref = { table: table.slice(0, MAX_SQL_TEXT), op };
+      if (op === 'ddl' && verb === 'create') {
+        const columns = sqlColumns(st, end);
+        if (columns !== null) ref.columns = columns;
+      }
+      refs.push(ref);
+    }
+    if (refs.length) statements.push({ a, b, refs });
+  }
+  return { statements, skipped };
+}
+
+/**
+ * SQL in the string and template literals of js/ts files: { rows: [{table, op, columns?, evidence}], skipped }.
+ * A `${...}` inside a template is a placeholder (a table position holding one is counted in `skipped`). Comments are
+ * skipped; prose that starts like a statement is not SQL. The code is read as text, never run.
+ */
+export function scanJsSql(files, read) {
+  const rows = [];
+  let skipped = 0;
+  for (const path of files) {
+    if (!JS_FILE.test(path) || NOT_RUNTIME.test(path)) continue;
+    const src = read(path);
+    if (typeof src !== 'string' || !/\b(?:select|insert|update|delete|create|alter|drop|truncate|with)\b/i.test(src)) continue;
+    const lineAt = lineLookup(src);
+    for (const lit of jsStrings(src)) {
+      const { statements, skipped: n } = sqlStatements(lit.body, { strict: true });
+      skipped += n;
+      for (const st of statements) {
+        const x = lineAt(lit.start + st.a);
+        const y = lineAt(lit.start + st.b - 1);
+        for (const r of st.refs) rows.push({ ...r, evidence: [{ path, lines: y > x ? `${x}-${y}` : `${x}` }] });
+      }
+    }
+  }
+  rows.sort((a, b) => byCodeUnit(a.evidence[0].path, b.evidence[0].path) || Number(a.evidence[0].lines.split('-')[0]) - Number(b.evidence[0].lines.split('-')[0]));
+  return { rows, skipped };
+}
+
+/** offset -> 1-based line number. */
+function lineLookup(src) {
+  const starts = [0];
+  for (let i = 0; i < src.length; i++) if (src[i] === '\n') starts.push(i + 1);
+  return (off) => {
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid] <= off) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  };
+}
+
+/**
+ * The string literals of js/ts source: [{start, body}], `start` the offset of the body in `src`. Comments are skipped;
+ * in a template literal a `${...}` is blanked to `{` plus spaces (same length, newlines kept) so offsets stay exact.
+ */
+function jsStrings(src) {
+  const out = [];
+  const n = src.length;
+  let i = 0;
+  while (i < n) {
+    const c = src[i];
+    if (c === '/' && src[i + 1] === '/') {
+      while (i < n && src[i] !== '\n') i++;
+    } else if (c === '/' && src[i + 1] === '*') {
+      const end = src.indexOf('*/', i + 2);
+      i = end < 0 ? n : end + 2;
+    } else if (c === "'" || c === '"') {
+      let j = i + 1;
+      while (j < n && src[j] !== c && src[j] !== '\n') j += src[j] === '\\' ? 2 : 1;
+      if (src[j] === c) out.push({ start: i + 1, body: src.slice(i + 1, j) });
+      i = Math.max(j + 1, i + 1);
+    } else if (c === '`') {
+      let j = i + 1;
+      let body = '';
+      while (j < n && src[j] !== '`') {
+        if (src[j] === '\\') {
+          body += '  ';
+          j += 2;
+        } else if (src[j] === '$' && src[j + 1] === '{') {
+          let depth = 0;
+          let k = j + 1;
+          for (; k < n; k++) {
+            if (src[k] === '{') depth++;
+            else if (src[k] === '}' && --depth === 0) break;
+          }
+          body += '{' + src.slice(j + 1, k + 1).replace(/[^\n]/g, ' ');
+          j = k + 1;
+        } else body += src[j++];
+      }
+      out.push({ start: i + 1, body });
+      i = j + 1;
+    } else i++;
+  }
+  return out;
+}
+
 // --- import graph -----------------------------------------------------------------------------
 
 const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');

@@ -31,7 +31,9 @@
 // explorer's entity of the same table or model name when there is one, its store the store node that owns or covers
 // the file, else the area's one store node, else a store node made for the area; one queue node per queue name (an
 // explorer's queue node of that name is the node), and a `queue` edge (async) from the node owning each producer and
-// each consumer to it, at that line. These are not held to the fragment caps.
+// each consumer to it, at that line. A table that SQL statements in the code name and nothing declares (the schema
+// of a program that creates its database file at runtime lives in its queries) becomes an entity with provenance
+// "inferred", no fields and evidence at the first statement that names it. These are not held to the fragment caps.
 // What cannot be cited or resolved (a file no node owns, a table no entity models) is never guessed: it is counted
 // in one meta.sources row of type "derivation". The result also carries a digest (written with --digest
 // <work>/digest.json, at most DIGEST_CAP characters): node ids, kinds, zones, one-line roles, the edge list,
@@ -414,7 +416,7 @@ const declaredAt = (t) => {
  * producer and consumer edges, and the counts.
  */
 function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
-  const made = { entities: 0, merged: 0, stores: 0, queues: 0 };
+  const made = { entities: 0, merged: 0, inferred: 0, stores: 0, queues: 0 };
   const owner = nodeResolver(nodes);
   const storeOwner = nodeResolver(new Map([...nodes].filter(([, n]) => STORE_KINDS.has(kindOf(n)))));
   const uniq = (pool, id) => {
@@ -443,7 +445,7 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
       const id = uniq(nodes, slug(`${area}-db`) || 'db');
       nodes.set(id, {
         id, zone: zoneId('data'), kind: 'store', title: `${area} database`,
-        role: `Holds the tables the ${area} area declares; made by merge.mjs from the prescan extract.`,
+        role: `Holds the tables the ${area} area declares or queries; made by merge.mjs from the prescan extract.`,
         paths: [], level: 2, evidence: declaredAt(t).length ? declaredAt(t) : [{ path: t.file, lines: '1' }],
       });
       madeStores.set(area, id);
@@ -474,6 +476,7 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
         const ev = unionEvidence(evidence, e.evidence);
         if (ev.length) e.evidence = ev;
         nameIt(t.name, id);
+        nameIt(table, id);
         made.merged++;
         continue;
       }
@@ -485,6 +488,34 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
       nameIt(t.name, eid);
       made.entities++;
     }
+  }
+
+  // --- entities the SQL names and nothing declares: provenance inferred, no fields, cited at the first statement that
+  // names the table (a select, insert, update or delete; a ddl statement is not a use). An entity of that name, id or
+  // table (a schema prefix is dropped) is the table's, declared or an explorer's, and nothing is added.
+  const entityIds = new Set([...entities.keys()].map((k) => k.toLowerCase()));
+  const queried = new Map(); // lowercased table (no schema) -> { name, area, at } of the earliest statement
+  for (const s of slices) {
+    const area = String(s.area ?? '');
+    for (const row of list(s.sqlTables)) {
+      const m = /^(\S+)\s+(\S+)\s+(.+):(\d+)$/.exec(String(row));
+      if (!m || SQL_OPS[m[2].toLowerCase()] === undefined) continue;
+      const key = m[1].toLowerCase().split('.').pop();
+      if (!key || byName.has(m[1].toLowerCase()) || byName.has(key) || entityIds.has(key)) continue;
+      const at = { path: m[3], lines: m[4] };
+      const have = queried.get(key);
+      if (!have || byLoc(at, have.at) < 0) queried.set(key, { name: m[1], area, at });
+    }
+  }
+  for (const key of [...queried.keys()].sort(cmp)) {
+    const q = queried.get(key);
+    const eid = uniq(entities, slug(key) || 'table');
+    const store = storeFor(q.area, { file: q.at.path, line: Number(q.at.lines) });
+    entities.set(eid, { id: eid, store, name: q.name, kind: 'table', fields: [], provenance: 'inferred', evidence: [q.at] });
+    nameIt(q.name, eid);
+    nameIt(key, eid);
+    made.entities++;
+    made.inferred++;
   }
 
   // --- queue nodes: one per name, however many areas list it
@@ -644,23 +675,27 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     if (id !== null) nameIt(t.name, id);
   }
 
-  // --- access rows from the SQL the slices list ("<table> <op> <path>:<line>")
+  // --- access rows from the SQL the slices list ("<table> <op> <path>:<line>"), in file and line order so the evidence
+  // of a row does not depend on the order the slices or their rows arrive in
+  const statements = [];
   for (const s of slices) {
     for (const row of list(s.sqlTables)) {
       const m = /^(\S+)\s+(\S+)\s+(.+):(\d+)$/.exec(String(row));
-      if (!m) continue;
-      const [, table, op, path, line] = m;
-      const ops = SQL_OPS[op.toLowerCase()];
-      if (ops === undefined) continue; // ddl shapes the schema; it is not an access
-      const entity = lookup(table);
-      const node = owner(path);
-      if (entity === null || node === null) {
-        skipped.push(`sql ${table} ${op} at ${path}:${line}: ${entity === null ? 'no entity models the table' : `no node owns ${path}`}`);
-        continue;
-      }
-      addAccess(access, { node, entity, ops, evidence: [{ path, lines: line }] });
-      count.access++;
+      if (m) statements.push({ table: m[1], op: m[2], path: m[3], line: m[4] });
     }
+  }
+  statements.sort((p, q) => cmp(p.path, q.path) || Number(p.line) - Number(q.line) || cmp(p.table, q.table) || cmp(p.op, q.op));
+  for (const { table, op, path, line } of statements) {
+    const ops = SQL_OPS[op.toLowerCase()];
+    if (ops === undefined) continue; // ddl shapes the schema; it is not an access
+    const entity = lookup(table);
+    const node = owner(path);
+    if (entity === null || node === null) {
+      skipped.push(`sql ${table} ${op} at ${path}:${line}: ${entity === null ? 'no entity models the table' : `no node owns ${path}`}`);
+      continue;
+    }
+    addAccess(access, { node, entity, ops, evidence: [{ path, lines: line }] });
+    count.access++;
   }
 
   // --- relations from declared foreign keys: a model field's fk, then an ORM table's fk=
@@ -696,13 +731,13 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
   }
 
   const reasons = [...new Set(skipped)].sort(cmp);
-  const tally = made ?? { entities: 0, merged: 0, stores: 0, queues: 0 };
+  const tally = made ?? { entities: 0, merged: 0, inferred: 0, stores: 0, queues: 0 };
   const source = {
     type: 'derivation',
-    derived: { ...count, entities: tally.entities, entitiesMerged: tally.merged, stores: tally.stores, queues: tally.queues },
+    derived: { ...count, entities: tally.entities, entitiesMerged: tally.merged, entitiesInferred: tally.inferred, stores: tally.stores, queues: tally.queues },
     skipped: { count: skipped.length, reasons: reasons.slice(0, MAX_REASONS) },
     note:
-      `merge.mjs made ${tally.entities} entit${tally.entities === 1 ? 'y' : 'ies'} (and merged ${tally.merged} into the explorers'), ` +
+      `merge.mjs made ${tally.entities} entit${tally.entities === 1 ? 'y' : 'ies'}${tally.inferred ? ` (${tally.inferred} inferred from the SQL the code runs)` : ''} (and merged ${tally.merged} into the explorers'), ` +
       `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, and derived ` +
       `${count.edges} edge(s), ${count.access} SQL access row(s) and ${count.relations} fk relation(s) from the prescan extracts; ` +
       `${skipped.length} link(s) or statement(s) could not be cited or resolved`,
@@ -829,7 +864,7 @@ export function buildDigest(model, { drafts = [] } = {}) {
     zones: list(model.zones).map((z) => compact({ id: z.id, kind: z.kind })),
     nodes: list(model.nodes).map((n) => compact({ id: n.id, kind: n.kind, zone: n.zone, level: n.level, title: clip(n.title, 80), role: clip(n.role, 140) })),
     edges: list(model.edges).map((e) => compact({ id: e.id, from: e.from, to: e.to, type: e.type, async: e.async === true ? true : undefined })),
-    entities: list(model.entities).map((e) => compact({ id: e.id, name: e.name, store: e.store })),
+    entities: list(model.entities).map((e) => compact({ id: e.id, name: e.name, store: e.store, provenance: e.provenance === 'inferred' ? 'inferred' : undefined })),
     access: list(model.access).map((a) => `${a.node} ${a.entity} ${a.ops}`),
     sequences: list(model.sequences).map((s) => compact({ id: s.id, title: s.title })),
     drafts: clone(drafts),

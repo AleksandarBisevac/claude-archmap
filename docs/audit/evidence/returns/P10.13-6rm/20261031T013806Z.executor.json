@@ -1,0 +1,43 @@
+{
+  "gates": {
+    "node --test (full suite)": "fail",
+    "node --test tests/denylist.test.mjs": "pass",
+    "node --test tests/prescan-python.test.mjs tests/merge.test.mjs tests/agents.test.mjs tests/prescan-node-backend.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T01:53:25Z",
+    "basis": "`node --test tests/prescan-python.test.mjs tests/merge.test.mjs tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "PARTIAL - BLOCKED on scripts/prescan.mjs: the plan gate refused my Edit of scripts/prescan.mjs (declared by P3.1, P10.2-2xj, P10.10-6rm, P10.11-6rm all done, and P10.14-6rm pending; not by P10.13-6rm), so the area slice and summary part is NOT in the tree. Full suite in the project tree: 394 tests, 392 pass, 2 fail (p27 in tests/pipeline.test.mjs and pc13 in tests/prescan-core.test.mjs), both only because prescan.mjs does not yet (a) put nb.sqlTables rows and ddl rows with columns into slice sqlTables/tables, (b) add counts.inferredTables to the summary and extend SUMMARY_NOTE. I verified the exact prescan.mjs patch in a throwaway copy of the tree (scratchpad, own git init, not the shared tree): with it the full suite is 394/394 green. Done in tree: scripts/lib/prescan/generic.mjs (shared SQL statement parser sqlStatements: splits statements, per-statement table/op refs, CREATE TABLE columns with type/pk/REFERENCES/table-level PRIMARY KEY and FOREIGN KEY, placeholders skipped and counted; scanJsSql for string and template literals with a stricter prose guard); scripts/lib/prescan/python.mjs (extractSql now uses it: statement-precise evidence, ddl rows carry columns, strings keep bodyStart); scripts/lib/prescan/node-backend.mjs (new sqlTables kind); scripts/merge.mjs (inferred entities for tables SQL names and nothing declares: provenance inferred, no fields, evidence at the first statement, store via storeFor; access rows now processed in sorted file/line order so evidence order is deterministic; derivation row gains derived.entitiesInferred and a note clause; digest entities carry provenance inferred; merged explorer entities also register their table name); scripts/pipeline.mjs (brief: tables the summary lists are made by script, add entities for tables, datasets or collections it does not list with evidence; the duplicated Budget phrase of the Profile line dropped to stay under BRIEF_CAP 4000, step 1 uses EXPLORER_TOOL_CALLS); agents/archmap-explorer.md (same rule). Tests: tests/prescan-python.test.mjs py5 updated (statement-precise lines, new fixture rows), py12, py13; tests/merge.test.mjs m16 and m17 updated (a queried table is now an inferred entity, was 'not invented'), m23, m23b; tests/pipeline.test.mjs p27; tests/prescan-core.test.mjs pc13; tests/agents.test.mjs a10; tests/prescan-node-backend.test.mjs nb6 skipped/truncated tallies gain sqlTables (this file is not in the task files; the gate allowed the edit); new synthetic fixture tests/fixtures/repos/python-api/app/stockroom.py (staged). Design deviations: sqlTables already existed in python (rows {table, op, evidence}, strings 'table op path:line' in the slice) so I extended it instead of adding a parallel sqlRefs kind; declared CREATE TABLE tables travel as ddl rows with columns and become slice tables rows (orm sql) in prescan.mjs; entity-level provenance 'inferred' is an undeclared optional key (the schema has no additionalProperties:false, but schema/archmap-model.schema.json and skills/architecture-map/references/model-schema.md do not document it yet - outside this task's files). THE PATCH prescan.mjs NEEDS (tested in the copy): (1) in areaExtracts replace the py.sqlTables line with a loop over [...(py.sqlTables ?? []), ...(nb.sqlTables ?? [])] that puts the string row into sqlTables and, when t.op === 'ddl' and Array.isArray(t.columns), also puts into tables {name: t.table, table: t.table, orm: 'sql', fields: t.columns.map(fieldStr), ...where(t), lines: at(t).lines}; (2) add function inferredTables(slice) counting distinct lowercase schema-less tables in slice.sqlTables rows with a non-ddl op that no slice.tables name/table nor ddl row declares, and in areaSummary set sum.counts.inferredTables when > 0 before the row slicing; (3) extend SUMMARY_NOTE to say one inferred entity per table the SQL names and nothing declares (counts.inferredTables), never transcribe the tables listed, and 'Do add entities for tables, datasets or collections that this summary does not list, each with evidence.' The patched copy lives at <scratchpad>/copy/scripts/prescan.mjs (diff it against scripts/prescan.mjs). Red-first and the helper run were made without prescan.mjs, so p27 and pc13 are not part of the proof. No commit made.",
+    "descriptive": "SQL in code now yields declared entities (CREATE TABLE with columns) and inferred ones (queried, declared nowhere) with access rows, but the summary count and node SQL slice routing wait on the refused edit of scripts/prescan.mjs."
+  },
+  "testsAdded": [
+    "py12/py13 in tests/prescan-python.test.mjs: CREATE TABLE columns, pk and REFERENCES, statement-precise evidence, queried-only tables with every op, placeholders skipped and counted",
+    "m23/m23b in tests/merge.test.mjs: inferred entity (provenance, no fields, first citing statement), access rows with CRUD letters, declared table keeps fields, explorer entity wins, digest marks inferred, deterministic under reversed input",
+    "p27 in tests/pipeline.test.mjs: summary counts inferredTables, brief wording, finish makes declared and inferred entities (RED until prescan.mjs is edited)",
+    "a10 in tests/agents.test.mjs: explorer adds entities the summary lacks with evidence and never re-lists the shown ones",
+    "pc13 in tests/prescan-core.test.mjs: python and js/ts template SQL reach the area extract and the summary count (RED until prescan.mjs is edited)"
+  ],
+  "casesAdded": [
+    [
+      "py12",
+      "py13"
+    ],
+    [
+      "m23",
+      "m23b"
+    ],
+    [
+      "p27"
+    ],
+    [
+      "a10"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f2568a4a2ac3916b28020c55cbd5af93689108f18b6af9868d22a7d38e363799\",\"dirtyDigest\":\"sha256:ee825ae697445ebe84eff3d2068ff8fbbfdca3b97a33e824491e0fc724ee6d3c\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"9e278833b36f0207\",\"docs/design.md\":\"184a0895cdcae9b3\",\"scripts/lib/prescan/generic.mjs\":\"56a2de3da14d08e7\",\"scripts/lib/prescan/node-backend.mjs\":\"e0931f1a7ce775d9\",\"scripts/lib/prescan/python.mjs\":\"367aad9be3aa1536\",\"scripts/merge.mjs\":\"31c20249d7ae12f2\",\"scripts/pipeline.mjs\":\"96d453541ceda933\",\"tests/agents.test.mjs\":\"1367146f263cf129\",\"tests/merge.test.mjs\":\"b0a47fad2f1b0f88\",\"tests/pipeline.test.mjs\":\"1a6d3cec80aa028f\",\"tests/prescan-core.test.mjs\":\"114cf4f18e646547\",\"tests/prescan-node-backend.test.mjs\":\"f8c9db548e2da29f\",\"tests/prescan-python.test.mjs\":\"498bd9097900eac2\"},\"head\":\"cafd08b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"scripts/lib/prescan/generic.mjs\",\"scripts/lib/prescan/node-backend.mjs\",\"scripts/lib/prescan/python.mjs\",\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"tests/agents.test.mjs\",\"tests/fixtures/repos/python-api\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/prescan-core.test.mjs\",\"tests/prescan-python.test.mjs\"],\"scopeDigest\":\"sha256:61b7faef6d2570d42cbf621ecdd7ad5295373197d142e81764d5517fe92c9797\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
