@@ -5440,7 +5440,7 @@
         {
           "id": "P10.5-2xj",
           "title": "Re-run evals 1, 2 and 4 on the P8 harness and prove the cost targets",
-          "status": "blocked",
+          "status": "in_progress",
           "description": "Owner-run, like P8.3: the eval repositories live only on the owner's machine and are pointed at by ARCHMAP_EVAL_REPO_A/B (never named in a tracked file). Run evals 1, 2 and 4 with the skill, headless, on the P8 harness into <home>/.claude/archmap/evals/iteration-2/, on the same orchestrator model as the baseline you compare against, grade them with the P8 grader and the issue-recall scorer, and profile each stream with scripts/cost-profile.mjs (take the LAST result event's modelUsage; it is cumulative). Pass when every expectation that passed in iteration-1 still passes, eval 2 recall is at least 60 percent, and the profiled list-price cost is under 5 USD for each of evals 1, 2 and 4 and at most twice that eval's no-skill baseline, with the orchestrator, synthesizer and explorer shares recorded. Record the before and after table in .private/evals/ and a repo-free summary (costs and shares only) in skills/architecture-map/evals/README.md. If a target is missed, file the gap as a note on this task with the profiler table and stop; the owner decides the next iteration.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -5462,14 +5462,14 @@
           "dependsOn": [
             "P10.4-2xj"
           ],
-          "attempts": 2,
+          "attempts": 3,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-10-31T14:19:48Z",
+          "startedAt": "2026-10-31T14:21:16Z",
           "completedAt": null,
           "verifiedBy": [],
           "reviewPerTask": "phase",
@@ -5519,7 +5519,11 @@
               "text": "Round 5 (b7dfb73, Opus orchestrator): eval 1 6/7 at 1.19 USD, 11 turns, 13 entities (9 inferred) but check_db_ready, cache_utils, auth.py and the external identity service missing; eval 2 7/7 at 2.07 USD, 17 turns, recall 0.60 (9/15, round 4 had 0.73); eval 4 0/8: plan exit 2, brief of the area holding apps/tenant-router plus every leftover (1205 files) is 4034 characters after the whole trim ladder. Filed P10.15-6rm (terminal trim rungs, leftovers keep their own areas, Python modules and FastAPI middleware in the floor). Round 6 after it."
             }
           ],
-          "blockedReason": "P10.15-6rm must land before round 6 of evals 1, 2 and 4"
+          "testEvidence": {
+            "runId": "2026-10-31T14:22:14Z.c04e59",
+            "status": "passed",
+            "at": "2026-10-31T14:22:14Z"
+          }
         },
         {
           "id": "P10.6-6rm",
@@ -6162,7 +6166,7 @@
         {
           "id": "P10.15-6rm",
           "title": "Brief always fits, leftovers never glued to one app, Python modules and FastAPI middleware in the coverage floor",
-          "status": "in_progress",
+          "status": "done",
           "description": "Round 5 of P10.5 (commit b7dfb73) stopped eval 4 at the plan step and left eval 1 at 6/7. Three causes, three fixes.\n\n1. The brief trim ladder has no terminal rung. The partition of the Hono monorepo put 1205 files into one area whose floor names 37 entry-point groups and 52 clients; after every rung of BRIEF_TRIMS the brief was still 4034 characters (4132 with a longer work path) and writeBrief threw \"over the 4000 cap\", so the whole build died with exit 2. Add rungs that always end under BRIEF_CAP: floorRoom 0 (the floor line keeps its count, the \"Each of these needs its own node\" line goes), globRoom 40, and the short app line; keep the throw only as a last guard, with a test that a pathological area (30 globs, 37 groups, 200-character work path) fits. The contract section and the summary and fragment paths are never cut.\n\n2. partition() with a workspace of 8 apps and maxAreas 8: the small-leftover merge makes one misc bucket, then the cap loop finds a single free area and folds every package, docs, infra and script directory (1205 files) into the smallest app (apps/tenant-router), so one Sonnet explorer with a 20-call budget was asked for 96 nodes, and packages/db lost the explorer it had in round 4. New rule: leftovers keep at least LEFTOVER_AREAS = 3 areas of their own (merge the two smallest leftovers only while more than that remain); the fold into an app happens only for a single remaining leftover smaller than SMALL. The area count may then exceed maxAreas by what the apps need (it already does when apps alone exceed the cap). Update the header comment and the pc14 assertions.\n\n3. Eval 1's backend area (FastAPI, 22 files) has a floor of 6 and the explorer wrote 8 nodes: no node for cache_utils.py, auth.py or the check_db_ready middleware, so the key-components check fails (the external identity service client lives in auth.py and surfaces once that module is read). The prescan python plugin must emit (a) middleware rows: `@<app>.middleware(\"http\")` over the next `def <name>` and `<app>.add_middleware(<Class>, ...)` -> {name, file, line}; (b) modules: for each entry point, the sibling .py files of its directory that define a top-level def or class, excluding __init__.py, test files and the entry point itself, as paths. prescan.mjs copies both into the area slice and summary (the python middleware names join the inventory's middleware list as `<file>:<name>` strings); coverageFloor in pipeline.mjs counts modules as a 'modules' group (names shown like the others, key 'modules', label 'modules') and the brief's Work step says one node per listed module. Keep the summary under SUMMARY_BUDGET and the brief under BRIEF_CAP (the ladder of fix 1 guarantees the latter).\n\nConstraints: zero dependencies, Node 18, deterministic output (sorted by code unit), scanner never executes the scanned code, model schema unchanged. Never a client dataset or product name in tests or fixtures: use the fixture repos under tests/fixtures/repos (extend tests/fixtures/repos/python-api with a middleware and two sibling modules) and synthetic names. Run the whole suite with `node --test` after staging new files (git add -N or git add), since the denylist test scans tracked files only. Do not run anything against the owner's eval repositories; do not commit.",
           "files": [
             "scripts/pipeline.mjs",
@@ -6199,19 +6203,36 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b1963e8391c2",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Fix 1 (scripts/pipeline.mjs): BRIEF_TRIMS gains four terminal rungs after 'floor names beyond 160 characters': 'floor names (the count stays)' (floorRoom 0: floorLines leaves out the 'Each of these needs its own node' line, the head with count and parts stays), 'globs beyond 40 characters' (globRoom 40), 'app names (their count stays)' (new appShort option: '- Workspace apps: N, listed in the summary; their app nodes are made by script, write none.'), and 'intro and the work step's last clause' (new terse option: one-line intro, Work step 2 without its 'then what prescan cannot see' clause). The fourth rung is beyond the three the task names: with only those three the p29 pathological area (30 globs, 37 entry-point groups, 52 clients, 12 route groups, 9 middleware, 14 modules, 6 apps, 200-character work path) still measured 4036 characters; with it, 3902. BRIEF_TRIMS and fitExplorerBrief are now exported; writeBrief's throw stays as the last guard. Contract and Reply sections and the summary/fragment paths are never touched by any rung. Fix 2 (scripts/lib/prescan/partition.mjs): exported SMALL=3 and new LEFTOVER_AREAS=3. Cap loop rule: keep = max(1, min(LEFTOVER_AREAS, maxAreas)); while areas > maxAreas, merge the two smallest leftovers only while more than keep leftovers remain; fold a leftover into the smallest app only when it is the single leftover left AND has fewer than SMALL files; otherwise stop (area count may exceed maxAreas by what the apps need). Header comment rewritten. pc14 changed where the rule changed: 'areas <= 8' became 'areas <= 8 apps + 3' and 'leftover areas <= 3', plus each app area holds only its own glob; the 'few' and 'many' cases are unchanged and still pass. Fix 3: python.mjs emits middleware [{name,file,line}] (decorator @<recv>.middleware(\"http\") over the next def, line of the decorator; <recv>.add_middleware(<Class>, ...) with the last dotted segment of the first positional argument, line of the call; matched on the string-masked source) and modules [paths]: for every .py entry point that genericRecipe names (same basename rule as the generic entry points, called on the .py files only so it reads nothing), the .py files in the same directory with a top-level def/class (masked source, so a def inside a string does not count), excluding __init__.py, test_*.py, *_test.py, conftest.py and the entry point itself; deduped, code-unit sorted. Neither is in KINDS, so skipped/truncated keys are unchanged (py7 holds). inventory.mjs: new joinMiddleware(modules, named) -> sorted union where '<file>:<name>' stands in for a bare entry of the same file; directory entries stay. prescan.mjs: 'modules' in KEY_ORDER after 'middleware', copied per area from py.modules; per-area python middleware joined into slice.middleware via joinMiddleware; SUMMARY_WEIGHT modules: 3. pipeline.mjs coverageFloor: a 'modules' group (key 'modules', label 'modules', only where non-empty) counts into the floor; Work step 2 now reads 'per router, handler or listed module of a backend'. Fixture python-api: app/main.py gets CORSMiddleware add_middleware (line 43) and @app.middleware(\"http\") check_db_ready (line 46), appended so earlier line numbers hold; new app/auth.py (class TokenVerifier) and app/cache_utils.py (def book_key); README rows added. New files staged with git add -N. Full suite: `node --test` exit non-zero, 404 tests, 403 pass, 1 fail: d1 (denylist) hits only docs/audit/audit-plan.json and docs/audit/journal/2026-10.4a4737ea-2d35-4dea-b282.jsonl at term #5. Neither file is mine (both were modified by the orchestrator before I started); no file of mine hits. Own command (4 files) exit 0, 64/64. I read pipeline.mjs's explorerBrief/coverageFloor/fitExplorerBrief before writing p29, because the contract section and the signature were needed to write its assertions; the other three tests were written before I read the code they test. Dependants: tests/pipeline.test.mjs, commands/build.md, commands/update.md, skills/architecture-map/SKILL.md, scripts/usage.mjs, tests/commands.test.mjs, tests/skill.test.mjs, tests/e2e.test.mjs are still correct (the CLI, step JSON and file layout are unchanged, and their suites pass). scripts/lib/prescan/stacks/python.mjs re-export is unchanged (pw4 passes). skills/architecture-map/references/stack-python-backend.md still holds but is incomplete: its kinds table already left out clients/envKeys/queues/stores and now leaves out middleware/modules too. It is outside my files. scripts/merge.mjs reads area slices; the new 'modules' key and the '<file>:<name>' middleware strings are ignored by it, and e2e passes. generic.mjs, node-backend.mjs and ts-frontend.mjs import inventory.mjs, which only gained an export, so they are unchanged.",
+            "descriptive": "Explorer briefs now always fit the cap. A workspace's leftovers keep 3 areas of their own instead of being glued to one app. FastAPI middleware and an entry point's sibling Python modules now count in the coverage floor."
           },
           "startedAt": "2026-10-31T14:19:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T14:20:47Z",
+          "verifiedBy": [
+            "p29 (tests/pipeline.test.mjs): fitExplorerBrief on a pathological area (30 globs, 37 entry-point groups, 52 clients, 6 apps, 200-character work path) does not throw, ends at or under BRIEF_CAP, its note lists every BRIEF_TRIMS rung in order ending with the last, before/after/area match, the contract section is byte-identical to the untrimmed one, both paths and the floor count stay, the names line is gone",
+            "pc16 (tests/prescan-core.test.mjs): 8 apps + 20 non-small leftover units at maxAreas 8 give 8 single-glob app areas and exactly LEFTOVER_AREAS leftover areas; each path owned once; two runs and a reversed input are byte-identical; a single leftover under SMALL folds into the smallest app; a leftover of SMALL files keeps its own area; two leftovers over the cap are neither merged nor folded",
+            "py14 (tests/prescan-python.test.mjs): fixture middleware rows CORSMiddleware:43 and check_db_ready:46 and the 11 sibling modules; in-memory case: multi-line add_middleware, a decorator on another app name, a call inside a string ignored; __init__, test_*, *_test, conftest, constant-only, def-only-in-a-string, indented-only, nested-dir and other-dir files excluded; no entry point gives no modules",
+            "pw5 (tests/prescan-wiring.test.mjs): the prescan CLI on python-api puts modules and '<file>:<name>' middleware in the app slice and its summary (counts and rows), no modules key elsewhere; coverageFloor counts modules and middleware modules into the floor; joinMiddleware replaces a bare file entry with its named middleware; the explorer brief shows modules=11, middleware modules=2, names app/admin.py, app/auth.py, app/cache_utils.py and check_db_ready, and Work step 2 says listed module",
+            "pc14 assertions updated for the new cap rule (not a new case)"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T14:20:46Z.0e3b6e",
             "status": "passed",
             "at": "2026-10-31T14:20:46Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "b1963e8391c2",
+            "at": "2026-10-31T14:20:47Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T02:32:18Z",
+            "basis": "`node --test tests/pipeline.test.mjs tests/prescan-core.test.mjs tests/prescan-python.test.mjs tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],

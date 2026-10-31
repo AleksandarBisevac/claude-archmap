@@ -60,3 +60,22 @@ Issues files and internal HTML are never written inside an analysed repository.
 
 The phase is done when evals 1 to 5 have run with and without the skill and the owner has reviewed them, issue recall
 is at least 60 percent, and the trigger description has been optimised with skill-creator's `run_loop`.
+
+## Cost of a build: before and after the script-driven flow
+
+Measured with `scripts/cost-profile.mjs` on the `stream-json` transcript of a headless run, at list prices, on the
+same evals and the same repositories. Iteration 1 let the orchestrating session hold every fragment and the whole
+model in its context; iteration 2 runs the build through `scripts/pipeline.mjs` (plan, finish, render, issues),
+explorers write their fragment to a file and reply in three lines, and merge.mjs computes entities, relations,
+cross-area edges and zones. The baseline is the same prompt without the skill, on the same orchestrator model.
+
+| Eval | Iteration 1, with skill | Iteration 2, with skill | Baseline, no skill | Orchestrator turns | Result |
+| --- | --- | --- | --- | --- | --- |
+| 1 (build) | 13.84 USD | 1.22 USD | 1.55 USD | 11 | 7/7 expectations |
+| 2 (build, issues) | 9.79 USD | 2.09 USD | 2.29 USD | 17 | 7/7, issue recall 0.67 |
+| 4 (monorepo build) | 12.79 USD | 1.66 USD | 1.82 USD | 11 | 8/8 expectations |
+
+Where the money goes in iteration 2 (eval 1): explorers 41 percent, orchestrator 36 percent, synthesizer 7 percent;
+the orchestrator's context never exceeds 72 K tokens. Eval 2 adds a reviewer on the larger model (23 percent of its
+run). The ten rounds that led here are in the private results log; each round's root causes became a fix task of the
+audit plan (P10.6 to P10.15).

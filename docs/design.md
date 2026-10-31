@@ -56,7 +56,7 @@ What archmap combines that nothing else does:
 | D8 | A Claude Code **plugin** named **`archmap`**, in its own repo **`AleksandarBisevac/claude-archmap`**. It is listed in the existing `quality-gates` marketplace (`AleksandarBisevac/claude-plugins`) through one entry with a github `source`. Install: `/plugin install archmap@quality-gates`. Do not put it inside the claude-plugins repo: that repo's tooling (`tools/verify.sh`, `release.py`, `sweep-selftests.py`, lints) hardcodes `plugins/audit` and enforces Python-3.8-stdlib scripts. The inner skill is `architecture-map`. |
 | D9 | Three private eval repos: a FastAPI + React + DuckDB app (ground truth = the reference artifact), a Hono + Drizzle/Postgres + Better Auth + BullMQ + Next monorepo, and a Next + Drizzle admin API + MCP demo. Paths and ground truth live outside this repository. |
 | D10 | Neutral theme (the reference artifact's look), with an optional `docs/architecture/archmap.theme.json` for fonts, chrome and accent. Relation, zone and severity colours are **fixed and semantic**, colour-blind-safe with dash patterns, in light and dark. |
-| D11 | **Token economy, balanced profile by default; scripts instead of agents.** Deterministic pre-scan (0 tokens). The orchestrating session is a driver loop, not the pipeline: `pipeline.mjs` plan, finish and render run every scripted step and print one JSON line each; the session dispatches the Agent calls they list in one foreground message per stage, never polls, and reads no reference, script or agent file during a build (target: at most 12 turns and a context under 80 K tokens). `archmap-explorer` on Sonnet low, in parallel, reads its brief and a prescan extract, writes a capped fragment file and replies in three lines. `merge.mjs` computes the cross-area edges, zones, CRUD rows and relations and pre-drafts sequences into a digest; `archmap-synthesizer` on Sonnet medium writes only sequences and views from it. `archmap-reviewer` stays on Opus high, fed the model only. Scripts do layout, render, validate, diffmap and export. `--profile max\|balanced\|economy`. The driver records a per-phase token/duration ledger from the agents' completion lines and prints it at the end; the orchestrator's own context is measured from the transcript by `cost-profile.mjs`. |
+| D11 | **Token economy, balanced profile by default; scripts instead of agents.** Deterministic pre-scan (0 tokens). The orchestrating session is a driver loop, not the pipeline: `pipeline.mjs` plan, finish and render run every scripted step and print one JSON line each; the session dispatches the Agent calls they list in one foreground message per stage, never polls, and reads no reference, script or agent file during a build (target: at most 12 turns and a context under 80 K tokens). `archmap-explorer` on Sonnet medium, in parallel, reads its brief and a prescan extract, writes a capped fragment file and replies in three lines. `merge.mjs` computes the cross-area edges, zones, CRUD rows and relations and pre-drafts sequences into a digest; `archmap-synthesizer` on Sonnet medium writes only sequences and views from it. `archmap-reviewer` stays on Opus high, fed the model only. Scripts do layout, render, validate, diffmap and export. `--profile max\|balanced\|economy`. The driver records a per-phase token/duration ledger from the agents' completion lines and prints it at the end; the orchestrator's own context is measured from the transcript by `cost-profile.mjs`. |
 | D13 | **Build everything in-house, as planned.** The prior-art research (§2, §14) does not change scope: own exporters, own introspection recipes, no external tool dependencies, no exploratory spike. Borrow techniques only (§14.3). |
 | D12 | **Staleness:** a SessionStart hook (Node script, 0 tokens) is silent when the project has no model. Otherwise it compares `meta.commit` to HEAD through diffmap and prints one line, e.g. `Architecture map is 12 commits behind (3 nodes, 1 entity affected) — run /archmap:update`. `/archmap:check` returns an exit code (CI later). The LLM is never auto-run. |
 
@@ -78,9 +78,9 @@ skills/architecture-map/
     stack-python-backend.md  stack-ts-frontend.md  stack-node-backend.md
     schema-introspection.md  issues-catalog.md  sequences.md
 agents/
-  archmap-explorer.md      model: sonnet  effort: low     tools: Read, Grep, Glob, Bash, Write (its fragment only)
+  archmap-explorer.md      model: sonnet  effort: medium    tools: Read, Grep, Glob, Bash, Write (its fragment only)
   archmap-synthesizer.md   model: sonnet  effort: medium  tools: Read, Grep, Glob, Write (its synth file only)
-  archmap-reviewer.md      model: opus    effort: high    tools: Read, Grep, Glob
+  archmap-reviewer.md      model: opus    effort: high    tools: Read, Grep, Glob, Write (its reviewer.json only)
 hooks/hooks.json           SessionStart → node "${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs"
 scripts/                   Node ≥ 18, ESM, zero npm deps (only the vendored elkjs)
   pipeline.mjs (the build driver)
@@ -167,7 +167,7 @@ New in v1:
 ## 8. Token economy
 - 0-token scripts: prescan, validate, merge, layout, render, export, diffmap, staleness.
 - Explorers read excerpts (Grep, line ranges), never whole trees, and return size-capped JSON fragments.
-- The synthesizer and reviewer read fragments and the model, plus targeted reads only.
+- The synthesizer reads the digest and the reviewer the model, plus targeted reads only; each writes its result to the path in its brief and replies in three lines.
 - `update` touches only affected areas.
 - Profiles set the `model` override per Agent call: max = Opus high everywhere; economy = Haiku explorer, Sonnet synthesizer and reviewer.
 - The usage ledger takes tokens and duration from subagent completion notifications.
