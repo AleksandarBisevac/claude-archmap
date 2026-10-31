@@ -7576,7 +7576,7 @@
     {
       "id": "P11",
       "title": "User-facing documentation of what a build costs and delivers, with evidence",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "A prospective user of the plugin can read, in the tracked documentation (README and the skill's evals README), what a build costs on each eval at list prices, how many orchestrator turns and how much context it takes, what the map contains and how each claim was measured (cost-profile on the stream transcript, grading against the eval expectations, test counts), with the before-and-after of the script-driven flow; every number points at the script or log that produced it; no client, dataset or repository name appears.",
       "testGate": [
@@ -7585,7 +7585,7 @@
       "blockedBy": [],
       "baseRef": "ef2d459bd2514c28c8e1783f2280e2144e647c31",
       "branch": "audit/p11-user-facing-documentation-of-w",
-      "mergedAt": null,
+      "mergedAt": "2026-10-31T23:03:40Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -8226,7 +8226,8 @@
         "runId": "2026-10-31T23:03:37Z.cecb92",
         "status": "passed",
         "at": "2026-10-31T23:03:37Z"
-      }
+      },
+      "mergedHead": "c89a5be1d20a9597d233c0dde0f4a974045ff398"
     }
   ],
   "fileIndex": {
