@@ -5443,7 +5443,8 @@
           "status": "blocked",
           "description": "Owner-run, like P8.3: the eval repositories live only on the owner's machine and are pointed at by ARCHMAP_EVAL_REPO_A/B (never named in a tracked file). Run evals 1, 2 and 4 with the skill, headless, on the P8 harness into <home>/.claude/archmap/evals/iteration-2/, on the same orchestrator model as the baseline you compare against, grade them with the P8 grader and the issue-recall scorer, and profile each stream with scripts/cost-profile.mjs (take the LAST result event's modelUsage; it is cumulative). Pass when every expectation that passed in iteration-1 still passes, eval 2 recall is at least 60 percent, and the profiled list-price cost is under 5 USD for each of evals 1, 2 and 4 and at most twice that eval's no-skill baseline, with the orchestrator, synthesizer and explorer shares recorded. Record the before and after table in .private/evals/ and a repo-free summary (costs and shares only) in skills/architecture-map/evals/README.md. If a target is missed, file the gap as a note on this task with the profiler table and stop; the owner decides the next iteration.",
           "files": [
-            "skills/architecture-map/evals/README.md"
+            "skills/architecture-map/evals/README.md",
+            "docs/design.md"
           ],
           "tests": {
             "mode": "gate-only",
@@ -5461,14 +5462,14 @@
           "dependsOn": [
             "P10.4-2xj"
           ],
-          "attempts": 1,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-10-31T00:08:22Z",
+          "startedAt": "2026-10-31T00:31:36Z",
           "completedAt": null,
           "verifiedBy": [],
           "reviewPerTask": "phase",
@@ -5480,9 +5481,17 @@
             {
               "at": "2026-10-31T00:16:45Z",
               "text": "Eval 4 round 1 (2026-10-31, Opus orchestrator): 25 orchestrator turns, median ctx 64 K, max 82 K, total 1.93 USD (iteration-1: 12.79); stopped at finish with a dangling ref (node 'api'); plan refused a 4019-char brief (area id joined with plus signs), subagents were denied writing fragments into the harness work dir (outside the repo), --usage rejected labels with dots and pluses; 19 nodes over 5 fragments. Grading 0/8. Covered by P10.6 and P10.7."
+            },
+            {
+              "at": "2026-10-31T00:34:40Z",
+              "text": "Round 2 eval 1 (Opus): 9 orchestrator turns, median ctx 48 K, max 61 K, 0.91 USD (Opus baseline 1.55 USD, 31 turns, 6/7); explorers 42 turns, 43 nodes + 32 edges merged (round 1: 19 nodes); stopped at finish because validate --repo rejected two evidence ranges past a 16-line file. Fix task P10.9 added (merge clamps or drops evidence it can check against the repo)."
+            },
+            {
+              "at": "2026-10-31T00:35:00Z",
+              "text": "Round 2 eval 4 (Opus): 9 orchestrator turns, median ctx 61 K, max 66 K, 1.35 USD (baseline 1.82); explorers 42 turns, over 110 nodes merged; stopped at finish on four validate --repo findings of the same class (evidence lines past the file end in three files, one evidence path that is a directory). Covered by P10.9."
             }
           ],
-          "blockedReason": "iteration-2 round 1 stopped at merge (dangling area-id refs) with transcribing explorers; P10.5 waits for the fix tasks P10.6, P10.7 and P10.8, then re-runs evals 1, 2 and 4"
+          "blockedReason": "owner-run eval task; waits for P10.9 to land, then round 3 of evals 1, 2 and 4"
         },
         {
           "id": "P10.6-6rm",
@@ -5558,7 +5567,7 @@
         {
           "id": "P10.7-6rm",
           "title": "Explorer coverage: the brief demands one node per structural element of the extract and the effort is medium",
-          "status": "in_progress",
+          "status": "done",
           "description": "Measured on the iteration-2 run of eval 1 (2026-10-31): each of the 8 explorers made exactly two Reads (the brief, the extract) and one Write, 3 to 4 tool calls of the 20 allowed, and the fragments carried 19 nodes in total against 58 nodes (34 modules, 9 route groups, 6 jobs) in the iteration-1 build of the same repository; three areas came back empty and the 208-file frontend area had 4 nodes. Eval 4 (a monorepo) gave the same 19 nodes over 5 fragments. The brief's \"do not re-derive the rest\" plus effort low turned the explorer into a transcriber of the extract. Fix: pipeline.mjs plan computes a coverage floor from the extract (entry-point groups by directory, route groups, stores, queues, jobs, external clients) and writes it into the brief as the minimum number of nodes with the list of what each must cover; the brief requires at least 6 and at most 20 tool calls, Grep for the next fact then a line-range Read, one node per feature directory of a frontend and per router or handler module of a backend, and says a fragment under the floor is incomplete. agents/archmap-explorer.md goes back to effort medium (low saved nothing: the explorers were 0.4 USD of a 0.75 USD build) and states the same floor rule. SKILL.md's agents table and profile table follow, and SKILL.md's build flow gains the work-dir rule that P10.6 reports (the work dir must be writable by subagents: plan's default under the OS temp dir, or a git-ignored directory; never a directory the subagents cannot write, and copy the ledger to where the caller asked after render). Briefs stay under their cap. This task runs after P10.6 (same files: pipeline.mjs, archmap-explorer.md, tests/pipeline.test.mjs). No client or repository name in tests.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5590,19 +5599,36 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "ecbc1ef7d70a",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/pipeline.mjs: new coverageFloor(extract) counts entry-point groups (by directory), route groups (by file), stores (distinct table files), queues, jobs (extract.jobs, which prescan does not emit yet, so 0 today) and external clients; explorerBrief writes two lines that are never trimmed (Coverage floor: at least N nodes (parts), a fragment under it is incomplete; and a compact must-cover list, 4 names per kind, 380 chars) right after the Profile line; Work steps rewritten to demand at least 6 and at most 20 tool calls, Grep then a line-range Read, one node per feature directory / router or handler module plus every store, queue, job, client. The P10.6 behaviours (trim order stack reference, title and stacks, globs; area:<id>; temp-dir default work) are untouched; briefs measured 3.6-3.9 K with long temp paths. agents/archmap-explorer.md: effort medium, Coverage floor section, at least 6 tool calls, floor listed in Input; shrunk to 6536 bytes because tests/prescan-core.test.mjs pc9 (not mine) bounds agent file + extract under 12000 (it was 6195 before). SKILL.md (323 lines, frontmatter line 3 byte-identical, checked by md5 against HEAD): agents table and balanced profile row say medium, coverage floor named, the verbatim work-dir sentence plus 'The ledger is copied to where the caller asked after render' in the build flow, plan commands no longer pass --work (build and update flows), Plan step says work is printed. Tests: p17 (floor parts recomputed from each extract file, sum, incomplete wording, 6..20 calls, cap), p18 (30 router modules counted, brief under cap), a7, s12, s13; a1 and a5 updated from low to medium. Full suite: node --test 355 pass 0 fail; denylist 2 pass. Dependants: scripts/usage.mjs, tests/commands.test.mjs, tests/e2e.test.mjs, commands/build.md and update.md still correct (full suite green; the commands only delegate to the skill and name no work dir or effort); tests/skill.test.mjs, tests/pipeline.test.mjs changed as described; tests/prescan-core.test.mjs pc9 still correct only because the agent file stayed under its 12 K bound; docs/design.md (not in my files) still says explorer Sonnet low in D11 and line 81 and is now stale - the orchestrator should update it. Unexplored: whether real extracts name jobs - prescan has no jobs key, so the jobs part of the floor is forward-looking.",
+            "descriptive": "Explorer briefs now state a node floor computed from the extract and demand 6-20 tool calls, the explorer runs at medium, and SKILL.md carries the work-dir rule."
           },
           "startedAt": "2026-10-31T00:25:30Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T00:31:26Z",
+          "verifiedBy": [
+            "p17 brief carries a coverage floor equal to the extract-derived counts, incomplete wording, 6-20 tool calls, under cap",
+            "p18 30 router modules counted in floors and brief stays under cap",
+            "a7 explorer medium effort, floor rule, 6 tool calls, Write only fragment path",
+            "s12 agents/profile tables say medium, SKILL.md at most 500 lines",
+            "s13 build flow work-dir rule and ledger copy sentence"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T00:31:25Z.a8b9f3",
             "status": "passed",
             "at": "2026-10-31T00:31:25Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "ecbc1ef7d70a",
+            "at": "2026-10-31T00:31:26Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T00:30:59Z",
+            "basis": "`node --test tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
@@ -5661,6 +5687,49 @@
             "basis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
             "status": "could-not-prove",
             "source": "red-first-helper"
+          }
+        },
+        {
+          "id": "P10.9-6rm",
+          "title": "Merge normalises evidence it can check against the repository instead of handing validate a slip",
+          "status": "in_progress",
+          "description": "Round 2 of eval 1 (2026-10-31, after P10.6 and P10.7): the explorers now produced 43 nodes and 32 edges, merge exited 0, and the build still stopped because validate --repo found `evidence-lines-out-of-range /edges/2/evidence/0/lines lines 1-20 but \"<file>\" has 16 lines`: one explorer cited a line range past the end of a 16-line file, and the skill rightly forbids patching the model by hand, so the whole build was lost over two citations. merge.mjs already has --repo (P10.3) and reads files for import lines; it must use it to normalise evidence before validation: clamp a range whose end is past the file's line count to the last line (start past the end becomes the last line too), drop an evidence entry whose path is not in the repository, drop an element left without evidence, and record one meta.sources row per change ({area, type:'clamped-evidence'|'dropped-evidence', id, path}). Then run validate --repo on the result and exit 1 only over findings that remain, listing them. Keep output deterministic and the golden tests green. Fixtures stay synthetic.",
+          "files": [
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs",
+            "tests/fixtures/merge"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: with --repo, an evidence range whose end is past the file's line count is clamped to the file's last line and a meta.sources row {area, type:'clamped-evidence', id, path} is recorded; an evidence entry whose path does not exist in the repo is dropped from the element, and an element left with no evidence is dropped with a dropped-evidence row; after normalisation merge runs validate --repo and exits 0 on the fixture that failed before; merge exits 1 only over findings it did not normalise and lists them"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T00:35:00Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T00:39:51Z.9bd861",
+            "status": "passed",
+            "at": "2026-10-31T00:39:51Z"
           }
         }
       ],
@@ -6102,7 +6171,8 @@
       "P5.11-2zy",
       "P10.2-2xj",
       "P10.3-2xj",
-      "P10.6-6rm"
+      "P10.6-6rm",
+      "P10.9-6rm"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -6112,7 +6182,8 @@
       "P10.2-2xj",
       "P10.3-2xj",
       "P10.4-2xj",
-      "P10.6-6rm"
+      "P10.6-6rm",
+      "P10.9-6rm"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -6204,7 +6275,8 @@
     ],
     "docs/design.md": [
       "BF1.1",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.5-2xj"
     ],
     "scripts/export.mjs": [
       "P7.1",
@@ -6279,7 +6351,8 @@
     ],
     "tests/fixtures/merge": [
       "P10.3-2xj",
-      "P10.6-6rm"
+      "P10.6-6rm",
+      "P10.9-6rm"
     ],
     "scripts/pipeline.mjs": [
       "P10.4-2xj",

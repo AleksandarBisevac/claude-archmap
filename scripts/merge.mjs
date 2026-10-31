@@ -37,6 +37,16 @@
 // meta.sources row of type "normalisation" or "truncation" that names the area and the counts. An unreadable fragment
 // file is recorded as skipped. None of this changes the exit code: merge exits 1 only for an invalid result.
 //
+// Evidence is checked against the repository the same way. With --repo and a meta.commit the repository has (read with
+// git at that commit, exactly as validate --repo reads it, so a working tree that has moved on changes nothing), the
+// fragments' evidence is normalised before references are resolved: a range whose end is past the file's last line is
+// clamped to it (a start past the end becomes the last line too), an entry whose path is not a file at the commit
+// (absent, or a directory) is dropped, and a node or edge left with no evidence is dropped, its dangling references
+// with it. Each change is one meta.sources row {area, type: "clamped-evidence" | "dropped-evidence", id, path, note}.
+// Only what this run's fragments brought is touched; elements kept from --previous are never rewritten. The result is
+// then validated with --repo, so merge exits 1 only over the findings it did not normalise, and lists them. Without
+// --repo, or when the commit is not in the repository, evidence is not checked (and merge says so on stderr).
+//
 // meta: schemaVersion, project, commit, profile and generatedAt come from the flags, else from --previous.
 // generatedAt is never invented (pass --generated-at; a missing value makes the result invalid). coverage[area]
 // is each fragment's coverage; sources holds one row per fragment (its skipped tally) plus any sources it lists.
@@ -65,6 +75,7 @@
 // Node >= 18, ESM, zero npm dependencies.
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, realpathSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
@@ -633,12 +644,89 @@ export function buildDigest(model, { drafts = [] } = {}) {
   return d;
 }
 
+// ---------------------------------------------------------------------------
+// evidence against the repository at meta.commit (mirrors validate.mjs, which reads the same way)
+
+const LINES = /^([0-9]+)(?:-([0-9]+))?$/;
+const git = (repo, args) =>
+  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
+
 /**
- * Pure merge (it reads files only under `repo`, as text, to cite an import line).
+ * A reader of `repo` at `commit`, or null when there is none to read (no repo, not a git repository, commit unknown).
+ * `lineCount(path)` is the file's line count at the commit, or null when the path is not a file there.
+ */
+export function evidenceReader(repo, commit) {
+  if (typeof repo !== 'string' || typeof commit !== 'string' || !commit || commit.startsWith('-')) return null;
+  try {
+    git(repo, ['rev-parse', '--git-dir']);
+    git(repo, ['cat-file', '-e', `${commit}^{commit}`]);
+  } catch {
+    return null;
+  }
+  const counts = new Map();
+  return {
+    short: commit.slice(0, 12),
+    lineCount(path) {
+      if (counts.has(path)) return counts.get(path);
+      let n = null;
+      try {
+        git(repo, ['cat-file', '-e', `${commit}:${path}`]);
+        const text = git(repo, ['cat-file', 'blob', `${commit}:${path}`]); // fails for a directory
+        n = text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
+      } catch { /* absent */ }
+      counts.set(path, n);
+      return n;
+    },
+  };
+}
+
+/**
+ * Clamp and drop the evidence entries of one element in place. Returns false when the element is left without any
+ * (and `required`), so the caller drops it. Rows go to `rows`.
+ */
+function normaliseEvidence(el, { id, area, required, reader, rows }) {
+  if (!Array.isArray(el.evidence) || el.evidence.length === 0) return true;
+  const kept = [];
+  const mine = [];
+  for (const e of el.evidence) {
+    const m = isObj(e) && typeof e.path === 'string' && typeof e.lines === 'string' ? LINES.exec(e.lines) : null;
+    if (m === null) {
+      kept.push(e); // not a {path, lines} the repository can answer for: validate has the say
+      continue;
+    }
+    const total = reader.lineCount(e.path);
+    if (total === null || total === 0) {
+      const why = total === null ? 'is not a file' : 'is an empty file';
+      const row = { area, type: 'dropped-evidence', id, path: e.path, note: `area ${area}: ${id}: evidence "${e.path}" ${why} at ${reader.short}; entry dropped` };
+      mine.push(row);
+      continue;
+    }
+    const start = Number(m[1]);
+    const end = m[2] === undefined ? start : Number(m[2]);
+    if (start < 1 || end < start || end <= total) {
+      kept.push(e); // in range (or malformed, which merge cannot mend)
+      continue;
+    }
+    const lo = Math.min(start, total);
+    const lines = lo === total ? String(total) : `${lo}-${total}`;
+    mine.push({ area, type: 'clamped-evidence', id, path: e.path, note: `area ${area}: ${id}: lines ${e.lines} of "${e.path}" clamped to ${lines} (${total} lines at ${reader.short})` });
+    kept.push({ ...e, lines });
+  }
+  const survives = kept.length > 0 || !required;
+  if (!survives) mine[mine.length - 1].note += `; ${id} dropped: no evidence left`;
+  rows.push(...mine);
+  if (kept.length > 0) el.evidence = kept;
+  else delete el.evidence;
+  return survives;
+}
+
+/**
+ * Pure merge (it reads files only under `repo`, as text, to cite an import line, and with git at meta.commit to check evidence).
  * @param {{fragments?: object[], previous?: object, synth?: object, areas?: string[], extracts?: object[], repo?: string,
  *   meta?: {project?: string, commit?: string, profile?: string, generatedAt?: string, repoUrl?: string, schemaVersion?: string}}} input
  *   `extracts` are the per-area prescan slices (<work>/extracts/*.json); `repo` is the analysed tree.
- * @returns {{model: object, digest: object, conflicts: {ids: string[], reason: string}[], renames: object[], notes: string[], zonesCreated: string[]}}
+ * @returns {{model: object, digest: object, conflicts: {ids: string[], reason: string}[], renames: object[], notes: string[], zonesCreated: string[], evidenceChecked: boolean}}
+ *   `evidenceChecked`: evidence was read at meta.commit in `repo` (so the caller validates with --repo)
  */
 export function merge({ fragments = [], previous, synth, areas, meta = {}, extracts, repo } = {}) {
   const conflicts = [];
@@ -873,6 +961,35 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   }
   sources.push(...fixNotes);
 
+  // --- evidence the repository cannot back at meta.commit: clamped or dropped here, so validate --repo has nothing
+  // to refuse over it. Only what this run's fragments brought; a dropped node or edge takes its references along
+  // in the pass below.
+  const reader = evidenceReader(repo, meta.commit ?? prev?.meta?.commit);
+  if (reader !== null) {
+    const rows = [];
+    const nodeArea = new Map();
+    for (const [area, ids] of placed) for (const id of ids) if (!nodeArea.has(id)) nodeArea.set(id, area);
+    // nodes and edges must keep one entry; entity and access evidence is optional
+    for (const id of [...nodes.keys()]) {
+      if (nodeArea.has(id) && !normaliseEvidence(nodes.get(id), { id, area: nodeArea.get(id), required: true, reader, rows })) nodes.delete(id);
+    }
+    for (const [id, e] of [...edges]) {
+      if (origin.edges.has(id) && !normaliseEvidence(e, { id, area: origin.edges.get(id), required: true, reader, rows })) edges.delete(id);
+    }
+    for (const [id, e] of entities) {
+      if (!origin.entities.has(id)) continue;
+      const area = origin.entities.get(id);
+      normaliseEvidence(e, { id, area, required: false, reader, rows });
+      for (const fld of list(e.fields)) {
+        if (isObj(fld)) normaliseEvidence(fld, { id: `${id}.${fld.name}`, area, required: false, reader, rows });
+      }
+    }
+    for (const [k, a] of access) {
+      if (origin.access.has(k)) normaliseEvidence(a, { id: `access:${a.node}/${a.entity}`, area: origin.access.get(k), required: false, reader, rows });
+    }
+    sources.push(...rows);
+  }
+
   // a reference from another fragment to a node that collapsed into its same-paths twin follows it
   const follow = (id) => (collapsed.has(id) && !nodes.has(id) ? collapsed.get(id) : id);
 
@@ -1065,7 +1182,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   const sortRenames = renames.sort((a, b) => cmp(a.kind, b.kind) || cmp(a.from, b.from) || cmp(a.area, b.area));
   const drafts = draftSequences({ flows: derived.flows, model: ordered });
   const digest = buildDigest(ordered, { drafts });
-  return { model: ordered, digest, conflicts, renames: sortRenames, notes, zonesCreated };
+  return { model: ordered, digest, conflicts, renames: sortRenames, notes, zonesCreated, evidenceChecked: reader !== null };
 }
 
 // ---------------------------------------------------------------------------
@@ -1189,7 +1306,10 @@ function main(argv) {
         project: o.project, commit: o.commit, profile: o.profile, generatedAt: o.generatedAt, repoUrl: o.repoUrl,
       },
     });
-    verdict = validate(result.model);
+    verdict = validate(result.model, result.evidenceChecked ? { repo: o.repo } : {});
+    if (o.repo !== undefined && !result.evidenceChecked) {
+      console.error(`merge: evidence not checked: ${o.repo} is not a git repository or does not have commit "${result.model.meta.commit ?? ''}"`);
+    }
   } catch (e) {
     if (!(e instanceof UsageError)) throw e;
     console.error(`merge: ${e.message}\n${USAGE}`);

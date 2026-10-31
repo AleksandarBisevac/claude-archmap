@@ -1,0 +1,37 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/denylist.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T00:38:37Z",
+    "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "The brief file was not on disk (drive-phase brief exited 2: no executor brief written for P10.9-6rm's current start), so I worked from the task text in the manifest and the caller's message and explored the code myself. scripts/merge.mjs: added evidenceReader(repo, commit) (git at meta.commit, mirrors validate.mjs line count and directory semantics; null when no repo, not git, or commit unknown) and normaliseEvidence(). merge() now, right after fragments are placed and before the dangling-reference pass, clamps evidence ranges past EOF (end to last line; start past end to last line), drops entries whose path is not a file (or is an empty file) at the commit, drops a node or edge left without evidence (the existing dropped-ref pass then removes edges, entities and access rows pointing at a dropped node), and records one meta.sources row {area,type:'clamped-evidence'|'dropped-evidence',id,path,note} per change. Only elements from this run's fragments are touched; elements kept from --previous are left to validate. merge() returns evidenceChecked; the CLI validates with {repo} when evidence was checked (exit 1 only over remaining findings, listed as 'invalid:' lines), else validates as before and prints 'merge: evidence not checked: ...' on stderr when --repo was given. validate.mjs was not edited (its git helper is not exported; the line-count logic is mirrored in merge.mjs). tests/merge.test.mjs: m20-m20f against a throwaway git repo built at test time. Full suite node --test: 361 pass, 0 fail; node --test tests/denylist.test.mjs: 2 pass. Not done: sequences/views kept from --previous that name a dropped node are not pruned (validate would report a dangling-ref); the caller's design.md and README were not touched.",
+    "descriptive": "merge normalises evidence it can check against the repository (clamp, drop) and runs validate --repo itself, so one out-of-range citation no longer loses a build."
+  },
+  "testsAdded": [
+    "m20 clamp of ranges past EOF with clamped-evidence rows (nodes, edges, entity field, access)",
+    "m20b dropped entries (missing path, directory), dropped node and edge, dropped-ref cascade, validate --repo clean",
+    "m20c CLI exit 0 on the fixture validate --repo refused, validate.mjs --repo accepts the output",
+    "m20d lines checked at meta.commit not the working tree",
+    "m20e exit 1 only over un-normalised findings (kept --previous element), listed, nothing written",
+    "m20f byte-identical across runs and fragment order; unresolvable commit leaves evidence alone with a stderr note"
+  ],
+  "casesAdded": [
+    [
+      "m20",
+      "m20b",
+      "m20c",
+      "m20d",
+      "m20e",
+      "m20f"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:bc8796eb76c04160c5c5de0d74ca77c1dd8fc7f8bb8c59c1088c87a672ec7e21\",\"dirtyDigest\":\"sha256:d5a2d81cbf967bcc548db1661a92fe8d5e29063a16e0ab0ae908fc707daeaff6\",\"dirtyPaths\":{\"docs/design.md\":\"b0d39ec0ed1b1a15\",\"scripts/merge.mjs\":\"bf4cf7a867b03dab\",\"tests/merge.test.mjs\":\"2a873e463a3cc15f\"},\"head\":\"ecbc1ef\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"tests/fixtures/merge\",\"tests/merge.test.mjs\"],\"scopeDigest\":\"sha256:8f0c642f18f45fe7a8e4ce00591897c74f0199e95ebe490aecaf340481e1a921\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

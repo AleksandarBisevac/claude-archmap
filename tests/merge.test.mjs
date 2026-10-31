@@ -770,3 +770,164 @@ test('m19b a reference that resolves to nothing is dropped with one dropped-ref 
     'web:access:gone-node/e-ok:gone-node', 'web:e-lost:gone-db', 'web:w-ghost2:no-such-node', 'web:w-ghost:area:ghost',
   ].sort());
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.9: with --repo the merge checks evidence against the repository at meta.commit, the way validate --repo
+// does, and normalises what it can instead of handing validate a slip: a range past the end of the file is
+// clamped, an entry whose path is not a file is dropped, a node or edge left without evidence goes with its
+// references. What it cannot normalise stays a finding, listed, exit 1.
+
+const git = (cwd, ...args) =>
+  spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
+const numbered = (n) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join('\n') + '\n';
+
+/** A throwaway git repo: a 16-line and a 7-line file, a directory, committed once. Returns {dir, sha}. */
+function evidenceRepo() {
+  const dir = tmp();
+  mkdirSync(join(dir, 'infra'), { recursive: true });
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  writeFileSync(join(dir, 'src', 'long.js'), numbered(16));
+  writeFileSync(join(dir, 'src', 'short.js'), numbered(7));
+  writeFileSync(join(dir, 'infra', 'main.tf'), numbered(3));
+  assert.equal(git(dir, 'init', '-q').status, 0);
+  assert.equal(git(dir, 'add', '-A').status, 0);
+  assert.equal(git(dir, 'commit', '-q', '-m', 'init').status, 0);
+  return { dir, sha: git(dir, 'rev-parse', 'HEAD').stdout.trim() };
+}
+
+const slipFrags = () => [
+  frag('web', {
+    nodes: [
+      node('ok-node', { evidence: ev('src/long.js', '1-4') }),
+      node('past-end', { evidence: ev('src/short.js', '1-8') }),
+      node('start-past-end', { evidence: ev('src/short.js', '9-12') }),
+      node('dir-node', { evidence: ev('infra', '1-3') }),
+      node('half-ghost', { evidence: [{ path: 'src/gone.js', lines: '1-2' }, { path: 'src/long.js', lines: '2-3' }] }),
+      node('ghost-node', { evidence: ev('src/nothing.js', '1-2') }),
+    ],
+    edges: [
+      { id: 'e-clamp', from: 'ok-node', to: 'past-end', type: 'call', desc: 'x', evidence: ev('src/long.js', '1-20'), confidence: 'verified' },
+      { id: 'e-ghost', from: 'ok-node', to: 'ghost-node', type: 'call', desc: 'to a dropped node', evidence: ev('src/long.js', '5-6'), confidence: 'verified' },
+      { id: 'e-nopath', from: 'ok-node', to: 'dir-node', type: 'call', desc: 'x', evidence: ev('src/missing.js', '1'), confidence: 'verified' },
+    ],
+    entities: [{
+      id: 'ent', store: 'ok-node', name: 'ent', kind: 'table',
+      fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared', evidence: ev('src/short.js', '7-9') }],
+      evidence: [{ path: 'src/long.js', lines: '16' }, { path: 'src/gone.js', lines: '1' }],
+    }],
+    access: [{ node: 'ok-node', entity: 'ent', ops: 'R', evidence: ev('src/long.js', '17') }],
+  }),
+];
+const slipMeta = (sha) => ({ ...META, commit: sha });
+const rowsOf = (model, type) => model.meta.sources.filter((s) => s.type === type);
+
+test('m20 with --repo an evidence range past the end of the file is clamped to its last line and each change is one clamped-evidence row', () => {
+  const { dir, sha } = evidenceRepo();
+  const { model } = merge({ fragments: slipFrags(), repo: dir, meta: slipMeta(sha) });
+  const n = (id) => model.nodes.find((x) => x.id === id);
+  assert.deepEqual(n('ok-node').evidence, ev('src/long.js', '1-4'), 'a range inside the file is untouched');
+  assert.deepEqual(n('past-end').evidence, ev('src/short.js', '1-7'), 'the end moves to the last line');
+  assert.deepEqual(n('start-past-end').evidence, ev('src/short.js', '7'), 'a start past the end becomes the last line too');
+  assert.deepEqual(model.edges.find((e) => e.id === 'e-clamp').evidence, ev('src/long.js', '1-16'));
+  assert.deepEqual(model.access[0].evidence, ev('src/long.js', '16'), 'a single line past the end');
+  const rows = rowsOf(model, 'clamped-evidence');
+  const key = (s) => `${s.area}|${s.id}|${s.path}`;
+  assert.deepEqual(rows.map(key).sort(), [
+    'web|e-clamp|src/long.js', 'web|ent.id|src/short.js', 'web|past-end|src/short.js',
+    'web|start-past-end|src/short.js', 'web|access:ok-node/ent|src/long.js',
+  ].sort());
+  for (const r of rows) assert.deepEqual(Object.keys(r).filter((k) => !['area', 'type', 'id', 'path', 'note'].includes(k)), []);
+});
+
+test('m20b an evidence entry whose path is not a file at the commit (missing, or a directory) is dropped; a node or edge left with none is dropped, with a dropped-evidence row and its references', () => {
+  const { dir, sha } = evidenceRepo();
+  const { model } = merge({ fragments: slipFrags(), repo: dir, meta: slipMeta(sha) });
+  const nodeIds = model.nodes.map((x) => x.id);
+  assert.equal(nodeIds.includes('ghost-node'), false, 'no evidence left: the node goes');
+  assert.equal(nodeIds.includes('dir-node'), false, 'a directory is not a file');
+  assert.deepEqual(model.nodes.find((x) => x.id === 'half-ghost').evidence, ev('src/long.js', '2-3'), 'the valid entry stays');
+  assert.deepEqual(model.edges.map((e) => e.id), ['e-clamp'], 'e-nopath has no evidence left, e-ghost points at a dropped node');
+  assert.deepEqual(model.entities[0].evidence, ev('src/long.js', '16'), 'an entity keeps itself, loses the entry');
+  const dropped = rowsOf(model, 'dropped-evidence').map((s) => `${s.area}|${s.id}|${s.path}`).sort();
+  assert.deepEqual(dropped, [
+    'web|dir-node|infra', 'web|e-nopath|src/missing.js', 'web|ent|src/gone.js', 'web|ghost-node|src/nothing.js', 'web|half-ghost|src/gone.js',
+  ].sort());
+  assert.ok(rowsOf(model, 'dropped-ref').some((s) => s.id === 'e-ghost'), 'the edge to a dropped node is dropped by the reference pass');
+  const v = validate(model, { repo: dir });
+  assert.deepEqual(v.findings, []);
+});
+
+test('m20c through the CLI the fixture that validate --repo refused now merges with exit 0, and validate --repo accepts what was written', () => {
+  const { dir, sha } = evidenceRepo();
+  const fr = join(tmp(), 'fragments');
+  mkdirSync(fr);
+  writeFileSync(join(fr, 'web.json'), JSON.stringify(slipFrags()[0]));
+  const out = join(tmp(), 'model.json');
+  const args = [fr, '--out', out, '--commit', sha, '--project', 'p', '--profile', 'balanced', '--generated-at', '2026-01-01T00:00:00Z'];
+  const before = merge({ fragments: slipFrags(), meta: slipMeta(sha) }); // no --repo: nothing normalised
+  const refused = validate(before.model, { repo: dir }).findings.map((f) => f.code);
+  assert.ok(refused.includes('evidence-lines-out-of-range') && refused.includes('evidence-path-missing'), refused.join());
+  const r = cli([...args, '--repo', dir]);
+  assert.equal(r.status, 0, r.stderr);
+  const model = readJson(out);
+  assert.deepEqual(validate(model, { repo: dir }).findings, []);
+  const vcli = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/validate.mjs', import.meta.url)), out, '--repo', dir], { encoding: 'utf8' });
+  assert.equal(vcli.status, 0, vcli.stdout + vcli.stderr);
+});
+
+test('m20d lines are checked at meta.commit, not in the working tree: a file shortened later still clamps to its length at the commit', () => {
+  const { dir, sha } = evidenceRepo();
+  writeFileSync(join(dir, 'src', 'long.js'), numbered(3));
+  assert.equal(git(dir, 'commit', '-q', '-am', 'shrink').status, 0);
+  const f = [frag('web', { nodes: [node('n', { evidence: ev('src/long.js', '1-30') })] })];
+  const { model } = merge({ fragments: f, repo: dir, meta: slipMeta(sha) });
+  assert.deepEqual(model.nodes[0].evidence, ev('src/long.js', '1-16'));
+  assert.deepEqual(validate(model, { repo: dir }).findings, []);
+});
+
+test('m20e merge exits 1 only over findings it did not normalise (a kept element of --previous), lists them on stderr and writes nothing', () => {
+  const { dir, sha } = evidenceRepo();
+  const old = node('old-node', { zone: 'svc-zone', paths: ['old/**'], evidence: ev('src/gone.js', '1-2') });
+  const previous = {
+    meta: { schemaVersion: '1.0', project: 'p', commit: sha, generatedAt: '2025-01-01T00:00:00Z', profile: 'balanced', sources: [], coverage: { old: ['src/gone.js'], web: ['web/**'] } },
+    zones: [{ id: 'svc-zone', kind: 'service', label: 'svc-zone' }], nodes: [old], edges: [],
+  };
+  const tmpDir = tmp();
+  const prev = join(tmpDir, 'previous.json');
+  writeFileSync(prev, JSON.stringify(previous));
+  const fr = join(tmpDir, 'fragments');
+  mkdirSync(fr);
+  writeFileSync(join(fr, 'web.json'), JSON.stringify(slipFrags()[0]));
+  const out = join(tmpDir, 'model.json');
+  const r = cli([fr, '--out', out, '--previous', prev, '--areas', 'web', '--commit', sha, '--generated-at', '2026-01-01T00:00:00Z', '--repo', dir]);
+  assert.equal(r.status, 1, r.stderr);
+  assert.equal(existsSync(out), false, 'nothing written');
+  const invalid = r.stderr.split('\n').filter((l) => l.startsWith('invalid:'));
+  assert.equal(invalid.length, 1, r.stderr);
+  assert.match(invalid[0], /evidence-path-missing .*src\/gone\.js/, 'what merge normalised (the web fragment) is not listed; what it left alone is');
+  assert.match(r.stderr, /1 finding\(s\)/);
+});
+
+test('m20f two runs with --repo are byte-identical, whatever order the fragments arrive in; without --repo or a resolvable commit evidence is left alone', () => {
+  const { dir, sha } = evidenceRepo();
+  const run = (frags, extra) => {
+    const fr = join(tmp(), 'fragments');
+    mkdirSync(fr);
+    frags.forEach((f, i) => writeFileSync(join(fr, `${f.area}-${i}.json`), JSON.stringify(f)));
+    const out = join(tmp(), 'model.json');
+    const r = cli([fr, '--out', out, '--project', 'p', '--profile', 'balanced', '--generated-at', '2026-01-01T00:00:00Z', ...extra]);
+    return { r, text: existsSync(out) ? readFileSync(out, 'utf8') : null };
+  };
+  const second = frag('api', { nodes: [node('api-n', { paths: ['api/**'], evidence: ev('src/short.js', '2-99') })] });
+  const a = run([...slipFrags(), second], ['--commit', sha, '--repo', dir]);
+  const b = run([second, ...slipFrags()], ['--commit', sha, '--repo', dir]);
+  assert.equal(a.r.status, 0, a.r.stderr);
+  assert.equal(a.text, b.text);
+  // a commit the repo does not have: nothing to normalise against, the evidence stays as the explorer wrote it
+  const c = run(slipFrags(), ['--commit', 'deadbeef', '--repo', dir]);
+  assert.equal(c.r.status, 0, c.r.stderr);
+  assert.match(c.r.stderr, /not checked/);
+  const model = JSON.parse(c.text);
+  assert.deepEqual(model.nodes.find((x) => x.id === 'past-end').evidence, ev('src/short.js', '1-8'));
+  assert.equal(rowsOf(model, 'clamped-evidence').length + rowsOf(model, 'dropped-evidence').length, 0);
+});
