@@ -25,7 +25,7 @@ const fixtureRead = (p) => readFileSync(join(FIXTURE, p), 'utf8');
 const frag = extractPython(fixtureFiles, fixtureRead);
 const memFrag = (files) => extractPython(Object.keys(files).sort(), (p) => files[p] ?? null);
 
-const KINDS = ['entities', 'httpCalls', 'migrations', 'routes', 'schemas', 'sqlTables'];
+const KINDS = ['entities', 'httpCalls', 'migrations', 'routes', 'schemas', 'sqlTables', 'stores'];
 const pick = (items, keys) => items.map((i) => Object.fromEntries(keys.map((k) => [k, i[k]])));
 const ev = (i) => `${i.evidence[0].path}:${i.evidence[0].lines}`;
 
@@ -164,7 +164,7 @@ test('py6 every item carries {path, lines} evidence inside the file, output sort
 
 test('py7 unknown patterns are skipped and counted, never guessed; a large repo keeps every route', () => {
   // Fixture tally: Django include(), a bulk_insert whose table is not a literal, an f-string table.
-  assert.deepEqual(frag.skipped, { clients: 0, entities: 0, envKeys: 0, httpCalls: 0, migrations: 1, queues: 0, routes: 1, schemas: 0, sqlTables: 1 });
+  assert.deepEqual(frag.skipped, { clients: 0, entities: 0, envKeys: 0, httpCalls: 0, migrations: 1, queues: 0, routes: 1, schemas: 0, sqlTables: 1, stores: 0 });
 
   const odd = memFrag({
     'svc/odd.py':
@@ -174,7 +174,7 @@ test('py7 unknown patterns are skipped and counted, never guessed; a large repo 
       'def go(u):\n    requests.get(build_url(u))\n    requests.get(f"{BASE}/x")\n\n' +
       'class T(Base):\n    __tablename__ = compute()\n    id = Column(Integer, primary_key=True)\n',
   });
-  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, httpCalls: 2, migrations: 0, queues: 0, routes: 2, schemas: 0, sqlTables: 0 });
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, httpCalls: 2, migrations: 0, queues: 0, routes: 2, schemas: 0, sqlTables: 0, stores: 0 });
   for (const k of KINDS) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
 
   const many = {};
@@ -289,4 +289,30 @@ test('py10 prescan writes one extracts/<area>.json (and its summary) per area wi
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+});
+
+test('py11 duckdb.connect and sqlite3.connect with a path literal give a store row with kind, path and evidence, whether or not the file is in the repository', () => {
+  assert.ok(!fixtureFiles.some((f) => /\.(?:duckdb|sqlite3)$/.test(f)), 'the fixture holds neither database file');
+  assert.deepEqual(
+    frag.stores.map((s) => `${s.kind} ${s.path} ${ev(s)}`),
+    [
+      'duckdb data/reports.duckdb app/warehouse.py:5',
+      'sqlite var/cache.sqlite3 app/warehouse.py:6',
+      'duckdb data/archive.duckdb app/warehouse.py:10',
+    ],
+  );
+  assert.deepEqual(frag.stores[0], { library: 'duckdb', kind: 'duckdb', name: 'reports.duckdb', path: 'data/reports.duckdb', evidence: [{ path: 'app/warehouse.py', lines: '5' }] });
+
+  const odd = memFrag({
+    'svc/db.py':
+      'import duckdb\nimport sqlite3\nimport os\n\n' +
+      'a = duckdb.connect(":memory:")\n' +
+      'b = duckdb.connect()\n' +
+      'c = sqlite3.connect(os.environ["DB_FILE"])\n' +
+      'd = sqlite3.connect(DB_PATH)\n' +
+      'e = sqlite3.connect(":memory:")\n' +
+      'f = sqlite3.connect("data/orders.db")\n',
+  });
+  assert.deepEqual(odd.stores.map((s) => `${s.kind} ${s.path}`), ['sqlite data/orders.db'], 'in-memory and non-literal paths give no row');
+  assert.equal(odd.skipped.stores, 2, 'a path that is not a literal is counted, never guessed');
 });

@@ -8,7 +8,8 @@
 // apiCalls fetch, axios (direct and axios.create instances) and RTK Query endpoints, with method and path
 // envKeys  environment variable names read (never values); clients SDK constructors and base URLs
 // Every item carries evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each
-// kind is capped, and what the cap drops is counted in `truncated`. A recognised shape whose arguments
+// kind has a ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
+// counted in `truncated`. A recognised shape whose arguments
 // cannot be resolved statically is counted in `skipped`, never guessed.
 //
 // Next.js app/ and pages/ count only in a package (nearest package.json) that depends on `next`; src/app
@@ -22,7 +23,7 @@ import { byCodeUnit } from './inventory.mjs';
 import { detectStacks, scanClients, scanEnvKeys } from './generic.mjs';
 
 export const KINDS = ['apiCalls', 'clients', 'envKeys', 'routes', 'stores'];
-export const MAX_ITEMS = 300; // per kind
+export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_TEXT = 200; // longest name / path / url string kept
 const MAX_NAMES = 60; // longest list of action / state names kept
 

@@ -33,7 +33,7 @@ A `node.level` is the C4 level: 1, 2 or 3.
 | `generatedAt` **req** | ISO timestamp of the run. |
 | `repoUrl` | Base URL used to turn evidence into links. |
 | `profile` **req** | `max`, `balanced` or `economy`. |
-| `sources` **req** | Array of introspections run or skipped, and why (a skipped step is recorded here, never dropped); also one row per explorer fragment and a `truncation` or `normalisation` row, naming the area and the counts, when the merge cut or fixed one; and one `derivation` row when the merge computed the cross-area layer from the prescan extracts, with the counts it derived and the links or statements it could not cite. |
+| `sources` **req** | Array of introspections run or skipped, and why (a skipped step is recorded here, never dropped: a file database the code opens by path literal, `duckdb.connect("data/x.duckdb")` or `sqlite3.connect(...)`, whether or not the file is in the repository, is one `{type: "introspection-skipped", kind, path, status: "skipped", reason}` row when the file does not exist or no CLI or module can read it, and the reason names the missing file or the missing tool); also one row per explorer fragment and a `truncation` or `normalisation` row, naming the area and the counts, when the merge cut or fixed one; and one `derivation` row when the merge computed the cross-area layer from the prescan extracts, with the counts it derived and the links or statements it could not cite. |
 | `coverage` **req** | Object: area name to array of globs. Drives `update`, which re-analyses only areas whose files changed. |
 
 ## The evidence rule
@@ -105,7 +105,8 @@ Rules:
 
 From the per-area prescan slices (`merge.mjs --extracts <work>/extracts --repo .`) the merge adds, each with evidence:
 
-- cross-area `edges[]`: an HTTP call to a route (`api`), a queue producer to its consumer (`queue`, `async`), an
+- cross-area `edges[]`: an HTTP call to a route (`api`), a queue producer and its consumer each to the queue's own node
+  (`queue`, `async`: the merge makes one `<name>-queue` node per queue, or uses the explorer's node of that name), an
   import (`call`), between the nodes that own the two files (the node whose `paths` match, deepest `level` first),
   `confidence: verified`, `foundBy: static`; an edge the explorer already drew between the same nodes is not repeated;
 - `access[]` rows from the SQL statements of the slices (`select` R, `insert` C, `update` U, `delete` D) for the node

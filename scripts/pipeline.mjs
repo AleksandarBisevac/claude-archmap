@@ -52,7 +52,7 @@ import {
   copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, relative, resolve, isAbsolute } from 'node:path';
+import { basename, dirname, join, relative, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { matchAny } from './lib/glob.mjs';
 import { CAPS } from './merge.mjs';
@@ -627,7 +627,7 @@ function plan(o, ctx) {
     generatedAt: o.generatedAt ?? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     previous,
     areas: targets.map((a) => a.id),
-    databases: list(pre.sources).filter((s) => isObj(s) && DB_CLI[s.kind] && s.status === 'found').map((s) => ({ kind: s.kind, path: s.path })),
+    databases: databasesOf(pre),
     update,
   };
   writeJson(statePath(work), state);
@@ -663,20 +663,59 @@ function cliPresent(cli) {
   return !r.error && r.status === 0;
 }
 
-function queryColumns(kind, file) {
+/**
+ * The file databases of a build: the database files the inventory found, plus every path a program opens by
+ * literal (duckdb.connect, sqlite3.connect, ...) whether or not the file is in the repository - DuckDB and
+ * SQLite create theirs at runtime. One row per kind and path, sorted.
+ */
+function databasesOf(pre) {
+  const byKey = new Map();
+  const add = (kind, path) => {
+    if (typeof path === 'string' && path && DB_CLI[kind] && !byKey.has(`${kind}\0${path}`)) byKey.set(`${kind}\0${path}`, { kind, path });
+  };
+  for (const s of list(pre.sources)) if (isObj(s) && s.status === 'found') add(s.kind, s.path);
+  for (const x of Object.values(isObj(pre.extracts) ? pre.extracts : {})) {
+    for (const s of list(isObj(x) ? x.stores : [])) if (isObj(s)) add(s.kind, s.path);
+  }
+  return [...byKey.values()].sort((p, q) => cmp(p.path, q.path) || cmp(p.kind, q.kind));
+}
+
+// DuckDB without its CLI can still be read by the python module: the same query, the same tab-separated rows.
+const DUCKDB_PY =
+  'import sys, duckdb\n' +
+  'con = duckdb.connect(sys.argv[1], read_only=True)\n' +
+  'for r in con.execute(sys.argv[2]).fetchall():\n' +
+  "    print('\\t'.join('' if v is None else str(v) for v in r))\n";
+
+/** How a database kind can be read here: {tool} when it can, {reason} naming what is missing when it cannot. */
+function readerFor(kind) {
+  const cli = DB_CLI[kind];
+  if (cliPresent(cli)) return { tool: cli };
+  const missing = `${cli} CLI not found on PATH`;
+  // sqlite3 is in python's standard library, so a python fallback would make the CLI check meaningless: duckdb only
+  if (kind !== 'duckdb') return { reason: missing };
+  const py = spawnSync('python3', ['-c', 'import duckdb'], { encoding: 'utf8' });
+  if (py.error) return { reason: `${missing} and python3 is not on PATH` };
+  if (py.status !== 0) return { reason: `${missing} and the python duckdb module is not installed` };
+  return { tool: 'python3 duckdb module' };
+}
+
+function queryColumns(kind, file, tool) {
   let tmp = null;
   try {
-    let args;
-    if (kind === 'sqlite') args = ['-readonly', '-noheader', '-separator', '\t', file, SQLITE_COLUMNS];
+    let run;
+    if (kind === 'sqlite') run = ['sqlite3', ['-readonly', '-noheader', '-separator', '\t', file, SQLITE_COLUMNS]];
     else {
       // a DuckDB file may be held by a server: open a copy, never the original
       tmp = mkdtempSync(join(tmpdir(), 'archmap-duckdb-'));
       const copy = join(tmp, basename(file));
       copyFileSync(file, copy);
       if (existsSync(`${file}.wal`)) copyFileSync(`${file}.wal`, `${copy}.wal`);
-      args = ['-readonly', '-noheader', '-list', '-separator', '\t', copy, '-c', DUCKDB_COLUMNS];
+      run = tool === DB_CLI.duckdb
+        ? ['duckdb', ['-readonly', '-noheader', '-list', '-separator', '\t', copy, '-c', DUCKDB_COLUMNS]]
+        : ['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]];
     }
-    const r = spawnSync(DB_CLI[kind], args, { encoding: 'utf8' });
+    const r = spawnSync(run[0], run[1], { encoding: 'utf8' });
     if (r.error || r.status !== 0) return { error: clip(r.stderr || r.error?.message || 'failed')[0] ?? 'failed' };
     const tables = new Map();
     for (const line of r.stdout.split('\n')) {
@@ -697,6 +736,9 @@ function queryColumns(kind, file) {
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'table';
 
+/** One skipped file database: the row a reader of the model finds in meta.sources, naming what is missing. */
+const skippedRow = (db, reason) => ({ type: 'introspection-skipped', kind: db.kind, path: db.path, status: 'skipped', reason });
+
 function introspect(ctx, state, fragmentsDir) {
   const target = join(fragmentsDir, 'introspection.json');
   rmSync(target, { force: true });
@@ -707,10 +749,26 @@ function introspect(ctx, state, fragmentsDir) {
   }
   const rows = [];
   const pending = [];
+  const readers = new Map();
+  const repoRoot = resolve(state.repo);
   for (const db of state.databases) {
-    const cli = DB_CLI[db.kind];
-    if (!cliPresent(cli)) rows.push({ kind: db.kind, path: db.path, status: 'skipped', reason: `${cli} CLI not found on PATH` });
-    else pending.push(db);
+    const file = resolve(repoRoot, db.path);
+    if (!file.startsWith(repoRoot + sep)) {
+      rows.push(skippedRow(db, `${db.path} is outside the repository, so it is not read`));
+      continue;
+    }
+    if (!existsSync(file)) {
+      rows.push(skippedRow(db, `${db.path} does not exist in the repository: a ${db.kind} file is created when the program runs, so there is no schema to read`));
+      continue;
+    }
+    if (!statSync(file).isFile()) {
+      rows.push(skippedRow(db, `${db.path} is not a file`));
+      continue;
+    }
+    if (!readers.has(db.kind)) readers.set(db.kind, readerFor(db.kind));
+    const reader = readers.get(db.kind);
+    if (reader.reason) rows.push(skippedRow(db, reader.reason));
+    else pending.push({ ...db, file, tool: reader.tool });
   }
   const entities = [];
   if (pending.length) {
@@ -723,18 +781,18 @@ function introspect(ctx, state, fragmentsDir) {
     rmSync(pre, { force: true });
     for (const db of pending) {
       if (!model) {
-        rows.push({ kind: db.kind, path: db.path, status: 'skipped', reason: 'the fragments did not merge, so no store node could own the file' });
+        rows.push(skippedRow(db, 'the fragments did not merge, so no store node could own the file'));
         continue;
       }
       const owner = list(model.nodes).find((n) => matchAny(list(n.paths), db.path))
         ?? list(model.nodes).find((n) => list(n.evidence).some((e) => e.path === db.path));
       if (!owner) {
-        rows.push({ kind: db.kind, path: db.path, status: 'skipped', reason: 'no node owns the file, so its tables have no store' });
+        rows.push(skippedRow(db, 'no node owns the file, so its tables have no store'));
         continue;
       }
-      const q = queryColumns(db.kind, join(state.repo, db.path));
+      const q = queryColumns(db.kind, db.file, db.tool);
       if (q.error) {
-        rows.push({ kind: db.kind, path: db.path, status: 'skipped', reason: `${DB_CLI[db.kind]} could not read the schema: ${q.error}` });
+        rows.push(skippedRow(db, `${db.tool} could not read the schema: ${q.error}`));
         continue;
       }
       const known = new Set(list(model.entities).flatMap((e) => [String(e.name).toLowerCase(), String(e.id).toLowerCase()]));
@@ -751,7 +809,7 @@ function introspect(ctx, state, fragmentsDir) {
       rows.push({ kind: db.kind, path: db.path, status: 'ok', store: owner.id, entities: added, alreadyDeclared: declared });
     }
   }
-  ctx.ledger.push({ phase: 'introspection', label: pending.length ? [...new Set(pending.map((d) => DB_CLI[d.kind]))].join(', ') : 'introspection (skipped)', tokens: 0 });
+  ctx.ledger.push({ phase: 'introspection', label: pending.length ? [...new Set(pending.map((d) => d.tool))].join(', ') : 'introspection (skipped)', tokens: 0 });
   writeJson(target, {
     area: 'introspection', nodes: [], edges: [], entities, access: [], coverage: [],
     skipped: { count: 0, reasons: [] }, sources: rows,

@@ -213,7 +213,11 @@ export function areaExtracts(out) {
   }
   const calls = [...(py.httpCalls ?? []), ...(ts.apiCalls ?? [])];
   for (const c of calls) put(c, 'httpCalls', compact({ method: c.method, url: c.url, client: c.client, ...where(c) }));
-  for (const s of ts.stores ?? []) put(s, 'stores', compact({ library: s.library, kind: s.kind, name: s.name, ...where(s) }));
+  // state stores (ts) and file databases opened by path (python, js): a database row carries the path literal,
+  // which the build's finish step looks for on disk and reads when it can, or records as skipped
+  for (const s of [...(py.stores ?? []), ...(gen.stores ?? []), ...(ts.stores ?? [])]) {
+    put(s, 'stores', compact({ library: s.library, kind: s.kind, name: s.name, path: s.path, ...where(s) }));
+  }
 
   // env keys: one row per name and area, with up to four places
   const envBy = new Map();

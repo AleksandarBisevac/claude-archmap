@@ -5765,7 +5765,7 @@
         {
           "id": "P10.10-6rm",
           "title": "Full extracts and script-made entities, relations and queues: the explorer gets a summary, the model gets every declared table",
-          "status": "in_progress",
+          "status": "done",
           "description": "Round 3 of the iteration-2 evals (2026-10-31, after P10.6-P10.9) builds now complete and cost 0.9-1.6 USD, but the model lost what the old free-form explorers used to find: eval 4 (a Hono, Drizzle, BullMQ monorepo) came out with 124 nodes, 72 edges, 4 entities, 3 relations and 1 queue against 170, 313, 153, 47 and 9 in iteration 1; eval 1 with 2 entities against 17. Cause, measured on the extracts: EXTRACT_BUDGET (5500 characters per area) trimmed 138 of 142 Drizzle tables, 56 routes and every import list, and the packages-db explorer, told to confirm the extract, wrote 4 entities and skipped 138; the api area extract had 0 of 710 Hono route calls because the sub-apps are declared as new Hono<Env>() with generics and mounted with app.route(prefix, sub); the 9 BullMQ Queue and Worker constructions sat in a package whose area was labelled ts-frontend, so the node-backend scanner never ran there. Fix, in the spirit of the phase (scripts, not agents): prescan writes the FULL extract per area (no budget; every table with fields and references, every route, every queue, imports and links) and a separate capped summary for the explorer (counts per kind plus the first rows, under the 12 K brief-plus-agent-file bound); merge generates from the extracts, deterministically and with evidence, one entity per declared table (fields with provenance declared), one relation per declared foreign key, one queue node per queue name and the queue edges with async true for each producer and consumer, merging an explorer's entity of the same table name into the generated one; the node scanners run on any area that holds .ts or .js files whatever its stack label; the Hono parser handles generics and route composition. The brief, agents/archmap-explorer.md and SKILL.md tell the explorer to read the summary and never transcribe tables. Keep output byte-identical across runs, goldens green, SKILL.md at or under 500 lines with line 3 byte-identical. Fixtures stay synthetic.",
           "files": [
             "scripts/prescan.mjs",
@@ -5809,34 +5809,64 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "69c442e3e705",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "No executor brief existed for this start (drive-phase.py brief exited 2: .claude/state/briefs/P10.10-6rm/20261031T004719Z.executor.md missing), so I worked from the manifest task and its tests.add, as the caller instructed. TDD: drafted the tests first and saw them fail on the current code (prescan-node-backend 4 failing, prescan-core 2, merge 7, pipeline 3, agents 1, skill 1). Probing showed generics and cross-file sub-apps already parsed, so nb12 was given a chained composition case (new Hono<Env>().get().post(), app.get().post()), which failed before the fix. Changes: scripts/prescan.mjs drops EXTRACT_BUDGET, TRIM_WEIGHT and ROW_CAP. extracts/<area>.json is now the full record: every table field, `lines` on tables, the queue's declaration file and line, import ceiling 20000. It also writes extracts/<area>.summary.json (SUMMARY_BUDGET 4200: area header, `extract` path, note, `counts` per kind, the first rows of each kind, trimmed by weight with tables first), and areas[] carries `summary`. A plug-in may define `scans(inventory)`, which runs it without naming a stack. node-backend.mjs: `scans` is true for any repo with .ts/.js code. Hono chains are followed after router calls and after `new Hono<...>()` (ctorParen skips type arguments). MAX_ITEMS goes 300 -> 20000 and MAX_NESTED 100 -> 2000 (ceilings, not budgets). python.mjs: MAX_ITEMS 300 -> 20000. merge.mjs: new generateFromExtracts runs before deriveLayer. It makes one entity per declared table with declared fields and evidence at the file and lines. An explorer entity with the same table or model name is merged into it (explorer id, desc and extra fields kept). The store is chosen in order: the store that owns the file, a store that covers it, the store of an entity in the same file, the area's only store, else a generated <area>-db store. It also makes one queue node per name (<name>-queue, or an existing explorer queue node of that name) with async queue edges from each producer's and consumer's owning node. Link-derived queue edges now go to the queue node, consumer edges get their own desc, the derivation row counts what was made, and the CLI skips *.summary.json in --extracts. In update mode only affected areas' slices are generated from. pipeline.mjs: the brief names the summary path, not the full extract, and says entities, relations and queue edges come from the script and never to list tables. The entity contract line is shorter, and a last trim step cuts the floor names to 160 chars (the count stays). agents/archmap-explorer.md and SKILL.md (327 lines, line 3 byte-identical to HEAD, checked with diff) say to read the summary and never transcribe tables. Tests updated or added: nb1, nb6, nb10, nb11, nb12, nb13, pc9 (agent file + SUMMARY < 12 K), pc11, py7, py10, m13, m13c, m14 (queue node in between), m21, m21b, m21c, m21d, p1, p19, p20, a7, a8, s14. a7's ban was narrowed from /transcrib/ to /transcribe (it|the extract)\\b|do not re-derive the rest/ because a8 requires 'never transcribe tables'. Fixture: tests/fixtures/repos/node-api/src/hono/reviews.ts and server.ts (synthetic, staged with git add) plus a README row. Runs: node --test from the project root exit 0, 373 tests, 373 pass, 0 fail. node --test tests/denylist.test.mjs exit 0 (2/2). docs/design.md not touched. Left for follow-up, outside this task's files: skills/architecture-map/references/model-schema.md line 108 still says merge derives 'a queue producer to its consumer' edge, and references/discovery-generic.md lines 5 and 9 still point the explorer at extracts/<area>.json and `truncated`. ts-frontend.mjs keeps its 300-per-kind cap (not in files).",
+            "descriptive": "prescan writes full per-area extracts plus a capped explorer summary, the node scanners run whatever the area's stack label and follow Hono route chains, and merge builds every declared table, foreign key, queue node and queue edge from the extracts instead of the explorer."
           },
           "startedAt": "2026-10-31T00:47:19Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T01:11:16Z",
+          "verifiedBy": [
+            "nb11: on the node fixture the full extracts hold every table, route and queue the scanner found, editions with fields and the publishers.id reference and lines 11-17, the /reviews routes of a Hono<Env> sub-app mounted from another file, the email queue with its declaration, and nothing truncated",
+            "nb12: Hono sub-apps with generics (nested type braces, imported or in the same file) take their mount prefix; chained composition new Hono<Env>().get().post().delete() and app.get().post() yield every route at its line",
+            "nb13: a workspace package whose stacks are ['ts-frontend'] still gets its BullMQ queue (producer and worker), Drizzle table and Hono route in its full extract",
+            "pc9: agent file plus the area SUMMARY is under 12 K for every area of every fixture repo; a 280-route area keeps all 280 in the full extract with nothing truncated while the summary counts 280 and shows only the first rows",
+            "pc11: every area has extracts/<id>.json and extracts/<id>.summary.json; the summary names its extract, carries counts equal to the full extract's arrays, first rows that are a prefix of the full rows, the script note, and is byte-identical across runs",
+            "m21: one entity per declared table with declared fields and evidence at the schema file and lines, the explorer's entity of the same table merged (id, desc, observed field kept), one fk relation per declared foreign key",
+            "m21b: one queue node per queue name across areas, evidence at the declaration, async queue edges from the producer's and the consumer's node at their lines; an explorer queue node of that name is used instead",
+            "m21c: generation is order-independent and repeatable, a table no store covers gets a generated store node, and through the CLI a .summary.json beside the extracts is not read",
+            "m21d: 150 generated entities and 149 relations bypass the fragment caps, validate, and the digest stays under DIGEST_CAP with every entity listed or counted in truncated",
+            "p19: every brief names the summary path and not the full extract, says entities, relations and queue edges come from the script, and says never to list tables",
+            "p20: finish with entity-free fragments yields an entity for each declared table (Customer, OrderLine, authors, books, editions, orders, publishers), the editions.publisherId fk, one email queue node with the worker's edge, and validate --repo exit 0",
+            "a8: archmap-explorer.md names extracts/<area>.summary.json, says not to read the full extract, never to transcribe tables, that merge.mjs makes entities, relations and queue edges, and its description says summary",
+            "s14: SKILL.md says entities, relations and queue edges are generated by merge.mjs from the extracts, names the summary, and stays at or under 500 lines"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T01:11:15Z.709bce",
             "status": "passed",
             "at": "2026-10-31T01:11:15Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "69c442e3e705",
+            "at": "2026-10-31T01:11:16Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T01:10:18Z",
+            "basis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.11-6rm",
           "title": "File databases: detect them in code, introspect when a CLI exists, otherwise record the skip in meta.sources",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Round 3 of eval 1 (2026-10-31) failed the expectation \"entities carry observed fields from the file database, or meta.sources records the skipped introspection with a reason\": prescan found no database store because the DuckDB file is created at runtime and is not in the repository, the python scanner lists psycopg, asyncpg, sqlite3 and engines but not duckdb.connect, so finish had nothing to introspect and recorded nothing; on this machine neither the duckdb CLI nor the python module exists. Fix: the python scanner (and the generic one for JS) recognises duckdb.connect(<path>) and sqlite3.connect(<path>) and emits a store row with kind, the path literal and evidence whether or not the file exists; pipeline.mjs finish, for each file-database store, introspects when the file exists and a CLI or module is available (schema only, read-only, on a temp copy for duckdb) and otherwise writes one meta.sources row {type:'introspection-skipped', kind, path, reason} that names the missing file or the missing tool; merge carries the row into the model and validate accepts it. Runs after P10.10 (shared files). Fixtures stay synthetic.",
           "files": [
+            "scripts/prescan.mjs",
             "scripts/lib/prescan/generic.mjs",
             "scripts/lib/prescan/python.mjs",
             "scripts/lib/prescan/inventory.mjs",
+            "scripts/lib/prescan/ts-frontend.mjs",
             "scripts/pipeline.mjs",
             "scripts/merge.mjs",
+            "skills/architecture-map/references/model-schema.md",
+            "skills/architecture-map/references/discovery-generic.md",
             "tests/prescan-core.test.mjs",
             "tests/prescan-python.test.mjs",
+            "tests/prescan-ts-frontend.test.mjs",
             "tests/pipeline.test.mjs",
             "tests/fixtures/repos/python-api"
           ],
@@ -5859,16 +5889,22 @@
           "dependsOn": [
             "P10.10-6rm"
           ],
-          "attempts": 0,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T01:11:18Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T01:20:03Z.f47a21",
+            "status": "passed",
+            "at": "2026-10-31T01:20:03Z"
+          }
         },
         {
           "id": "P10.12-6rm",
@@ -6032,7 +6068,8 @@
     "scripts/prescan.mjs": [
       "P3.1",
       "P10.2-2xj",
-      "P10.10-6rm"
+      "P10.10-6rm",
+      "P10.11-6rm"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
@@ -6075,14 +6112,16 @@
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.11-6rm"
     ],
     "tests/fixtures/repos/ts-web/README.md": [
       "P3.3"
     ],
     "tests/prescan-ts-frontend.test.mjs": [
       "P3.3",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.11-6rm"
     ],
     "scripts/lib/prescan/node-backend.mjs": [
       "P3.4",
@@ -6271,7 +6310,8 @@
       "BF1.1",
       "BF1.3",
       "P10.2-2xj",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.11-6rm"
     ],
     "skills/architecture-map/references/relation-taxonomy.md": [
       "P4.1"
@@ -6285,7 +6325,8 @@
     ],
     "skills/architecture-map/references/discovery-generic.md": [
       "P4.2",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.11-6rm"
     ],
     "skills/architecture-map/references/stack-python-backend.md": [
       "P4.2"

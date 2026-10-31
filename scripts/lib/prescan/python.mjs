@@ -2,11 +2,12 @@
 //
 // extractPython(files, read) -> fragment
 //   { scanned, routes[], entities[], schemas[], migrations[], sqlTables[], httpCalls[], envKeys[],
-//     clients[], queues[], skipped{<kind>: n}, truncated{<kind>: n} }
+//     clients[], queues[], stores[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (FastAPI/Flask decorators, Django urls), SQLAlchemy/Django entities with fields, Pydantic
 // schemas, Alembic migration ops, raw SQL table names, outbound HTTP calls, environment variables
 // read (names only), SDK clients and base URLs, and task queues (Celery, Dramatiq, RQ, pika) with
-// their producers and consumers. Every item carries
+// their producers and consumers, and file databases opened by path (duckdb.connect, sqlite3.connect: a store
+// row with kind, path and evidence whether or not the file is in the repository). Every item carries
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
 // ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
 // counted in `truncated`. A recognised shape whose arguments
@@ -17,9 +18,9 @@
 // prescan.mjs loads. Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
-import { scanClients, scanEnvKeys } from './generic.mjs';
+import { scanClients, scanDatabases, scanEnvKeys } from './generic.mjs';
 
-export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables'];
+export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables', 'stores'];
 export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_FIELDS = 60; // per entity, schema or migration op
 const MAX_TEXT = 200; // longest type / path / url string kept
@@ -797,6 +798,9 @@ export function extractPython(files, read) {
   const pyFiles = files.filter((p) => /\.py$/.test(p));
   acc.envKeys.push(...scanEnvKeys(pyFiles, read, 'py'));
   acc.clients.push(...scanClients(pyFiles, read, 'py'));
+  const dbs = scanDatabases(pyFiles, read, 'py');
+  acc.stores.push(...dbs.rows);
+  acc.skipped.stores += dbs.skipped;
 
   const truncated = {};
   const out = { scanned: parsed.length };

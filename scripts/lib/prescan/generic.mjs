@@ -4,7 +4,7 @@
 // hints any stack gets: entry points, top-level dirs, Dockerfiles/compose files, CI files.
 // Pure functions of (files, read): sorted output, no timestamps. Node >= 18, zero dependencies.
 
-import { byCodeUnit } from './inventory.mjs';
+import { byCodeUnit, dbKindOf } from './inventory.mjs';
 
 export const STACK_IDS = ['node-backend', 'python', 'ts-frontend'];
 
@@ -119,13 +119,17 @@ export function genericRecipe(files, read) {
       if (files.includes(p)) entry.add(p);
     }
   }
-  return {
+  const recipe = {
     entryPoints: [...entry].sort(byCodeUnit),
     topLevelDirs: [...new Set(files.filter((f) => f.includes('/')).map((f) => f.slice(0, f.indexOf('/'))))].sort(byCodeUnit),
     containers: files.filter((f) => isDockerfile(baseOf(f)) || isCompose(baseOf(f))).sort(byCodeUnit),
     ci: files.filter(isCi).sort(byCodeUnit),
     manifests: files.filter((f) => MANIFEST.test(f)).sort(byCodeUnit),
   };
+  // file databases opened by js or ts code (the python ones are the python extractor's `stores`)
+  const stores = scanDatabases(files, read, 'js').rows;
+  if (stores.length) recipe.stores = stores;
+  return recipe;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -254,6 +258,53 @@ export function scanClients(files, read, lang) {
     }
   }
   return out.sort((a, b) => byCodeUnit(a.evidence[0].path, b.evidence[0].path) || Number(a.evidence[0].lines) - Number(b.evidence[0].lines));
+}
+
+// --- file databases opened by path ------------------------------------------------------------
+
+const PY_DB = /(?<![\w.])(duckdb|sqlite3)\.connect\s*\(\s*(?:database\s*=\s*)?/g;
+const JS_DB = /\bnew\s+(?:(duckdb|sqlite3)\.(?:cached\.)?)?Database\s*\(\s*|\b(DuckDBInstance)\.(?:create|fromCache)\s*\(\s*/g;
+const PATH_LITERAL = /^(['"`])([^'"`\n$\\]*)\1\s*[,)]/;
+const IN_MEMORY = (p) => p === '' || p === ':memory:' || p.startsWith('file::memory:');
+
+/**
+ * File databases a program opens by path literal: duckdb.connect(<path>) and sqlite3.connect(<path>) in python,
+ * new duckdb.Database(<path>), new sqlite3.Database(<path>), new Database(<path>) (kind from the extension) and
+ * DuckDBInstance.create(<path>) in js/ts. The file is not looked for: DuckDB and SQLite create theirs at runtime,
+ * so a path the repository does not hold is still a database the program uses.
+ * Returns { rows: [{library, kind, name, path, evidence}], skipped }; `skipped` counts calls whose path is not a
+ * literal. An in-memory database is not a file and gives neither. A path is never resolved or guessed.
+ */
+export function scanDatabases(files, read, lang) {
+  const py = lang === 'py';
+  const rows = [];
+  let skipped = 0;
+  for (const path of files) {
+    if (!(py ? PY_FILE : JS_FILE).test(path) || NOT_RUNTIME.test(path)) continue;
+    const src = read(path);
+    if (typeof src !== 'string') continue;
+    for (const m of src.matchAll(py ? PY_DB : JS_DB)) {
+      const lineStart = src.lastIndexOf('\n', m.index) + 1;
+      const head = src.slice(lineStart, m.index).trimStart();
+      if (head.startsWith(py ? '#' : '//') || head.startsWith('*') || head.startsWith('/*')) continue;
+      const receiver = m[1] ?? (m[2] ? 'duckdb' : null);
+      const lit = PATH_LITERAL.exec(src.slice(m.index + m[0].length, m.index + m[0].length + 400));
+      const n = src.slice(0, m.index).split('\n').length;
+      if (!lit) {
+        // `new Database(x)` names no engine on its own: only a call that does is counted
+        if (receiver && !/^\s*[)]/.test(src.slice(m.index + m[0].length))) skipped++;
+        continue;
+      }
+      const target = lit[2];
+      if (IN_MEMORY(target)) continue;
+      const kind = receiver ? (receiver === 'duckdb' ? 'duckdb' : 'sqlite') : dbKindOf(target);
+      if (!kind) continue;
+      const clean = target.replace(/^(?:\.\/)+/, '');
+      rows.push({ library: kind === 'duckdb' ? 'duckdb' : 'sqlite3', kind, name: baseOf(clean), path: clean, evidence: ev(path, n) });
+    }
+  }
+  rows.sort((a, b) => byCodeUnit(a.evidence[0].path, b.evidence[0].path) || Number(a.evidence[0].lines) - Number(b.evidence[0].lines));
+  return { rows, skipped };
 }
 
 // --- import graph -----------------------------------------------------------------------------

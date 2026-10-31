@@ -3,7 +3,7 @@
 // Files come from `git ls-files -co --exclude-standard` (tracked + untracked-not-ignored), so
 // .gitignore is honoured. Vendored/generated directories, binaries, lockfiles, minified bundles
 // and files over a size cap are dropped. Database files are only LISTED (as `sources`); they are
-// never opened, so no rows can ever be read here. Node >= 18, zero dependencies.
+// never opened here, so no rows can ever be read (build's finish step reads a schema, never rows). Node >= 18, zero dependencies.
 
 import { execFileSync } from 'node:child_process';
 import { lstatSync, readFileSync } from 'node:fs';
@@ -40,6 +40,9 @@ const ext = (p) => {
   const i = base.lastIndexOf('.');
   return i <= 0 ? '' : base.slice(i + 1).toLowerCase();
 };
+
+/** 'sqlite' or 'duckdb' for a path whose extension names a file database, else null. */
+export const dbKindOf = (p) => DB_KIND.get(ext(p)) ?? null;
 
 /** Code-unit order: independent of locale, so output is identical on every machine. */
 export const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);

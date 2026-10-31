@@ -2,11 +2,13 @@
 
 Use this for any stack prescan does not recognise (Go, Rust, Java, Ruby, PHP, a data platform, a mixed repo), and as the
 fallback inside a recognised stack for whatever its extractor skipped. Prescan (`scripts/prescan.mjs`) writes your
-area's extract, `<work>/extracts/<area>.json`: `entryPoints`, `manifests`, `containers` and `ci` for any repo, and for a
-recognised stack the `routes` (method, path, handler, file, line), `tables` with fields, `envKeys` (names, never values),
-`queues` with producers and consumers, `clients` (SDK constructors and base URLs), `httpCalls`, `imports` between the
-area's files and `links` to other areas (import, HTTP call to route, queue producer to consumer). A kind that is empty
-for your stack, or listed in `truncated`, is where the steps below apply. Start from the extract; do not rediscover it.
+area's summary, `<work>/extracts/<area>.summary.json`: counts per kind and the first rows of each, for `entryPoints`,
+`manifests`, `containers` and `ci` on any repo, and for a recognised stack the `routes` (method, path, handler, file,
+line), `tables`, `envKeys` (names, never values), `queues`, `clients` (SDK constructors and base URLs), `httpCalls`,
+`stores` (state stores and file databases opened by path), `imports` between the area's files and `links` to other areas
+(import, HTTP call to route, queue producer to consumer). The full extract beside it has no budget and is the script's:
+entities, relations and queue edges are made from it by `merge.mjs`, so you do not read it and do not transcribe a
+table. A kind that is empty for your stack is where the steps below apply. Start from the summary; do not rediscover it.
 
 ## Hard rules
 

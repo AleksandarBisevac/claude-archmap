@@ -297,7 +297,7 @@ test('p8 introspection: a listed database file without its CLI is recorded as sk
   if (!existsSync(join(bin, 'git'))) symlinkSync(gitPath, join(bin, 'git'));
   const skipped = step(['finish', '--work', w], { ...process.env, PATH: bin });
   assert.equal(skipped.status, 0, skipped.stdout);
-  assert.deepEqual(skipped.json.introspection, [{ kind: 'sqlite', path: 'src/entities/reviews.sqlite', status: 'skipped', reason: 'sqlite3 CLI not found on PATH' }]);
+  assert.deepEqual(skipped.json.introspection, [{ type: 'introspection-skipped', kind: 'sqlite', path: 'src/entities/reviews.sqlite', status: 'skipped', reason: 'sqlite3 CLI not found on PATH' }]);
   const m1 = readJson(join(w, 'model.json'));
   assert.ok(m1.meta.sources.some((s) => s.path === 'src/entities/reviews.sqlite' && s.status === 'skipped'), 'the skip is in meta.sources');
   if (sqlite.status !== 0) return; // the observed half needs the sqlite3 CLI
@@ -652,4 +652,91 @@ test('p20 finish on the fixture with fragments that carry no entity produces an 
   assert.ok(model.edges.some((e) => e.type === 'queue' && e.from === 'email-worker' && e.to === 'email-queue'), JSON.stringify(model.edges.map((e) => e.id)));
   const v = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', repo], { encoding: 'utf8' });
   assert.equal(v.status, 0, v.stdout + v.stderr);
+});
+
+/** A repo copy with a python file that opens file databases by path literal, planned and given the canned fragments. */
+function dbRepo(name, { present = [], code }) {
+  const r = fixtureRepo(name);
+  writeFileSync(join(r, 'src/entities/load.py'), code);
+  for (const f of present) writeFileSync(join(r, f), 'not a database, only a file of that name\n');
+  git(r, 'add', '-A');
+  git(r, 'commit', '-q', '-m', 'db code');
+  const w = join(tmp, `work-${name}`);
+  assert.equal(step(['plan', r, '--work', w, '--out', join(tmp, `out-${name}`), '--generated-at', GENERATED_AT]).status, 0);
+  cannedInto(w);
+  return { r, w };
+}
+
+/** A PATH holding git and, when `script` is given, a `duckdb` stand-in running it (and `python3` when `py` is). */
+function binWith(name, script, py) {
+  const bin = join(tmp, `bin-${name}`);
+  mkdirSync(bin, { recursive: true });
+  const gitPath = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  if (!existsSync(join(bin, 'git'))) symlinkSync(gitPath, join(bin, 'git'));
+  if (script) writeFileSync(join(bin, 'duckdb'), script, { mode: 0o755 });
+  if (py) writeFileSync(join(bin, 'python3'), py, { mode: 0o755 });
+  return bin;
+}
+
+test('p21 a file database named in code is introspected when present and a tool exists; otherwise meta.sources carries one introspection-skipped row that names the missing file or the missing tool', () => {
+  const code = 'import duckdb\n\nWAREHOUSE = duckdb.connect("src/entities/warehouse.duckdb")\nGHOST = duckdb.connect("src/entities/ghost.duckdb")\n';
+  const { r, w } = dbRepo('db-code', { present: ['src/entities/warehouse.duckdb'], code });
+  const pre = readJson(join(w, 'prescan.json'));
+  assert.deepEqual(pre.extracts.python.stores.map((x) => `${x.kind} ${x.path}`), ['duckdb src/entities/warehouse.duckdb', 'duckdb src/entities/ghost.duckdb']);
+
+  // no duckdb on PATH: the absent file is named as absent, the present one as lacking its tool
+  const none = step(['finish', '--work', w], { ...process.env, PATH: binWith('git-only') });
+  assert.equal(none.status, 0, none.stdout);
+  const rows = (m) => m.meta.sources.filter((x) => x.type === 'introspection-skipped').map((x) => ({ kind: x.kind, path: x.path, reason: x.reason }));
+  const got = Object.fromEntries(rows(readJson(join(w, 'model.json'))).map((x) => [x.path, x]));
+  assert.deepEqual(Object.keys(got).sort(), ['src/entities/ghost.duckdb', 'src/entities/warehouse.duckdb']);
+  assert.equal(got['src/entities/ghost.duckdb'].kind, 'duckdb');
+  assert.match(got['src/entities/ghost.duckdb'].reason, /src\/entities\/ghost\.duckdb does not exist/);
+  assert.match(got['src/entities/warehouse.duckdb'].reason, /duckdb CLI not found on PATH/);
+  const v1 = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', r], { encoding: 'utf8' });
+  assert.equal(v1.status, 0, v1.stdout + v1.stderr);
+
+  // a duckdb stand-in on PATH: the present file is read through a copy, read-only, and its tables become observed entities
+  const log = join(tmp, 'duckdb-args.log');
+  const stub = '#!/bin/sh\nif [ "$1" = "-version" ]; then echo v0.0.0; exit 0; fi\n' +
+    `echo "$@" >> "${log}"\n` +
+    "printf 'table\\tevents\\t1\\tid\\tBIGINT\\t0\\t1\\ntable\\tevents\\t2\\tpayload\\tVARCHAR\\t0\\t0\\n'\n";
+  const ran = step(['finish', '--work', w], { ...process.env, PATH: binWith('with-duckdb', stub) });
+  assert.equal(ran.status, 0, ran.stdout);
+  const m2 = readJson(join(w, 'model.json'));
+  const events = m2.entities.find((e) => e.name === 'events');
+  assert.ok(events, 'the table no fragment declared becomes an entity');
+  assert.equal(events.store, 'library-db');
+  assert.deepEqual(events.fields.map((f) => [f.name, f.provenance]), [['id', 'observed'], ['payload', 'observed']]);
+  const args = readFileSync(log, 'utf8');
+  assert.match(args, /-readonly/);
+  assert.ok(!args.includes(join(r, 'src/entities/warehouse.duckdb')), 'the original file is never opened, a copy is');
+  assert.deepEqual(rows(m2).map((x) => x.path), ['src/entities/ghost.duckdb'], 'only the absent file is still a skip');
+  const v2 = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', r], { encoding: 'utf8' });
+  assert.equal(v2.status, 0, v2.stdout + v2.stderr);
+});
+
+test('p22 without the duckdb CLI the python duckdb module reads the schema when it is installed, and the skip row names both when it is not', () => {
+  const code = 'import duckdb\n\nWAREHOUSE = duckdb.connect("src/entities/warehouse.duckdb")\n';
+  const { r, w } = dbRepo('db-module', { present: ['src/entities/warehouse.duckdb'], code });
+  // a python3 stand-in: `-c "import duckdb"` is the probe; any other call is the query and prints tab-separated rows
+  const log = join(tmp, 'python-args.log');
+  const withModule = '#!/bin/sh\nif [ "$2" = "import duckdb" ]; then exit 0; fi\n' +
+    `echo "$@" >> "${log}"\n` +
+    "printf 'view\\tlatest\\t1\\tday\\tDATE\\t0\\t1\\n'\n";
+  const noModule = '#!/bin/sh\nif [ "$2" = "import duckdb" ]; then echo "ModuleNotFoundError: No module named duckdb" >&2; exit 1; fi\nexit 0\n';
+
+  const missing = step(['finish', '--work', w], { ...process.env, PATH: binWith('py-no-module', null, noModule) });
+  assert.equal(missing.status, 0, missing.stdout);
+  const skip = readJson(join(w, 'model.json')).meta.sources.find((x) => x.type === 'introspection-skipped');
+  assert.match(skip.reason, /duckdb CLI not found on PATH and the python duckdb module is not installed/);
+
+  const ran = step(['finish', '--work', w], { ...process.env, PATH: binWith('py-module', null, withModule) });
+  assert.equal(ran.status, 0, ran.stdout);
+  const m = readJson(join(w, 'model.json'));
+  const latest = m.entities.find((e) => e.name === 'latest');
+  assert.ok(latest, 'the view becomes an entity');
+  assert.deepEqual([latest.kind, latest.fields.map((f) => [f.name, f.provenance])], ['view', [['day', 'observed']]]);
+  assert.ok(!readFileSync(log, 'utf8').includes(join(r, 'src/entities/warehouse.duckdb')), 'the module opens a copy, never the original');
+  assert.ok(!m.meta.sources.some((x) => x.type === 'introspection-skipped'), 'nothing was skipped');
 });

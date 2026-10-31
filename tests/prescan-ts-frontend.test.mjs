@@ -173,9 +173,10 @@ test('ts6 unknown patterns are skipped and counted, never guessed; the fragment 
   const many = { 'site/package.json': '{"dependencies":{"next":"14"}}' };
   for (let i = 0; i < 400; i++) many[`site/pages/p${String(i).padStart(3, '0')}.tsx`] = `export default function P${i}() {\n  return null;\n}\n`;
   const big = memFrag(many);
-  assert.ok(big.routes.length <= 300 && big.routes.length > 0, `routes capped (${big.routes.length})`);
-  assert.equal(big.truncated.routes, 400 - big.routes.length);
-  assert.equal(big.routes[0].url, '/p000', 'the cap keeps the first items in sort order');
+  // the extract is the full record (the explorer reads a capped summary), so 400 pages are 400 rows
+  assert.equal(big.routes.length, 400, `every route is kept (${big.routes.length})`);
+  assert.equal(big.truncated.routes, 0);
+  assert.equal(big.routes[0].url, '/p000', 'rows stay in sort order');
   assert.ok(JSON.stringify(big).length < 200 * 1024, 'fragment stays small');
 });
 

@@ -375,3 +375,25 @@ test('pc11 prescan writes extracts/<area>.json in full and extracts/<area>.summa
   assert.equal(readFileSync(join(again.work, src.summary), 'utf8'), readFileSync(join(work, src.summary), 'utf8'));
   assert.equal(readFileSync(join(again.work, src.extract), 'utf8'), readFileSync(join(work, src.extract), 'utf8'));
 });
+
+test('pc12 file databases opened by path in js and ts (new duckdb.Database, new Database with a database extension, DuckDBInstance.create) and python reach the area extract as store rows with their path, whether or not the file exists', () => {
+  const repo = makeRepo({
+    'package.json': '{"name":"x","dependencies":{"express":"4"}}',
+    'api/db.ts':
+      "import duckdb from 'duckdb';\nimport Database from 'better-sqlite3';\n\n" +
+      "export const wh = new duckdb.Database('./data/wh.duckdb');\n" +
+      "export const cache = new Database('var/cache.db');\n" +
+      "export const mem = new duckdb.Database(':memory:');\n" +
+      "export const other = new Database('not-a-database.txt');\n" +
+      '// const old = new duckdb.Database("data/old.duckdb");\n',
+    'api/etl.py': 'import sqlite3\n\nCONN = sqlite3.connect("var/etl.sqlite")\n',
+  });
+  const out = JSON.parse(execFileSync(process.execPath, [PRESCAN, repo], { encoding: 'utf8' }));
+  const rows = [...out.extracts.generic.stores, ...out.extracts.python.stores].map((s) => `${s.kind} ${s.path} ${s.evidence[0].path}:${s.evidence[0].lines}`);
+  assert.deepEqual(rows, [
+    'duckdb data/wh.duckdb api/db.ts:4',
+    'sqlite var/cache.db api/db.ts:5',
+    'sqlite var/etl.sqlite api/etl.py:3',
+  ]);
+  assert.deepEqual(out.sources, [], 'none of the three files is in the repository');
+});
