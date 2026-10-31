@@ -790,6 +790,7 @@ function plan(o, ctx) {
     previous,
     areas: targets.map((a) => a.id),
     databases: databasesOf(pre),
+    testData: testDataOf(pre),
     update,
   };
   writeJson(statePath(work), state);
@@ -800,6 +801,7 @@ function plan(o, ctx) {
     work, repo, out, mode: state.mode, commit: state.commit, profile, stacks: list(pre.stacks),
     workNote: `subagents must be able to write under ${work}: it is under the OS temp dir, which Claude Code lets a subagent write; a --work outside the project and the OS temp dir is denied`,
     areas: planned,
+    testData: state.testData,
     trimmed,
     agents,
     next: nothing
@@ -823,6 +825,25 @@ const DUCKDB_COLUMNS =
 function cliPresent(cli) {
   const r = spawnSync(cli, ['-version'], { encoding: 'utf8' });
   return !r.error && r.status === 0;
+}
+
+/**
+ * What prescan left out as test data: the file count and one row per test data directory ({dir, reason, files}).
+ * The capped file list stays in prescan.json; a prescan output without the block reads as nothing skipped.
+ */
+function testDataOf(pre) {
+  const s = isObj(pre.skipped) ? pre.skipped : {};
+  const dirs = list(s.dirs).filter((d) => isObj(d) && typeof d.dir === 'string').map(({ dir, reason, files }) => ({ dir, reason, files }));
+  return { count: Number.isInteger(s.count) ? s.count : 0, dirs };
+}
+
+/** The report line for the test data a build left out, naming the first directories; null when there was none. */
+function testDataLine(testData, max = 8) {
+  if (!isObj(testData) || !testData.count) return null;
+  const dirs = list(testData.dirs);
+  const named = dirs.slice(0, max).map((d) => `${d.dir} (${d.files})`).join(', ');
+  const more = dirs.length > max ? ` and ${dirs.length - max} more` : '';
+  return `test data: ${testData.count} files left out of the map under ${named}${more}`;
 }
 
 /**
@@ -1176,7 +1197,10 @@ function render(o, ctx) {
     sequences: list(model.sequences).length, views: list(model.views).length,
   };
   const skipped = list(model.meta?.sources).filter((s) => isObj(s) && (s.status === 'skipped' || (s.type === 'truncation'))).map((s) =>
-    [s.area, s.kind ?? s.type, s.path, s.reason ?? (s.dropped ? JSON.stringify(s.dropped) : '')].filter(Boolean).join(' ')).slice(0, MAX_MESSAGES);
+    [s.area, s.kind ?? s.type, s.path, s.reason ?? (s.dropped ? JSON.stringify(s.dropped) : '')].filter(Boolean).join(' '));
+  const testData = testDataLine(state.testData);
+  if (testData) skipped.unshift(testData);
+  skipped.splice(MAX_MESSAGES);
   const agents = [];
   if (state.issues && exitCode === 0) {
     const brief = join(work, 'briefs', 'reviewer.md');

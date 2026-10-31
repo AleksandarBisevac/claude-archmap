@@ -593,8 +593,9 @@ test('pc16 partition with 8 workspace apps and 20 leftover units over maxAreas 8
   for (const a of two.filter((x) => x.id.startsWith('apps-'))) assert.equal(a.globs.length, 1, `${a.id} holds only its app`);
 });
 
-// P8.5: test data is not the product. A fictional express service with a python app under tests/fixtures, a react
-// demo under examples, and data under __fixtures__, testdata and samples directories at several depths.
+// P8.5, narrowed by P8.9: test data is not the product. A fictional express service with a python app under
+// tests/fixtures, a react demo under tests/examples, and data under __fixtures__, testdata and test/samples directories
+// at several depths. examples and samples are test data only below a tests, test, __tests__ or fixtures directory.
 const TEST_DATA_REPO = {
   'package.json': JSON.stringify({ name: 'relay', main: 'src/server.js', dependencies: { express: '4.19.0' } }),
   'src/server.js': 'const express = require("express");\nconst app = express();\n',
@@ -602,16 +603,17 @@ const TEST_DATA_REPO = {
   'tests/server.test.js': 'module.exports = {};\n',
   'tests/fixtures/repos/shop/pyproject.toml': '[project]\nname = "shop-api"\ndependencies = ["fastapi"]\n',
   'tests/fixtures/repos/shop/app/main.py': 'from fastapi import FastAPI\napp = FastAPI()\n',
-  'examples/demo/package.json': JSON.stringify({ name: 'demo', dependencies: { react: '18.0.0', vite: '5.0.0' } }),
-  'examples/demo/src/main.tsx': 'export {};\n',
+  'tests/examples/demo/package.json': JSON.stringify({ name: 'demo', dependencies: { react: '18.0.0', vite: '5.0.0' } }),
+  'tests/examples/demo/src/main.tsx': 'export {};\n',
   'src/__fixtures__/order.json': '{"id": 1}\n',
   'pkg/parse/testdata/input.txt': 'one\n',
-  'docs/samples/client.ts': 'export const c = 1;\n',
+  'test/samples/client.ts': 'export const c = 1;\n',
   'src/fixture/seed.sqlite': PNG,
 };
-const TEST_DATA_PATHS = Object.keys(TEST_DATA_REPO).filter((f) => /(^|\/)(fixtures?|__fixtures__|testdata|examples?|samples?)\//.test(f));
+const TEST_DATA_RE = /(^|\/)(fixtures?|__fixtures__|testdata)\/|(^|\/)(tests?|__tests__|fixtures?)\/(.+\/)?(examples?|samples?)\//;
+const TEST_DATA_PATHS = Object.keys(TEST_DATA_REPO).filter((f) => TEST_DATA_RE.test(f));
 
-test('pc17 a file under a fixtures, __fixtures__, testdata, examples or samples directory of the scan root is inventoried as skipped with a reason naming test data, contributes to no stack and to no area; a scan whose root sits under a fixtures directory is unaffected', async () => {
+test('pc17 a file under a fixtures, __fixtures__ or testdata directory of the scan root, or an examples or samples directory below a tests or fixtures one, is inventoried as skipped with a reason naming test data, contributes to no stack and to no area; a scan whose root sits under a fixtures directory is unaffected', async () => {
   const { buildInventory } = await import(pathToFileURL(join(ROOT, 'scripts', 'lib', 'prescan', 'inventory.mjs')).href);
   const repo = makeRepo(TEST_DATA_REPO);
   const inv = buildInventory(repo);
@@ -637,4 +639,60 @@ test('pc17 a file under a fixtures, __fixtures__, testdata, examples or samples 
   assert.ok(scoped.stacks.includes('python'), `a scope under fixtures keeps its stack: ${scoped.stacks}`);
   assert.equal(scoped.areas.reduce((n, a) => n + a.files, 0), 2);
   assert.deepEqual(buildInventory(repo, { scope: 'tests/fixtures/repos/shop' }).skipped, []);
+});
+
+// P8.9: what prescan leaves out as test data is said, not silent; a product directory named examples or samples is kept.
+test('pc18 prescan output lists the files skipped as test data with their reason and per directory counts, capped at SKIPPED_CAP files; an examples or samples directory is kept unless it sits below a tests, test, __tests__ or fixtures directory; two runs are byte-identical', async () => {
+  const { SKIPPED_CAP } = await import(pathToFileURL(PRESCAN).href);
+  const { buildInventory } = await import(pathToFileURL(join(ROOT, 'scripts', 'lib', 'prescan', 'inventory.mjs')).href);
+  assert.ok(Number.isInteger(SKIPPED_CAP) && SKIPPED_CAP > 0, `SKIPPED_CAP is exported: ${SKIPPED_CAP}`);
+  const product = {
+    'package.json': JSON.stringify({ name: 'relay', main: 'src/server.js', dependencies: { express: '4.19.0' } }),
+    'src/server.js': 'const express = require("express");\n',
+    'src/examples/handler.js': 'module.exports = {};\n',
+    'samples/report.ts': 'export const r = 1;\n',
+    'docs/examples/usage.md': '# usage\n',
+  };
+  const many = Object.fromEntries(Array.from({ length: SKIPPED_CAP + 5 }, (_, i) => [`tests/fixtures/many/f${String(i).padStart(3, '0')}.json`, '{}\n']));
+  const testData = {
+    'tests/examples/case.js': 'module.exports = {};\n',
+    'test/samples/input.json': '{}\n',
+    'src/__tests__/examples/a.js': 'module.exports = {};\n',
+    'tests/unit/samples/b.txt': 'b\n',
+    'fixtures/examples/c.txt': 'c\n',
+    ...many,
+  };
+  const repo = makeRepo({ ...product, ...testData });
+  const skippedPaths = Object.keys(testData).sort();
+
+  const inv = buildInventory(repo);
+  assert.deepEqual(inv.files, Object.keys(product).sort(), 'a product directory named examples or samples is inventoried');
+  assert.deepEqual(inv.skipped.map((s) => s.path), skippedPaths);
+
+  const r1 = run(repo);
+  assert.equal(r1.status, 0, r1.stderr);
+  const out = JSON.parse(r1.stdout);
+  assert.equal(out.areas.reduce((n, a) => n + a.files, 0), Object.keys(product).length, 'the areas count the product files');
+  const globs = out.areas.flatMap((a) => a.globs).map(globRe);
+  for (const f of Object.keys(product)) assert.ok(globs.some((g) => g.test(f)), `${f} is in an area`);
+
+  assert.ok(out.skipped && typeof out.skipped === 'object', `prescan output carries skipped: ${JSON.stringify(out.skipped)}`);
+  assert.equal(out.skipped.count, skippedPaths.length, 'the count is every skipped file, not the capped list');
+  assert.equal(out.skipped.files.length, SKIPPED_CAP, 'the file list is capped');
+  assert.deepEqual(out.skipped.files.map((s) => s.path), skippedPaths.slice(0, SKIPPED_CAP), 'the first files in path order');
+  for (const s of out.skipped.files) assert.match(s.reason, /test data directory (fixtures|__fixtures__|testdata|examples|samples)\b/, s.path);
+  assert.deepEqual(out.skipped.dirs.map((d) => [d.dir, d.files]), [
+    ['fixtures', 1],
+    ['src/__tests__/examples', 1],
+    ['test/samples', 1],
+    ['tests/examples', 1],
+    ['tests/fixtures', SKIPPED_CAP + 5],
+    ['tests/unit/samples', 1],
+  ], JSON.stringify(out.skipped.dirs));
+  for (const d of out.skipped.dirs) assert.match(d.reason, /test data/, d.dir);
+  assert.equal(run(repo).stdout, r1.stdout, 'two runs are byte-identical');
+
+  // nothing skipped: the block is still there, empty
+  const clean = scan(makeRepo(product));
+  assert.deepEqual(clean.skipped, { count: 0, files: [], dirs: [] });
 });

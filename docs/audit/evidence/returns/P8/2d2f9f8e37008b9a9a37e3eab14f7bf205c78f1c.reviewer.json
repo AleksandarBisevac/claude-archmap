@@ -1,0 +1,173 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "scripts/lib/prescan/inventory.mjs:58-69,112",
+      "issue": "P8.5 makes the test-data skip silent and broad. buildInventory returns `skipped` [{path, reason}] (line 112) but its only caller, scripts/prescan.mjs (line 71, return object at lines 119-128), never reads inv.skipped, so the reason reaches neither the prescan output, the explorer briefs nor the build report. SKILL.md:305 and the inventory.mjs header both say these files are 'skipped with a reason', which holds only for database files, which go to `sources`. TEST_DATA_DIR (line 58) also matches `example(s)` and `sample(s)` at any depth below the scan root. A product module or app directory with that name (a domain app called samples, a monorepo whose examples/ are the runnable apps) loses all its files from stacks, areas and extracts, with no line anywhere saying so and no switch to bring it back (rule 6: a check that cannot run, or here a skip, must report itself).",
+      "resolution": "Emit inv.skipped from prescan() (a capped list or per-directory counts with the reason) and carry it into the plan report or `findings` so the orchestrator can see what was left out. Narrow the names to fixtures/__fixtures__/testdata, or add an explicit include flag for example/sample directories. Add a pc17 assertion that the skipped reason appears in the prescan output."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "scripts/merge.mjs:1540-1548",
+      "issue": "In the P8.7 carry-over, `touched(el)` is `files(el).some(changed)`. For an element with no evidence file at all (entity evidence is optional, `required: false` elsewhere in this file) the list is empty, so the element is never touched and is carried byte-identical forever, overriding the re-explored fragment's version. The task's rule is about elements 'whose evidence files are all unchanged'. That is vacuously true here, and nothing can ever show the element changed.",
+      "resolution": "Carry only when `files(el).length > 0 && !touched(el)`; an element with no evidence follows the fragment, as before. Add a case to m30 with an evidence-less entity."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/README.md:58-62",
+      "issue": "Step 6 says the balanced profile 'must be cheaper' than max on eval 1, and the closing line says the phase is done when that and the other criteria hold. The phase record shows the comparison was never completed: P8.4 was cancelled after the max run was killed unfinished (the private results log calls it inconclusive and says it was superseded by comparing against the no-skill baseline). The tracked README still states it as an open requirement with no result, so a reader cannot tell it was not met.",
+      "resolution": "Reword step 6 and the done-criterion to say balanced-vs-max was not measured and the cost claim rests on the with-skill vs no-skill table, or run the max profile on eval 1 and record the figure."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "diverges",
+    "note": "Against the phase desiredOutcome. Evals 1-5 exist with a README for with/without-skill runs and owner review (P8.1). The scorer exists and the README table records issue recall 0.67, above the 60 percent bar (P8.2). The trigger description was changed after a measured comparison, 13/20 before and 15/20 after (private log; the first run_loop result was invalid because of a harness artefact, and the applied text is the loop's wording plus a command sentence, not run_loop's raw best). Where it diverges: 'balanced is cheaper than max' was not shown. P8.4 is closed with no diff, the max run was killed unfinished, and the private log calls the comparison inconclusive. The owner's review and the cancelled P8.3/P8.4 leave no diff to check. The brief lists paths in the phase diff outside every task's declared files; they come from stacked P10 commits, not from the six owed P8 tasks, and were not reviewed here. Executor claims describe their diffs accurately for P8.1, P8.2, P8.5, P8.7 and P8.8. The recorded gate runs of P8.5 and P8.8 list no step, and P8.2's run is flagged NO OVERLAP; I took the passing status as given and did not re-run the gate.",
+    "missing": [
+      "phase.request and phase.openChoices (neither saved)",
+      "executor return for P8.6",
+      "the owner's P8.3 feedback and verdict text (private log read by hand, not handed)",
+      "per-step gate results for P8.5 and P8.8"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "mode phase: the phase's diff carries no red-first of its own; per-task red-first is in the tasks entries.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every owed task's tests.gate is the literal `node --test`, which runs the whole project, so the bound of 'tests this task's gate selects' is the whole suite and the question is not asked."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P8.1",
+      "commit": "51658926c28e",
+      "answer": "matches",
+      "note": "Clause: 'five evals ... each has a prompt, expected_output and objectively checkable assertions ... Repo locations are NEVER written into tracked files'. evals.json has ids 1-5 with 7-8 expectations each, prompts reaching repos only through ARCHMAP_EVAL_REPO_A/B/C, and the README names the env vars, the workspace under the home .claude/archmap/evals/ and generate_review.py. The claim (assertions are skill-creator's `expectations`; 7-8 each; checklists referenced relative to .private) matches the diff. The scan found no denylist hit. Note the declared tests only inspect the JSON and README, so they prove the no-path rule, not that the evals are runnable.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.1/20261029T232908Z.executor.json, at 2026-10-29T23:30:58Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P8.2",
+      "commit": "0f35f972f354",
+      "answer": "matches",
+      "note": "Clause: score-recall.mjs <issues.json> <ground-truth.json> [--json], match rule documented in the header, recall over high+med, exit 0 at >= 0.6, 1 below, 2 on usage/unreadable input, deterministic, zero deps, synthetic fixtures. score-recall.mjs does each of these (integer comparison for the threshold, InputError to exit 2, no clock). Cases e6-e14 cover the boundary (3 of 5 passes, 2 of 4 fails), category required, one-to-one pairing and malformed input. The claim matches the diff. The recorded gate run reports NO OVERLAP (the gate named none of this task's files), so the pass status does not measure this work; I read the tests instead.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.2/20261029T233141Z.executor.json, at 2026-10-29T23:33:28Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P8.5",
+      "commit": "846767ca89f3",
+      "answer": "diverges",
+      "note": "Clause: 'Apply the owner's eval feedback from P8.3 to skills/architecture-map/SKILL.md and skills/architecture-map/references/*.md ... then re-run the evals that failed until they pass'. Diff: references/*.md untouched; SKILL.md gains one table cell (line 305); the substance is code and an agent file, namely scripts/lib/prescan/inventory.mjs (new test-data skip), scripts/pipeline.mjs (balanced profile words) and agents/archmap-explorer.md (one sentence). No re-run of an eval is visible in the diff. The clause does say the files 'depend on the feedback', and the executor says a manifest note widened the file list to seven, but I was not handed the feedback or that note, so I quote the scope difference both sides as the rules require. The executor's claim does describe the diff accurately. See finding 1 for the silent skip.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-core.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.5/20261031T183041Z.executor.json, at 2026-10-31T18:39:53Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P8.6",
+      "commit": "bac07c4",
+      "answer": "cannot-tell",
+      "note": "No executor return was filed for P8.6, so 'does the outcome describe the diff' cannot be answered. The diff itself matches the clause: trigger-evals.json holds 19 queries (10 should-trigger, 9 near-misses covering single-file explain, code review, audit, generic diagrams, ADR/openapi/slides/refactor), SKILL.md's description (813 characters) is replaced, and the private results log records before/after scores (13/20 to 15/20) as the clause asks. The applied text is the loop's wording plus one command sentence measured sequentially, because the first run_loop result was invalid.",
+      "missing": [
+        "executor outcome/return for P8.6"
+      ],
+      "redFirst": "not-proved",
+      "redFirstBasis": "No executor return is filed and nothing in the brief shows a red run. e15 would fail while trigger-evals.json is absent, but that is reading, not a seen red. e16 (description under 1024 characters, name present) would also have passed on the previous description.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P8.7",
+      "commit": "2faa6ded02d6",
+      "answer": "matches",
+      "note": "Clause 1 (diffmap and plan ignore the --out directory): diffmap(model, changes, {outDir}) drops files under outDir, outputDirOf returns null for a model outside the repo or at its root, and plan writes <work>/diffmap.json; d13 covers the default and a custom directory, committed and untracked. Clause 2 (merge --changed carries unchanged elements byte-identical, fragment wins for touched ones, new ids added, dropped touched ones removed with a row, entities keep the carried store id, no -2 sibling, finish passes the report): implemented in merge.mjs (carry block before app nodes and reference resolution; carried stores found by generateFromExtracts) and mergeArgs; m30, m30c, m30d and p37 cover it. Clause 3 (model-schema.md paragraph): added. The claim matches the diff. Residual gap is finding 2 (evidence-less element carried vacuously).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/diffmap.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.7/20261031T175751Z.executor.json, at 2026-10-31T18:11:19Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P8.8",
+      "commit": "2d2f9f8e3700",
+      "answer": "matches",
+      "note": "Clause: Sonnet 5.5 cacheRead 0.2 to 0.1 with its comment, fixture figures, a rate-row assertion, README with-skill column 1.22/2.09/1.66 to 1.16/2.02/1.57, shares recomputed, no other number changed. The diff does all of this. I checked the fixture arithmetic: 14000 Sonnet cache-read tokens x 0.1 USD per million is 0.0014, taking 0.10222 to 0.10082, 0.03647 to 0.03507 and 0.38672 to 0.38532. c16's 3M-token turn costing 0.30 is consistent. The baselines and Opus/Haiku/Fable rows are untouched. The claim matches the diff. The new rate itself comes from a pricing page I could not fetch; the claim rests on the task's own citation.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.8/20261031T184117Z.executor.json, at 2026-10-31T18:43:34Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P8.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P8.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P8.5": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P8.6": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P8.7": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P8.8": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P8.1",
+      "commit": "51658926c28e"
+    },
+    {
+      "id": "P8.2",
+      "commit": "0f35f972f354"
+    },
+    {
+      "id": "P8.5",
+      "commit": "846767ca89f3"
+    },
+    {
+      "id": "P8.6",
+      "commit": "bac07c4"
+    },
+    {
+      "id": "P8.7",
+      "commit": "2faa6ded02d6"
+    },
+    {
+      "id": "P8.8",
+      "commit": "2d2f9f8e3700"
+    }
+  ]
+}

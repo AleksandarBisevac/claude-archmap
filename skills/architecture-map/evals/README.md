@@ -55,11 +55,14 @@ Issues files and internal HTML are never written inside an analysed repository.
 
    Add `--static <out>.html` when no browser can be opened. Leave feedback per run in the viewer; the next iteration
    reads it.
-6. Compare the balanced and max profiles on eval 1 (`--profile max` against the default) through the token ledger: the
-   balanced profile must be cheaper.
+6. Comparing the balanced and max profiles on eval 1 (`--profile max` against the default) through the token ledger
+   is how the profiles would be priced against each other. That run was not measured: the max run was stopped before
+   it finished, so this README makes no claim that balanced is cheaper than max. The cost claim rests on the
+   with-skill against no-skill table below.
 
 The phase is done when evals 1 to 5 have run with and without the skill and the owner has reviewed them, issue recall
-is at least 60 percent, and the trigger description has been optimised with skill-creator's `run_loop`.
+is at least 60 percent, and the trigger description has been optimised with skill-creator's `run_loop`. The
+balanced-versus-max comparison is not part of what was measured; it stays open for a later eval round.
 
 ## Cost of a build: before and after the script-driven flow
 

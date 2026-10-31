@@ -1644,3 +1644,31 @@ test('m30d through the CLI --changed takes the diffmap report: its files list is
   assert.equal(cli([join(dir, 'fragments'), '--out', out, '--previous', prevPath, '--areas', 'api', '--changed', join(dir, 'nope.json')]).status, 2, 'an unreadable report is a usage error');
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('m30e update with --changed: an entity with no evidence is never carried, so the re-explored fragment\'s version wins and one the fragment leaves out is gone; an element with evidence in unchanged files is still carried', () => {
+  const field = (name, type = 'int') => ({ name, type, provenance: 'declared' });
+  const svc = (title, lines) => node('api-svc', { zone: 'z', paths: ['api/**'], title, evidence: ev('api/svc.js', lines) });
+  const db = node('api-db', { zone: 'z', kind: 'store', paths: ['api/db/**'], evidence: ev('api/db/schema.sql') });
+  const bare = (id, fields) => ({ id, store: 'api-db', name: id, kind: 'table', fields });
+  const first = merge({
+    fragments: [frag('api', { nodes: [svc('Svc', '1-2'), db], entities: [bare('orders', [field('id')]), bare('notes', [field('id')])] })],
+    meta: META,
+  }).model;
+  const en = (m, id) => m.entities.find((x) => x.id === id);
+  assert.ok(en(first, 'orders') && en(first, 'orders').evidence === undefined, `the previous model holds an entity with no evidence: ${json(first.entities)}`);
+  // the re-explored fragment re-describes orders with a new field, leaves notes and the store out; only svc.js changed
+  const again = frag('api', { nodes: [svc('Svc v2', '1-9')], entities: [bare('orders', [field('id'), field('total', 'numeric')])] });
+  const run = (changed) => merge({ fragments: [again], previous: first, areas: ['api'], changed, meta: { commit: 'c2' } }).model;
+  const model = run(['api/svc.js']);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(en(model, 'orders').fields.map((f) => f.name), ['id', 'total'], `no evidence, so the fragment's version: ${json(en(model, 'orders'))}`);
+  assert.equal(en(model, 'notes'), undefined, 'no evidence and left out by the fragment: not carried forever');
+  // with evidence, all of it unchanged: carried byte-identical, as before
+  assert.equal(json(model.nodes.find((x) => x.id === 'api-db')), json(first.nodes.find((x) => x.id === 'api-db')));
+  assert.equal(model.nodes.find((x) => x.id === 'api-svc').title, 'Svc v2');
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.equal(row && row.derived.carried, 1, `only the store is carried: ${json(model.meta.sources)}`);
+  // an empty changed set does not make an evidence-less entity untouched either
+  assert.deepEqual(en(run([]), 'orders').fields.map((f) => f.name), ['id', 'total']);
+  assert.equal(json(run(['api/svc.js'])), json(model), 'deterministic');
+});

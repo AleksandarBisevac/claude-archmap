@@ -5,7 +5,11 @@
 //
 // Prints (or writes to --out) JSON:
 //   { schemaVersion, repo, commit, stacks[], areas[{id,title,globs[],files,stacks[],extract,summary}],
-//     workspaceApps[{name,dir,manifest}], sources[{kind,path,status,reason?}], extracts{<stackId>: fragment} }
+//     workspaceApps[{name,dir,manifest}], sources[{kind,path,status,reason?}],
+//     skipped{count, files[{path,reason}], dirs[{dir,reason,files}]}, extracts{<stackId>: fragment} }
+// skipped is what the inventory left out as test data (a fixtures, __fixtures__ or testdata directory, or an examples
+// or samples one below a tests directory): every such file counted, the first SKIPPED_CAP in path order listed with
+// their reason, and one row per test data directory with its file count, so nothing is dropped from the map silently.
 // workspaceApps are the members of a declared workspace (pnpm-workspace.yaml, package.json workspaces or a turbo.json)
 // that sit under an apps/ directory: the partition keeps each as its own area or the head of its area, merge.mjs makes
 // a level-2 app node for each the explorers did not, and the explorer brief of its area names it.
@@ -37,6 +41,7 @@ import { partition } from './lib/prescan/partition.mjs';
 
 export const SCHEMA_VERSION = 1;
 export const SUMMARY_BUDGET = 4200; // characters per area summary: with the explorer agent file it stays under 12 K
+export const SKIPPED_CAP = 50; // files listed by name under skipped; the count and the per-directory rows hold the rest
 const MAX_IMPORT_EDGES = 20000; // a ceiling against a pathological repo, not a budget
 const STACKS_DIR = fileURLToPath(new URL('./lib/prescan/stacks/', import.meta.url));
 
@@ -124,7 +129,24 @@ export async function prescan(repoDir, { scope = '', extractors } = {}) {
     areas,
     workspaceApps: apps.map((a) => ({ name: a.name, dir: pre + a.dir, manifest: pre + a.manifest })),
     sources: inv.sources,
+    skipped: skippedBlock(inv.skipped),
     extracts: sorted,
+  };
+}
+
+/** The test data the inventory left out: the total, the first SKIPPED_CAP files and a row per test data directory. */
+export function skippedBlock(skipped, cap = SKIPPED_CAP) {
+  const rows = [...skipped].sort((a, b) => byCodeUnit(a.path, b.path));
+  const dirs = new Map();
+  for (const s of rows) {
+    const d = dirs.get(s.dir) ?? { dir: s.dir, reason: s.reason, files: 0 };
+    d.files++;
+    dirs.set(s.dir, d);
+  }
+  return {
+    count: rows.length,
+    files: rows.slice(0, cap).map(({ path, reason }) => ({ path, reason })),
+    dirs: [...dirs.values()].sort((a, b) => byCodeUnit(a.dir, b.dir)),
   };
 }
 

@@ -78,10 +78,11 @@
 // (a bare directory glob is literal; write `dir/**` to own a subtree).
 // With --changed <diffmap.json> (the diffmap.mjs --json report of the commit, whose `files` are the changed paths; a
 // plain JSON array of paths is read too) an affected area is not replaced wholesale: a node, edge or entity of the
-// area whose id is in --previous and whose evidence files (an entity's field evidence included) are all unchanged is
-// carried over byte-identical from --previous, whether the fragment spells it differently or leaves it out; one with
-// evidence in a changed file takes the fragment's version; an id --previous lacks is added; one the fragment leaves out
-// whose evidence did change is removed, one meta.sources row {area, type: "dropped-changed", id, note} each. Entities on
+// area whose id is in --previous, that has at least one evidence file (an entity's field evidence included) and whose
+// evidence files are all unchanged is carried over byte-identical from --previous, whether the fragment spells it
+// differently or leaves it out; one with evidence in a changed file, or with no evidence at all (nothing shows it
+// unchanged), takes the fragment's version; an id --previous lacks is added; one the fragment leaves out that is not
+// carried is removed, one meta.sources row {area, type: "dropped-changed", id, note} each. Entities on
 // a carried store keep its id, the extracts merge nothing into a carried entity, and a store made for the area is the
 // carried one of that id, never a -2 sibling. The derivation row counts what was carried (`derived.carried`). Access
 // rows and relations carry no id and are recomputed as before. Without --changed update mode is as described above.
@@ -1541,15 +1542,18 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       ...list(el.evidence), ...list(el.fields).flatMap((f) => (isObj(f) ? list(f.evidence) : [])),
     ].filter(isObj).map((e) => e.path);
     const touched = (el) => files(el).some((p) => changedFiles.has(p));
+    // carried only on evidence: an element that cites no file has nothing to show it unchanged, so the fragment decides
+    const carriable = (el) => files(el).length > 0 && !touched(el);
     const what = { nodes: 'node', edges: 'edge', entities: 'entity' };
     for (const [kind, part, map] of [['nodes', nodePart.gone, nodes], ['edges', edgePart.gone, edges], ['entities', entityPart.gone, entities]]) {
       for (const p of part) {
         if (!isObj(p) || typeof p.id !== 'string') continue;
-        if (!touched(p)) {
+        if (carriable(p)) {
           map.set(p.id, clone(p));
           carried[kind].add(p.id);
         } else if (!map.has(p.id)) {
-          leftOut.push({ map, id: p.id, area: areaOwning(p), what: what[kind] });
+          const why = touched(p) ? 'its evidence changed' : 'it cites no evidence that could show it unchanged';
+          leftOut.push({ map, id: p.id, area: areaOwning(p), what: what[kind], why });
         }
       }
     }
@@ -1735,7 +1739,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   }
   for (const x of leftOut) {
     if (x.map.has(x.id)) continue;
-    sources.push({ area: x.area, type: 'dropped-changed', id: x.id, note: `area ${x.area}: ${x.what} ${x.id} removed: its evidence changed and the explorer no longer reports it` });
+    sources.push({ area: x.area, type: 'dropped-changed', id: x.id, note: `area ${x.area}: ${x.what} ${x.id} removed: ${x.why} and the explorer no longer reports it` });
   }
   if (extracts !== undefined || carriedCount !== null) {
     for (let i = sources.length - 1; i >= 0; i--) if (isObj(sources[i]) && sources[i].type === 'derivation') sources.splice(i, 1);

@@ -2,8 +2,9 @@
 //
 // Files come from `git ls-files -co --exclude-standard` (tracked + untracked-not-ignored), so
 // .gitignore is honoured. Vendored/generated directories, binaries, lockfiles, minified bundles
-// and files over a size cap are dropped; files under a fixture, example or sample directory are listed as skipped
-// with a reason, so test data drives neither stack detection nor the areas. Database files are only LISTED (as `sources`); they are
+// and files over a size cap are dropped; files under a fixtures, __fixtures__ or testdata directory, or an examples or
+// samples directory below a tests one, are listed as skipped with a reason, so test data drives neither stack
+// detection nor the areas. Database files are only LISTED (as `sources`); they are
 // never opened here, so no rows can ever be read (build's finish step reads a schema, never rows). Node >= 18, zero dependencies.
 
 import { execFileSync } from 'node:child_process';
@@ -52,21 +53,36 @@ export const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 /** The vendored/generated directory a repo-relative path sits in, or null. */
 export const skippedDirOf = (p) => p.split('/').slice(0, -1).find((s) => SKIP_DIRS.has(s)) ?? null;
 
-// Test data: fixture, example and sample directories at any depth. The same non-runtime notion the generic extract
-// uses when it looks for entry points (fixtures, examples), narrowed to directories that hold data or demo code
-// rather than the product's own tests and docs.
-export const TEST_DATA_DIR = /^(fixtures?|__fixtures__|testdata|examples?|samples?)$/;
+// Test data: a fixtures, __fixtures__ or testdata directory at any depth holds data or a fixture repo, never the product.
+// examples and samples are product names as often as test ones (a docs examples tree, a samples feature), so they are
+// test data only below a tests, test, __tests__ or fixtures directory; anywhere else they are kept.
+export const TEST_DATA_DIR = /^(fixtures?|__fixtures__|testdata)$/;
+export const TEST_ONLY_DATA_DIR = /^(examples?|samples?)$/;
+export const TESTS_DIR = /^(tests?|__tests__|fixtures?)$/;
 
 /**
  * The test data directory a path sits in, judged on the path relative to the scan root (the root, or `scope` under
- * it): a scan whose root itself lies under a fixtures directory is not test data to itself. Null when there is none.
+ * it): a scan whose root itself lies under a fixtures directory is not test data to itself. Returns
+ * { dir, name, under } - `dir` the repo-relative path of the outermost test data directory, `name` its own segment,
+ * `under` the tests directory an examples or samples one sits below (null for the others) - or null when there is none.
  */
-export const testDataDirOf = (p, scope = '') => {
+export const testDataOf = (p, scope = '') => {
   const s = String(scope ?? '').replace(/^(\.\/)+/, '').replace(/\/+$/, '');
-  const own = s && p.startsWith(`${s}/`) ? p.slice(s.length + 1) : p;
-  return own.split('/').slice(0, -1).find((seg) => TEST_DATA_DIR.test(seg)) ?? null;
+  const cut = s && p.startsWith(`${s}/`) ? s.length + 1 : 0;
+  const segs = p.slice(cut).split('/').slice(0, -1);
+  let under = null;
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i];
+    const hit = TEST_DATA_DIR.test(seg) ? { under: null } : under && TEST_ONLY_DATA_DIR.test(seg) ? { under } : null;
+    if (hit) return { dir: p.slice(0, cut) + segs.slice(0, i + 1).join('/'), name: seg, under: hit.under };
+    if (!under && TESTS_DIR.test(seg)) under = seg;
+  }
+  return null;
 };
-const testDataReason = (dir) => `inside test data directory ${dir}: fixtures, examples and samples are not the product`;
+/** The segment name of the test data directory a path sits in, or null (see testDataOf). */
+export const testDataDirOf = (p, scope = '') => testDataOf(p, scope)?.name ?? null;
+export const testDataReason = ({ name, under }) =>
+  `inside test data directory ${name}${under ? ` below ${under}` : ''}: fixtures, __fixtures__ and testdata, and examples or samples below a tests directory, are not the product`;
 
 function listGit(root, scope) {
   const args = ['ls-files', '-co', '--exclude-standard', '-z'];
@@ -79,7 +95,7 @@ function listGit(root, scope) {
  * Build the inventory of `root`.
  * Returns { root, files, sources, skipped, read } - `files` sorted repo-relative paths that survive every
  * filter, `sources` the DB files found (sorted), `skipped` the text files under a test data directory as
- * {path, reason} (sorted; they reach no stack, no area and no extract), `read(rel)` a utf8 reader (null when unreadable).
+ * {path, reason, dir} (sorted; `dir` the test data directory, see testDataOf; they reach no stack, no area and no extract), `read(rel)` a utf8 reader (null when unreadable).
  */
 export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } = {}) {
   const abs = resolve(root);
@@ -96,7 +112,7 @@ export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } =
     if (!st.isFile()) continue; // symlinks, submodule gitlinks
     const kind = DB_KIND.get(ext(rel));
     const skipDir = skippedDirOf(rel);
-    const dataDir = skipDir ? null : testDataDirOf(rel, scope);
+    const dataDir = skipDir ? null : testDataOf(rel, scope);
     if (kind) {
       sources.push(
         skipDir
@@ -109,7 +125,7 @@ export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } =
     }
     if (skipDir) continue;
     if (dataDir) {
-      skipped.push({ path: rel, reason: testDataReason(dataDir) });
+      skipped.push({ path: rel, reason: testDataReason(dataDir), dir: dataDir.dir });
       continue;
     }
     const base = rel.slice(rel.lastIndexOf('/') + 1);

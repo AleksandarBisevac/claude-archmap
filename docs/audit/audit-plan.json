@@ -4324,7 +4324,33 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P8-R1",
+            "severity": "med",
+            "file": "scripts/lib/prescan/inventory.mjs:58-69,112",
+            "issue": "P8.5 makes the test-data skip silent and broad. buildInventory returns `skipped` [{path, reason}] (line 112) but its only caller, scripts/prescan.mjs (line 71, return object at lines 119-128), never reads inv.skipped, so the reason reaches neither the prescan output, the explorer briefs nor the build report. SKILL.md:305 and the inventory.mjs header both say these files are 'skipped with a reason', which holds only for database files, which go to `sources`. TEST_DATA_DIR (line 58) also matches `example(s)` and `sample(s)` at any depth below the scan root. A product module or app directory with that name (a domain app called samples, a monorepo whose examples/ are the runnable apps) loses all its files from stacks, areas and extracts, with no line anywhere saying so and no switch to bring it back (rule 6: a check that cannot run, or here a skip, must report itself).",
+            "resolution": "Emit inv.skipped from prescan() (a capped list or per-directory counts with the reason) and carry it into the plan report or `findings` so the orchestrator can see what was left out. Narrow the names to fixtures/__fixtures__/testdata, or add an explicit include flag for example/sample directories. Add a pc17 assertion that the skipped reason appears in the prescan output.",
+            "fixTask": "P8.9"
+          },
+          {
+            "id": "P8-R2",
+            "severity": "low",
+            "file": "scripts/merge.mjs:1540-1548",
+            "issue": "In the P8.7 carry-over, `touched(el)` is `files(el).some(changed)`. For an element with no evidence file at all (entity evidence is optional, `required: false` elsewhere in this file) the list is empty, so the element is never touched and is carried byte-identical forever, overriding the re-explored fragment's version. The task's rule is about elements 'whose evidence files are all unchanged'. That is vacuously true here, and nothing can ever show the element changed.",
+            "resolution": "Carry only when `files(el).length > 0 && !touched(el)`; an element with no evidence follows the fragment, as before. Add a case to m30 with an evidence-less entity.",
+            "fixTask": "P8.9"
+          },
+          {
+            "id": "P8-R3",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/README.md:58-62",
+            "issue": "Step 6 says the balanced profile 'must be cheaper' than max on eval 1, and the closing line says the phase is done when that and the other criteria hold. The phase record shows the comparison was never completed: P8.4 was cancelled after the max run was killed unfinished (the private results log calls it inconclusive and says it was superseded by comparing against the no-skill baseline). The tracked README still states it as an open requirement with no result, so a reader cannot tell it was not met.",
+            "resolution": "Reword step 6 and the done-criterion to say balanced-vs-max was not measured and the cost claim rests on the with-skill vs no-skill table, or run the max profile on eval 1 and record the figure.",
+            "fixTask": "P8.9"
+          }
+        ],
+        "outcome": "[findings: 3 - 0 high, 1 med, 2 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -4732,7 +4758,7 @@
         {
           "id": "P8.8",
           "title": "Sonnet 5.5 cache reads are priced at 0.05x base input; republish the cost table",
-          "status": "in_progress",
+          "status": "done",
           "description": "The pricing page (platform.claude.com/docs/en/about-claude/pricing, read 2026-10-31) prices cache hits on Claude Opus 5.5 and Claude Sonnet 5.5 at 0.05x the base input price, so Sonnet 5.5 cache reads cost 0.10 USD per million tokens, not the 0.20 the RATES table in scripts/cost-profile.mjs holds (its comment says 0.1x). Haiku 5.5 (0.10 / 0.50, cache read 0.01, cache write 0.125) and Opus 5.5 (4 / 20, 0.20, 5) match the page. Fix the Sonnet row and its comment, update tests/fixtures/cost/expected.json (the Sonnet byModel row and every byAgent and total figure that Sonnet cache reads feed), extend tests/cost-profile.test.mjs with the rate-row assertion, and recompute the with-skill column of the table in skills/architecture-map/evals/README.md from the stream transcripts with node scripts/cost-profile.mjs: eval 1 1.22 becomes 1.16, eval 2 2.09 becomes 2.02, eval 4 1.66 becomes 1.57 (the no-skill baselines run on Opus only and do not move). Do not change any other number; the per-eval shares paragraph below the table may shift by a point, recompute it from the same transcripts (paths in the private results log, never in a tracked file).",
           "files": [
             "scripts/cost-profile.mjs",
@@ -4758,19 +4784,104 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2d2f9f8e3700",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/cost-profile.mjs: claude-sonnet-5-5 cacheRead 0.2 -> 0.1; its row comment now reads 'cache read 0.10 (0.05x input)' plus a line recording the earlier 0.20 (0.1x) value; the header comment now says cache reads are 0.05x on Opus 5.5 and Sonnet 5.5, 0.1x on Haiku 5.5. Opus, Haiku and Fable rows, and the table date 2026-10-31, are unchanged. tests/fixtures/cost/expected.json: Sonnet byModel costUsd 0.10222 -> 0.10082, archmap-explorer byAgent (the only agent on Sonnet in the fixture) 0.03647 -> 0.03507, total 0.38672 -> 0.38532 (the 14000 Sonnet cache-read tokens x 0.1 USD/M lower = 0.0014; I worked these out by hand before running the code). tests/cost-profile.test.mjs: new c16 (Sonnet row deep-equals {2,10,0.1,2.5}, cacheRead == 0.05x input, and one synthetic Sonnet turn of 3,000,000 cache-read tokens costs 0.30 in byModel and total); c7 and c15 Sonnet row assertions moved to 0.1; c8 text total /0\\.3867/ -> /0\\.3853/. skills/architecture-map/evals/README.md: iteration-2 with-skill column 1.22 -> 1.16, 2.09 -> 2.02, 1.66 -> 1.57 USD, recomputed by running node scripts/cost-profile.mjs <stream> --json on the with-skill run-1 transcripts (totals 1.155658, 2.02005, 1.573248, all reconciliation matchesModelUsage true). The shares table was recomputed from the same runs as agent costUsd / total, with the remainder going in the not-attributed column: eval 1 38.4/28.2/5.9/-/27.4, eval 2 16.8/20.5/3.6/23.5/35.6, eval 4 41.8/25.1/8.2/-/24.8. Rows sum to 99.9, 100.0 and 99.9, inside e17's 0.15 tolerance. Some shares moved by more than a point (eval 1 explorers 40.7 -> 38.4, eval 2 explorers 19.0 -> 16.8, eval 4 explorers 44.0 -> 41.8), because the cheaper Sonnet cache reads take cost away from the Sonnet explorers. The prose 'reviewer ... (23 percent of its run)' still holds (0.473746/2.02005 = 23.45 percent). Baseline and iteration-1 columns, turn counts and every other number are unchanged. git grep over tracked files (docs/audit excluded) for 1.22 USD|2.09 USD|1.66 USD|0.3867|0.1x on Sonnet found nothing, exit 1. Dependants: scripts/pipeline.mjs and scripts/usage.mjs only name cost-profile.mjs in advice strings, still correct. tests/skill.test.mjs s17 reads only turns and max context from cost-profile, not cost, still correct. skills/architecture-map/SKILL.md:360 and docs/design.md only name the script, still correct. tests/pipeline.test.mjs matches on the basename only, still correct. tests/fixtures/cost/expected.json is read only by tests/cost-profile.test.mjs (c3, c10), updated. tests/evals.test.mjs e17 checks the README's eval rows 1, 2, 4, eval 2 over 12 turns, and shares summing to 100 within 0.15, all of which hold by inspection (not run, since runsGate is own-tests). The other README dependants (.claude/audit.config.json, tests/diffmap, glob, prescan-core, review-scan, staleness tests, tests/fixtures/evals/issues.json) only match on the basename README.md and do not read the cost section, still correct. No client, dataset or repository name and no transcript path were written to a tracked file.",
+            "descriptive": "Sonnet 5.5 cache reads are now priced at the page's 0.10 USD/M; the fixture and the published with-skill cost table (1.16 / 2.02 / 1.57 USD) and shares are recomputed."
           },
           "startedAt": "2026-10-31T18:41:17Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T18:44:57Z",
+          "verifiedBy": [
+            "c16: the Sonnet 5.5 rate row is input 2, output 10, cacheRead 0.1, cacheWrite 2.5 (cache read 0.05x input), and a single synthetic Sonnet turn of 3M cache-read tokens costs 0.30 USD in byModel and total"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T18:44:56Z.e74e3c",
             "status": "passed",
             "at": "2026-10-31T18:44:56Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2d2f9f8e3700",
+            "at": "2026-10-31T18:44:57Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T18:43:34Z",
+            "basis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
+          }
+        },
+        {
+          "id": "P8.9",
+          "title": "Phase review fixes: prescan reports what it skipped as test data and skips only fixture directories by default, carry-over needs evidence, README states the max comparison was not run",
+          "status": "in_progress",
+          "description": "Three findings of the P8 phase review at 2d2f9f8. (R1, med) buildInventory in scripts/lib/prescan/inventory.mjs returns a skipped list [{path, reason}] that scripts/prescan.mjs never reads, so the test-data skip of P8.5 is silent, and TEST_DATA_DIR also matches examples and samples at any depth, which can drop a product directory of that name from stacks, areas and extracts without a line saying so. Fix: prescan() emits the skipped entries (capped, or per-directory counts with the reason) and the plan report carries them so the orchestrator and the build report see what was left out; narrow the default to fixtures, __fixtures__ and testdata, and treat examples or samples as test data only below a tests, test, __tests__ or fixtures directory; say so in the SKILL.md prescan row. (R2, low) In scripts/merge.mjs the P8.7 carry-over treats an element with no evidence files as untouched, so it is carried byte-identical forever and the re-explored fragment's version never wins. Fix: carry only when the element has at least one evidence file and none changed; an element without evidence follows the fragment. (R3, low) skills/architecture-map/evals/README.md step 6 and the done criterion still state balanced must be cheaper than max as an open requirement; that comparison was not completed (the max run was stopped unfinished). Reword both to say the balanced-versus-max run was not measured and the cost claim rests on the with-skill versus no-skill table. No repository, client or dataset name in any file.",
+          "files": [
+            "scripts/lib/prescan/inventory.mjs",
+            "scripts/prescan.mjs",
+            "scripts/merge.mjs",
+            "scripts/pipeline.mjs",
+            "skills/architecture-map/SKILL.md",
+            "skills/architecture-map/evals/README.md",
+            "tests/prescan-core.test.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-core.test.mjs: the prescan output lists the files skipped as test data with their reason, a directory named examples or samples is kept unless it sits under a tests or fixtures directory, and the skipped list is capped",
+              "tests/merge.test.mjs: in update mode an entity without evidence follows the re-explored fragment instead of being carried over byte-identical"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T18:52:26Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T18:52:20Z",
+              "text": "scope: scripts/lib/prescan/inventory.mjs, scripts/merge.mjs, skills/architecture-map/evals/README.md, every path the finding(s) P8-R1, P8-R2, P8-R3 name"
+            },
+            {
+              "at": "2026-10-31T18:52:20Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            },
+            {
+              "at": "2026-10-31T18:52:20Z",
+              "text": "no suite: scripts/lib/prescan/inventory.mjs - 2 test files name it and none is named for it (tests/prescan-core.test.mjs, tests/prescan-wiring.test.mjs); name the one that tests it with `scope --files`, none was guessed"
+            },
+            {
+              "at": "2026-10-31T18:52:20Z",
+              "text": "no suite: skills/architecture-map/evals/README.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/diffmap.test.mjs, tests/evals.test.mjs, tests/glob.test.mjs, tests/prescan-core.test.mjs, tests/review-scan.test.mjs, tests/staleness.test.mjs"
+            }
+          ],
+          "fixes": [
+            "P8-R1",
+            "P8-R2",
+            "P8-R3"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T19:05:22Z.94c876",
+            "status": "passed",
+            "at": "2026-10-31T19:05:22Z"
           }
         }
       ],
@@ -7378,7 +7489,8 @@
       "P10.14-6rm",
       "P10.13-6rm",
       "P10.15-6rm",
-      "P10.17-6rm"
+      "P10.17-6rm",
+      "P8.9"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
@@ -7386,7 +7498,8 @@
       "P10.11-6rm",
       "P10.14-6rm",
       "P10.15-6rm",
-      "P8.5"
+      "P8.5",
+      "P8.9"
     ],
     "scripts/lib/prescan/partition.mjs": [
       "P3.1",
@@ -7413,7 +7526,8 @@
       "P10.13-6rm",
       "P10.14-6rm",
       "P10.15-6rm",
-      "P8.5"
+      "P8.5",
+      "P8.9"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",
@@ -7711,7 +7825,8 @@
       "P10.10-6rm",
       "P10.12-6rm",
       "P10.19-6rm",
-      "P10.20-6rm"
+      "P10.20-6rm",
+      "P8.9"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -7778,7 +7893,8 @@
       "P10.13-6rm",
       "P10.14-6rm",
       "P10.17-6rm",
-      "P8.7"
+      "P8.7",
+      "P8.9"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -7795,7 +7911,8 @@
       "P10.13-6rm",
       "P10.14-6rm",
       "P10.17-6rm",
-      "P8.7"
+      "P8.7",
+      "P8.9"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -7931,7 +8048,8 @@
       "P8.4",
       "P10.5-2xj",
       "P10.19-6rm",
-      "P8.8"
+      "P8.8",
+      "P8.9"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -7993,7 +8111,8 @@
       "P10.16-6rm",
       "P10.20-6rm",
       "P8.7",
-      "P8.5"
+      "P8.5",
+      "P8.9"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
