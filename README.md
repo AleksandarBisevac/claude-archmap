@@ -73,13 +73,16 @@ After code changes, `/archmap:update` re-analyses only the areas whose files git
 notes and pinned positions. A SessionStart staleness hook prints one line when the model is behind HEAD (and nothing
 otherwise), and `/archmap:check` gives the same answer as an exit code for CI.
 
-The build of this repository by its own skill (balanced profile, without `--issues`) produced a model with these
-counts, as its build report lists them; the model passed `validate.mjs --repo`. The figures are those of the
-self-build row in [the evals README](skills/architecture-map/evals/README.md).
+This repository carries its own map, built by its own skill (balanced profile, without `--issues`) at commit
+`8174e41` and committed unchanged: open [docs/architecture/archmap.html](docs/architecture/archmap.html) for the
+viewer, beside its model and layout in `docs/architecture/`. The model has these counts, as its build report lists
+them; it passed `validate.mjs --repo`. The figures are those of the committed-map row of the self-build table in
+[the evals README](skills/architecture-map/evals/README.md). From that commit on, the SessionStart staleness hook
+reports in this repository whenever the map falls behind HEAD, which is the hook working as designed.
 
 | Nodes | Edges | Entities | Sequences | Views |
 | --- | --- | --- | --- | --- |
-| 63 | 28 | 16 | 4 | 5 |
+| 30 | 18 | 1 | 4 | 5 |
 
 ## What a build costs
 
@@ -98,7 +101,7 @@ build of this repository, the one run whose whole output can be shared.
 | 3 (build, then update) | 1.89 USD | 1.00 USD | 29 | 94.5 K | 6.40 USD, 46 turns, 193.6 K | 8/8 expectations; baseline 0/8 | with skill `iteration-2/3-with-skill-1.json`; baseline `iteration-2/3-without-skill-1.json`; before `iteration-1/3-with-skill-1.json` |
 | 4 (monorepo build) | 1.57 USD | 1.82 USD | 11 | 67.7 K | 12.55 USD, 67 turns, 267.4 K | 8/8 expectations | with skill `iteration-2/4-with-skill-1.json`; baseline `iteration-1/4-without-skill-1.json`; before `iteration-1/4-with-skill-1.json` |
 | 5 (build) | 1.65 USD | 2.96 USD | 13 | 75.7 K | 9.53 USD, 47 turns, 271.4 K | 7/7 expectations; baseline 0/7 | with skill `iteration-2/5-with-skill-1.json`; baseline `iteration-2/5-without-skill-1.json`; before `iteration-1/5-with-skill-1.json` |
-| self-build (balanced, no issues) | 1.11 USD | - | 12 | 58.4 K | - | model validates | with skill `iteration-2/self-with-skill-1.json` |
+| self-build (balanced, no issues), the committed map | 1.00 USD | - | 10 | 57.6 K | - | model validates | with skill `iteration-2/self-with-skill-2.json` |
 
 Read the table with these caveats, which [the evals README](skills/architecture-map/evals/README.md) states in full:
 

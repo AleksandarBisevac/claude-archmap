@@ -345,16 +345,24 @@ const checkCostSection = (readme) => {
   assert.match(flat, /none of the four[^.]*missed in all three[^.]*is missed in every P11\.2 run/i, 'no systematic miss remains');
   assert.doesNotMatch(flat, /the mean fall below the 60 percent threshold/i, 'the below-threshold statement is replaced by the P11.2 result');
 
-  // P11.4: the self-build row, the one run whose whole output is public
+  // P11.4: the self-build rows, the one run whose whole output is public; P11.6: run 2 is the committed map, whose
+  // counts are those of the model committed in docs/architecture/
   const selfHead = rows(/^\| Build \| Evidence/)[0];
   assert.ok(selfHead, 'the self-build table header');
   const selfRows = rows(/^\| self-build /);
-  assert.equal(selfRows.length, 1, 'one self-build row');
-  assert.match(selfRows[0][0], /balanced/);
-  assert.match(selfRows[0][0], /no issues/);
-  for (const [name, value] of [['Nodes', '63'], ['Edges', '28'], ['Entities', '16'], ['Sequences', '4'], ['Views', '5']]) {
-    assert.equal(selfRows[0][selfHead.findIndex((c) => c.startsWith(name))], value, `self-build ${name}`);
+  assert.deepEqual(selfRows.map((r) => r[0].match(/^self-build (run \d)/)?.[1]), ['run 1', 'run 2'], 'two self-build rows, run 1 and run 2');
+  for (const r of selfRows) {
+    assert.match(r[0], /balanced/);
+    assert.match(r[0], /no issues/);
   }
+  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[0])), [false, true], 'run 2 is the committed map');
+  const committed = JSON.parse(readFileSync(new URL('../docs/architecture/architecture.model.json', import.meta.url), 'utf8'));
+  for (const [name, run1] of [['Nodes', '63'], ['Edges', '28'], ['Entities', '16'], ['Sequences', '4'], ['Views', '5']]) {
+    const at = selfHead.findIndex((c) => c.startsWith(name));
+    assert.equal(selfRows[0][at], run1, `self-build run 1 ${name}`);
+    assert.equal(selfRows[1][at], String(committed[name.toLowerCase()].length), `self-build run 2 ${name} is the committed model's`);
+  }
+  assert.match(flat, /drop from 63 to 30 nodes is the P8\.5 and P8\.9 skip of fixture directories/i, 'the run 1 to run 2 drop is explained');
   for (const name of ['Cost', 'Orchestrator turns', 'Orchestrator max context', 'Opus', 'Sonnet']) assert.ok(selfHead.some((c) => c.startsWith(name)), `a self-build column ${name}`);
   assert.match(flat, /the one run whose whole output is public/i, 'the self-build row says why it is there');
 
@@ -397,7 +405,9 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
   assert.throws(() => checkCostSection(broken('Four medium reference issues, one each in performance, security, reliability', 'Two medium reference issues, one each in performance, security')), /four issues missed/);
   assert.throws(() => checkCostSection(broken('| rerun 2 | P8 |', '| rerun 3 | P8 |')), /six eval 2 runs|each in its own row/);
   assert.throws(() => checkCostSection(broken('| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |', '| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.53 | security |')), /recall of the three P11\.2 runs/);
-  assert.throws(() => checkCostSection(broken('| self-build (balanced, no issues) |', '| self-build (max) |')));
+  assert.throws(() => checkCostSection(broken('| self-build run 1 (balanced, no issues) |', '| self-build run 1 (max) |')));
+  assert.throws(() => checkCostSection(broken('| self-build run 2 (balanced, no issues), the committed map |', '| self-build run 2 (balanced, no issues) |')), /committed map/);
+  assert.throws(() => checkCostSection(broken('| 49 turns, 0.56 USD | 30 |', '| 49 turns, 0.56 USD | 31 |')), /committed model's/);
   assert.throws(() => checkCostSection(broken('It is the one run whose whole output is public', 'It is a run')), /says why/);
 });
 
@@ -496,25 +506,28 @@ const checkCostEvidence = (readme, read = readEvidence, onDisk = evidenceFiles) 
     assert.equal(r[runAt('Max context')], `${(orchestratorOf(j).maxContext / 1000).toFixed(1)} K`, `${r[0]}: the max context is the orchestrator maxContext of ${f}`);
   });
 
-  // P11.4: the self-build row against its profile
+  // P11.4: each self-build row against its profile; run N names self-with-skill-N.json (P11.6 added run 2)
   const selfHead = rows(/^\| Build \| Evidence/)[0];
-  const selfRow = rows(/^\| self-build /)[0];
-  assert.ok(selfHead && selfRow, 'the self-build table');
+  const selfRows = rows(/^\| self-build /);
+  assert.ok(selfHead && selfRows.length >= 1, 'the self-build table');
   const selfAt = (name) => col(selfHead, name);
-  const [selfFile] = filesOf(selfRow[selfAt('Evidence')]);
-  assert.equal(selfFile, 'evidence/iteration-2/self-with-skill-1.json', 'the self-build row names its profile');
-  const sj = get(selfFile);
-  assert.equal(selfRow[selfAt('Cost')], usd2(sj), `self-build: the cost is total.costUsd of ${selfFile}`);
-  assert.equal(Number(selfRow[selfAt('Orchestrator turns')]), orchestratorOf(sj).turns, `self-build: the turn count is the orchestrator row of ${selfFile}`);
-  assert.equal(selfRow[selfAt('Orchestrator max context')], `${(orchestratorOf(sj).maxContext / 1000).toFixed(1)} K`, `self-build: the max context is the orchestrator maxContext of ${selfFile}`);
-  for (const [name, key] of [['Opus', 'opus'], ['Sonnet', 'sonnet']]) {
-    const m = sj.byModel.find((x) => x.model.includes(key));
-    assert.equal(selfRow[selfAt(name)], `${m.turns} turns, ${(Math.round(m.costUsd * 100) / 100).toFixed(2)} USD`, `self-build: the ${name} model figure is the byModel row of ${selfFile}`);
-  }
+  const selfNamed = selfRows.map((selfRow, i) => {
+    const [selfFile] = filesOf(selfRow[selfAt('Evidence')]);
+    assert.equal(selfFile, `evidence/iteration-2/self-with-skill-${i + 1}.json`, `self-build run ${i + 1} names its profile`);
+    const sj = get(selfFile);
+    assert.equal(selfRow[selfAt('Cost')], usd2(sj), `self-build: the cost is total.costUsd of ${selfFile}`);
+    assert.equal(Number(selfRow[selfAt('Orchestrator turns')]), orchestratorOf(sj).turns, `self-build: the turn count is the orchestrator row of ${selfFile}`);
+    assert.equal(selfRow[selfAt('Orchestrator max context')], `${(orchestratorOf(sj).maxContext / 1000).toFixed(1)} K`, `self-build: the max context is the orchestrator maxContext of ${selfFile}`);
+    for (const [name, key] of [['Opus', 'opus'], ['Sonnet', 'sonnet']]) {
+      const m = sj.byModel.find((x) => x.model.includes(key));
+      assert.equal(selfRow[selfAt(name)], `${m.turns} turns, ${(Math.round(m.costUsd * 100) / 100).toFixed(2)} USD`, `self-build: the ${name} model figure is the byModel row of ${selfFile}`);
+    }
+    return selfFile;
+  });
 
   assert.deepEqual([...named].sort(), onDisk().filter((f) => !f.includes('/self-')).sort(), 'the table names every evidence file of the evals, and each exists');
   const self = onDisk().filter((f) => f.includes('/self-'));
-  assert.ok(self.length >= 1, 'the self-build profile is tracked');
+  assert.deepEqual([...selfNamed].sort(), [...self].sort(), 'the self-build table names every self-build profile, and each exists');
   for (const f of self) assert.ok(how.includes(f), `${f} is named in the subsection`);
   for (const f of [...named, ...self]) {
     const j = get(f);

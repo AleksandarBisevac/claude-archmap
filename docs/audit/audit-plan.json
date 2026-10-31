@@ -7834,7 +7834,7 @@
         {
           "id": "P11.5",
           "title": "Top-level README: status, the real command table, what a build delivers and what it costs, with the method behind every number",
-          "status": "in_progress",
+          "status": "done",
           "description": "README.md still says the plugin is pre-release with commands not usable yet, lists planned commands and says nothing about cost. Rewrite it for a prospective user: status (release candidate for 1.0.0; P9 sets the version); a command table that matches the frontmatter of commands/*.md (description and argument hint); 'What a build delivers': the model's contents (nodes with file:line evidence, typed edges with confidence, entities with per-field provenance, relations, CRUD access, sequences, views), the offline viewer, the opt-in issues overlay that never enters the committed build, incremental update and the staleness hook, illustrated with the self-build counts; 'What a build costs': one table over the five evals with the with-skill cost, the no-skill baseline, orchestrator turns and maximum context, the iteration-1 figure as the before, the self-build line as the public example, and the caveats the evals README states (eval 3 is two flows, the evals 3 and 5 baselines are not like for like, the eval 2 recall); 'How these numbers were measured': cost-profile.mjs on the stream-json transcript at list prices with the rate table date, grading against the evals.json expectations, score-recall.mjs, the node --test count, each pointing at the evals README and the evidence files. Add tests/readme.test.mjs: the command table matches the commands directory, every cost figure equals the evidence file it cites, and no machine path and no 'planned' or 'pre-release' wording remain. No client, dataset or repository name.",
           "files": [
             "README.md",
@@ -7861,30 +7861,50 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "8174e41149ab",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "README.md rewritten: Status (release candidate for 1.0.0; version set at release), Install (local-dev path now a placeholder), Commands table generated from commands/*.md frontmatter (description and argument-hint verbatim, pipes escaped), What a build delivers (nodes with file:line evidence, typed edges with verified/inferred/external confidence, entities with declared/observed/inferred provenance, relations, access/CRUD, sequences, views, offline viewer, opt-in issues overlay outside the repo, update and SessionStart staleness hook, self-build counts 63/28/16/4/5 from the evals README), What a build costs (one table: evals 1-5 plus self-build, with-skill cost, baseline, orchestrator turns, orchestrator max context, iteration-1 'before' as cost/turns/context, result graded against evals.json, cited evidence files; eval 2 row = the three P11.2 runs on the current reviewer as ranges; caveats: eval 3 two flows, evals 3/5 baselines not like for like, eval 2 recall per reviewer incl. P8 0.67/0.53/0.53, evals 2/4 baselines are iteration 1, turn overruns), How these numbers were measured (cost-profile.mjs --json --basename on stream-json, rate table 2026-10-31, last result event, evals.json grading, score-recall.mjs, node --test more than 400 cases, pointers to the evals README and evidence dir). tests/readme.test.mjs added: r1 command table == commands/*.md frontmatter; r2 every cost/baseline/turn/context/before cell == total.costUsd / orchestrator row of the cited evidence file, grades out of evals.json expectation counts, rate date matches; r3 no machine path (evals.test PATH_LIKE), no planned/pre-release/not-usable-yet wording, status release candidate for 1.0.0; r4 delivers section names the model contents and its self-build counts equal the evals README self-build row, method section names the scripts and the test count is a lower bound of the static test() count (447 now); r5 tamper cases for each check. Command: node --test tests/readme.test.mjs -> exit 0, 5 tests, 5 pass. Dependants of README.md: .claude/audit.config.json lists README.md as an exempt glob - still correct, unaffected. tests/diffmap, glob, prescan-core, review-scan, staleness and tests/fixtures/evals/issues.json use 'README.md' only as a fixture file name in temp dirs - still correct, they do not read this README. tests/evals.test.mjs reads the evals README, not this one - still correct. tests/readme.test.mjs is new and no file names it. Not run: the full node --test gate and the denylist test (runsGate own-tests); tests/readme.test.mjs is untracked, so the denylist scan (tracked files only) sees it only once staged.",
+            "descriptive": "The top-level README now tells a prospective user what the plugin does, its real commands, what a build delivers and what it costs per eval, with every figure tied by a test to the evidence profile it cites."
           },
           "startedAt": "2026-10-31T21:52:50Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T21:58:59Z",
+          "verifiedBy": [
+            "r1 command table equals commands/*.md frontmatter",
+            "r2 every cost table figure equals its cited evidence profile",
+            "r3 no machine path, no planned/pre-release wording, status release candidate for 1.0.0",
+            "r4 delivers section names the model contents and the self-build counts match the evals README; method section names scripts and a lower-bound test count",
+            "r5 each check fails on tampered input"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T21:58:58Z.720827",
             "status": "passed",
             "at": "2026-10-31T21:58:58Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "8174e41149ab",
+            "at": "2026-10-31T21:58:59Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T21:57:27Z",
+            "basis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P11.6",
           "title": "The plugin's own architecture map, built on HEAD and committed as the public example (owner-run)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Run /archmap:build with the balanced profile and without --issues on a detached clone of this repository at the P11 branch head after P11.5, through the private harness so the stream is profiled, and copy docs/architecture (model, layout, clean HTML) into this repository to be committed through the plugin. Before the commit: validate.mjs --repo exits 0; the denylist test d1 passes (the model may quote docs/design.md, which d1 exempts but the model is not, so strip any such fact); the clean HTML carries no issue; the README links the viewer and states the build's cost, turns and counts from its evidence file in the P11.3 layout. From then on the SessionStart staleness hook reports in this repository whenever the map falls behind HEAD, which is the intended demonstration.",
           "files": [
             "docs/architecture",
             "README.md",
-            "skills/architecture-map/evals/evidence"
+            "skills/architecture-map/evals/evidence",
+            "skills/architecture-map/evals/README.md",
+            "tests/readme.test.mjs",
+            "tests/evals.test.mjs"
           ],
           "tests": {
             "mode": "gate-only",
@@ -7902,16 +7922,28 @@
           "dependsOn": [
             "P11.5"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T21:59:00Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-10-31T22:03:46Z",
+              "text": "Owner-run build done on 2026-10-31 (headless, with the skill, Opus orchestrator, balanced, no issues) on a detached clone of this repository at 8174e41 (the P11.5 commit), exit 0. The artifacts to bring in are in the iteration-2 workspace under the home .claude directory: real-1-build-self/with_skill/run-2/repo/docs/architecture/ holds architecture.model.json, architecture.layout.json and archmap.html (validate.mjs --repo exit 0, no findings; no denylist term and no machine path in any of the three); run-2/cost-profile.json is the profile, already made with --json --basename, to track as skills/architecture-map/evals/evidence/iteration-2/self-with-skill-2.json. Figures from that profile: 1.00 USD (Opus 10 turns 0.44 USD, Sonnet 49 turns 0.56 USD), 10 orchestrator turns, max context 57.6 K; model counts 30 nodes, 18 edges, 1 entity, 4 sequences, 5 views, 4 zones, meta.commit 8174e41. Copy the three files into docs/architecture/ of this repository unchanged. The committed map is this run-2 build; the README's self-build counts and cost row must switch to it (evidence self-with-skill-2.json) and link the committed viewer docs/architecture/archmap.html; the evals README's self-build table keeps the run-1 row (built on an earlier commit, before the test-data skip, 63 nodes) and adds the run-2 row as the committed map, saying the drop from 63 to 30 nodes is the P8.5 and P8.9 skip of fixture directories. Tests r2 and r4 in tests/readme.test.mjs and e19 in tests/evals.test.mjs read these rows; keep them passing. From this commit on the SessionStart staleness hook reports in this repository whenever the map is behind HEAD."
+            }
+          ],
+          "testEvidence": {
+            "runId": "2026-10-31T22:11:32Z.7d908b",
+            "status": "passed",
+            "at": "2026-10-31T22:11:32Z"
+          }
         },
         {
           "id": "P11.7-6o1",
@@ -8636,7 +8668,8 @@
       "P8.10",
       "P11.3",
       "P11.4",
-      "P11.7-6o1"
+      "P11.7-6o1",
+      "P11.6"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -8646,7 +8679,8 @@
       "P8.10",
       "P11.3",
       "P11.4",
-      "P11.7-6o1"
+      "P11.7-6o1",
+      "P11.6"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"
@@ -8760,7 +8794,8 @@
       "P11.4"
     ],
     "tests/readme.test.mjs": [
-      "P11.5"
+      "P11.5",
+      "P11.6"
     ],
     "docs/architecture": [
       "P11.6"

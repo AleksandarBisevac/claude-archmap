@@ -176,18 +176,31 @@ const checkWording = (text) => {
 };
 
 // --- r4: what a build delivers carries the self-build counts of the evals README, and the method section ------------
-const checkDeliversAndMethod = (text, evalsReadme = readFileSync(join(EVALS_DIR, 'README.md'), 'utf8')) => {
+// The committed map is the repository's own docs/architecture/: the README links its viewer, and the counts it states
+// are those of the committed model and of the evals README's committed-map row.
+const VIEWER = 'docs/architecture/archmap.html';
+const readCommittedModel = () => JSON.parse(readFileSync(join(ROOT, 'docs', 'architecture', 'architecture.model.json'), 'utf8'));
+const checkDeliversAndMethod = (text, evalsReadme = readFileSync(join(EVALS_DIR, 'README.md'), 'utf8'), model = readCommittedModel()) => {
   const delivers = section(text, 'What a build delivers');
   for (const w of ['file:line', 'confidence', 'provenance', 'CRUD', 'sequence', 'view', 'offline', 'issues overlay', 'staleness']) {
     assert.match(delivers, new RegExp(w, 'i'), `"What a build delivers" names ${w}`);
   }
+  assert.ok(delivers.includes(`](${VIEWER})`), `"What a build delivers" links the committed viewer ${VIEWER}`);
+  assert.ok(existsSync(join(ROOT, VIEWER)), `the committed viewer ${VIEWER} exists`);
   const theirs = table(evalsReadme, 'Build | Evidence');
   const ours = table(delivers, 'Nodes');
-  const self = theirs.rows.find((r) => r[0].startsWith('self-build'));
-  assert.ok(self && ours.rows.length === 1, 'one self-build count row on each side');
+  const committed = theirs.rows.filter((r) => r[0].startsWith('self-build') && /the committed map/.test(r[0]));
+  assert.ok(committed.length === 1 && ours.rows.length === 1, 'one self-build count row on each side: the committed map');
+  const [self] = committed;
   for (const name of ours.header) {
     assert.equal(ours.rows[0][column(ours.header, name)], self[column(theirs.header, name)], `the self-build ${name} count is the evals README's`);
+    assert.equal(ours.rows[0][column(ours.header, name)], String(model[name.toLowerCase()].length), `the self-build ${name} count is the committed model's`);
   }
+  // the cost table's self-build row is the committed map's, citing the profile the evals README row names
+  const costSelf = table(section(text, 'What a build costs'), 'Eval').rows.find((r) => r[0].startsWith('self-build'));
+  assert.match(costSelf?.[0] ?? '', /the committed map/, 'the cost table self-build row is the committed map');
+  const profile = self[column(theirs.header, 'Evidence')].match(/`evidence\/([^`]+\.json)`/)?.[1];
+  assert.ok(profile && costSelf.at(-1).includes(`\`${profile}\``), `the cost table self-build row cites ${profile}, the committed map's profile`);
   const how = section(text, 'How these numbers were measured');
   for (const s of ['scripts/cost-profile.mjs', '--json --basename', 'stream-json', 'evals.json', 'score-recall.mjs', 'skills/architecture-map/evals/README.md', EVIDENCE_PREFIX, 'node --test']) {
     assert.ok(how.includes(s), `the method section names ${s}`);
@@ -270,4 +283,10 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
   // delivers: an altered self-build count
   const counts = row(/^\| \d+ \| \d+ \| \d+ \| \d+ \| \d+ \|$/);
   assert.throws(() => checkDeliversAndMethod(swap(counts, counts.replace(/^\| \d+/, '| 99'))), /self-build Nodes count/);
+  // delivers: a dropped viewer link, a committed model that moved on from the counts, a cost row citing another run
+  assert.throws(() => checkDeliversAndMethod(swap('](docs/architecture/archmap.html)', ']')), /links the committed viewer/);
+  const grown = readCommittedModel();
+  grown.nodes.push({ id: 'extra' });
+  assert.throws(() => checkDeliversAndMethod(text, undefined, grown), /Nodes count is the committed model's/);
+  assert.throws(() => checkDeliversAndMethod(swap('`iteration-2/self-with-skill-2.json`', '`iteration-2/self-with-skill-1.json`')), /committed map's profile/);
 });

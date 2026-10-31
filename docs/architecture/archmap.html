@@ -1,0 +1,1767 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="generator" content="archmap">
+<title>repo · architecture map</title>
+<style>
+/* archmap viewer - one reading column (max 1280px) with wide figure panels and a sticky section nav.
+   The diagrams carry the colour; page chrome stays ink on paper.
+   Token groups:
+     chrome  --bg --surface --surface-2 --fg --muted --line --line-2   (themeable: archmap.theme.json "chrome")
+     accent  --accent                                                  (themeable: "accent")
+     fonts   --font-display --font-body --font-mono                    (themeable: "fonts"; system stacks, never fetched)
+     fixed   --rel-<edge type>  --zone-<zone kind>  --sev-<severity>   (semantic, NOT themeable, D10)
+   Fixed colours pair with a per-type dash pattern and stroke width (viewer.js REL), so a relation
+   never depends on hue alone. */
+:root{
+  color-scheme:light;
+  --bg:#F2F3F5; --surface:#FFFFFF; --surface-2:#EBEDF1; --fg:#151A21; --muted:#576070; --line:#D6DAE0; --line-2:#B9C0CA;
+  --accent:#2257B5;
+  /* relation types (edges, messages) */
+  --rel-api:#2257B5; --rel-static:#5F6B7A; --rel-auth:#B0306F; --rel-pull:#6A3FC9; --rel-sql:#0B7065;
+  --rel-cache:#9A5F00; --rel-persist:#8A5A16; --rel-call:#4A5361; --rel-link:#5E6672; --rel-deploy:#2A7A38;
+  --rel-event:#0E6F96; --rel-queue:#7A3E8F;
+  /* zone kinds */
+  --zone-browser:#3555CF; --zone-edge:#5E6A79; --zone-service:#0A7488; --zone-data:#A0650B; --zone-platform:#6A3FC4;
+  --zone-external:#857462; --zone-delivery:#2E7A3C;
+  /* severity */
+  --sev-high:#C42536; --sev-med:#B85407; --sev-low:#5F6976;
+  --tint:6%;
+  --font-display:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1116; --surface:#161A21; --surface-2:#1E232C; --fg:#E4E8EE; --muted:#9AA3B0; --line:#2A3039; --line-2:#3B434F;
+    --accent:#6EA2F5;
+    --rel-api:#6EA2F5; --rel-static:#9AA5B4; --rel-auth:#F07AB5; --rel-pull:#A98BFA; --rel-sql:#3CC4B2;
+    --rel-cache:#F0B23F; --rel-persist:#D9A45A; --rel-call:#AEB7C4; --rel-link:#98A0AC; --rel-deploy:#63BF75;
+    --rel-event:#4FC0E8; --rel-queue:#D08AE6;
+    --zone-browser:#7D97F5; --zone-edge:#97A2B0; --zone-service:#3FB6CB; --zone-data:#E0A33B; --zone-platform:#A88AF5;
+    --zone-external:#B9A994; --zone-delivery:#62B874;
+    --sev-high:#FF6B78; --sev-med:#FF9A4D; --sev-low:#A6AEBA;
+    --tint:13%;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1116; --surface:#161A21; --surface-2:#1E232C; --fg:#E4E8EE; --muted:#9AA3B0; --line:#2A3039; --line-2:#3B434F;
+  --accent:#6EA2F5;
+  --rel-api:#6EA2F5; --rel-static:#9AA5B4; --rel-auth:#F07AB5; --rel-pull:#A98BFA; --rel-sql:#3CC4B2;
+  --rel-cache:#F0B23F; --rel-persist:#D9A45A; --rel-call:#AEB7C4; --rel-link:#98A0AC; --rel-deploy:#63BF75;
+  --rel-event:#4FC0E8; --rel-queue:#D08AE6;
+  --zone-browser:#7D97F5; --zone-edge:#97A2B0; --zone-service:#3FB6CB; --zone-data:#E0A33B; --zone-platform:#A88AF5;
+  --zone-external:#B9A994; --zone-delivery:#62B874;
+  --sev-high:#FF6B78; --sev-med:#FF9A4D; --sev-low:#A6AEBA;
+  --tint:13%;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--font-body);-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+a{color:inherit;text-decoration-color:var(--line-2);text-underline-offset:3px}
+a:hover{text-decoration-color:currentColor}
+code,.mono{font-family:var(--font-mono);font-size:.84em}
+code{background:var(--surface-2);padding:.08em .35em;border-radius:4px;overflow-wrap:anywhere}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--font-display);text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,4.4vw,42px);font-weight:750;letter-spacing:-.01em;line-height:1.08}
+h2{font-size:clamp(22px,2.6vw,27px);font-weight:700;line-height:1.15}
+h3{font-size:16px;font-weight:650}
+h4{font-size:11.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+p{margin:0}
+.muted{color:var(--muted)}
+
+/* header */
+header.top{background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-block:34px 28px;display:grid;gap:14px}
+.eyebrow{font:500 12px/1.4 var(--font-mono);color:var(--muted);letter-spacing:.02em}
+.toprow{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.iswitch{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-body);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 9px;cursor:pointer;background:var(--surface)}
+.iswitch input{accent-color:var(--accent);margin:0}
+.search{position:relative;flex:1 1 280px;max-width:460px;min-width:0}
+.search input{width:100%;appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:400 14px/1.2 var(--font-body);padding:9px 12px;border-radius:8px}
+.search input::placeholder{color:var(--muted)}
+#qres{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 4px);margin:0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);max-height:min(60vh,420px);overflow:auto}
+#qres li{display:grid;grid-template-columns:auto 1fr;gap:0 10px;align-items:baseline;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:13.5px}
+#qres li.cur,#qres li:hover{background:var(--surface-2)}
+#qres li.none{color:var(--muted);cursor:default}
+#qres .rk{font:650 10px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);min-width:68px}
+#qres .rt{font-weight:600;overflow-wrap:anywhere}
+#qres .rd{grid-column:2;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* nav */
+nav.sections{position:sticky;top:0;z-index:9;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.sections ul{list-style:none;margin:0;padding:0;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav.sections ul::-webkit-scrollbar{display:none}
+nav.sections .navtab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;border-radius:0;display:block;padding:13px 10px 11px;font:500 13.5px/1 var(--font-body);color:var(--muted);white-space:nowrap;cursor:pointer}
+nav.sections .navtab:hover{color:var(--fg)}
+nav.sections .navtab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav.sections li[hidden],nav.sections .navtab[hidden]{display:none}
+
+section.block{padding-block:44px 8px}
+section.block > .wrap{display:grid;gap:18px}
+.shead{display:grid;gap:8px;max-width:80ch}
+.shead p{color:var(--muted)}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;min-width:0}
+.panel-bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.fig-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-scroll svg{display:block;width:100%;height:auto;min-width:980px}
+figure{margin:0}
+figcaption{padding:10px 14px 14px;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
+figcaption:empty{display:none}
+.empty{padding:16px;color:var(--muted)}
+
+/* tabs + chips */
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:500 13px/1 var(--font-body);padding:8px 12px;border-radius:7px;cursor:pointer}
+.tab:hover{border-color:var(--line-2)}
+.tab[aria-selected="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:500 12px/1 var(--font-body);padding:6px 9px 6px 7px;border-radius:999px;cursor:pointer}
+.chip svg{width:26px;height:10px;flex:none}
+.chip[aria-pressed="false"]{opacity:.42}
+.chip[aria-pressed="false"] span{text-decoration:line-through}
+.zonekey{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.zonekey span{display:inline-flex;align-items:center;gap:6px}
+.zonekey .zk{font-weight:600;color:var(--fg)}
+.zonekey i{width:12px;height:12px;border-radius:3px;border:1.5px solid var(--zc);background:color-mix(in srgb,var(--zc) var(--tint),var(--surface))}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:500 12.5px/1 var(--font-body);padding:7px 10px;border-radius:7px;cursor:pointer}
+.btn:hover{border-color:var(--line-2)}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* zone, relation and severity tokens */
+.zc-browser{--zc:var(--zone-browser)} .zc-edge{--zc:var(--zone-edge)} .zc-service{--zc:var(--zone-service)} .zc-data{--zc:var(--zone-data)}
+.zc-platform{--zc:var(--zone-platform)} .zc-external{--zc:var(--zone-external)} .zc-delivery{--zc:var(--zone-delivery)}
+.t-api{--ec:var(--rel-api)} .t-static{--ec:var(--rel-static)} .t-auth{--ec:var(--rel-auth)} .t-pull{--ec:var(--rel-pull)} .t-sql{--ec:var(--rel-sql)}
+.t-cache{--ec:var(--rel-cache)} .t-persist{--ec:var(--rel-persist)} .t-call{--ec:var(--rel-call)} .t-link{--ec:var(--rel-link)} .t-deploy{--ec:var(--rel-deploy)}
+.t-event{--ec:var(--rel-event)} .t-queue{--ec:var(--rel-queue)}
+.sev-high{--sv:var(--sev-high)} .sev-med{--sv:var(--sev-med)} .sev-low{--sv:var(--sev-low)}
+
+/* SVG: graph */
+svg text{font-family:var(--font-body)}
+.zone rect{fill:color-mix(in srgb,var(--zc) var(--tint),var(--surface));stroke:color-mix(in srgb,var(--zc) 55%,transparent);stroke-width:1.2}
+.zone.sub rect{fill:color-mix(in srgb,var(--zc) calc(var(--tint) * .8),var(--surface));stroke-width:1}
+.zone.outside rect{stroke-dasharray:5 4}
+.zone .zl{font:650 10.5px var(--font-display);letter-spacing:.07em;text-transform:uppercase;fill:var(--zc);paint-order:stroke;stroke:color-mix(in srgb,var(--zc) var(--tint),var(--surface));stroke-width:5px;stroke-linejoin:round}
+.node{cursor:pointer;transition:opacity .15s}
+.node .nb{fill:var(--surface);stroke:color-mix(in srgb,var(--zc) 62%,var(--line));stroke-width:1.2}
+.node:hover .nb,.node:focus-visible .nb{stroke:var(--zc);stroke-width:2}
+.node:focus{outline:none}
+.node.sel .nb{stroke:var(--zc);stroke-width:2.6}
+.node.flag .nb{stroke:var(--sev-high);stroke-width:2.6}
+.node .nt{font-size:12.5px;font-weight:600;fill:var(--fg)}
+.node .ns{font-size:10.5px;fill:var(--muted)}
+.bdg{fill:var(--sv);stroke:var(--surface);stroke-width:2}
+.bdt{font-size:10px;font-weight:700;fill:var(--surface)}
+.edge{transition:opacity .15s}
+.edge .ln{fill:none;stroke:var(--ec);stroke-linecap:round}
+.edge.inferred .ln{opacity:.78}
+.edge .hit{fill:none;stroke:transparent;stroke-width:12;cursor:help}
+.mk{fill:var(--ec)}
+.mko{fill:none;stroke:var(--ec);stroke-width:1.4}
+.elabel rect{fill:var(--surface);stroke:color-mix(in srgb,var(--ec) 40%,transparent);stroke-width:1}
+.elabel text{font-size:10.5px;font-weight:500;fill:var(--ec)}
+.elabel{pointer-events:none;transition:opacity .15s}
+svg.focusing .node:not(.hl),svg.focusing .edge:not(.hl),svg.focusing .elabel:not(.hl){opacity:.16}
+svg.focusing .edge.hl .ln{stroke-width:calc(var(--w,2px) + 1px)}
+
+/* detail panel */
+.detail{display:grid;gap:14px;padding:16px 16px 18px;border-top:1px solid var(--line)}
+.detail:empty{display:none}
+.d-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline}
+.zchip{display:inline-flex;align-items:center;gap:6px;font:650 10.5px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--zc);padding:4px 7px;border-radius:5px;background:color-mix(in srgb,var(--zc) calc(var(--tint) + 6%),var(--surface));border:1px solid color-mix(in srgb,var(--zc) 40%,transparent)}
+.d-role{max-width:85ch}
+.d-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px 24px}
+.d-cols > div{min-width:0;display:grid;gap:6px;align-content:start}
+.d-cols ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px}
+.conn{list-style:none;padding-left:0!important}
+.conn li{display:grid;grid-template-columns:14px 1fr;gap:6px;align-items:start}
+.conn i{width:10px;height:10px;border-radius:50%;background:var(--ec);margin-top:5px}
+.conn b{font-weight:600}
+.ilink{display:inline-flex;gap:6px;align-items:baseline;text-decoration:none}
+.ilink:hover .it{text-decoration:underline}
+
+/* severity pill */
+.sev{display:inline-flex;align-items:center;gap:5px;font:650 10.5px/1 var(--font-display);letter-spacing:.06em;text-transform:uppercase;color:var(--sv);padding:4px 7px;border-radius:5px;background:color-mix(in srgb,var(--sv) 11%,var(--surface));border:1px solid color-mix(in srgb,var(--sv) 35%,transparent);white-space:nowrap}
+.sev::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sv)}
+.iid{font:500 12px var(--font-mono);color:var(--muted)}
+
+/* sequences */
+.seq-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.seq-summary{padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px;max-width:none}
+.seq-summary:empty{display:none}
+.participant rect{fill:color-mix(in srgb,var(--zc,var(--line-2)) calc(var(--tint) + 4%),var(--surface));stroke:var(--zc,var(--line-2));stroke-width:1.3}
+.participant .pt{font-size:12px;font-weight:600;fill:var(--fg)}
+.participant .ps{font-size:10px;fill:var(--muted)}
+.life{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 4}
+.frag rect.box{fill:none;stroke:var(--line-2);stroke-width:1}
+.frag text{font-size:10.5px;fill:var(--muted)}
+.frag .fk{font-weight:700;fill:var(--fg)}
+.frag line{stroke:var(--line-2);stroke-dasharray:4 3}
+.msg{cursor:pointer}
+.msg .ln{fill:none;stroke:var(--ec);stroke-width:1.7}
+.msg.ret .ln{stroke-dasharray:5 4}
+.msg .pill{fill:var(--surface);stroke:color-mix(in srgb,var(--ec) 35%,transparent)}
+.msg .num{fill:var(--ec)}
+.msg .numt{font-size:9.5px;font-weight:700;fill:var(--surface)}
+.msg .mt{font-size:11px;fill:var(--fg)}
+.msg .hit{fill:transparent}
+.msg.cur .ln{stroke-width:3}
+.msg.cur .pill{stroke:var(--ec);stroke-width:1.6}
+.msg.cur .mt{font-weight:600}
+.rowbg{fill:transparent}
+.rowbg.cur{fill:color-mix(in srgb,var(--ec) 9%,transparent)}
+.note rect{fill:var(--surface-2);stroke:var(--line-2)}
+.note.warn rect{fill:color-mix(in srgb,var(--sev-med) 9%,var(--surface));stroke:color-mix(in srgb,var(--sev-med) 45%,transparent)}
+.note text{font-size:11px;fill:var(--fg)}
+.idot{fill:var(--sv)}
+.stepbox{padding:14px 16px 16px;border-top:1px solid var(--line);display:grid;gap:8px;min-height:112px}
+.stepbox .sl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline}
+.stepbox .sn{font:600 12px var(--font-mono);color:var(--muted)}
+.stepbox .sm{font:500 13.5px var(--font-mono);color:var(--ec);overflow-wrap:anywhere}
+.stepbox p{max-width:90ch;font-size:14px}
+.refs{display:flex;flex-wrap:wrap;gap:6px}
+.refs code{font-size:12px}
+.refs a{text-decoration:none}
+
+/* issues */
+.findings{display:grid;gap:10px;padding:16px}
+.finding{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px 26px;padding:14px 16px;border:1px solid var(--line);border-left:3px solid var(--sv);border-radius:8px;background:var(--surface);scroll-margin-top:70px}
+.finding.ping{box-shadow:0 0 0 3px color-mix(in srgb,var(--sv) 30%,transparent)}
+.finding .fh{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.finding .fh h3{font-size:15.5px;flex:1 1 320px;min-width:0}
+.finding dl{margin:0;display:grid;gap:3px;min-width:0}
+.finding dl.full{grid-column:1/-1}
+.finding dt{font:650 10.5px/1.3 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.finding dd{margin:0 0 8px;font-size:13.8px}
+.area{font:500 11.5px var(--font-body);color:var(--muted);border:1px solid var(--line);padding:3px 7px;border-radius:5px}
+.track{font:500 11.5px var(--font-mono);padding:3px 7px;border-radius:5px;border:1px solid var(--line);color:var(--muted)}
+.tally{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:13.5px}
+.tally span{color:var(--sv)}
+.tally b{font:700 20px var(--font-display);font-variant-numeric:tabular-nums;margin-right:4px}
+
+/* path finder, pinned highlight, links styled as text */
+.pathbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.pathbar label{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.pathbar select{appearance:auto;max-width:min(60vw,240px);border:1px solid var(--line);background:var(--surface);color:var(--fg);font:400 13px var(--font-body);padding:6px 8px;border-radius:7px}
+.pinbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,var(--surface));font-size:13px}
+.pinbar[hidden]{display:none}
+.lnk{appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px;cursor:pointer;text-align:left}
+.lnk:hover{text-decoration-color:currentColor}
+svg.pinning .node:not(.pin),svg.pinning .edge:not(.pin),svg.pinning .elabel:not(.pin){opacity:.16}
+svg.pinning .node.pin .nb{stroke:var(--accent);stroke-width:3}
+svg.pinning .edge.pin .ln{stroke-width:calc(var(--w,2px) + 1.8px)}
+svg.pinning .node.pin,svg.pinning .edge.pin,svg.pinning .elabel.pin{opacity:1}
+.evchip{text-decoration:none}
+.evchip code{border:1px solid var(--line)}
+.evchip:hover code{border-color:var(--accent)}
+.opset{font:650 12px var(--font-mono);letter-spacing:.08em;color:var(--fg)}
+.dacc,.plain{list-style:none;padding-left:0!important}
+.conn.plain li{display:block}
+
+/* trust view: dashed enclosures and boundary-crossing relations */
+.tb rect{fill:none;stroke:var(--fg);stroke-width:1.4;stroke-dasharray:9 5;opacity:.55}
+.tb.untrusted rect{stroke:var(--sev-med);opacity:.8}
+.tb text{font:600 9.5px var(--font-display);letter-spacing:.08em;text-transform:uppercase;fill:var(--muted)}
+.tb.untrusted text{fill:var(--sev-med)}
+.edge .xhalo{fill:none;stroke:var(--sev-med);stroke-width:7;opacity:.3;stroke-linecap:round}
+.tbk i{width:14px;height:12px;border-radius:4px;border:1.4px dashed var(--fg);background:none}
+
+/* ER */
+.ekey{display:inline-flex;align-items:center;gap:7px;font:500 12px/1 var(--font-body);color:var(--muted)}
+.ekey svg{width:34px;height:12px}
+.ekey svg .ln{stroke:var(--rel-sql);stroke-width:1.6;fill:none}
+.ekey svg .cf{stroke:var(--rel-sql);stroke-width:1.6;fill:none}
+.ekey i{width:20px;height:0;border-top:2px solid var(--rel-sql)}
+.ekey.prov-observed i{border-top-style:dotted}
+.ekey.prov-inferred i{border-top-style:dashed;opacity:.8}
+.mkb{display:inline-block;font:700 10px/1 var(--font-mono);padding:3px 5px;border-radius:4px;border:1px solid currentColor;margin-right:4px}
+.mkb.mk-pk,.mk-pk{color:var(--zone-data)}
+.mkb.mk-fk,.mk-fk{color:var(--accent)}
+.ent{--zc:var(--zone-data);cursor:pointer;transition:opacity .15s}
+.ent:focus{outline:none}
+.ent .eb{fill:var(--surface);stroke:color-mix(in srgb,var(--zc) 55%,var(--line));stroke-width:1.2}
+.ent .ehd{fill:color-mix(in srgb,var(--zc) calc(var(--tint) + 6%),var(--surface));stroke:color-mix(in srgb,var(--zc) 55%,var(--line));stroke-width:1.2}
+.ent:hover .eb,.ent:focus-visible .eb{stroke:var(--zc);stroke-width:2}
+.ent.sel .eb{stroke:var(--zc);stroke-width:2.6}
+.ent.prov-inferred .eb{stroke-dasharray:5 3}
+.ent .en{font:650 12.5px var(--font-body);fill:var(--fg)}
+.ent .ek{font:500 10px var(--font-mono);fill:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.fld .fr{fill:transparent}
+.fld:hover .fr{fill:color-mix(in srgb,var(--accent) 9%,transparent)}
+.fld .fn{font:500 11.5px var(--font-mono);fill:var(--fg)}
+.fld .ft{font:400 10px var(--font-mono);fill:var(--muted)}
+.fld.pk .fn{font-weight:750}
+.fld .mk{font:700 9.5px var(--font-mono)}
+.fld .mk-pk{fill:var(--zone-data)}
+.fld .mk-fk{fill:var(--accent)}
+.fld.prov-observed .fn{font-style:italic}
+.fld.prov-observed .pbar{stroke:var(--rel-event);stroke-width:2.5;stroke-dasharray:1 3;stroke-linecap:round}
+.fld.prov-inferred .fn{fill:var(--muted)}
+.fld.prov-inferred .pbar{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:4 3}
+.rel .hit{fill:none;stroke:transparent;stroke-width:12;cursor:help}
+.rel .ln{fill:none;stroke:var(--rel-sql);stroke-width:1.5}
+.rel .cf{fill:none;stroke:var(--rel-sql);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rel.prov-observed .ln{stroke-dasharray:2 3.5;stroke-linecap:round}
+.rel.prov-inferred .ln{stroke-dasharray:7 4;opacity:.85}
+svg.er.focusing .ent:not(.hl),svg.er.focusing .rel:not(.hl){opacity:.16}
+svg.er.focusing .rel.hl .ln{stroke-width:2.6}
+.pchip{display:inline-block;font:600 10.5px/1 var(--font-body);padding:3px 6px;border-radius:5px;border:1px solid var(--line-2);color:var(--muted)}
+.pchip.prov-observed{border-style:dotted;color:var(--rel-event)}
+.pchip.prov-inferred{border-style:dashed}
+.tablewrap{overflow-x:auto}
+.ftable{border-collapse:collapse;width:100%;font-size:13px}
+.ftable th{font:650 10.5px/1.3 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 10px 6px 0;border-bottom:1px solid var(--line)}
+.ftable td{padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.ftable tr.prov-inferred td{color:var(--muted)}
+
+/* CRUD matrix */
+.matrix-scroll{overflow:auto;max-height:70vh;-webkit-overflow-scrolling:touch}
+.crud{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
+.crud th,.crud td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:0;text-align:center}
+.crud thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);padding:8px 8px;font:600 12px var(--font-body);white-space:nowrap}
+.crud tbody th{position:sticky;left:0;z-index:1;background:var(--surface);text-align:left;padding:8px 12px;font-weight:600;white-space:nowrap;min-width:150px}
+.crud .corner{left:0;z-index:3;text-align:left;padding-left:12px}
+.crud td.empty{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--line) 45%,transparent) 6px 7px)}
+.crud td.cell{min-width:64px}
+.crud td.cell.sel{outline:2px solid var(--accent);outline-offset:-2px}
+.opb{appearance:none;background:none;border:0;width:100%;height:100%;min-height:38px;padding:4px 6px;display:inline-flex;gap:3px;align-items:center;justify-content:center;cursor:pointer;color:var(--fg)}
+.opb:hover{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.op{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;border-radius:4px;font:700 10.5px/1 var(--font-mono);color:var(--surface);background:var(--op,var(--muted))}
+.op-c{--op:var(--rel-deploy)} .op-r{--op:var(--rel-api)} .op-u{--op:var(--rel-cache)} .op-d{--op:var(--sev-high)}
+.capline{padding:10px 14px 14px;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
+.capline:empty{display:none}
+
+/* the global Issues switch: off hides badges, flags, issue rows and step dots */
+body.issues-off .bdg,body.issues-off .bdt,body.issues-off .idot,body.issues-off .issues-only{display:none!important}
+body.issues-off .node.flag .nb{stroke:color-mix(in srgb,var(--zc) 62%,var(--line));stroke-width:1.2}
+
+footer{padding-block:36px 48px;color:var(--muted);font-size:13px}
+footer .wrap{display:grid;gap:8px;max-width:1280px}
+@media (max-width:640px){
+  section.block{padding-block:32px 4px}
+  .panel-bar{padding:10px}
+  .fig-scroll svg{min-width:760px}
+  .search{flex-basis:100%;max-width:none}
+  .pathbar select{max-width:42vw}
+  .crud tbody th{min-width:120px;padding:8px}
+}
+</style>
+
+</head>
+<body data-mode="clean">
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1 id="title"></h1>
+    <div class="toprow">
+      <div class="search">
+        <input type="search" id="q" placeholder="Search components, relations, entities, sequences" aria-label="Search components, relations, entities and sequences" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="qres">
+        <ul id="qres" role="listbox" aria-label="Search results" hidden></ul>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="sections" aria-label="Sections">
+  <div class="wrap">
+    <ul id="navlist" role="tablist" aria-label="Views">
+      <li role="presentation"><button class="navtab" role="tab" data-tab="graph" aria-controls="architecture" aria-selected="true">Graph</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="er" aria-controls="er" aria-selected="false">ER</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="crud" aria-controls="crud" aria-selected="false">CRUD matrix</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="sequences" aria-controls="sequences" aria-selected="false">Sequences</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="deployment" aria-controls="deployment" aria-selected="false">Deployment</button></li>
+      <li role="presentation"><button class="navtab" role="tab" data-tab="trust" aria-controls="trust" aria-selected="false">Trust</button></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <section class="block" id="architecture" role="tabpanel">
+    <div class="wrap">
+      <div class="shead">
+        <h2>Architecture</h2>
+        <p>Arrows point from caller to callee; their colour and dash show the kind of relation. Box colour shows the zone. Hover over a component to isolate its connections, click it for details.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Diagram view" id="arch-tabs"></div>
+          <div class="legend" id="arch-legend" aria-label="Relation types: click to show or hide"></div>
+        </div>
+        <div class="pathbar" id="pathbar" role="group" aria-label="Path finder">
+          <label>From <select id="pf-from"></select></label>
+          <label>To <select id="pf-to"></select></label>
+          <button class="btn" id="pf-go">Find shortest path</button>
+          <span class="muted" id="pf-out" role="status"></span>
+        </div>
+        <div class="pinbar" id="pinbar" hidden>
+          <span id="pintext" role="status"></span>
+          <button class="btn" id="pinclear">Clear highlight</button>
+        </div>
+        <div class="zonekey" id="arch-zonekey"></div>
+        <figure>
+          <div class="fig-scroll"><svg id="arch" role="group" aria-label="Architecture diagram"></svg></div>
+          <figcaption id="arch-cap"></figcaption>
+        </figure>
+        <div class="detail" id="arch-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="er" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Data model</h2>
+        <p>Entities with their fields, keys and relations. Crow's feet mark the many end of a relation. Dotted bars mark fields observed from a live database, dashed ones fields inferred from names; click an entity for details.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar"><div class="legend erkey" id="er-key"></div></div>
+        <figure>
+          <div class="fig-scroll"><svg id="ersvg" class="er" role="group" aria-label="Entity relationship diagram"></svg></div>
+          <figcaption id="er-cap"></figcaption>
+        </figure>
+        <div class="detail" id="er-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="crud" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>CRUD matrix</h2>
+        <p>Which component creates, reads, updates or deletes which entity. Click a name to open the component or entity, a cell for its evidence.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar"><div class="legend erkey" id="crud-key"></div></div>
+        <div class="matrix-scroll" id="crud-wrap" tabindex="0" role="region" aria-label="CRUD matrix"></div>
+        <p class="capline" id="crud-cap"></p>
+        <div class="detail" id="crud-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="sequences" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Sequence diagrams</h2>
+        <p>Runtime flows, numbered in the order they happen. Click a message, or use the arrow keys, to read what it does and where it lives in the code. Dashed arrows are responses.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Sequence" id="seqtabs"></div>
+          <div class="seq-controls">
+            <button class="btn" id="seqprev" aria-label="Previous step">&larr; Prev</button>
+            <button class="btn" id="seqnext" aria-label="Next step">Next &rarr;</button>
+          </div>
+        </div>
+        <p class="seq-summary" id="seqsum"></p>
+        <figure>
+          <div class="fig-scroll" id="seqscroll"><svg id="seq" role="group" aria-label="Sequence diagram" tabindex="0"></svg></div>
+        </figure>
+        <div class="stepbox" id="stepbox" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+  <section class="block" id="deployment" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Deployment</h2>
+        <p>How the system is built, shipped and hosted: the delivery pipeline, the runtime hosts and the services running on them.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Deployment view" id="dep-tabs"></div>
+          <div class="legend" id="dep-legend" aria-label="Relation types: click to show or hide"></div>
+        </div>
+        <div class="zonekey" id="dep-zonekey"></div>
+        <figure>
+          <div class="fig-scroll"><svg id="dep" role="group" aria-label="Deployment diagram"></svg></div>
+          <figcaption id="dep-cap"></figcaption>
+        </figure>
+        <div class="detail" id="dep-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="trust" role="tabpanel" hidden>
+    <div class="wrap">
+      <div class="shead">
+        <h2>Trust boundaries</h2>
+        <p>Dashed enclosures mark the trust boundaries. A relation with an amber halo crosses one: that is where input must be authenticated and validated.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-bar">
+          <div class="tabs" role="tablist" aria-label="Trust view" id="trs-tabs"></div>
+          <div class="legend" id="trs-legend" aria-label="Relation types: click to show or hide"></div>
+        </div>
+        <div class="zonekey" id="trs-zonekey"></div>
+        <figure>
+          <div class="fig-scroll"><svg id="trs" role="group" aria-label="Trust boundary diagram"></svg></div>
+          <figcaption id="trs-cap"></figcaption>
+        </figure>
+        <div class="detail" id="trs-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap"><p id="foot"></p></div>
+</footer>
+
+<script type="application/json" id="archmap-model">{"meta":{"schemaVersion":"1.0","project":"repo","commit":"8174e41149abbda23ed2458b2bb86bc56a58a88f","generatedAt":"2026-10-31T22:00:37Z","profile":"balanced","sources":[{"derived":{"access":1,"edges":0,"entities":1,"entitiesInferred":1,"entitiesMerged":0,"queues":0,"relations":0,"stores":1},"note":"merge.mjs made 1 entity (1 inferred from the SQL the code runs) (and merged 0 into the explorers'), 1 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved","skipped":{"count":0,"reasons":[]},"type":"derivation"},{"area":".agents","fixed":1,"note":"area .agents: 1 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)","type":"normalisation"},{"area":".agents","skipped":{"count":2,"reasons":["node rules markdown and webapp-testing other scripts not read, budget","tile.json lines not verified"]},"type":"explorer"},{"area":"docs","skipped":{"count":1,"reasons":["Journal and evidence jsonl files were listed, not read; no code reads them within this area, so no store nodes."]},"type":"explorer"},{"area":"misc","skipped":{"count":0,"reasons":[]},"type":"explorer"},{"area":"misc-2","skipped":{"count":0,"reasons":["Bodies of agents and schemas only sampled by head, not read in full"]},"type":"explorer"},{"area":"misc-3","skipped":{"count":2,"reasons":["elk.bundled.js and scan.mjs bodies not read in detail (vendored bundle; budget)"]},"type":"explorer"},{"area":"scripts","skipped":{"count":1,"reasons":["Function bodies were not read; nodes are grouped by import and export surface. sqlite_master is introspection of target databases, not a store."]},"type":"explorer"},{"area":"skills","skipped":{"count":3,"reasons":["Evidence JSON files and most reference bodies not read; mapped by directory only.","Summary was empty (no routes, tables, queues); area is documentation and eval assets."]},"type":"explorer"},{"area":"synthesizer","index":2,"reason":"step matches no step shape: matches 0 of 3 alternatives, expected exactly 1","sequence":"ci-run","type":"dropped-step"},{"area":"tests","fixed":1,"note":"area tests: 1 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)","type":"normalisation"},{"area":"tests","skipped":{"count":0,"reasons":["Individual test files not mapped as nodes; one node per role."]},"type":"explorer"}],"coverage":{".agents":[".agents/skills/webapp-testing/examples/console_logging.py"],"docs":["docs/design.md","docs/audit/**"],"misc":[".claude-plugin/**",".github/**","hooks/**"],"misc-2":["agents/**","commands/**","schema/**"],"misc-3":["assets/viewer/**",".claude/**"],"scripts":["scripts/**"],"skills":["skills/architecture-map/SKILL.md","skills/architecture-map/evals/score-recall.mjs"],"tests":["tests/**"]}},"zones":[{"id":"data","kind":"data","label":"data"},{"id":"delivery","kind":"delivery","label":"delivery"},{"id":"external","kind":"external","label":"external"},{"id":"platform","kind":"platform","label":"platform"}],"nodes":[{"evidence":[{"lines":"5","path":".agents/skills/webapp-testing/examples/console_logging.py"}],"id":"agents-local-dev-server","kind":"external","level":3,"paths":[],"role":"Example target URL the Playwright console logging script browses.","title":"Local dev server localhost:5173","zone":"external"},{"evidence":[{"lines":"1","path":".agents/skills/node/tile.json"}],"id":"agents-node-skill","kind":"module","level":2,"paths":[".agents/skills/node/**"],"role":"Agent skill of Node.js rule documents and a graceful-shutdown server asset.","title":"node skill","zone":"platform"},{"evidence":[{"lines":"1-20","path":".agents/skills/webapp-testing/examples/console_logging.py"}],"id":"agents-webapp-testing","kind":"module","level":2,"paths":[".agents/skills/webapp-testing/**"],"role":"Agent skill with Playwright example scripts and a server-launch helper for testing local web apps.","title":"webapp-testing skill","zone":"platform"},{"evidence":[{"lines":"1-50","path":"docs/audit/audit-plan.json"}],"id":"docs-audit","kind":"module","level":3,"paths":["docs/audit/**"],"role":"Audit plan, journal and evidence files recording the phased audit runs.","title":"Audit records","zone":"delivery"},{"evidence":[{"lines":"1-30","path":"docs/design.md"}],"id":"docs-design","kind":"module","level":3,"paths":["docs/design.md"],"role":"The settled design of archmap: context, decisions, layout, model, command flows, viewer and verification.","title":"Design document","zone":"delivery"},{"evidence":[{"lines":"1-8","path":"agents/archmap-explorer.md"},{"lines":"1-8","path":"agents/archmap-reviewer.md"},{"lines":"1-8","path":"agents/archmap-synthesizer.md"}],"id":"misc-2-agents","kind":"module","level":2,"paths":["agents/**"],"role":"Defines the explorer, reviewer and synthesizer subagents that the build and update flows dispatch.","title":"Subagents","zone":"platform"},{"evidence":[{"lines":"1-12","path":"commands/build.md"},{"lines":"1-15","path":"commands/check.md"},{"lines":"1-21","path":"commands/export.md"}],"id":"misc-2-commands","kind":"module","level":2,"paths":["commands/**"],"role":"Defines the /archmap build, update, check, render, export and issues commands that start the skill or scripts.","title":"Slash commands","zone":"delivery"},{"evidence":[{"lines":"1-30","path":"schema/archmap-model.schema.json"},{"lines":"1-20","path":"schema/archmap-issues.schema.json"},{"lines":"1-27","path":"schema/archmap-theme.schema.json"}],"id":"misc-2-schema","kind":"module","level":2,"paths":["schema/**"],"role":"Holds the JSON schemas for the architecture model, the issues overlay and the theme.","title":"JSON schemas","zone":"platform"},{"evidence":[{"lines":"1-27","path":".github/workflows/ci.yml"}],"id":"misc-ci","kind":"job","level":3,"paths":[".github/**"],"role":"GitHub Actions job that validates the plugin manifests and runs node --test on Node 18, 20 and 22.","title":"CI workflow","zone":"delivery"},{"evidence":[{"lines":"1-14","path":"hooks/hooks.json"}],"id":"misc-hooks","kind":"module","level":3,"paths":["hooks/**"],"role":"Registers a SessionStart hook that runs the staleness check script.","title":"Session hooks","zone":"delivery"},{"evidence":[{"lines":"1-22","path":".claude-plugin/plugin.json"},{"lines":"1-17","path":".claude-plugin/marketplace.json"}],"id":"misc-plugin-manifest","kind":"module","level":2,"paths":[".claude-plugin/**"],"role":"Declares the archmap plugin (name, version, metadata) and a local development marketplace listing it.","title":"Plugin manifest and marketplace","zone":"delivery"},{"evidence":[{"lines":"1-15","path":".claude/audit.config.json"}],"id":"misc3-audit-config","kind":"module","level":3,"paths":[".claude/audit.config.json",".claude/.gitignore"],"role":"Configuration for the audit workflow naming the manifest path and exempt globs.","title":"Audit config","zone":"platform"},{"evidence":[{"lines":"1-26","path":".claude/skills/archmap-review/SKILL.md"}],"id":"misc3-review-skill","kind":"module","level":2,"paths":[".claude/skills/archmap-review/**"],"role":"Repo-local code review skill with a read-only scan script that checks diffs against the plugin's invariants.","title":"archmap-review skill","zone":"platform"},{"evidence":[{"lines":"1-25","path":"assets/viewer/template.html"},{"lines":"1-10","path":"assets/viewer/viewer.js"}],"id":"misc3-viewer-assets","kind":"module","level":2,"paths":["assets/viewer/**"],"role":"Offline HTML template, CSS, viewer script and bundled ELK layout library that render.mjs inlines into the single-file architecture viewer.","title":"Viewer assets","zone":"delivery"},{"evidence":[{"lines":"25-27","path":"scripts/cost-profile.mjs"},{"lines":"73","path":"scripts/pipeline.mjs"}],"id":"scripts-cost","kind":"module","level":3,"paths":["scripts/cost-profile.mjs","scripts/usage.mjs"],"role":"Profiles transcript token cost and keeps the usage ledger.","title":"cost-profile.mjs and usage.mjs","zone":"delivery"},{"evidence":[{"lines":"848","path":"scripts/pipeline.mjs"}],"id":"scripts-db","kind":"store","level":2,"paths":[],"role":"Holds the tables the scripts area declares or queries; made by merge.mjs from the prescan extract.","title":"scripts database","zone":"data"},{"evidence":[{"lines":"20-24","path":"scripts/diffmap.mjs"}],"id":"scripts-diffmap","kind":"module","level":3,"paths":["scripts/diffmap.mjs","scripts/staleness.mjs"],"role":"Maps git changes to model nodes and reports map staleness.","title":"diffmap.mjs and staleness.mjs","zone":"delivery"},{"evidence":[{"lines":"60-65","path":"scripts/export.mjs"},{"lines":"26-30","path":"scripts/layout.mjs"}],"id":"scripts-export","kind":"module","level":3,"paths":["scripts/export.mjs","scripts/layout.mjs","scripts/render.mjs"],"role":"Lays out the model and exports Mermaid, PlantUML, Markdown and SVG, optionally rasterised via Chromium.","title":"export.mjs, layout.mjs, render.mjs","zone":"delivery"},{"evidence":[{"lines":"35-41","path":"scripts/issues.mjs"}],"id":"scripts-issues","kind":"module","level":3,"paths":["scripts/issues.mjs"],"role":"Imports, merges, sorts and lints review issues against the model.","title":"issues.mjs","zone":"delivery"},{"evidence":[{"lines":"112-118","path":"scripts/merge.mjs"}],"id":"scripts-merge","kind":"module","level":3,"paths":["scripts/merge.mjs"],"role":"Merges explorer fragments and extracts into the architecture model under caps.","title":"merge.mjs","zone":"delivery"},{"evidence":[{"lines":"61-73","path":"scripts/pipeline.mjs"}],"id":"scripts-pipeline","kind":"app","level":2,"paths":["scripts/pipeline.mjs"],"role":"Orchestrates plan, explorer briefs, finish and read-only database introspection for a map build.","title":"pipeline.mjs","zone":"delivery"},{"evidence":[{"lines":"72","path":"scripts/pipeline.mjs"}],"id":"scripts-prescan","kind":"module","level":3,"paths":["scripts/prescan.mjs","scripts/lib/prescan/**"],"role":"Regex-based prescan producing extracts per stack (python, node backend, ts frontend, generic) and partitions areas.","title":"prescan.mjs and lib/prescan","zone":"delivery"},{"evidence":[{"lines":"116-118","path":"scripts/merge.mjs"}],"id":"scripts-validate","kind":"module","level":3,"paths":["scripts/validate.mjs","scripts/lib/jsonschema.mjs","scripts/lib/glob.mjs"],"role":"Validates models and fragments against the schema and provides glob matching.","title":"validate.mjs and lib/jsonschema","zone":"delivery"},{"evidence":[{"lines":"1-384","path":"skills/architecture-map/SKILL.md"}],"id":"skills-architecture-map","kind":"module","level":2,"paths":["skills/architecture-map/SKILL.md"],"role":"Skill definition that sets the hard rules, agents, build, update and other command flows for producing the architecture model.","title":"architecture-map skill","zone":"delivery"},{"evidence":[{"lines":"1-190","path":"skills/architecture-map/evals/README.md"}],"id":"skills-evals","kind":"module","level":3,"paths":["skills/architecture-map/evals/**"],"role":"Eval definitions, trigger evals, recall scorer and tracked evidence JSON of eval runs.","title":"skill evals","zone":"delivery"},{"evidence":[{"lines":"37-54","path":"skills/architecture-map/SKILL.md"}],"id":"skills-references","kind":"module","level":3,"paths":["skills/architecture-map/references/**"],"role":"Reference documents for the model schema, relation taxonomy, stack discovery, sequences, schema introspection and the issues catalog.","title":"skill references","zone":"delivery"},{"evidence":[{"lines":"27-46","path":"skills/architecture-map/evals/score-recall.mjs"}],"id":"skills-score-recall","kind":"job","level":3,"paths":["skills/architecture-map/evals/score-recall.mjs"],"role":"Node script that reads run files and scores reviewer recall against reference issues.","title":"score-recall script","zone":"delivery"},{"evidence":[{"lines":"1-5","path":"tests/golden.test.mjs"},{"lines":"12","path":"tests/pipeline.test.mjs"}],"id":"tests-fixtures","kind":"module","level":3,"paths":["tests/fixtures/**"],"role":"Fictional repos, fragments, golden model and eval ground truth that the suites copy and compare against.","title":"Test fixtures","zone":"delivery"},{"evidence":[{"lines":"1-13","path":"tests/merge.test.mjs"},{"lines":"12-25","path":"tests/pipeline.test.mjs"}],"id":"tests-suite","kind":"module","level":2,"paths":["tests/*.test.mjs"],"role":"node:test suites that run the archmap scripts (merge, prescan, pipeline, render, validate, export) as CLIs or imports over temp copies of fixtures.","title":"Node test suite","zone":"delivery"},{"evidence":[{"lines":"1-20","path":"tests/visual/README.md"}],"id":"tests-visual","kind":"module","level":3,"paths":["tests/visual/**"],"role":"Local-only Playwright script that screenshots every tab of the golden render, outside node --test and CI.","title":"Visual check (local)","zone":"delivery"}],"edges":[{"confidence":"external","desc":"The example script drives a headless browser against the local dev server URL.","evidence":[{"lines":"5-12","path":".agents/skills/webapp-testing/examples/console_logging.py"}],"from":"agents-webapp-testing","id":"agents-webapp-to-devserver","to":"agents-local-dev-server","type":"call"},{"confidence":"verified","desc":"Diffmap uses glob matching to map paths to nodes.","evidence":[{"lines":"24","path":"scripts/diffmap.mjs"}],"from":"scripts-diffmap","id":"e-diffmap-glob","to":"scripts-validate","type":"call"},{"confidence":"verified","desc":"Export validates the model before rendering.","evidence":[{"lines":"65","path":"scripts/export.mjs"}],"from":"scripts-export","id":"e-export-validate","to":"scripts-validate","type":"call"},{"confidence":"verified","desc":"Issues validates against the model schema.","evidence":[{"lines":"40-41","path":"scripts/issues.mjs"}],"from":"scripts-issues","id":"e-issues-validate","to":"scripts-validate","type":"call"},{"confidence":"verified","desc":"Merge validates results with validate and jsonschema.","evidence":[{"lines":"116-118","path":"scripts/merge.mjs"}],"from":"scripts-merge","id":"e-merge-validate","to":"scripts-validate","type":"call"},{"confidence":"verified","desc":"Pipeline records usage through the ledger helpers.","evidence":[{"lines":"73","path":"scripts/pipeline.mjs"}],"from":"scripts-pipeline","id":"e-pipeline-cost","to":"scripts-cost","type":"call"},{"confidence":"verified","desc":"Pipeline imports merge caps and runs the merge.","evidence":[{"lines":"71","path":"scripts/pipeline.mjs"}],"from":"scripts-pipeline","id":"e-pipeline-merge","to":"scripts-merge","type":"call"},{"confidence":"verified","desc":"Pipeline imports prescan limits.","evidence":[{"lines":"72","path":"scripts/pipeline.mjs"}],"from":"scripts-pipeline","id":"e-pipeline-prescan","to":"scripts-prescan","type":"call"},{"confidence":"inferred","desc":"Agents write fragments and issues in the shapes the schemas describe.","evidence":[{"lines":"1-8","path":"agents/archmap-explorer.md"}],"from":"misc-2-agents","id":"misc-2-agents-schema","to":"misc-2-schema","type":"link"},{"confidence":"inferred","desc":"Build, update and issues commands dispatch the subagents through the skill.","evidence":[{"lines":"1-12","path":"commands/build.md"}],"from":"misc-2-commands","id":"misc-2-cmd-agents","to":"misc-2-agents","type":"call"},{"confidence":"verified","desc":"CI parses every JSON file under .claude-plugin.","evidence":[{"lines":"20-22","path":".github/workflows/ci.yml"}],"from":"misc-ci","id":"misc-ci-to-manifest","to":"misc-plugin-manifest","type":"call"},{"confidence":"inferred","desc":"The SessionStart hook runs scripts/staleness.mjs.","evidence":[{"lines":"5-12","path":"hooks/hooks.json"}],"from":"misc-hooks","id":"misc-hooks-to-scripts","to":"scripts-pipeline","type":"call"},{"confidence":"verified","desc":"The skill points the agent to its reference files for schema, taxonomy and stack discovery.","evidence":[{"lines":"37-54","path":"skills/architecture-map/SKILL.md"}],"from":"skills-architecture-map","id":"skills-e1","to":"skills-references","type":"link"},{"confidence":"inferred","desc":"The evals exercise the skill's build flow and trigger description.","evidence":[{"lines":"1-190","path":"skills/architecture-map/evals/README.md"}],"from":"skills-evals","id":"skills-e2","to":"skills-architecture-map","type":"link"},{"confidence":"inferred","desc":"The evals use the recall scorer to measure reviewer results.","evidence":[{"lines":"27-46","path":"skills/architecture-map/evals/score-recall.mjs"}],"from":"skills-evals","id":"skills-e3","to":"skills-score-recall","type":"call"},{"confidence":"verified","desc":"The suites copy and compare against the fixture repos and golden files.","evidence":[{"lines":"12-25","path":"tests/pipeline.test.mjs"}],"from":"tests-suite","id":"tests-suite-fixtures","to":"tests-fixtures","type":"call"},{"confidence":"inferred","desc":"The suites run scripts/merge.mjs, pipeline.mjs, render.mjs and validate.mjs as CLIs or import them.","evidence":[{"lines":"10-13","path":"tests/merge.test.mjs"},{"lines":"17-19","path":"tests/pipeline.test.mjs"}],"from":"tests-suite","id":"tests-suite-scripts","to":"scripts-pipeline","type":"call"},{"confidence":"verified","desc":"The screenshot script renders the golden fixture.","evidence":[{"lines":"13-18","path":"tests/visual/README.md"}],"from":"tests-visual","id":"tests-visual-fixtures","to":"tests-fixtures","type":"call"}],"entities":[{"evidence":[{"lines":"848","path":"scripts/pipeline.mjs"}],"fields":[],"id":"sqlite-master","kind":"table","name":"sqlite_master","provenance":"inferred","store":"scripts-db"}],"access":[{"entity":"sqlite-master","evidence":[{"lines":"848","path":"scripts/pipeline.mjs"}],"node":"scripts-pipeline","ops":"R"}],"sequences":[{"id":"build-map","participants":[{"id":"cmd","label":"Slash commands","node":"misc-2-commands"},{"id":"agents","label":"Subagents","node":"misc-2-agents"},{"id":"pipe","label":"pipeline.mjs","node":"scripts-pipeline"},{"id":"pre","label":"prescan","node":"scripts-prescan"},{"id":"merge","label":"merge.mjs","node":"scripts-merge"},{"id":"val","label":"validate.mjs","node":"scripts-validate"}],"steps":[{"d":"The build command starts the pipeline plan step.","k":"call","m":["cmd","pipe"],"r":["scripts/pipeline.mjs:712-760"],"t":"plan"},{"d":"plan runs prescan.mjs to extract per-stack facts and partition areas.","k":"call","m":["pipe","pre"],"r":["scripts/pipeline.mjs:755-755"],"t":"prescan repo"},{"d":"The command dispatches explorer subagents that write fragments from the briefs.","k":"call","m":["cmd","agents"],"r":["scripts/pipeline.mjs:701-706"],"t":"dispatch explorers"},{"d":"After the explorers return, finish assembles the model.","k":"call","m":["cmd","pipe"],"r":["scripts/pipeline.mjs:1104-1140"],"t":"finish"},{"d":"finish runs merge.mjs over fragments and extracts.","k":"call","m":["pipe","merge"],"r":["scripts/pipeline.mjs:1135-1135"],"t":"merge fragments"},{"d":"merge uses the validator library to check fragments and model.","k":"call","m":["merge","val"],"r":["scripts/pipeline.mjs:1065-1082"],"t":"schema check"},{"d":"finish validates the merged model with evidence checked at the commit.","k":"call","m":["pipe","val"],"r":["scripts/pipeline.mjs:1092-1101"],"t":"validate model"},{"note":["pipe"],"r":["scripts/pipeline.mjs:1159-1159"],"t":"If validate finds the model invalid, finish exits non-zero and reports findings without patching.","tone":"warn"}],"summary":"The build command plans via pipeline.mjs, explorers write fragments, then finish merges and validates the model.","title":"Build the architecture map"},{"id":"ci-run","participants":[{"id":"ci","label":"CI workflow","node":"misc-ci"},{"id":"man","label":"Plugin manifest","node":"misc-plugin-manifest"},{"id":"tests","label":"Node test suite","node":"tests-suite"},{"id":"pipe","label":"pipeline.mjs","node":"scripts-pipeline"}],"steps":[{"d":"Each .claude-plugin JSON file must parse.","k":"call","m":["ci","man"],"r":[".github/workflows/ci.yml:23-25"],"t":"parse manifests"},{"d":"The suite runs on each matrix Node version.","k":"call","m":["ci","tests"],"r":[".github/workflows/ci.yml:15-27"],"t":"node --test"}],"summary":"CI parses the manifests, then runs the node test suite on Node 18, 20 and 22.","title":"CI on push and pull request"},{"id":"render-viewer","participants":[{"id":"cmd","label":"Slash commands","node":"misc-2-commands"},{"id":"pipe","label":"pipeline.mjs","node":"scripts-pipeline"},{"id":"merge","label":"merge.mjs","node":"scripts-merge"},{"id":"exp","label":"layout and render","node":"scripts-export"},{"id":"assets","label":"Viewer assets","node":"misc3-viewer-assets"}],"steps":[{"d":"The render command invokes the pipeline render step.","k":"call","m":["cmd","pipe"],"r":["scripts/pipeline.mjs:1177-1200"],"t":"render"},{"d":"render merges the synthesizer output into the model.","k":"call","m":["pipe","merge"],"r":["scripts/pipeline.mjs:1203-1203"],"t":"merge synth"},{"d":"layout.mjs computes positions into the layout file.","k":"call","m":["pipe","exp"],"r":["scripts/pipeline.mjs:1217-1217"],"t":"layout"},{"d":"render.mjs writes the viewer HTML.","k":"call","m":["pipe","exp"],"r":["scripts/pipeline.mjs:1221-1221"],"t":"render html"},{"d":"render inlines the template, CSS and scripts into one file.","k":"link","m":["exp","assets"],"r":["scripts/pipeline.mjs:1221-1221"],"t":"inline assets"}],"summary":"The render step re-merges, lays out the model and inlines it into the single-file viewer.","title":"Render the viewer"},{"id":"session-staleness","participants":[{"id":"hooks","label":"Session hooks","node":"misc-hooks"},{"id":"diff","label":"staleness.mjs","node":"scripts-diffmap"}],"steps":[{"d":"On SessionStart the hook runs staleness.mjs to report whether the map is stale.","k":"call","m":["hooks","diff"],"r":["hooks/hooks.json:3-11"],"t":"run staleness"}],"summary":"A SessionStart hook runs the staleness script when a session opens.","title":"Session start staleness check"}],"views":[{"id":"component-scripts","kind":"graph","nodes":["scripts-pipeline","scripts-prescan","scripts-merge","scripts-validate","scripts-export","scripts-issues","scripts-diffmap","scripts-cost","scripts-db"],"title":"Scripts components"},{"id":"component-skill","kind":"graph","nodes":["skills-architecture-map","skills-references","skills-evals","skills-score-recall","misc-2-commands","misc-2-agents","misc-2-schema","misc-plugin-manifest","misc-hooks","misc3-review-skill"],"title":"Skill and plugin components"},{"id":"deployment","kind":"deployment","nodes":["misc-ci","misc-plugin-manifest","misc-hooks","tests-suite","tests-fixtures"],"title":"Delivery and CI"},{"id":"system","kind":"graph","nodes":["skills-architecture-map","misc-2-commands","misc-2-agents","misc-2-schema","scripts-pipeline","scripts-merge","scripts-prescan","scripts-validate","scripts-export","misc3-viewer-assets","scripts-db","tests-suite"],"title":"System"},{"id":"trust","kind":"trust","title":"Zones","zones":["delivery","platform","data","external"]}]}</script>
+<script type="application/json" id="archmap-layout">{"schemaVersion":1,"graph":{"nodes":{"agents-local-dev-server":{"x":1866,"y":815,"w":300,"h":56},"agents-node-skill":{"x":1348,"y":663,"w":160,"h":56},"agents-webapp-testing":{"x":1548,"y":815,"w":200,"h":56},"docs-audit":{"x":50,"y":342,"w":160,"h":56},"docs-design":{"x":50,"y":190,"w":160,"h":56},"misc-2-agents":{"x":1348,"y":739,"w":160,"h":56},"misc-2-commands":{"x":1050,"y":738.8,"w":160,"h":56},"misc-2-schema":{"x":1548,"y":739,"w":160,"h":56},"misc-ci":{"x":70,"y":418,"w":160,"h":56},"misc-hooks":{"x":70,"y":636.67,"w":160,"h":56},"misc-plugin-manifest":{"x":250,"y":418,"w":300,"h":56},"misc3-audit-config":{"x":1348,"y":815,"w":160,"h":56},"misc3-review-skill":{"x":1328,"y":891,"w":200,"h":56},"misc3-viewer-assets":{"x":50,"y":266,"w":160,"h":56},"scripts-cost":{"x":570,"y":950,"w":290,"h":56},"scripts-db":{"x":537.5,"y":48,"w":170,"h":56},"scripts-diffmap":{"x":590,"y":722,"w":280,"h":56},"scripts-export":{"x":570,"y":798,"w":300,"h":56},"scripts-issues":{"x":710,"y":874,"w":160,"h":56},"scripts-merge":{"x":640,"y":646,"w":160,"h":56},"scripts-pipeline":{"x":334,"y":646,"w":160,"h":56},"scripts-prescan":{"x":570,"y":570,"w":260,"h":56},"scripts-validate":{"x":910,"y":662.8,"w":300,"h":56},"skills-architecture-map":{"x":290,"y":494,"w":220,"h":56},"skills-evals":{"x":70,"y":503.33,"w":160,"h":56},"skills-references":{"x":570,"y":494,"w":170,"h":56},"skills-score-recall":{"x":250,"y":570,"w":200,"h":56},"tests-fixtures":{"x":250,"y":731.33,"w":160,"h":56},"tests-suite":{"x":70,"y":712.67,"w":160,"h":56},"tests-visual":{"x":30,"y":788.67,"w":200,"h":56}},"zones":{"data":{"x":519.5,"y":12,"w":206,"h":110},"delivery":{"x":12,"y":154,"w":1216,"h":870},"external":{"x":1848,"y":779,"w":336,"h":110},"platform":{"x":1310,"y":627,"w":456,"h":338}},"edges":{"agents-webapp-to-devserver":{"sections":[{"startPoint":{"x":1748,"y":843},"endPoint":{"x":1866,"y":843}}]},"e-diffmap-glob":{"sections":[{"startPoint":{"x":870,"y":750},"endPoint":{"x":910,"y":685.2},"bendPoints":[{"x":880,"y":750},{"x":880,"y":685.2}]}]},"e-export-validate":{"sections":[{"startPoint":{"x":870,"y":826},"endPoint":{"x":910,"y":696.4},"bendPoints":[{"x":890,"y":826},{"x":890,"y":696.4}]}]},"e-issues-validate":{"sections":[{"startPoint":{"x":870,"y":902},"endPoint":{"x":910,"y":707.6},"bendPoints":[{"x":900,"y":902},{"x":900,"y":707.6}]}]},"e-merge-validate":{"sections":[{"startPoint":{"x":800,"y":674},"endPoint":{"x":910,"y":674}}]},"e-pipeline-cost":{"sections":[{"startPoint":{"x":494,"y":688},"endPoint":{"x":570,"y":978},"bendPoints":[{"x":560,"y":688},{"x":560,"y":978}]}]},"e-pipeline-merge":{"sections":[{"startPoint":{"x":494,"y":674},"endPoint":{"x":640,"y":674}}]},"e-pipeline-prescan":{"sections":[{"startPoint":{"x":494,"y":660},"endPoint":{"x":570,"y":598},"bendPoints":[{"x":560,"y":660},{"x":560,"y":598}]}]},"misc-2-agents-schema":{"sections":[{"startPoint":{"x":1508,"y":767},"endPoint":{"x":1548,"y":767}}]},"misc-2-cmd-agents":{"sections":[{"startPoint":{"x":1210,"y":766.8},"endPoint":{"x":1348,"y":767},"bendPoints":[{"x":1233,"y":767}]}]},"misc-ci-to-manifest":{"sections":[{"startPoint":{"x":230,"y":446},"endPoint":{"x":250,"y":446}}]},"misc-hooks-to-scripts":{"sections":[{"startPoint":{"x":230,"y":664.67},"endPoint":{"x":334,"y":664.67}}]},"skills-e1":{"sections":[{"startPoint":{"x":510,"y":522},"endPoint":{"x":570,"y":522}}]},"skills-e2":{"sections":[{"startPoint":{"x":230,"y":522},"endPoint":{"x":290,"y":522}}]},"skills-e3":{"sections":[{"startPoint":{"x":230,"y":540.67},"endPoint":{"x":250,"y":598},"bendPoints":[{"x":240,"y":540.67},{"x":240,"y":598}]}]},"tests-suite-fixtures":{"sections":[{"startPoint":{"x":230,"y":750},"endPoint":{"x":250,"y":750}}]},"tests-suite-scripts":{"sections":[{"startPoint":{"x":230,"y":731.33},"endPoint":{"x":334,"y":683.33},"bendPoints":[{"x":240,"y":731.33},{"x":240,"y":683.33}]}]},"tests-visual-fixtures":{"sections":[{"startPoint":{"x":230,"y":816.67},"endPoint":{"x":250,"y":768.67},"bendPoints":[{"x":240,"y":816.67},{"x":240,"y":768.67}]}]}}},"er":{"entities":{"sqlite-master":{"x":12,"y":12,"w":190,"h":36,"ports":{}}},"relations":{}}}</script>
+<script>
+// archmap viewer - renders the embedded model, layout and (internal/shared builds only) issues.
+// Everything drawn comes from three JSON blocks render.mjs inlines: #archmap-model, #archmap-layout and
+// the optional #archmap-issues. Positions and edge routes are the build-time ELK layout; nothing is hand-placed.
+// No network access of any kind: the page is a single offline file.
+//
+// Layout of this file: (1) pure functions of the model (path finder, search, lineage, CRUD matrix, ER scene and
+// markup, evidence links). They touch no DOM, and when the file is loaded without a `document` (node:test) they are
+// handed to `module.exports` and nothing else runs. (2) The DOM: panes, tabs and event wiring.
+(function(){
+"use strict";
+
+/* ═════════ (1) pure functions ═════════ */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const codeify = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const num = v => Math.round(v * 100) / 100;
+
+/* Figure scale (pure): the smallest scale a figure opens at. Fitting a wide drawing to a narrow panel would shrink
+   its text past reading, so below FIG_MIN_SCALE the figure opens at the floor and scrolls sideways; Fit stays one click away.
+   naturalW is the drawing's width in px, availW the panel's. fit is the true whole-drawing scale (never above 1). */
+// The floor is derived from a minimum drawn font, not a fixed fraction: the smallest svg text (SMALLEST_FIG_FONT user units, the
+// .msg .numt badge number in viewer.css) must still draw at MIN_FONT_PX or more, so the floor is MIN_FONT_PX / SMALLEST_FIG_FONT (~0.89).
+const MIN_FONT_PX = 8.5;
+const SMALLEST_FIG_FONT = 9.5;
+const FIG_MIN_SCALE = MIN_FONT_PX / SMALLEST_FIG_FONT;
+function figureScale(naturalW, availW){
+  const nat = Math.max(1, naturalW), avail = Math.max(0, availW);
+  const fit = Math.min(1, avail / nat);
+  const fitted = fit >= FIG_MIN_SCALE;
+  return {fit:fit, scale:fitted ? fit : FIG_MIN_SCALE, fitted:fitted, scrolls:!fitted};
+}
+
+// relation types: colour comes from the CSS (--rel-<type>); dash pattern and width make each type readable without colour.
+const REL = {
+  api:     {label:"HTTP API",               dash:null,      w:2},
+  static:  {label:"Page or asset load",     dash:"2 4",     w:1.7},
+  auth:    {label:"Identity and token",     dash:"7 4",     w:2},
+  pull:    {label:"Data pull",              dash:null,      w:3.2},
+  sql:     {label:"SQL",                    dash:null,      w:2},
+  cache:   {label:"Cache read, write, clear", dash:null,    w:2},
+  persist: {label:"Client storage",         dash:"1.5 3.5", w:2.2},
+  call:    {label:"In-process call",        dash:null,      w:1.3},
+  link:    {label:"Outbound link",          dash:"8 3 2 3", w:1.6},
+  deploy:  {label:"Build and deploy",       dash:"10 5",    w:2},
+  event:   {label:"Event",                  dash:"4 2 1 2", w:1.8},
+  queue:   {label:"Queue message",          dash:"6 3",     w:2.4}
+};
+const relOf = k => (REL[k] ? k : "call");
+const ZK = {browser:"Browser", edge:"Edge", service:"Service", data:"Data", platform:"Platform", external:"External", delivery:"Delivery"};
+const SEVN = {high:"High", med:"Medium", low:"Low"};
+const SEVR = {high:3, med:2, low:1};
+const OPS = [["C","create"],["R","read"],["U","update"],["D","delete"]];
+
+/* evidence links: repoUrl/blob/<commit>/<path>#L<a>-L<b> */
+function repoBase(meta){
+  const u = meta && meta.repoUrl; if (typeof u !== "string") return null;
+  try { const p = new URL(u); return (p.protocol === "https:" || p.protocol === "http:") ? u.replace(/\/+$/, "") : null; } catch (err) { return null; }
+}
+function evidenceUrl(meta, path, lines){
+  const base = repoBase(meta);
+  if (!base || !meta.commit) return null;
+  const m = /^(\d+)(?:-(\d+))?$/.exec(lines || "");
+  const frag = m ? "#L" + m[1] + (m[2] ? "-L" + m[2] : "") : "";
+  return base + "/blob/" + encodeURIComponent(meta.commit) + "/" + String(path).split("/").map(encodeURIComponent).join("/") + frag;
+}
+function evidenceChipHtml(meta, path, lines){
+  const label = path + (lines ? ":" + lines : "");
+  const url = evidenceUrl(meta, path, lines);
+  if (!url) return '<code>' + esc(label) + '</code>';
+  return '<a class="evchip" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"><code>' + esc(label) + '</code></a>';
+}
+function refChipHtml(meta, ref){
+  const m = /^(.*):(\d+(?:-\d+)?)$/.exec(String(ref));
+  return m ? evidenceChipHtml(meta, m[1], m[2]) : '<code>' + esc(ref) + '</code>';
+}
+
+/* views: a deployment or trust view is recognised by an explicit `kind`, else by its id or title */
+function viewRole(v){
+  const k = v && typeof v.kind === "string" ? v.kind.toLowerCase() : "";
+  if (k === "deployment" || k === "trust" || k === "graph") return k;
+  const s = ((v && v.id) || "") + " " + ((v && v.title) || "");
+  if (/trust|boundar/i.test(s)) return "trust";
+  if (/deploy|release|topolog|infra/i.test(s)) return "deployment";
+  return "graph";
+}
+
+/* path finder: breadth-first search, so the first path found is a shortest one. Edges are walked in both
+   directions unless opts.directed. Ties are broken by edge order, so the result is deterministic.
+   Returns {nodes:[ids], edges:[edge ids]} or null when the two nodes are not connected. */
+function findPath(edges, from, to, opts){
+  const directed = !!(opts && opts.directed);
+  if (from === undefined || to === undefined || from === "" || to === "") return null;
+  if (from === to) return {nodes:[from], edges:[]};
+  const adj = new Map();
+  const link = (a, b, id) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push({to:b, edge:id}); };
+  (edges || []).forEach(e => { link(e.from, e.to, e.id); if (!directed) link(e.to, e.from, e.id); });
+  if (!adj.has(from) || !adj.has(to)) return null;
+  const prev = new Map([[from, null]]);
+  const queue = [from];
+  for (let qi = 0; qi < queue.length; qi++){
+    const cur = queue[qi];
+    for (const step of adj.get(cur) || []){
+      if (prev.has(step.to)) continue;
+      prev.set(step.to, {node:cur, edge:step.edge});
+      if (step.to === to){
+        const nodes = [to], used = [];
+        for (let at = to; prev.get(at); at = prev.get(at).node){ nodes.push(prev.get(at).node); used.push(prev.get(at).edge); }
+        return {nodes:nodes.reverse(), edges:used.reverse()};
+      }
+      queue.push(step.to);
+    }
+  }
+  return null;
+}
+
+/* lineage of an entity: its store, the components with access rows on it, the edges from those components to
+   the store, and the callers upstream of the accessors up to maxDepth hops. */
+function lineageOf(model, entityId, maxDepth){
+  const depthLimit = maxDepth === undefined ? 2 : maxDepth;
+  const ent = (model.entities || []).find(e => e.id === entityId);
+  if (!ent) return null;
+  const rows = (model.access || []).filter(a => a.entity === entityId);
+  const edges = model.edges || [];
+  const depth = new Map();
+  if (ent.store) depth.set(ent.store, 0);
+  rows.forEach(r => { if (!depth.has(r.node)) depth.set(r.node, 1); });
+  const used = new Set();
+  const accessors = new Set(rows.map(r => r.node));
+  edges.forEach(e => { if (accessors.has(e.from) && e.to === ent.store) used.add(e.id); });
+  let frontier = Array.from(accessors);
+  for (let d = 1; d <= depthLimit && frontier.length; d++){
+    const next = [];
+    edges.forEach(e => {
+      if (!frontier.includes(e.to) || e.from === ent.store) return;
+      used.add(e.id);
+      if (!depth.has(e.from)){ depth.set(e.from, d + 1); next.push(e.from); }
+    });
+    frontier = next;
+  }
+  return {entity:entityId, store:ent.store, access:rows,
+          nodes:Array.from(depth.keys()), edges:edges.filter(e => used.has(e.id)).map(e => e.id)};
+}
+
+/* search over nodes, edges, entities and sequences. Every word of the query must occur in the item. */
+function searchModel(model, query, limit){
+  const words = String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const nodeTitle = {}; (model.nodes || []).forEach(n => { nodeTitle[n.id] = n.title; });
+  const items = [];
+  (model.nodes || []).forEach(n => items.push({kind:"node", id:n.id, title:n.title, detail:n.kind + (n.role ? " · " + n.role : ""),
+    hay:[n.id, n.title, n.kind, n.role, (n.sub || []).join(" ")]}));
+  (model.edges || []).forEach(e => items.push({kind:"edge", id:e.id, title:(nodeTitle[e.from] || e.from) + " → " + (nodeTitle[e.to] || e.to),
+    detail:(REL[relOf(e.type)].label) + (e.label ? " · " + e.label : ""), hay:[e.id, e.type, e.label, e.desc, nodeTitle[e.from], nodeTitle[e.to]]}));
+  (model.entities || []).forEach(e => items.push({kind:"entity", id:e.id, title:e.name || e.id, detail:(e.kind || "table") + " in " + e.store,
+    hay:[e.id, e.name, e.store, (e.fields || []).map(f => f.name).join(" ")]}));
+  (model.sequences || []).forEach(s => items.push({kind:"sequence", id:s.id, title:s.title, detail:s.summary || "",
+    hay:[s.id, s.title, s.summary, (s.steps || []).map(st => [st.t, st.d].filter(Boolean).join(" ")).join(" ")]}));
+  const order = {node:0, entity:1, sequence:2, edge:3};
+  const out = [];
+  items.forEach(it => {
+    const hay = it.hay.filter(x => typeof x === "string").join(" ").toLowerCase();
+    if (!words.every(w => hay.indexOf(w) >= 0)) return;
+    const t = String(it.title).toLowerCase();
+    const score = words.every(w => t.indexOf(w) === 0 || t.indexOf(" " + w) >= 0) ? 3 : words.every(w => t.indexOf(w) >= 0) ? 2 : 1;
+    out.push({kind:it.kind, id:it.id, title:it.title, detail:it.detail, score:score});
+  });
+  out.sort((a, b) => (b.score - a.score) || (order[a.kind] - order[b.kind]) || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0));
+  return out.slice(0, limit === undefined ? 20 : limit);
+}
+
+/* CRUD matrix: nodes that have access rows (model order) by all entities (model order). One cell per
+   node/entity pair that has a row; a pair given twice has its operations merged. */
+function crudMatrix(model){
+  const access = model.access || [];
+  const withRows = new Set(access.map(a => a.node));
+  const nodes = (model.nodes || []).filter(n => withRows.has(n.id));
+  const entities = model.entities || [];
+  const cells = new Map();
+  access.forEach(a => {
+    const k = a.node + "\u0000" + a.entity;
+    const c = cells.get(k) || {node:a.node, entity:a.entity, ops:"", evidence:[]};
+    OPS.forEach(o => { if (String(a.ops).indexOf(o[0]) >= 0 && c.ops.indexOf(o[0]) < 0) c.ops += o[0]; });
+    c.ops = OPS.map(o => o[0]).filter(l => c.ops.indexOf(l) >= 0).join("");
+    (a.evidence || []).forEach(ev => c.evidence.push(ev));
+    cells.set(k, c);
+  });
+  return {nodes:nodes, entities:entities, cells:cells};
+}
+function opsWords(ops){ return OPS.filter(o => String(ops).indexOf(o[0]) >= 0).map(o => o[1]).join(", "); }
+function crudHtml(model){
+  const mx = crudMatrix(model);
+  let h = '<table class="crud"><thead><tr><th class="corner" scope="col">Component</th>';
+  mx.entities.forEach(e => { h += '<th scope="col"><button class="lnk" data-entity="' + esc(e.id) + '">' + esc(e.name || e.id) + '</button></th>'; });
+  h += '</tr></thead><tbody>';
+  mx.nodes.forEach(n => {
+    h += '<tr><th scope="row"><button class="lnk" data-node="' + esc(n.id) + '">' + esc(n.title) + '</button></th>';
+    mx.entities.forEach(e => {
+      const c = mx.cells.get(n.id + "\u0000" + e.id);
+      if (!c){ h += '<td class="empty"></td>'; return; }
+      h += '<td class="cell" data-node="' + esc(n.id) + '" data-entity="' + esc(e.id) + '" data-ops="' + esc(c.ops) + '">' +
+        '<button class="opb" aria-label="' + esc(n.title + " on " + (e.name || e.id) + ": " + opsWords(c.ops)) + '">' +
+        c.ops.split("").map(l => '<span class="op op-' + l.toLowerCase() + '">' + l + '</span>').join("") + '</button></td>';
+    });
+    h += '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+
+/* ER scene: the cards and relation routes of the layout's `er` block, joined with the model. */
+const PROV_RANK = {declared:0, observed:1, inferred:2};
+const provOf = p => (PROV_RANK[p] !== undefined ? p : "declared");
+// Same keying as layout.mjs: "<from.entity>.<from.field>-><to.entity>.<to.field>", a repeated one gets "#n".
+function relationKeys(model){
+  const used = new Map();
+  return (model.relations || []).map(r => {
+    const base = r.from.entity + "." + r.from.field + "->" + r.to.entity + "." + r.to.field;
+    const n = (used.get(base) || 0) + 1; used.set(base, n);
+    return {key:n === 1 ? base : base + "#" + n, rel:r};
+  });
+}
+// Crow's foot cardinality: the cardinality is read with the "many" end on the side that holds the key (`from`)
+// for 1-n, on both ends for n-m and neither for 1-1.
+function manyEnds(card){ return {from:card === "1-n" || card === "n-m", to:card === "n-m"}; }
+// The glyph at point p of a line arriving from point q: three prongs for many, a bar across the line for one.
+function crowFoot(p, q, many){
+  const dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  if (many){
+    const bx = p[0] + ux * 12, by = p[1] + uy * 12;
+    return "M" + num(bx + nx * 6) + "," + num(by + ny * 6) + " L" + num(p[0]) + "," + num(p[1]) + " L" + num(bx - nx * 6) + "," + num(by - ny * 6);
+  }
+  const bx = p[0] + ux * 10, by = p[1] + uy * 10;
+  return "M" + num(bx + nx * 6) + "," + num(by + ny * 6) + " L" + num(bx - nx * 6) + "," + num(by - ny * 6);
+}
+function erScene(model, erLayout){
+  const L = (erLayout && erLayout.entities) || {};
+  const relLayout = (erLayout && erLayout.relations) || {};
+  const incoming = new Set(), outgoing = new Map();
+  (model.relations || []).forEach(r => { outgoing.set(r.from.entity + "\u0000" + r.from.field, r.to.entity + "." + r.to.field); incoming.add(r.to.entity + "\u0000" + r.to.field); });
+  const cards = [], byId = {};
+  (model.entities || []).forEach(e => {
+    const p = L[e.id]; if (!p) return;
+    const fields = (e.fields || []).map((f, i) => {
+      const port = (p.ports && p.ports[f.name]) || {x:0, y:30 + 22 * i + 11, side:"EAST"};
+      const target = f.fk ? f.fk.entity + "." + f.fk.field : (outgoing.get(e.id + "\u0000" + f.name) || null);
+      return {name:f.name, type:f.type || "", pk:!!f.pk, fk:!!(f.fk || target), fkTo:target, nullable:!!f.nullable, prov:provOf(f.provenance),
+              y:p.y + 30 + 22 * i, port:[p.x + port.x, p.y + port.y], referenced:incoming.has(e.id + "\u0000" + f.name)};
+    });
+    const provs = new Set(fields.map(f => f.prov));
+    const card = {id:e.id, name:e.name || e.id, kind:e.kind || "table", store:e.store, x:p.x, y:p.y, w:p.w, h:p.h, fields:fields,
+                  prov:provs.size === 1 ? Array.from(provs)[0] : provs.size === 0 ? "declared" : "mixed"};
+    cards.push(card); byId[e.id] = card;
+  });
+  const relations = [];
+  relationKeys(model).forEach(({key, rel}) => {
+    const a = byId[rel.from.entity], b = byId[rel.to.entity]; if (!a || !b) return;
+    const fa = a.fields.find(f => f.name === rel.from.field), fb = b.fields.find(f => f.name === rel.to.field);
+    const secs = relLayout[key] && relLayout[key].sections;
+    let pts = [];
+    (secs || []).forEach(sec => [sec.startPoint].concat(sec.bendPoints || [], [sec.endPoint]).forEach(q => {
+      if (!q) return;
+      const last = pts[pts.length - 1];
+      if (!last || last[0] !== q.x || last[1] !== q.y) pts.push([q.x, q.y]);
+    }));
+    if (pts.length < 2){
+      const pa = fa ? fa.port : [a.x + a.w, a.y + a.h / 2], pb = fb ? fb.port : [b.x, b.y + b.h / 2];
+      pts = [pa, pb];
+    }
+    const many = manyEnds(rel.cardinality);
+    relations.push({key:key, rel:rel, prov:provOf(rel.provenance), kind:rel.kind, cardinality:rel.cardinality, pts:pts,
+      foot:[crowFoot(pts[0], pts[1], many.from), crowFoot(pts[pts.length - 1], pts[pts.length - 2], many.to)].join(" ")});
+  });
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const grow = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  cards.forEach(c => { grow(c.x, c.y); grow(c.x + c.w, c.y + c.h); });
+  relations.forEach(r => r.pts.forEach(p => grow(p[0], p[1])));
+  if (!isFinite(x0)){ x0 = 0; y0 = 0; x1 = 400; y1 = 120; }
+  const pad = 24;
+  return {cards:cards, relations:relations, box:{x:x0 - pad, y:y0 - pad, w:(x1 - x0) + 2 * pad, h:(y1 - y0) + 2 * pad}};
+}
+function roundedPath(pts, rad){
+  let d = "M" + pts[0][0] + "," + pts[0][1];
+  for (let i = 1; i < pts.length - 1; i++){
+    const [x0,y0] = pts[i-1], [x1,y1] = pts[i], [x2,y2] = pts[i+1];
+    const d1 = Math.hypot(x1-x0, y1-y0) || 1, d2 = Math.hypot(x2-x1, y2-y1) || 1;
+    const rr = Math.min(rad, d1/2, d2/2);
+    const ax = x1 + (x0-x1)/d1*rr, ay = y1 + (y0-y1)/d1*rr, bx = x1 + (x2-x1)/d2*rr, by = y1 + (y2-y1)/d2*rr;
+    d += " L" + ax + "," + ay + " Q" + x1 + "," + y1 + " " + bx + "," + by;
+  }
+  const last = pts[pts.length-1];
+  return d + " L" + last[0] + "," + last[1];
+}
+const PROV_WORD = {declared:"declared in the schema", observed:"observed from the live database", inferred:"inferred from names", mixed:"mixed provenance"};
+// The inner SVG markup of the ER diagram. opts.issues: {entityId: {count, sev}} for badges.
+function erMarkup(model, erLayout, opts){
+  const sc = erScene(model, erLayout), issues = (opts && opts.issues) || {};
+  let h = '<g class="er-rels">';
+  sc.relations.forEach(r => {
+    const d = roundedPath(r.pts, 8);
+    h += '<g class="rel prov-' + r.prov + ' kind-' + esc(r.kind) + '" data-key="' + esc(r.key) + '" data-from="' + esc(r.rel.from.entity) + '" data-to="' + esc(r.rel.to.entity) + '">' +
+      '<path class="hit" d="' + d + '"/><path class="ln" d="' + d + '"/><path class="cf" d="' + r.foot + '"/>' +
+      '<title>' + esc(r.rel.from.entity + "." + r.rel.from.field + " → " + r.rel.to.entity + "." + r.rel.to.field + " · " + r.cardinality + " · " + r.kind + " · " + (PROV_WORD[r.prov] || r.prov)) + '</title></g>';
+  });
+  h += '</g><g class="er-ents">';
+  sc.cards.forEach(c => {
+    const hd = "M" + c.x + "," + (c.y + 30) + " V" + (c.y + 7) + " Q" + c.x + "," + c.y + " " + (c.x + 7) + "," + c.y +
+      " H" + (c.x + c.w - 7) + " Q" + (c.x + c.w) + "," + c.y + " " + (c.x + c.w) + "," + (c.y + 7) + " V" + (c.y + 30) + " Z";
+    h += '<g class="ent prov-' + c.prov + ' ek-' + esc(c.kind) + '" data-entity="' + esc(c.id) + '" tabindex="0" role="button" aria-label="' + esc(c.name + ", " + c.kind + " in " + c.store + ", " + c.fields.length + " fields") + '">' +
+      '<rect class="eb" x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" rx="7"/>' +
+      '<path class="ehd" d="' + hd + '"/>' +
+      '<text class="en" x="' + (c.x + 10) + '" y="' + (c.y + 19.5) + '">' + esc(c.name) + '</text>' +
+      '<text class="ek" x="' + (c.x + c.w - 9) + '" y="' + (c.y + 19.5) + '" text-anchor="end">' + esc(c.kind) + '</text>';
+    c.fields.forEach((f, i) => {
+      const fy = c.y + 30 + 22 * i;
+      h += '<g class="fld prov-' + f.prov + (f.pk ? " pk" : "") + (f.fk ? " fk" : "") + (f.nullable ? " nullable" : "") + '" data-field="' + esc(f.name) + '">' +
+        '<rect class="fr" x="' + c.x + '" y="' + fy + '" width="' + c.w + '" height="22"/>' +
+        (f.prov !== "declared" ? '<line class="pbar" x1="' + (c.x + 2.5) + '" x2="' + (c.x + 2.5) + '" y1="' + (fy + 3) + '" y2="' + (fy + 19) + '"/>' : '') +
+        (f.pk ? '<text class="mk mk-pk" x="' + (c.x + 9) + '" y="' + (fy + 15) + '">PK</text>' : '') +
+        (f.fk ? '<text class="mk mk-fk" x="' + (c.x + 29) + '" y="' + (fy + 15) + '">FK</text>' : '') +
+        '<text class="fn" x="' + (c.x + 52) + '" y="' + (fy + 15) + '">' + esc(f.name) + '</text>' +
+        '<text class="ft" x="' + (c.x + c.w - 9) + '" y="' + (fy + 15) + '" text-anchor="end">' + esc(f.type) + (f.nullable ? "?" : "") + '</text>' +
+        '<title>' + esc(f.name + (f.type ? " " + f.type : "") + " · " + (PROV_WORD[f.prov] || f.prov) + (f.fkTo ? " · references " + f.fkTo : "")) + '</title></g>';
+    });
+    const is = issues[c.id];
+    if (is && is.count) h += '<circle class="bdg sev-' + esc(is.sev) + '" cx="' + (c.x + c.w - 3) + '" cy="' + (c.y + 3) + '" r="8.5"/><text class="bdt" x="' + (c.x + c.w - 3) + '" y="' + (c.y + 6.5) + '" text-anchor="middle">' + is.count + '</text>';
+    h += '</g>';
+  });
+  return {viewBox:sc.box.x + " " + sc.box.y + " " + sc.box.w + " " + sc.box.h, width:sc.box.w, inner:h + '</g>', scene:sc};
+}
+
+/* trust boundaries: one dashed enclosure around each top-level zone of a view. A zone flagged `outside` is
+   untrusted; the rest are inside the boundary. A relation crosses a boundary when its two ends differ in trust. */
+function trustBoundaries(zones, rects, zoneById){
+  const inView = new Set(zones.map(z => z.id));
+  return zones.filter(z => !(z.parent !== undefined && inView.has(z.parent)) && rects[z.id]).map(z => {
+    const r = rects[z.id];
+    return {zone:z.id, label:z.label || z.id, trusted:!(zoneById[z.id] && zoneById[z.id].outside),
+            x:r.x - 12, y:r.y - 18, w:r.w + 24, h:r.h + 30};
+  });
+}
+function rootZoneOf(zoneId, zoneById){
+  const seen = new Set(); let z = zoneById[zoneId], root = zoneId;
+  while (z && !seen.has(z.id)){ seen.add(z.id); root = z.id; z = z.parent !== undefined ? zoneById[z.parent] : null; }
+  return root;
+}
+function crossesTrust(zoneA, zoneB, zoneById){
+  const ra = rootZoneOf(zoneA, zoneById), rb = rootZoneOf(zoneB, zoneById);
+  if (ra === rb) return false;
+  const trusted = id => !(zoneById[id] && zoneById[id].outside);
+  return trusted(ra) !== trusted(rb);
+}
+
+if (typeof document === "undefined"){
+  if (typeof module !== "undefined" && module && typeof module === "object") {
+    module.exports = {findPath:findPath, lineageOf:lineageOf, searchModel:searchModel, crudMatrix:crudMatrix, crudHtml:crudHtml,
+      erScene:erScene, erMarkup:erMarkup, crowFoot:crowFoot, manyEnds:manyEnds, relationKeys:relationKeys, evidenceUrl:evidenceUrl,
+      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, MIN_FONT_PX:MIN_FONT_PX, SMALLEST_FIG_FONT:SMALLEST_FIG_FONT, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust};
+  }
+  return;
+}
+
+/* ═════════ (2) the page ═════════ */
+// The SVG namespace, read from an inline <svg> the HTML parser already placed in it (no URL literal in shipped code).
+const NS = document.getElementById("arch").namespaceURI;
+function S(tag, attrs, parent){ const e = document.createElementNS(NS, tag); if (attrs) for (const k in attrs){ const v = attrs[k]; if (v !== undefined && v !== null) e.setAttribute(k, v); } if (parent) parent.appendChild(e); return e; }
+const $ = id => document.getElementById(id);
+function readJson(id){ const el = $(id); if (!el) return null; try { return JSON.parse(el.textContent); } catch (err) { return null; } }
+
+/* ───────── data ───────── */
+const MODEL = readJson("archmap-model") || {meta:{}, zones:[], nodes:[], edges:[]};
+const LAYOUT = readJson("archmap-layout") || {};
+const ISSUE_DATA = readJson("archmap-issues");
+const META = MODEL.meta || {};
+const ZONES = MODEL.zones || [], NODES = MODEL.nodes || [], EDGES = MODEL.edges || [], SEQS = MODEL.sequences || [];
+const ENTITIES = MODEL.entities || [], ACCESS = MODEL.access || [];
+const GRAPH = LAYOUT.graph || {};
+const NP = GRAPH.nodes || {}, ZP = GRAPH.zones || {}, EP = GRAPH.edges || {};
+const ISSUES = ((ISSUE_DATA && ISSUE_DATA.issues) || []).slice();
+const HAS_ISSUES = !!ISSUE_DATA;
+
+const ZONE = {}; ZONES.forEach(z => { ZONE[z.id] = z; });
+const NODE = {}; NODES.forEach(n => { NODE[n.id] = n; });
+const ENTITY = {}; ENTITIES.forEach(e => { ENTITY[e.id] = e; });
+const zoneKind = id => (ZONE[id] && ZK[ZONE[id].kind] ? ZONE[id].kind : "edge");
+function zoneChain(id){ const out = []; const seen = new Set(); let z = ZONE[id]; while (z && !seen.has(z.id)){ out.push(z.id); seen.add(z.id); z = z.parent !== undefined ? ZONE[z.parent] : null; } return out; }
+const zoneDepth = id => zoneChain(id).length;
+
+/* ───────── issues index ───────── */
+const ISS = {}; ISSUES.forEach(i => { ISS[i.id] = i; });
+const ENTITY_STORE = {}; ENTITIES.forEach(e => { ENTITY_STORE[e.id] = e.store; });
+const bySev = (a, b) => (SEVR[ISS[b].sev] - SEVR[ISS[a].sev]) || (a < b ? -1 : a > b ? 1 : 0);
+function issuesOfNode(id){
+  return ISSUES.filter(i => i.anchor && (i.anchor.node === id || (i.anchor.entity !== undefined && ENTITY_STORE[i.anchor.entity] === id))).map(i => i.id).sort(bySev);
+}
+function issuesOfEdge(id){ return ISSUES.filter(i => i.anchor && i.anchor.edge === id).map(i => i.id).sort(bySev); }
+function issuesOfEntity(id){ return ISSUES.filter(i => i.anchor && i.anchor.entity === id).map(i => i.id).sort(bySev); }
+function issuesOfStep(seqId, idx, st){
+  const ids = new Set();
+  if (st.i && ISS[st.i]) ids.add(st.i);
+  ISSUES.forEach(i => { if (i.anchor && i.anchor.step === seqId + ":" + idx) ids.add(i.id); });
+  return Array.from(ids).sort(bySev);
+}
+function maxSev(ids){
+  let best = "low";
+  ids.forEach(id => { const s = ISS[id] && ISS[id].sev; if (s && SEVR[s] > SEVR[best]) best = s; });
+  return best;
+}
+function issueLink(id){
+  const x = ISS[id]; if (!x) return "";
+  return '<a class="ilink issues-only" href="#issue-' + esc(id) + '" data-issue="' + esc(id) + '"><span class="sev sev-' + esc(x.sev) + '">' + esc(SEVN[x.sev] || x.sev) + '</span><span class="it">' + esc(id) + ' · ' + esc(x.title) + '</span></a>';
+}
+function wireIssueLinks(root){
+  root.querySelectorAll("a[data-issue]").forEach(a => a.addEventListener("click", ev => { ev.preventDefault(); gotoIssue(a.dataset.issue); }));
+}
+const evidenceChip = (path, lines) => evidenceChipHtml(META, path, lines);
+const refChip = ref => refChipHtml(META, ref);
+
+/* ───────── generic graph renderer ───────── */
+function addMarkers(svg){
+  const pre = svg.id;
+  const defs = S("defs", null, svg);
+  Object.keys(REL).forEach(t => {
+    const m = S("marker", {id:pre + "-m-" + t, viewBox:"0 0 10 10", refX:"9", refY:"5", markerWidth:"9", markerHeight:"9", markerUnits:"userSpaceOnUse", orient:"auto-start-reverse"}, defs);
+    S("path", {d:"M0,1 L10,5 L0,9 z", class:"mk t-" + t}, m);
+    const r = S("marker", {id:pre + "-r-" + t, viewBox:"0 0 10 10", refX:"9", refY:"5", markerWidth:"9", markerHeight:"9", markerUnits:"userSpaceOnUse", orient:"auto-start-reverse"}, defs);
+    S("path", {d:"M0,1 L9,5 L0,9", class:"mko t-" + t}, r);
+  });
+}
+function anchor(r, side){
+  if (side === "l") return [r.x, r.y + r.h/2];
+  if (side === "r") return [r.x + r.w, r.y + r.h/2];
+  if (side === "t") return [r.x + r.w/2, r.y];
+  return [r.x + r.w/2, r.y + r.h];
+}
+function sidesFor(a, b){
+  if (a.x + a.w <= b.x) return ["r","l"];
+  if (b.x + b.w <= a.x) return ["l","r"];
+  return (b.y + b.h/2) > (a.y + a.h/2) ? ["b","t"] : ["t","b"];
+}
+// The routed polyline of an edge: ELK's sections when the layout has them, else a straight
+// side-to-side segment (a layout older than the model).
+function edgePoints(e){
+  const secs = EP[e.id] && EP[e.id].sections;
+  const pts = [];
+  if (secs && secs.length){
+    secs.forEach(sec => {
+      [sec.startPoint].concat(sec.bendPoints || [], [sec.endPoint]).forEach(q => {
+        if (!q) return;
+        const last = pts[pts.length - 1];
+        if (!last || last[0] !== q.x || last[1] !== q.y) pts.push([q.x, q.y]);
+      });
+    });
+  }
+  if (pts.length >= 2) return pts;
+  const a = NP[e.from], b = NP[e.to];
+  const s = sidesFor(a, b);
+  return [anchor(a, s[0]), anchor(b, s[1])];
+}
+function edgeGeom(e){
+  const pts = edgePoints(e);
+  let best = -1, bi = 0;
+  for (let i = 0; i < pts.length - 1; i++){ const L = Math.hypot(pts[i+1][0]-pts[i][0], pts[i+1][1]-pts[i][1]); if (L > best){ best = L; bi = i; } }
+  const mid = [(pts[bi][0] + pts[bi+1][0])/2, (pts[bi][1] + pts[bi+1][1])/2];
+  return {d:roundedPath(pts, 7), mid:mid, pts:pts};
+}
+function textWidth(t, fallbackPx){
+  let w = 0;
+  try { w = t.getComputedTextLength(); } catch (err) { w = 0; }
+  return w > 0 ? w : t.textContent.length * fallbackPx;
+}
+
+/* ───────── views: projections of the one laid-out graph ───────── */
+function buildViews(){
+  const defs = (MODEL.views && MODEL.views.length) ? MODEL.views : [{id:"all", title:"All components"}];
+  return defs.map(v => {
+    const zoneSet = v.zones ? new Set(v.zones) : null;
+    let nodes;
+    if (v.nodes){ const s = new Set(v.nodes); nodes = NODES.filter(n => s.has(n.id)); }
+    else if (zoneSet) nodes = NODES.filter(n => zoneChain(n.zone).some(z => zoneSet.has(z)));
+    else nodes = NODES.slice();
+    nodes = nodes.filter(n => NP[n.id]);
+    const zs = new Set();
+    if (!v.zones && !v.nodes) ZONES.forEach(z => zs.add(z.id));
+    (v.zones || []).forEach(z => zoneChain(z).forEach(a => zs.add(a)));
+    nodes.forEach(n => zoneChain(n.zone).forEach(a => zs.add(a)));
+    const zones = ZONES.filter(z => zs.has(z.id) && ZP[z.id]).map((z, i) => ({z:z, i:i, d:zoneDepth(z.id)}))
+      .sort((a, b) => (a.d - b.d) || (a.i - b.i)).map(o => o.z);
+    const ids = new Set(nodes.map(n => n.id));
+    const edges = EDGES.filter(e => ids.has(e.from) && ids.has(e.to) && e.from !== e.to);
+    return {id:v.id, title:v.title || v.id, role:viewRole(v), nodes:nodes, zones:zones, edges:edges, box:null};
+  });
+}
+// The drawing box of a view; trust views leave room for the enclosures around their zones.
+function viewBox(view, extra){
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const grow = (x, y, w, h) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + w); y1 = Math.max(y1, y + h); };
+  view.zones.forEach(z => { const r = ZP[z.id]; grow(r.x, r.y, r.w, r.h); });
+  view.nodes.forEach(n => { const r = NP[n.id]; grow(r.x, r.y, r.w, r.h); });
+  view.edges.forEach(e => edgePoints(e).forEach(p => grow(p[0], p[1], 0, 0)));
+  if (!isFinite(x0)){ x0 = 0; y0 = 0; x1 = 400; y1 = 120; }
+  const pad = 16 + (extra || 0);
+  return {x:x0 - pad, y:y0 - pad, w:(x1 - x0) + 2*pad, h:(y1 - y0) + 2*pad};
+}
+const ALL_VIEWS = buildViews();
+
+/* Figure scale: a diagram opens fitted to its panel (whole drawing visible, nothing clipped, no sideways scroll) while
+   that keeps it legible; when the fit scale would fall below FIG_MIN_SCALE it opens at the floor and scrolls sideways
+   instead. Fit (the whole drawing, however small) and 100% (natural size) stay one click away. The choice is kept per figure;
+   __scale is "auto" (fit above the floor, else the floor), "fit" or "full". */
+function setFigureScale(svg, naturalW){
+  svg.__natW = Math.max(1, Math.round(naturalW));
+  if (!svg.__scale) svg.__scale = "auto";
+  const fig = svg.closest("figure");
+  if (fig && !fig.querySelector(".fig-scale") && svg.parentNode){
+    const bar = document.createElement("div");
+    bar.className = "fig-scale";
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Diagram scale");
+    bar.style.cssText = "display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:8px 14px 0";
+    [["fit", "Fit"], ["full", "100%"]].forEach(a => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn"; b.dataset.scale = a[0]; b.textContent = a[1];
+      b.addEventListener("click", () => { svg.__scale = a[0]; if (a[0] === "fit") svg.parentNode.scrollLeft = 0; applyFigureScale(svg); });
+      bar.appendChild(b);
+    });
+    fig.insertBefore(bar, svg.parentNode);
+  }
+  // A panel that was hidden when drawn has no width yet: re-apply when it gets one, and when the window is resized.
+  if (!svg.__ro && svg.parentNode && typeof ResizeObserver !== "undefined"){
+    svg.__ro = new ResizeObserver(() => applyFigureScale(svg));
+    svg.__ro.observe(svg.parentNode);
+  }
+  applyFigureScale(svg);
+}
+function applyFigureScale(svg){
+  const avail = svg.parentNode ? svg.parentNode.clientWidth : 0;
+  const fs = avail > 0 ? figureScale(svg.__natW, avail) : null;
+  let mode = svg.__scale;
+  if (mode === "auto") mode = fs && !fs.fitted ? "floor" : "fit";
+  svg.style.minWidth = mode === "full" ? svg.__natW + "px" : mode === "floor" ? Math.round(svg.__natW * FIG_MIN_SCALE) + "px" : "0";
+  svg.dataset.scaleMode = mode;
+  const fig = svg.closest("figure");
+  if (fig) fig.querySelectorAll(".fig-scale button").forEach(b => {
+    const on = b.dataset.scale === mode;
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.style.borderColor = on ? "var(--accent)" : "";
+    b.style.fontWeight = on ? "700" : "";
+  });
+}
+
+function renderGraph(svg, view, opt){
+  opt = opt || {};
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const b = viewBox(view, opt.trust ? 14 : 0);
+  svg.setAttribute("viewBox", b.x + " " + b.y + " " + b.w + " " + b.h);
+  setFigureScale(svg, b.w);
+  addMarkers(svg);
+  const gT = S("g", {class:"g-trust"}, svg), gZ = S("g", {class:"g-zones"}, svg), gE = S("g", {class:"g-edges"}, svg), gN = S("g", {class:"g-nodes"}, svg), gL = S("g", {class:"g-labels"}, svg), gZL = S("g", {class:"g-zlabels"}, svg);
+  if (opt.trust){
+    trustBoundaries(view.zones, ZP, ZONE).forEach(tb => {
+      const g = S("g", {class:"tb " + (tb.trusted ? "trusted" : "untrusted"), "data-zone":tb.zone}, gT);
+      S("rect", {x:tb.x, y:tb.y, width:tb.w, height:tb.h, rx:16}, g);
+      const t = S("text", {x:tb.x + tb.w - 12, y:tb.y + 12, "text-anchor":"end"}, g);
+      t.textContent = tb.trusted ? "Trust boundary" : "Outside the boundary";
+    });
+  }
+  view.zones.forEach(z => {
+    const r = ZP[z.id], sub = z.parent !== undefined && !!ZONE[z.parent], kind = zoneKind(z.id);
+    const g = S("g", {class:"zone zc-" + kind + (sub ? " sub" : "") + (z.outside ? " outside" : ""), "data-zone":z.id}, gZ);
+    S("rect", {x:r.x, y:r.y, width:r.w, height:r.h, rx:sub ? 8 : 12}, g);
+    const lg = S("g", {class:"zone zc-" + kind}, gZL);
+    const t = S("text", {x:r.x + 12, y:r.y + (sub ? 17 : 21), class:"zl"}, lg); t.textContent = z.label || z.id;
+  });
+  view.edges.forEach((e, i) => {
+    const k = relOf(e.type), ty = REL[k], geo = edgeGeom(e);
+    const cross = !!opt.trust && crossesTrust(NODE[e.from].zone, NODE[e.to].zone, ZONE);
+    const g = S("g", {class:"edge t-" + k + (e.confidence === "inferred" ? " inferred" : "") + (cross ? " cross" : ""), "data-f":e.from, "data-t":e.to, "data-i":i, "data-k":k, "data-id":e.id}, gE);
+    g.style.setProperty("--w", ty.w + "px");
+    S("path", {d:geo.d, class:"hit"}, g);
+    if (cross) S("path", {d:geo.d, class:"xhalo"}, g);
+    S("path", {d:geo.d, class:"ln", "stroke-width":ty.w, "stroke-dasharray":ty.dash, "marker-end":"url(#" + svg.id + "-m-" + k + ")"}, g);
+    const title = S("title", null, g);
+    const fromN = NODE[e.from], toN = NODE[e.to];
+    title.textContent = ty.label + ": " + fromN.title + " → " + toN.title + (e.desc || e.label ? " · " + (e.desc || e.label) : "") + (cross ? " · crosses a trust boundary" : "");
+    const x = geo.mid[0], y = geo.mid[1];
+    if (e.label){
+      const lg = S("g", {class:"elabel t-" + k, "data-i":i, "data-k":k}, gL);
+      const rect = S("rect", {x:x, y:y - 8.5, width:10, height:17, rx:8.5}, lg);
+      const t = S("text", {x:x, y:y + 3.7, "text-anchor":"middle"}, lg); t.textContent = e.label;
+      const w = textWidth(t, 5.7) + 14;
+      rect.setAttribute("x", x - w/2); rect.setAttribute("width", w);
+    }
+    const iss = issuesOfEdge(e.id);
+    if (iss.length){
+      const lg = S("g", {class:"elabel t-" + k, "data-i":i, "data-k":k}, gL);
+      const cx = x, cy = y - (e.label ? 14 : 0);
+      S("circle", {cx:cx, cy:cy, r:7.5, class:"bdg sev-" + maxSev(iss)}, lg);
+      const bt = S("text", {x:cx, y:cy + 3.5, class:"bdt", "text-anchor":"middle"}, lg); bt.textContent = iss.length;
+    }
+  });
+  view.nodes.forEach(n => {
+    const r = NP[n.id], kind = zoneKind(n.zone);
+    const iss = issuesOfNode(n.id);
+    const sub = (n.sub || []).filter(Boolean);
+    const g = S("g", {class:"node zc-" + kind, "data-id":n.id}, gN);
+    g.setAttribute("tabindex", "0"); g.setAttribute("role", "button"); g.setAttribute("aria-label", n.title + (sub.length ? ". " + sub.join(", ") : "") + (iss.length ? ". " + iss.length + " issue" + (iss.length > 1 ? "s" : "") : ""));
+    S("rect", {x:r.x, y:r.y, width:r.w, height:r.h, rx:6, class:"nb"}, g);
+    const single = sub.length === 0;
+    const t = S("text", {x:r.x + 10, y:single ? r.y + r.h/2 + 4.4 : r.y + 19, class:"nt"}, g); t.textContent = n.title;
+    sub.forEach((s, j) => { const st = S("text", {x:r.x + 10, y:r.y + 34 + j*13, class:"ns"}, g); st.textContent = s; });
+    if (iss.length){
+      const cx = r.x + r.w - 3, cy = r.y + 3;
+      S("circle", {cx:cx, cy:cy, r:8.5, class:"bdg sev-" + maxSev(iss)}, g);
+      const bt = S("text", {x:cx, y:cy + 3.5, class:"bdt", "text-anchor":"middle"}, g); bt.textContent = iss.length;
+    }
+  });
+}
+
+/* ───────── tabs ───────── */
+const PANEL = {graph:"architecture", er:"er", crud:"crud", sequences:"sequences", deployment:"deployment", trust:"trust", issues:"issues"};
+const drawn = {};
+const DRAW = {};
+let curTab = "graph";
+function tabAvailable(name){ const b = document.querySelector('#navlist [data-tab="' + name + '"]'); return !!(b && !b.hidden && !(b.parentNode && b.parentNode.hidden)); }
+function showTab(name, noHash){
+  if (!PANEL[name] || !tabAvailable(name)) name = "graph";
+  curTab = name;
+  document.querySelectorAll("#navlist [data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false"));
+  Object.keys(PANEL).forEach(k => { const el = $(PANEL[k]); if (el) el.hidden = k !== name; });
+  if (!drawn[name]){ drawn[name] = true; if (DRAW[name]) DRAW[name](); }
+  if (!noHash){ try { history.replaceState(null, "", "#" + PANEL[name]); } catch (err) { /* a sandboxed frame may refuse; the tab still changes */ } }
+}
+
+/* ───────── graph panes: architecture, deployment and trust each show their own views ───────── */
+const PIN = {on:null};
+function makePane(p, views, opt){
+  const svg = $(p), tabsEl = $(p + "-tabs"), legendEl = $(p + "-legend"), keyEl = $(p + "-zonekey"), capEl = $(p + "-cap"), detailEl = $(p + "-detail");
+  const VW = {}; views.forEach(v => { VW[v.id] = v; });
+  const st = {view:views[0].id, sel:{}, hidden:new Set(), flag:[], pin:null};
+  const q = sel => svg.querySelector(sel);
+  const nodeEl = id => q('.node[data-id="' + CSS.escape(id) + '"]');
+
+  function viewTypes(view){ const s = new Set(); view.edges.forEach(e => s.add(relOf(e.type))); return Object.keys(REL).filter(k => s.has(k)); }
+  function chipHTML(k, pressed){
+    const ty = REL[k];
+    return '<button class="chip t-' + k + '" data-k="' + k + '" aria-pressed="' + (pressed ? "true" : "false") + '"><svg viewBox="0 0 26 10" aria-hidden="true"><line x1="1" y1="5" x2="19" y2="5" stroke="var(--ec)" stroke-width="' + Math.min(ty.w, 2.6) + '"' + (ty.dash ? ' stroke-dasharray="' + ty.dash + '"' : '') + ' stroke-linecap="round"/><path d="M18,1 L25,5 L18,9 z" fill="var(--ec)"/></svg><span>' + esc(ty.label) + '</span></button>';
+  }
+  function drawLegend(){
+    const v = VW[st.view];
+    legendEl.innerHTML = viewTypes(v).map(k => chipHTML(k, !st.hidden.has(k))).join("");
+    legendEl.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+      const k = c.dataset.k;
+      if (st.hidden.has(k)) st.hidden.delete(k); else st.hidden.add(k);
+      c.setAttribute("aria-pressed", st.hidden.has(k) ? "false" : "true");
+      applyHidden();
+    }));
+    const kinds = new Set(); v.zones.forEach(z => kinds.add(zoneKind(z.id))); v.nodes.forEach(n => kinds.add(zoneKind(n.zone)));
+    keyEl.innerHTML = '<span class="zk">Zones</span>' + Object.keys(ZK).filter(k => kinds.has(k)).map(k => '<span class="zc-' + k + '"><i></i>' + esc(ZK[k]) + '</span>').join("") +
+      (opt.trust ? '<span class="tbk"><i></i>Trust boundary (dashed); a haloed relation crosses it</span>' : '');
+  }
+  function applyHidden(){
+    svg.querySelectorAll(".edge,.elabel").forEach(el => { el.style.display = st.hidden.has(el.dataset.k) ? "none" : ""; });
+  }
+  function clearFocus(){ svg.classList.remove("focusing"); svg.querySelectorAll(".hl").forEach(x => x.classList.remove("hl")); }
+  function focusNode(id){
+    clearFocus(); svg.classList.add("focusing");
+    const node = nodeEl(id); if (node) node.classList.add("hl");
+    svg.querySelectorAll(".edge").forEach(e => {
+      if (e.dataset.f === id || e.dataset.t === id){
+        e.classList.add("hl");
+        svg.querySelectorAll('.elabel[data-i="' + e.dataset.i + '"]').forEach(l => l.classList.add("hl"));
+        const other = e.dataset.f === id ? e.dataset.t : e.dataset.f;
+        const on = nodeEl(other); if (on) on.classList.add("hl");
+      }
+    });
+  }
+  function focusEdge(i){
+    clearFocus(); svg.classList.add("focusing");
+    const e = q('.edge[data-i="' + i + '"]'); if (!e) return;
+    e.classList.add("hl");
+    svg.querySelectorAll('.elabel[data-i="' + i + '"]').forEach(l => l.classList.add("hl"));
+    [e.dataset.f, e.dataset.t].forEach(id => { const n = nodeEl(id); if (n) n.classList.add("hl"); });
+  }
+  // A pinned highlight (path finder, lineage) stays until cleared; hover focus works on top of it.
+  function applyPin(){
+    svg.classList.toggle("pinning", !!st.pin);
+    svg.querySelectorAll(".pin").forEach(x => x.classList.remove("pin"));
+    if (!st.pin) return;
+    st.pin.nodes.forEach(id => { const n = nodeEl(id); if (n) n.classList.add("pin"); });
+    const ids = new Set(st.pin.edges);
+    svg.querySelectorAll(".edge").forEach(e => {
+      if (!ids.has(e.dataset.id)) return;
+      e.classList.add("pin");
+      svg.querySelectorAll('.elabel[data-i="' + e.dataset.i + '"]').forEach(l => l.classList.add("pin"));
+    });
+  }
+  function renderDetail(id){
+    const v = VW[st.view], n = v.nodes.find(x => x.id === id);
+    if (!n){ detailEl.innerHTML = ""; return; }
+    const iss = issuesOfNode(id);
+    const conns = v.edges.map(e => {
+      if (e.from !== id && e.to !== id) return "";
+      const out = e.from === id, other = NODE[out ? e.to : e.from], k = relOf(e.type);
+      const eiss = issuesOfEdge(e.id);
+      return '<li class="t-' + k + '"><i></i><span>' + (out ? "→ " : "← ") + '<b>' + esc(other.title) + '</b> <span class="muted">· ' + esc(REL[k].label) + '</span>' +
+        (e.desc || e.label ? '<br><span class="muted">' + codeify(e.desc || e.label) + '</span>' : '') +
+        (eiss.length ? '<br>' + eiss.map(issueLink).join(" ") : '') + '</span></li>';
+    }).join("");
+    const ev = (n.evidence || []).map(x => evidenceChip(x.path, x.lines)).join("");
+    const data = ACCESS.filter(a => a.node === id);
+    detailEl.innerHTML =
+      '<div class="d-head"><span class="zchip zc-' + zoneKind(n.zone) + '">' + esc((ZONE[n.zone] && ZONE[n.zone].label) || n.zone) + '</span><h3>' + esc(n.title) + '</h3></div>' +
+      (n.role ? '<p class="d-role">' + codeify(n.role) + '</p>' : '') +
+      '<div class="d-cols">' +
+        '<div><h4>Facts</h4>' + ((n.facts && n.facts.length) ? '<ul>' + n.facts.map(f => '<li>' + codeify(f) + '</li>').join("") + '</ul>' : '<p class="muted">Nothing beyond the label.</p>') + '</div>' +
+        '<div><h4>Connections</h4>' + (conns ? '<ul class="conn">' + conns + '</ul>' : '<p class="muted">None drawn.</p>') + '</div>' +
+        (data.length ? '<div><h4>Data access</h4><ul class="dacc">' + data.map(a => '<li><button class="lnk" data-entity="' + esc(a.entity) + '">' + esc((ENTITY[a.entity] && ENTITY[a.entity].name) || a.entity) + '</button> <span class="opset">' + esc(a.ops) + '</span></li>').join("") + '</ul></div>' : '') +
+        '<div><h4>Evidence</h4>' + (ev ? '<div class="refs">' + ev + '</div>' : '<p class="muted">None recorded.</p>') + '</div>' +
+        (HAS_ISSUES ? '<div class="issues-only"><h4>Issues</h4>' + (iss.length ? '<ul class="conn">' + iss.map(i => '<li><span></span>' + issueLink(i) + '</li>').join("") + '</ul>' : '<p class="muted">No open issues found here.</p>') + '</div>' : '') +
+      '</div>';
+    wireIssueLinks(detailEl);
+    detailEl.querySelectorAll("button[data-entity]").forEach(b => b.addEventListener("click", () => goEntity(b.dataset.entity)));
+  }
+  function select(id){
+    st.sel[st.view] = id;
+    svg.querySelectorAll(".node.sel").forEach(x => x.classList.remove("sel"));
+    const n = id ? nodeEl(id) : null; if (n) n.classList.add("sel");
+    renderDetail(id);
+  }
+  function draw(){
+    const v = VW[st.view];
+    renderGraph(svg, v, {trust:!!opt.trust});
+    capEl.textContent = v.nodes.length + " components, " + v.edges.length + " relations" + (v.nodes.length ? "" : ". Run layout.mjs: this view has no positioned component.");
+    drawLegend(); applyHidden();
+    svg.querySelectorAll(".node").forEach(g => {
+      const id = g.dataset.id;
+      g.addEventListener("mouseenter", () => focusNode(id));
+      g.addEventListener("mouseleave", clearFocus);
+      g.addEventListener("focus", () => focusNode(id));
+      g.addEventListener("blur", clearFocus);
+      g.addEventListener("click", () => select(id));
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); select(id); } if (ev.key === "Escape") clearFocus(); });
+    });
+    svg.querySelectorAll(".edge").forEach(g => {
+      g.addEventListener("mouseenter", () => focusEdge(g.dataset.i));
+      g.addEventListener("mouseleave", clearFocus);
+    });
+    st.flag.forEach(id => { const n = nodeEl(id); if (n) n.classList.add("flag"); });
+    applyPin();
+    select(st.sel[st.view] || (v.nodes[0] && v.nodes[0].id));
+  }
+  function setView(id){
+    if (!VW[id]) return;
+    st.view = id; st.flag = [];
+    tabsEl.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.view === id ? "true" : "false"));
+    if (drawn[opt.tab]) draw();
+  }
+  tabsEl.innerHTML = views.length > 1 ? views.map(v => '<button class="tab" role="tab" data-view="' + esc(v.id) + '" aria-selected="' + (v.id === st.view ? "true" : "false") + '">' + esc(v.title) + '</button>').join("") : "";
+  tabsEl.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+  return {
+    views:views, st:st, draw:draw, setView:setView, select:select,
+    // The view that shows most of the given nodes: the current one when it shows all of them.
+    bestView(ids){
+      const count = v => ids.filter(id => v.nodes.some(n => n.id === id)).length;
+      if (count(VW[st.view]) === ids.length) return VW[st.view];
+      return views.slice().sort((a, b) => count(b) - count(a))[0];
+    },
+    pin(set){ st.pin = set; applyPin(); },
+    redrawIfShown(){ if (drawn[opt.tab]) draw(); }
+  };
+}
+
+const roleViews = role => ALL_VIEWS.filter(v => v.role === role);
+const graphViews = (() => { const g = roleViews("graph"); return g.length ? g : ALL_VIEWS; })();
+const PANES = {graph:makePane("arch", graphViews, {tab:"graph"})};
+if (roleViews("deployment").length) PANES.deployment = makePane("dep", roleViews("deployment"), {tab:"deployment"});
+if (roleViews("trust").length) PANES.trust = makePane("trs", roleViews("trust"), {tab:"trust", trust:true});
+Object.keys(PANES).forEach(k => { DRAW[k] = () => PANES[k].draw(); });
+const GP = PANES.graph;
+
+function goNode(id){
+  if (!NODE[id]) return;
+  const view = GP.bestView([id]);
+  GP.st.sel[view.id] = id;
+  showTab("graph");
+  GP.setView(view.id);
+  GP.select(id);
+  $("architecture").scrollIntoView();
+}
+function setPin(pin, label){
+  GP.pin(pin);
+  const bar = $("pinbar");
+  bar.hidden = !pin;
+  $("pintext").textContent = pin ? label : "";
+}
+$("pinclear").addEventListener("click", () => { $("pf-out").textContent = ""; setPin(null); });
+function pinInGraph(nodes, edges, label){
+  const view = GP.bestView(nodes);
+  showTab("graph");
+  GP.setView(view.id);
+  setPin({nodes:nodes, edges:edges}, label);
+  const shown = nodes.filter(id => view.nodes.some(n => n.id === id)).length;
+  if (shown < nodes.length) $("pf-out").textContent = (nodes.length - shown) + " of " + nodes.length + " components are not part of the view '" + view.title + "'.";
+}
+function goEdge(id){
+  const e = EDGES.find(x => x.id === id); if (!e) return;
+  pinInGraph([e.from, e.to], [e.id], "Relation: " + NODE[e.from].title + " → " + NODE[e.to].title);
+  $("architecture").scrollIntoView();
+}
+
+/* ───────── path finder ───────── */
+(function(){
+  const from = $("pf-from"), to = $("pf-to"), out = $("pf-out");
+  const sorted = NODES.slice().sort((a, b) => (a.title < b.title ? -1 : a.title > b.title ? 1 : 0));
+  const opts = '<option value="">…</option>' + sorted.map(n => '<option value="' + esc(n.id) + '">' + esc(n.title) + '</option>').join("");
+  from.innerHTML = opts; to.innerHTML = opts;
+  function go(){
+    out.textContent = "";
+    if (!from.value || !to.value){ out.textContent = "Choose two components."; return; }
+    const res = findPath(EDGES, from.value, to.value);
+    if (!res){ setPin(null); out.textContent = "No path between " + NODE[from.value].title + " and " + NODE[to.value].title + "."; return; }
+    const names = res.nodes.map(id => NODE[id].title).join(" → ");
+    pinInGraph(res.nodes, res.edges, "Path (" + res.edges.length + (res.edges.length === 1 ? " hop" : " hops") + "): " + names);
+  }
+  $("pf-go").addEventListener("click", go);
+  [from, to].forEach(s => s.addEventListener("keydown", ev => { if (ev.key === "Enter") go(); }));
+})();
+
+/* ───────── ER ───────── */
+const ER = {sel:null, scene:null};
+const erSvg = $("ersvg");
+function entityIssueMap(){
+  const m = {};
+  ENTITIES.forEach(e => { const ids = issuesOfEntity(e.id); if (ids.length) m[e.id] = {count:ids.length, sev:maxSev(ids)}; });
+  return m;
+}
+function drawEr(){
+  const mk = erMarkup(MODEL, LAYOUT.er, {issues:entityIssueMap()});
+  erSvg.setAttribute("viewBox", mk.viewBox);
+  setFigureScale(erSvg, mk.width);
+  erSvg.innerHTML = mk.inner;
+  ER.scene = mk.scene;
+  $("er-cap").textContent = mk.scene.cards.length + " entities, " + mk.scene.relations.length + " relations" + (mk.scene.cards.length < ENTITIES.length ? ". Run layout.mjs: " + (ENTITIES.length - mk.scene.cards.length) + " entities have no position." : "");
+  erSvg.querySelectorAll(".ent").forEach(g => {
+    const id = g.dataset.entity;
+    g.addEventListener("mouseenter", () => erFocus(id));
+    g.addEventListener("mouseleave", () => erFocus(null));
+    g.addEventListener("focus", () => erFocus(id));
+    g.addEventListener("blur", () => erFocus(null));
+    g.addEventListener("click", () => erSelect(id));
+    g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); erSelect(id); } });
+  });
+  erSelect(ER.sel && ENTITY[ER.sel] ? ER.sel : (mk.scene.cards[0] && mk.scene.cards[0].id));
+}
+function erFocus(id){
+  erSvg.classList.toggle("focusing", !!id);
+  erSvg.querySelectorAll(".hl").forEach(x => x.classList.remove("hl"));
+  if (!id) return;
+  const card = erSvg.querySelector('.ent[data-entity="' + CSS.escape(id) + '"]'); if (card) card.classList.add("hl");
+  erSvg.querySelectorAll(".rel").forEach(r => {
+    if (r.dataset.from !== id && r.dataset.to !== id) return;
+    r.classList.add("hl");
+    const other = r.dataset.from === id ? r.dataset.to : r.dataset.from;
+    const oc = erSvg.querySelector('.ent[data-entity="' + CSS.escape(other) + '"]'); if (oc) oc.classList.add("hl");
+  });
+}
+function erSelect(id){
+  ER.sel = id || null;
+  erSvg.querySelectorAll(".ent.sel").forEach(x => x.classList.remove("sel"));
+  const card = id ? erSvg.querySelector('.ent[data-entity="' + CSS.escape(id) + '"]') : null; if (card) card.classList.add("sel");
+  renderEntityDetail(id);
+}
+function provChip(p){ return '<span class="pchip prov-' + esc(p) + '">' + esc(p) + '</span>'; }
+function renderEntityDetail(id){
+  const el = $("er-detail"), e = ENTITY[id];
+  if (!e){ el.innerHTML = ""; return; }
+  const scene = ER.scene, card = scene && scene.cards.find(c => c.id === id);
+  const iss = issuesOfEntity(id);
+  const store = NODE[e.store];
+  const rows = (card ? card.fields : []).map((f, i) => {
+    const src = (e.fields || [])[i] || {};
+    return '<tr class="prov-' + esc(f.prov) + '"><td>' + (f.pk ? '<span class="mkb mk-pk">PK</span>' : '') + (f.fk ? '<span class="mkb mk-fk">FK</span>' : '') + '</td><td><code>' + esc(f.name) + '</code></td><td>' + esc(f.type) + (f.nullable ? " · nullable" : "") + '</td><td>' + provChip(f.prov) + '</td><td>' +
+      (f.fkTo ? '→ <code>' + esc(f.fkTo) + '</code> ' : '') + (src.evidence || []).map(x => evidenceChip(x.path, x.lines)).join("") + '</td></tr>';
+  }).join("");
+  const rels = relationKeys(MODEL).filter(r => r.rel.from.entity === id || r.rel.to.entity === id).map(({rel}) => {
+    const out = rel.from.entity === id, other = out ? rel.to : rel.from;
+    return '<li><span>' + (out ? "→ " : "← ") + '<button class="lnk" data-entity="' + esc(other.entity) + '">' + esc((ENTITY[other.entity] && ENTITY[other.entity].name) || other.entity) + '</button> <span class="muted">· <code>' + esc(out ? rel.from.field : rel.to.field) + '</code> ' + (out ? "references" : "is referenced by") + ' <code>' + esc(other.field) + '</code> · ' + esc(rel.cardinality) + ' · ' + esc(rel.kind) + '</span> ' + provChip(rel.provenance || "declared") + '</span></li>';
+  }).join("");
+  const acc = ACCESS.filter(a => a.entity === id).map(a => '<li><button class="lnk" data-node="' + esc(a.node) + '">' + esc((NODE[a.node] && NODE[a.node].title) || a.node) + '</button> <span class="opset">' + esc(a.ops) + '</span> <span class="refs">' + (a.evidence || []).map(x => evidenceChip(x.path, x.lines)).join("") + '</span></li>').join("");
+  const idx = (e.indexes || []).map(x => '<li><code>' + esc(x.name) + '</code> (' + esc((x.fields || []).join(", ")) + ')' + (x.unique ? ' · unique' : '') + '</li>').join("");
+  const ev = (e.evidence || []).map(x => evidenceChip(x.path, x.lines)).join("");
+  el.innerHTML =
+    '<div class="d-head"><span class="zchip zc-data">' + esc(e.kind || "table") + '</span><h3>' + esc(e.name || e.id) + '</h3>' +
+      '<span class="muted">in ' + (store ? '<button class="lnk" data-node="' + esc(e.store) + '">' + esc(store.title) + '</button>' : esc(e.store)) + '</span>' +
+      (ACCESS.some(a => a.entity === id) ? '<button class="btn" id="lin-go">Highlight lineage in the graph</button>' : '') + '</div>' +
+    '<div class="tablewrap"><table class="ftable"><thead><tr><th>Key</th><th>Field</th><th>Type</th><th>Provenance</th><th>References and evidence</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="d-cols">' +
+      '<div><h4>Relations</h4>' + (rels ? '<ul class="conn plain">' + rels + '</ul>' : '<p class="muted">None.</p>') + '</div>' +
+      '<div><h4>Accessed by</h4>' + (acc ? '<ul class="conn plain">' + acc + '</ul>' : '<p class="muted">No access rows.</p>') + '</div>' +
+      '<div><h4>Indexes</h4>' + (idx ? '<ul class="plain">' + idx + '</ul>' : '<p class="muted">None.</p>') + '</div>' +
+      '<div><h4>Evidence</h4>' + (ev ? '<div class="refs">' + ev + '</div>' : '<p class="muted">None recorded.</p>') + '</div>' +
+      (HAS_ISSUES ? '<div class="issues-only"><h4>Issues</h4>' + (iss.length ? '<ul class="conn">' + iss.map(i => '<li><span></span>' + issueLink(i) + '</li>').join("") + '</ul>' : '<p class="muted">No open issues found here.</p>') + '</div>' : '') +
+    '</div>';
+  wireIssueLinks(el);
+  el.querySelectorAll("button[data-entity]").forEach(b => b.addEventListener("click", () => goEntity(b.dataset.entity)));
+  el.querySelectorAll("button[data-node]").forEach(b => b.addEventListener("click", () => goNode(b.dataset.node)));
+  const lg = $("lin-go"); if (lg) lg.addEventListener("click", () => goLineage(id));
+}
+function goEntity(id){
+  if (!ENTITY[id]) return;
+  ER.sel = id;
+  showTab("er");
+  erSelect(id);
+  const c = erSvg.querySelector('.ent[data-entity="' + CSS.escape(id) + '"]'); if (c && c.scrollIntoView) c.scrollIntoView({block:"nearest", inline:"center"});
+}
+function goLineage(id){
+  const lin = lineageOf(MODEL, id, 2); if (!lin) return;
+  $("pf-out").textContent = "";
+  pinInGraph(lin.nodes, lin.edges, "Lineage of " + ((ENTITY[id] && ENTITY[id].name) || id) + ": " + lin.access.length + " accessing component" + (lin.access.length === 1 ? "" : "s") + ", with their callers upstream");
+  $("architecture").scrollIntoView();
+}
+$("er-key").innerHTML =
+  '<span class="ekey"><svg viewBox="0 0 34 12" aria-hidden="true"><path d="M2,6 H22" class="ln"/><path d="M22,6 L32,0 M22,6 L32,6 M22,6 L32,12" class="cf"/></svg>many</span>' +
+  '<span class="ekey"><svg viewBox="0 0 34 12" aria-hidden="true"><path d="M2,6 H32" class="ln"/><path d="M26,0 V12" class="cf"/></svg>one</span>' +
+  '<span class="ekey"><span class="mkb mk-pk">PK</span> primary key</span><span class="ekey"><span class="mkb mk-fk">FK</span> foreign key or reference</span>' +
+  '<span class="ekey prov-declared"><i></i>declared</span><span class="ekey prov-observed"><i></i>observed</span><span class="ekey prov-inferred"><i></i>inferred</span>';
+DRAW.er = drawEr;
+
+/* ───────── CRUD matrix ───────── */
+function drawCrud(){
+  const wrap = $("crud-wrap");
+  wrap.innerHTML = crudHtml(MODEL);
+  wrap.querySelectorAll("button[data-entity]").forEach(b => b.addEventListener("click", () => goEntity(b.dataset.entity)));
+  wrap.querySelectorAll("th button[data-node]").forEach(b => b.addEventListener("click", () => goNode(b.dataset.node)));
+  wrap.querySelectorAll("td.cell").forEach(td => td.addEventListener("click", () => crudCell(td)));
+  const mx = crudMatrix(MODEL);
+  $("crud-cap").textContent = mx.nodes.length + " components, " + mx.entities.length + " entities, " + mx.cells.size + " access rows.";
+  crudCell(wrap.querySelector("td.cell"));
+}
+function crudCell(td){
+  const el = $("crud-detail");
+  $("crud-wrap").querySelectorAll("td.sel").forEach(x => x.classList.remove("sel"));
+  if (!td){ el.innerHTML = ""; return; }
+  td.classList.add("sel");
+  const node = NODE[td.dataset.node], ent = ENTITY[td.dataset.entity];
+  const c = crudMatrix(MODEL).cells.get(td.dataset.node + "\u0000" + td.dataset.entity);
+  el.innerHTML =
+    '<div class="d-head"><h3><button class="lnk" data-node="' + esc(node.id) + '">' + esc(node.title) + '</button> on <button class="lnk" data-entity="' + esc(ent.id) + '">' + esc(ent.name || ent.id) + '</button></h3><span class="opset">' + esc(c.ops) + '</span> <span class="muted">' + esc(opsWords(c.ops)) + '</span>' +
+    '<button class="btn" id="crud-lin">Highlight lineage in the graph</button></div>' +
+    '<div><h4>Evidence</h4>' + (c.evidence.length ? '<div class="refs">' + c.evidence.map(x => evidenceChip(x.path, x.lines)).join("") + '</div>' : '<p class="muted">None recorded.</p>') + '</div>';
+  el.querySelectorAll("button[data-entity]").forEach(b => b.addEventListener("click", () => goEntity(b.dataset.entity)));
+  el.querySelectorAll("button[data-node]").forEach(b => b.addEventListener("click", () => goNode(b.dataset.node)));
+  $("crud-lin").addEventListener("click", () => goLineage(ent.id));
+}
+$("crud-key").innerHTML = OPS.map(o => '<span class="ekey"><span class="op op-' + o[0].toLowerCase() + '">' + o[0] + '</span>' + o[1] + '</span>').join("");
+DRAW.crud = drawCrud;
+
+/* ───────── sequences ───────── */
+const seqSvg = $("seq");
+const seqState = {id:SEQS.length ? SEQS[0].id : null, cur:{}};
+const SEQ = {}; SEQS.forEach(s => { SEQ[s.id] = s; });
+function wrapText(s, max){
+  const words = String(s).split(" "), lines = []; let line = "";
+  words.forEach(w => { if ((line + " " + w).trim().length > max){ if (line) lines.push(line); line = w; } else line = (line + " " + w).trim(); });
+  if (line) lines.push(line);
+  return lines;
+}
+function renderSeq(seq){
+  const svg = seqSvg;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  addMarkers(svg);
+  const P = seq.participants || [], n = Math.max(1, P.length), M = 92;
+  const colW = n > 1 ? Math.min(196, Math.max(150, (1200 - 2*M) / (n - 1))) : 196;
+  const W = 2*M + colW*(n - 1);
+  const X = {}; P.forEach((p, i) => { X[p.id] = M + i*colW; });
+  let y = 82; const rows = [], frags = [], stack = []; let no = 0;
+  (seq.steps || []).forEach((st, idx) => {
+    if (st.frag){
+      if (st.frag === "end"){ const f = stack.pop(); if (f){ f.y1 = y + 2; y += 12; } }
+      else if (st.frag === "else"){ if (stack.length){ stack[stack.length - 1].elses.push({y:y + 4, t:st.t}); y += 24; } }
+      else { const f = {kind:st.frag, t:st.t, y0:y, depth:stack.length, elses:[]}; stack.push(f); frags.push(f); y += 30; }
+      return;
+    }
+    if (st.note){
+      const ids = [].concat(st.note).filter(id => X[id] !== undefined); if (!ids.length) return;
+      const xs = ids.map(id => X[id]);
+      let x0 = Math.min.apply(null, xs) - 64, x1 = Math.max.apply(null, xs) + 64;
+      if (ids.length === 1){ x0 = X[ids[0]] - 90; x1 = X[ids[0]] + 90; }
+      const lines = wrapText(st.t, Math.max(20, Math.floor((x1 - x0 - 26) / 5.9)));
+      const h = 12 + lines.length*15;
+      rows.push({type:"note", idx:idx, x0:x0, x1:x1, y:y + 4, h:h, lines:lines, tone:st.tone, iss:issuesOfStep(seq.id, idx, st)});
+      y += h + 16; return;
+    }
+    if (!st.m || X[st.m[0]] === undefined || X[st.m[1]] === undefined) return;
+    no++;
+    const self = st.m[0] === st.m[1];
+    rows.push(Object.assign({type:"msg", idx:idx, no:no, y0:y, yy:y + (self ? 20 : 26), rh:self ? 48 : 38, iss:issuesOfStep(seq.id, idx, st)}, st));
+    y += self ? 48 : 38;
+  });
+  stack.forEach(f => { f.y1 = y + 2; });
+  const H = y + 26;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  setFigureScale(svg, W);
+  const gB = S("g", null, svg), gF = S("g", null, svg), gLf = S("g", null, svg), gM = S("g", null, svg), gH = S("g", null, svg);
+  P.forEach(p => S("line", {x1:X[p.id], y1:58, x2:X[p.id], y2:H - 10, class:"life"}, gLf));
+  frags.forEach(f => {
+    const x0 = 16 + f.depth*8, x1 = W - 16 - f.depth*8;
+    const g = S("g", {class:"frag"}, gF);
+    S("rect", {class:"box", x:x0, y:f.y0, width:x1 - x0, height:f.y1 - f.y0, rx:4}, g);
+    const lab = S("text", {x:x0 + 8, y:f.y0 + 14}, g);
+    const kb = S("tspan", {class:"fk"}, lab); kb.textContent = f.kind.toUpperCase();
+    const kt = S("tspan", {dx:"6"}, lab); kt.textContent = "[" + f.t + "]";
+    f.elses.forEach(e => {
+      S("line", {x1:x0, y1:e.y, x2:x1, y2:e.y}, g);
+      const et = S("text", {x:x0 + 8, y:e.y + 14}, g); et.textContent = "[" + e.t + "]";
+    });
+  });
+  rows.forEach(r => {
+    if (r.type === "note"){
+      const g = S("g", {class:"note" + (r.tone === "warn" ? " warn" : "")}, gM);
+      S("rect", {x:r.x0, y:r.y, width:r.x1 - r.x0, height:r.h, rx:5}, g);
+      r.lines.forEach((ln, j) => { const t = S("text", {x:r.x0 + 10, y:r.y + 18 + j*15}, g); t.textContent = ln; });
+      if (r.iss.length) S("circle", {cx:r.x1 - 2, cy:r.y + 2, r:6.5, class:"idot sev-" + maxSev(r.iss)}, g);
+      return;
+    }
+    const ty = relOf(r.k), x1 = X[r.m[0]], x2 = X[r.m[1]], self = r.m[0] === r.m[1];
+    const g = S("g", {class:"msg t-" + ty + (r.ret ? " ret" : ""), "data-no":r.no, tabindex:"-1"}, gM);
+    S("rect", {class:"rowbg t-" + ty, x:8, y:r.y0 + 2, width:W - 16, height:r.rh - 4, rx:4, "data-no":r.no}, gB);
+    S("rect", {class:"hit", x:Math.min(x1, x2) - 14, y:r.y0 + 2, width:Math.abs(x2 - x1) + (self ? 220 : 28), height:r.rh - 4}, g);
+    let d;
+    if (self) d = "M" + x1 + "," + (r.yy - 6) + " h34 v16 h-29";
+    else { const dir = x2 > x1 ? 1 : -1; d = "M" + (x1 + dir*3) + "," + r.yy + " L" + (x2 - dir*4) + "," + r.yy; }
+    S("path", {d:d, class:"ln", "marker-end":"url(#" + seqSvg.id + (r.ret ? "-r-" : "-m-") + ty + ")"}, g);
+    const pill = S("rect", {class:"pill", height:18, rx:9}, g);
+    const circ = S("circle", {class:"num", r:7.5}, g);
+    const ct = S("text", {class:"numt", "text-anchor":"middle"}, g); ct.textContent = r.no;
+    const t = S("text", {class:"mt"}, g); t.textContent = r.t;
+    const tw = textWidth(t, 6.1);
+    const extra = r.iss.length ? 16 : 0;
+    const pw = tw + 30 + extra;
+    let px, py;
+    if (self){ px = x1 + 42; py = r.yy - 7; if (px + pw > W - 8) px = x1 - 8 - pw; }
+    else { px = (x1 + x2)/2 - pw/2; py = r.yy - 22; }
+    px = Math.max(8, Math.min(px, W - 8 - pw));
+    pill.setAttribute("x", px); pill.setAttribute("y", py); pill.setAttribute("width", pw);
+    circ.setAttribute("cx", px + 10); circ.setAttribute("cy", py + 9);
+    ct.setAttribute("x", px + 10); ct.setAttribute("y", py + 12.3);
+    t.setAttribute("x", px + 22); t.setAttribute("y", py + 13);
+    if (r.iss.length) S("circle", {class:"idot sev-" + maxSev(r.iss), cx:px + pw - 10, cy:py + 9, r:4.5}, g);
+    g.addEventListener("click", () => setStep(r.no));
+  });
+  P.forEach(p => {
+    const g = S("g", {class:"participant" + (p.zone && ZONE[p.zone] ? " zc-" + zoneKind(p.zone) : "")}, gH);
+    S("rect", {x:X[p.id] - 70, y:12, width:140, height:46, rx:7}, g);
+    const t = S("text", {x:X[p.id], y:31, class:"pt", "text-anchor":"middle"}, g); t.textContent = p.label;
+    const s = S("text", {x:X[p.id], y:46, class:"ps", "text-anchor":"middle"}, g); s.textContent = p.sub || "";
+  });
+  seq._rows = rows.filter(r => r.type === "msg");
+}
+function setStep(no){
+  const seq = SEQ[seqState.id]; if (!seq) return;
+  const msgs = seq._rows; if (!msgs || !msgs.length){ $("stepbox").innerHTML = '<p class="muted">This sequence has no messages.</p>'; return; }
+  no = Math.max(1, Math.min(msgs.length, no));
+  seqState.cur[seq.id] = no;
+  seqSvg.querySelectorAll(".msg.cur,.rowbg.cur").forEach(x => x.classList.remove("cur"));
+  seqSvg.querySelectorAll('[data-no="' + no + '"]').forEach(x => x.classList.add("cur"));
+  const r = msgs[no - 1], k = relOf(r.k);
+  const P = seq.participants || [];
+  const from = P.find(p => p.id === r.m[0]), to = P.find(p => p.id === r.m[1]);
+  const box = $("stepbox");
+  box.className = "stepbox t-" + k;
+  const refs = (r.r || []).map(refChip).join("") + r.iss.map(issueLink).join("");
+  box.innerHTML =
+    '<div class="sl"><span class="sn">Step ' + no + ' of ' + msgs.length + '</span><span class="sm">' + esc(r.t) + '</span></div>' +
+    '<p class="muted">' + esc(from.label) + (from === to ? " (internal)" : " → " + esc(to.label)) + ' · ' + esc(REL[k].label) + (r.ret ? " · response" : "") + '</p>' +
+    (r.d ? '<p>' + codeify(r.d) + '</p>' : '') +
+    (refs ? '<div class="refs">' + refs + '</div>' : '');
+  wireIssueLinks(box);
+  $("seqprev").disabled = no <= 1;
+  $("seqnext").disabled = no >= msgs.length;
+}
+// The message number of a step index (a fragment or note maps to the next message).
+function stepNo(seq, idx){
+  const msgs = seq._rows || [];
+  const r = msgs.find(m => m.idx >= idx);
+  return r ? r.no : msgs.length;
+}
+function setSeq(id){
+  const seq = SEQ[id]; if (!seq) return;
+  seqState.id = id;
+  document.querySelectorAll("#seqtabs .tab").forEach(b => b.setAttribute("aria-selected", b.dataset.seq === id ? "true" : "false"));
+  $("seqsum").textContent = seq.summary || "";
+  renderSeq(seq);
+  setStep(seqState.cur[id] || 1);
+}
+$("seqtabs").innerHTML = SEQS.map(s => '<button class="tab" role="tab" data-seq="' + esc(s.id) + '" aria-selected="false">' + esc(s.title) + '</button>').join("");
+document.querySelectorAll("#seqtabs .tab").forEach(b => b.addEventListener("click", () => setSeq(b.dataset.seq)));
+$("seqprev").addEventListener("click", () => setStep((seqState.cur[seqState.id] || 1) - 1));
+$("seqnext").addEventListener("click", () => setStep((seqState.cur[seqState.id] || 1) + 1));
+seqSvg.addEventListener("keydown", ev => {
+  if (ev.key === "ArrowRight" || ev.key === "ArrowDown"){ ev.preventDefault(); setStep((seqState.cur[seqState.id] || 1) + 1); }
+  if (ev.key === "ArrowLeft" || ev.key === "ArrowUp"){ ev.preventDefault(); setStep((seqState.cur[seqState.id] || 1) - 1); }
+});
+if (!SEQS.length){
+  $("stepbox").innerHTML = '<p class="muted">The model has no sequences.</p>';
+  $("seqprev").disabled = true; $("seqnext").disabled = true;
+}
+DRAW.sequences = () => { if (seqState.id) setSeq(seqState.id); };
+
+/* ───────── issues (internal and shared builds only) ───────── */
+const findingsEl = $("findings");
+function anchorText(a){
+  if (!a) return "";
+  if (a.node !== undefined) return NODE[a.node] ? NODE[a.node].title : a.node;
+  if (a.edge !== undefined){ const e = EDGES.find(x => x.id === a.edge); return e && NODE[e.from] && NODE[e.to] ? NODE[e.from].title + " → " + NODE[e.to].title : a.edge; }
+  if (a.entity !== undefined) return a.entity;
+  if (a.step !== undefined){ const cut = a.step.lastIndexOf(":"), s = SEQ[a.step.slice(0, cut)]; return s ? s.title + ", step" : a.step; }
+  return "";
+}
+function renderIssues(){
+  if (!findingsEl) return;
+  const list = ISSUES.map(i => i.id).sort(bySev).map(id => ISS[id]);
+  findingsEl.innerHTML = list.length ? list.map(x =>
+    '<article class="finding sev-' + esc(x.sev) + '" id="issue-' + esc(x.id) + '" data-sev="' + esc(x.sev) + '">' +
+      '<div class="fh"><span class="sev sev-' + esc(x.sev) + '">' + esc(SEVN[x.sev] || x.sev) + '</span><span class="iid">' + esc(x.id) + '</span><h3>' + esc(x.title) + '</h3>' +
+      '<span class="area">' + esc(x.category) + '</span>' + (x.track ? '<span class="track">' + esc(x.track) + '</span>' : '') +
+      (anchorText(x.anchor) ? '<button class="btn showon" data-id="' + esc(x.id) + '">Show: ' + esc(anchorText(x.anchor)) + '</button>' : '') + '</div>' +
+      '<dl><dt>Summary</dt><dd>' + codeify(x.summary || "") + '</dd><dt>Impact</dt><dd>' + codeify(x.impact || "") + '</dd></dl>' +
+      '<dl><dt>Fix</dt><dd>' + codeify(x.fix || "") + '</dd>' +
+        ((x.evidence && x.evidence.length) ? '<dt>Evidence</dt><dd class="refs">' + x.evidence.map(e => evidenceChip(e.path, e.lines)).join("") + '</dd>' : '') + '</dl>' +
+      (x.detail ? '<dl class="full"><dt>Detail</dt><dd>' + codeify(x.detail) + '</dd></dl>' : '') +
+    '</article>').join("") : '<p class="empty">No issues recorded.</p>';
+  const counts = {high:0, med:0, low:0}; ISSUES.forEach(x => { if (counts[x.sev] !== undefined) counts[x.sev]++; });
+  $("tally").innerHTML = ["high","med","low"].map(s => '<span class="sev-' + s + '"><b>' + counts[s] + '</b>' + SEVN[s] + '</span>').join("");
+  document.querySelectorAll("#sevtabs .tab").forEach(b => b.addEventListener("click", () => {
+    const s = b.dataset.sev;
+    document.querySelectorAll("#sevtabs .tab").forEach(x => x.setAttribute("aria-selected", x === b ? "true" : "false"));
+    findingsEl.querySelectorAll(".finding").forEach(f => { f.hidden = !(s === "all" || f.dataset.sev === s); });
+  }));
+  findingsEl.querySelectorAll(".showon").forEach(b => b.addEventListener("click", () => showAnchor(ISS[b.dataset.id])));
+}
+DRAW.issues = renderIssues;
+// Bring an issue's anchor into view: its component on the first view that holds it, flagged and selected;
+// its entity in the ER tab; or its sequence step.
+function showAnchor(x){
+  const a = x && x.anchor; if (!a) return;
+  if (a.step !== undefined){
+    const cut = a.step.lastIndexOf(":"), seq = SEQ[a.step.slice(0, cut)]; if (!seq) return;
+    showTab("sequences");
+    setSeq(seq.id); setStep(stepNo(seq, Number(a.step.slice(cut + 1))));
+    $("sequences").scrollIntoView(); return;
+  }
+  if (a.entity !== undefined && ENTITY[a.entity] && tabAvailable("er")){ goEntity(a.entity); $("er").scrollIntoView(); return; }
+  let ids = [];
+  if (a.node !== undefined) ids = [a.node];
+  else if (a.entity !== undefined && ENTITY_STORE[a.entity]) ids = [ENTITY_STORE[a.entity]];
+  else if (a.edge !== undefined){ const e = EDGES.find(y => y.id === a.edge); if (e) ids = [e.from, e.to]; }
+  if (!ids.length) return;
+  const v = GP.bestView(ids);
+  showTab("graph");
+  GP.setView(v.id);
+  GP.st.flag = ids.slice(); GP.st.sel[v.id] = ids[0];
+  GP.draw();
+  $("architecture").scrollIntoView();
+}
+function gotoIssue(id){
+  if (!findingsEl) return;
+  showTab("issues");
+  document.querySelectorAll("#sevtabs .tab").forEach(x => x.setAttribute("aria-selected", x.dataset.sev === "all" ? "true" : "false"));
+  findingsEl.querySelectorAll(".finding").forEach(f => { f.hidden = false; });
+  const el = $("issue-" + id); if (!el) return;
+  el.scrollIntoView({block:"start"});
+  el.classList.add("ping"); setTimeout(() => el.classList.remove("ping"), 1600);
+}
+const issueSwitch = $("issues-switch");
+if (issueSwitch) issueSwitch.addEventListener("change", () => {
+  document.body.classList.toggle("issues-off", !issueSwitch.checked);
+  // the Issues tab and panel are hidden while the switch is off; do not leave the user on a blank page
+  if (!issueSwitch.checked && curTab === "issues") showTab("graph");
+});
+
+/* ───────── search ───────── */
+(function(){
+  const input = $("q"), box = $("qres");
+  let hits = [], cur = -1;
+  const KIND = {node:"Component", edge:"Relation", entity:"Entity", sequence:"Sequence"};
+  function close(){ box.hidden = true; cur = -1; input.setAttribute("aria-expanded", "false"); }
+  function mark(){ box.querySelectorAll("li").forEach((li, i) => li.classList.toggle("cur", i === cur)); }
+  function open(h){
+    close(); input.value = "";
+    if (h.kind === "node") goNode(h.id);
+    else if (h.kind === "edge") goEdge(h.id);
+    else if (h.kind === "entity") goEntity(h.id);
+    else if (h.kind === "sequence"){ showTab("sequences"); setSeq(h.id); $("sequences").scrollIntoView(); }
+  }
+  function run(){
+    hits = searchModel(MODEL, input.value, 12); cur = hits.length ? 0 : -1;
+    if (!input.value.trim()){ close(); return; }
+    box.innerHTML = hits.length ? hits.map((h, i) => '<li role="option" data-i="' + i + '"><span class="rk">' + esc(KIND[h.kind]) + '</span><span class="rt">' + esc(h.title) + '</span>' + (h.detail ? '<span class="rd">' + esc(h.detail) + '</span>' : '') + '</li>').join("") : '<li class="none">Nothing matches.</li>';
+    box.hidden = false; input.setAttribute("aria-expanded", "true"); mark();
+    box.querySelectorAll("li[data-i]").forEach(li => li.addEventListener("mousedown", ev => { ev.preventDefault(); open(hits[Number(li.dataset.i)]); }));
+  }
+  input.addEventListener("input", run);
+  input.addEventListener("focus", () => { if (input.value.trim()) run(); });
+  input.addEventListener("blur", () => setTimeout(close, 120));
+  input.addEventListener("keydown", ev => {
+    if (ev.key === "ArrowDown" && hits.length){ ev.preventDefault(); cur = (cur + 1) % hits.length; mark(); }
+    else if (ev.key === "ArrowUp" && hits.length){ ev.preventDefault(); cur = (cur - 1 + hits.length) % hits.length; mark(); }
+    else if (ev.key === "Enter" && hits[cur]){ ev.preventDefault(); open(hits[cur]); }
+    else if (ev.key === "Escape"){ input.value = ""; close(); }
+  });
+})();
+
+/* ───────── header, footer, tabs ───────── */
+$("title").textContent = META.project || "Architecture";
+$("eyebrow").textContent = "Architecture map" + (META.commit ? " · commit " + String(META.commit).slice(0, 7) : "") + (META.generatedAt ? " · " + String(META.generatedAt).slice(0, 10) : "");
+$("foot").textContent = "Generated by archmap from the model" + (META.commit ? " at commit " + String(META.commit).slice(0, 12) : "") + ". Evidence references point at that commit.";
+function hideTab(name){ const b = document.querySelector('#navlist [data-tab="' + name + '"]'); if (b) b.hidden = true; }
+if (!ENTITIES.length) hideTab("er");
+if (!ACCESS.length) hideTab("crud");
+if (!PANES.deployment) hideTab("deployment");
+if (!PANES.trust) hideTab("trust");
+document.querySelectorAll("#navlist [data-tab]").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+/* ───────── boot ───────── */
+function tabFromHash(){
+  const h = decodeURIComponent((location.hash || "").slice(1));
+  if (/^issue-/.test(h)) return "issues";
+  return Object.keys(PANEL).find(k => PANEL[k] === h) || "graph";
+}
+showTab(tabFromHash(), true);
+// Text widths are measured on the drawn page: once the fonts are in, redraw what is on screen.
+if (document.fonts && document.fonts.ready){
+  document.fonts.ready.then(() => {
+    Object.keys(drawn).forEach(k => { if (k !== "issues" && k !== "crud") drawn[k] = false; });
+    drawn[curTab] = true;
+    if (curTab !== "issues" && curTab !== "crud" && DRAW[curTab]) DRAW[curTab]();
+  });
+}
+window.addEventListener("hashchange", () => { const t = tabFromHash(); if (t !== curTab) showTab(t, true); });
+})();
+</script>
+</body>
+</html>

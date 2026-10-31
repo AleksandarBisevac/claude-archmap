@@ -129,16 +129,24 @@ workspace they ran in is its `iteration-2`.
 | P11.2 run 2 | P11.1 | `evidence/iteration-2/2-with-skill-5.json` | 13 | 2.40 USD | 69.4 K | 0.93 | reliability |
 | P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |
 
-The self-build row is a build of this repository itself, with the balanced profile and without `--issues`, run the way
-eval 1 is run. It is the one run whose whole output is public: the repository, its model and the profile of its
+The self-build is a build of this repository itself, with the balanced profile and without `--issues`, run the way
+eval 1 is run, and the table below has one row per run of it. It is the one run whose whole output is public: the repository, its model and the profile of its
 transcript can all be shared, which the repositories of the evals cannot. The cost, turns, context and model figures are
-from the evidence profile of the row (the model split is its `byModel` block: the Opus orchestrator, and the Sonnet
+from the evidence profile of each row (the model split is its `byModel` block: the Opus orchestrator, and the Sonnet
 explorers and synthesizer); the map counts are those of the `architecture.model.json` the run built, as its build
-report lists them (the model passed `validate.mjs` with `--repo`, exit 0; the model is not tracked).
+report lists them, and each model passed `validate.mjs` with `--repo`, exit 0.
+
+- **Run 1** built commit `2faa6de`, before the P8.5 and P8.9 skip of fixture directories; its model is not tracked.
+- **Run 2** built commit `8174e41`, the head of this branch after P11.5, and is the committed map: its model, layout and
+  clean viewer are `docs/architecture/architecture.model.json`, `docs/architecture/architecture.layout.json` and
+  `docs/architecture/archmap.html` at the repository root, unchanged from the run. The drop from 63 to 30 nodes is the
+  P8.5 and P8.9 skip of fixture directories: in the run 1 model, 32 of the 63 nodes and 15 of the 16 entities cite
+  only files under `tests/fixtures/`, which prescan now skips as test data.
 
 | Build | Evidence | Cost | Orchestrator turns | Orchestrator max context | Opus | Sonnet | Nodes | Edges | Entities | Sequences | Views |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| self-build (balanced, no issues) | `evidence/iteration-2/self-with-skill-1.json` | 1.11 USD | 12 | 58.4 K | 12 turns, 0.50 USD | 51 turns, 0.62 USD | 63 | 28 | 16 | 4 | 5 |
+| self-build run 1 (balanced, no issues) | `evidence/iteration-2/self-with-skill-1.json` | 1.11 USD | 12 | 58.4 K | 12 turns, 0.50 USD | 51 turns, 0.62 USD | 63 | 28 | 16 | 4 | 5 |
+| self-build run 2 (balanced, no issues), the committed map | `evidence/iteration-2/self-with-skill-2.json` | 1.00 USD | 10 | 57.6 K | 10 turns, 0.44 USD | 49 turns, 0.56 USD | 30 | 18 | 1 | 4 | 5 |
 
 Where the money goes in iteration 2, in percent of each run's cost. The figures are shares of the result-event total
 (the per-model figure in the table above); the per-agent rows come from the stream, whose output counts are a lower
@@ -184,7 +192,8 @@ stated maximum context differs from the file it names.
 | 5 | `evidence/iteration-1/5-with-skill-1.json` | `evidence/iteration-2/5-with-skill-1.json` | `evidence/iteration-2/5-without-skill-1.json` | `evidence/iteration-1/5-without-skill-1.json` |
 
 The baseline column takes the iteration-2 baseline run where there is one (evals 1, 3 and 5) and the iteration-1
-baseline for evals 2 and 4, which were not rerun; the other baseline run of each eval is tracked beside it. The profile
-of the build of this repository by its own skill is `evidence/iteration-2/self-with-skill-1.json`. The three P11.2
+baseline for evals 2 and 4, which were not rerun; the other baseline run of each eval is tracked beside it. The profiles
+of the builds of this repository by its own skill are `evidence/iteration-2/self-with-skill-1.json` (run 1) and
+`evidence/iteration-2/self-with-skill-2.json` (run 2, the committed map). The three P11.2
 runs are `evidence/iteration-2/2-with-skill-4.json` to `evidence/iteration-2/2-with-skill-6.json`, named in the eval 2
-run-by-run table, and e19 reads that table and the self-build row against these files too.
+run-by-run table, and e19 reads that table and the self-build rows against these files too.
