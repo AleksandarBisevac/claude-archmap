@@ -5115,7 +5115,177 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P10-R1",
+            "severity": "med",
+            "file": "agents/archmap-synthesizer.md:5",
+            "issue": "contradicts task clause: P10.3 says the balanced synthesizer model is an open choice, 'decide from the measured quality on the e2e fixtures and record the choice'. The diff sets `model: sonnet` / `effort: medium` (and the balanced row of the profile table) with no measurement. The executor's own claim says 'No LLM e2e quality run was possible here, so the choice rests on the reduced task, not on measured quality'. SKILL.md then records the choice as settled ('moved from Opus to Sonnet because the digest leaves it no structural reasoning') and never says it is unmeasured. This is the request's second open choice, made by the task without the evidence the task asked for.",
+            "resolution": "Either run the e2e fixture build with the synthesizer on Sonnet and on Opus and record the sequence quality (counts, cited lines valid, drafts kept or dropped) before keeping Sonnet, or keep `model: opus` for balanced until that is done. If Sonnet stays, state in the SKILL.md note and in the final report that the choice is unmeasured, so the owner can overrule it.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R2",
+            "severity": "med",
+            "file": "scripts/merge.mjs:158-165",
+            "issue": "contradicts task clause: P10.3 asks for 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'. zoneFor() (158-165) derives a zone only from the node kind and the area's stack and never reads the slice's `containers` or directory layout; the zone work otherwise only unifies spellings (resolveZone). deriveLayer's access loop (about 455-475) reads `sqlTables` only: no ORM-call evidence and no queue-evidence access row is produced. The synthesizer can no longer add access rows, so any access the explorers did not emit is lost. The executor's claim says 'SQL access rows' and so describes the narrower diff accurately, but the scope is narrower than the clause.",
+            "resolution": "Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them.",
+            "fixTask": "P10.17-6rm"
+          },
+          {
+            "id": "P10-R3",
+            "severity": "med",
+            "file": "scripts/merge.mjs:607-620",
+            "issue": "An unreadable fragment file becomes the stub `{area, skipped:{count:1,...}}` (line 618). In update mode (`--previous` with `--areas`) that stub counts as the area's fragment (it is in `present`, so the existing 'no fragment' conflict does not fire), and the area's previous nodes, edges, entities and access rows are removed with nothing replacing them; only locked/noted nodes survive. Before this change a broken file threw a UsageError (exit 2) and wrote nothing. The loss is visible only as a `skipped` row in meta.sources; with no --strict the run exits 0. A single explorer that writes a truncated JSON file therefore erases a good area on `/archmap:update`. m12d covers only the full-build case.",
+            "resolution": "In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive.",
+            "fixTask": "P10.17-6rm"
+          },
+          {
+            "id": "P10-R4",
+            "severity": "med",
+            "file": "scripts/merge.mjs:431",
+            "issue": "Every derived edge is written `confidence: 'verified'`, but the http links behind them come from prescan's segment matcher, where a `*` (a template or `{param}` segment) on either side matches anything and `served.find` takes the first route of another area (scripts/prescan.mjs:284 at f39a917). A call such as `fetch(`${base}/x`)` or `/${id}` therefore links to any other-area route with the same segment count (for example `/health`) and the edge is stamped verified with citations on both sides. Import edges are cited by the first line that mentions the target's basename (importLine), which can pick a different module with the same file name. Inferred matches shown as verified conflict with the evidence-and-honesty rule.",
+            "resolution": "Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches.",
+            "fixTask": "P10.17-6rm"
+          },
+          {
+            "id": "P10-R5",
+            "severity": "low",
+            "file": "scripts/cost-profile.mjs:25-28",
+            "issue": "The embedded rate table gives no source for its prices, and its cache-read rates are inconsistent as a share of input (opus 0.05x, fable 0.025x, sonnet and haiku 0.1x). Phase success is stated in list-price USD per eval, so a wrong row silently moves the pass/fail of the 5 USD target. The test c7 only pins the table to itself.",
+            "resolution": "Add a comment naming where each row was read (the price page and date), and fix any row that does not match it. Keep the `unpriced` path for models not in the table.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R6",
+            "severity": "low",
+            "file": "agents/archmap-synthesizer.md:4",
+            "issue": "The synthesizer (and the explorer, agents/archmap-explorer.md:4) now has the Write tool while it reads text from a repository it does not control. 'Write is for that one path only' is a prompt rule; frontmatter cannot scope it, so an injected instruction in scanned content could make the agent write elsewhere. The synthesizer had no write tool and no Bash before this change. a2 and a6 test only that the word Write is listed.",
+            "resolution": "Document the residual risk beside hard rule 1 in SKILL.md, and have the orchestrator check after each dispatch that the only new or changed file is the named fragment or synth path (for example a `git status --porcelain` of the project and a listing of the work directory).",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R7",
+            "severity": "med",
+            "file": "tests/skill.test.mjs:196",
+            "issue": "contradicts task clause: P10.4 asks that the turn and context targets be 'measured on the e2e fixture with canned fragments' with 'scripts/cost-profile.mjs on that transcript' showing max context under 80 K tokens. The executor's own claim says 'NOT measured: no live headless session was run'. The diff substitutes a character count (tests/pipeline.test.mjs p11) and an assertion that cannot fail, `1 + steps.length <= 12`, where s10 has just asserted steps.length === 6. The live figures (11 turns, 72 K) only arrive later in the P10.5 README, which this task does not cite.",
+            "resolution": "Drop the arithmetic assertion or replace it with a check against a cost-profile run of a recorded transcript fixture (turns from byAgent orchestrator, maxContext), and point the task's note at the P10.5 live measurement as the evidence for the 12-turn / 80 K targets.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R8",
+            "severity": "med",
+            "file": "scripts/merge.mjs:884-887",
+            "issue": "hubOf() resolves `to: \"area:<id>\"` only through `placed`, which holds only the areas whose fragments are in this run. In update mode (--areas) the explorers of the affected areas are told to name other areas as `area:<id>`; the targets are mostly unaffected areas whose nodes sit in `nodes` from --previous but not in `placed`. hubOf returns null, the edge is deleted and a dropped-ref row says the node 'does not exist' although it does. Every cross-area edge from a re-explored area to an untouched one is lost on update. The tests (m19, m19b, p13) all run a full build, so none reaches this.",
+            "resolution": "Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area.",
+            "fixTask": "P10.17-6rm"
+          },
+          {
+            "id": "P10-R9",
+            "severity": "med",
+            "file": "scripts/pipeline.mjs:355",
+            "issue": "coverageFloor() returns `floor: Math.max(1, total)` with no upper bound, and the brief states it as 'at least N nodes ... a fragment with fewer nodes than this floor is incomplete'. The same brief (CAPS) and the merge cap a fragment at 40 nodes, so a large area (30 router modules plus stores, queues and clients; p18 builds 30 route groups, a bigger monorepo area passes 40) gets a floor the explorer is told to reach and the merge then truncates. The brief contradicts itself and invites the explorer to spend its calls on nodes that are dropped.",
+            "resolution": "Clamp the floor to CAPS.nodes (and say in the brief when the extract holds more than the cap), and add a p18-style case with more than 40 groups.",
+            "fixTask": "P10.16-6rm"
+          },
+          {
+            "id": "P10-R10",
+            "severity": "low",
+            "file": "scripts/pipeline.mjs:169-195",
+            "issue": "matchUsage() assigns an unmatched --usage label to the first area that still lacks a row 'by position' (and by unique prefix). The orchestrator copies labels off completion lines that carry the description, not the area id, so a wrong guess silently books one explorer's tokens and duration on another area; only a warning in the JSON says so, and the ledger and the share figures built from it are then wrong. This leniency (and the misc partition naming, brief trimming and the temp-dir default work dir) is not in P10.6's description, which covers only dangling references; it is in the task's tests.add list.",
+            "resolution": "Match on exact id and unique prefix only; record everything else under its own label (as the extras already are) instead of assigning it to an area by position, or have plan print an area-to-description map the orchestrator can copy.",
+            "fixTask": "P10.16-6rm"
+          },
+          {
+            "id": "P10-R11",
+            "severity": "low",
+            "file": "scripts/pipeline.mjs:493",
+            "issue": "The default work dir is <os tmpdir>/archmap/<12 hex of sha256(repo path)>: predictable, and shared on a multi-user Linux host where tmpdir is /tmp. plan then rmSync()s the BUILD_FILES inside it and writes briefs, extracts and fragments there with the process umask. Another local user can pre-create /tmp/archmap or that directory (or symlink 'fragments', 'briefs') so plan removes or writes through into places it picked, and the subagents read the briefs from a directory others can write (a brief is an instruction to an agent that has Write). p16 tests only the happy path.",
+            "resolution": "Create the directory with mode 0o700, lstat it and refuse (exit 2) when it is a symlink or not owned by the current uid, or use fs.mkdtempSync under the tmpdir and print the result; add a p16 case for a pre-existing foreign-owned or symlinked directory.",
+            "fixTask": "P10.16-6rm"
+          },
+          {
+            "id": "P10-R12",
+            "severity": "low",
+            "file": "tests/skill.test.mjs:200",
+            "issue": "s11 'the guard in s10 can fail' re-states the three regexes of s10 inline against a local string `bad`. It never calls s10's checks, so it keeps passing if s10's guard is weakened or deleted; it proves the regex literals match a string, not that the guard fails.",
+            "resolution": "Factor s10's checks into a function over the flow text, call it from both s10 and s11, and assert s11's `bad` flow makes it throw or return violations.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R13",
+            "severity": "low",
+            "file": "tests/pipeline.test.mjs:301",
+            "issue": "p8 ends with `if (sqlite.status !== 0) return;` after the skip half, so on a host without the sqlite3 CLI (CI images) the observed-entities half passes vacuously and the test reports green without any trace of the skip. The DuckDB branch (copy to a temp dir, `-readonly -list -separator -c`) has no case at all; the executor says it never ran.",
+            "resolution": "Use `t.skip()` (the node:test context) with the reason for the second half, and add a DuckDB case guarded the same visible way, or a stub CLI on PATH that prints the expected rows.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R14",
+            "severity": "med",
+            "file": "skills/architecture-map/evals/README.md:75",
+            "issue": "The table reports 17 orchestrator turns for eval 2 and says nothing else; the phase's desired outcome is a build in at most 12 turns through the driver and the README presents the result as meeting the cost targets. The filed outcome admits the ceiling was missed (five turns reading script sources for the overlay location and the ledger command) and left 'as a follow-up', but no task or note in the diff or README carries it. P10.5's own text says to file a missed target and stop for the owner; the README is the only artefact a reader sees.",
+            "resolution": "Add a sentence under the table that eval 2 exceeded the 12-turn target and why, and file the SKILL.md/issues-step gap as a task so the turn count is closed or explicitly accepted by the owner.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R15",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/README.md:78-80",
+            "issue": "The shares for eval 1 (explorers 41, orchestrator 36, synthesizer 7 percent) sum to 84 percent and the remaining 16 are not named. They come from the per-agent table, whose output column and cost are the stream's lower bound after P10.8 (output is under-counted several times over and is the dominant price class), while the per-model total is the result event's figure. Shares are given for eval 1 only; the task asked for them per eval.",
+            "resolution": "Say that shares are of the per-agent stream cost (lower bound) or compute them against the result-event total and name the residual; give the shares for evals 2 and 4 or say why they are omitted.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R16",
+            "severity": "low",
+            "file": "skills/architecture-map/SKILL.md:87-88",
+            "issue": "P10.7 adds 'The ledger is copied to where the caller asked after render' to the build flow, but no step of pipeline.mjs does it and no command is given, so the orchestrator is left to improvise a copy (an extra turn, or a read of script sources, both of which the flow forbids). s13 only matches the sentence.",
+            "resolution": "Either make render copy usage.jsonl / the table to an --ledger-out path the caller names, or state the exact command and which step runs it, and test that.",
+            "fixTask": "P10.19-6rm"
+          },
+          {
+            "id": "P10-R17",
+            "severity": "high",
+            "file": "scripts/pipeline.mjs:697",
+            "issue": "Scanner safety (rule 7). P10.11 (14f5ecb) probes and then queries DuckDB through python3 (readerFor line 697 `spawnSync('python3', ['-c', 'import duckdb'])`, queryColumns line 716 `['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]]`) with no cwd and no isolated mode. The driver is run from the analysed project's root (SKILL.md), so cwd is the scanned repository, and `python3 -c` puts the cwd first on sys.path. A scanned repo that holds a duckdb.py (or a duckdb/ package) and a file database named by duckdb.connect gets that file executed by `import duckdb` whenever the duckdb CLI is absent. This breaks 'prescan and extractors never import, require, eval or execute files from the scanned repo'. The new tests stub python3 on PATH, so none of them exercises the real interpreter or this path.",
+            "resolution": "Run both python3 calls in isolated mode (`python3 -I -c ...`, which drops the cwd and PYTHON* variables from sys.path) and also pass `cwd: tmp` (the mkdtemp dir) to spawnSync. Add a test where the repo holds a duckdb.py that writes a marker file, and assert the marker never appears.",
+            "fixTask": "P10.16-6rm"
+          },
+          {
+            "id": "P10-R18",
+            "severity": "med",
+            "file": "scripts/lib/prescan/generic.mjs:315",
+            "issue": "P10.13 (a871e37): SQL_TABLE_REF takes the identifier after every `from`/`join` as a table, and sqlStatements (line 498) never discards names that are not tables. A CTE name used later (`WITH recent AS (...) SELECT ... FROM recent`), `EXTRACT(year FROM created_at)`, `SUBSTRING(s FROM 2)`, `TRIM(BOTH FROM s)` and `IS DISTINCT FROM x` all yield a table ref. Before this task such a ref was only a skipped access row. Now generateFromExtracts in scripts/merge.mjs makes an inferred entity, a generated store and an access row for each one, so the architecture model fills with entities that are not tables. CTEs are common in the DuckDB/SQLite analytics code this task targets. The tests (py13, m23, pc13) only use plain table names.",
+            "resolution": "In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col).",
+            "fixTask": "P10.18-6rm"
+          },
+          {
+            "id": "P10-R19",
+            "severity": "low",
+            "file": "scripts/pipeline.mjs:756",
+            "issue": "P10.11 (14f5ecb): the outside-the-repository guard `file.startsWith(repoRoot + sep)` compares resolved strings only, so a symlink inside the repo that points at a database file elsewhere on the machine passes it. queryColumns then copies and opens the target. Only schema names reach the model, but the guard says the file is inside the repository when it is not.",
+            "resolution": "Compare `realpathSync(file)` with `realpathSync(repoRoot)` (guarded by existsSync) before reading, and add the outside-the-repo skip row for a symlink that escapes.",
+            "fixTask": "P10.16-6rm"
+          },
+          {
+            "id": "P10-R20",
+            "severity": "med",
+            "file": "scripts/pipeline.mjs:580-607",
+            "issue": "contradicts task clause: P10.15 clause 1 asks for \"rungs that always end under BRIEF_CAP\" and says the throw stays only as a last guard. The ladder never trims the `- Previous model: <path>. Reuse the node ids ...` line (explorerBrief, pipeline.mjs:438), which is about 110 characters plus a path, added in --update mode. p29 builds its pathological input without `previous`, and the executor measured the terminal rung at 3902 characters for a 200-character work path, so a 98-character margin. In update mode with the same area the brief is about 4200 characters and writeBrief throws, which kills the build with exit 2, the failure this task set out to remove. The new header comment (\"a brief ends under BRIEF_CAP\") overstates what the ladder does.",
+            "resolution": "Add the previous line to the terminal rung (drop its Reuse-the-ids sentence, or keep only the path), or fold it into the `terse` option. Extend p29 with `previous: <200-character path>/model.json` and assert the brief still fits. Alternatively make the comment say the guarantee holds for first builds only.",
+            "fixTask": "P10.16-6rm"
+          },
+          {
+            "id": "P10-R21",
+            "severity": "low",
+            "file": "scripts/lib/prescan/node-backend.mjs:896-905",
+            "issue": "queueNameOf names a queue after the file path for any unresolved lowercase bare identifier, and extractQueues applies it to `new Queue(x)` as well as `new Worker(x, ...)`. The task asked only for a Worker without a resolvable name to be named after its file. A Queue built from a parameter or an unresolved import now becomes a queue row named for a file. Two Queues or Workers with different unresolved parameters in one file collapse into one row, and a Worker's file-named row never pairs with the Queue it consumes. The file header still says nothing is guessed. nb14 covers only the Worker case, so the Queue behaviour is untested.",
+            "resolution": "Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue.",
+            "fixTask": "P10.18-6rm"
+          }
+        ],
+        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -5440,7 +5610,7 @@
         {
           "id": "P10.5-2xj",
           "title": "Re-run evals 1, 2 and 4 on the P8 harness and prove the cost targets",
-          "status": "in_progress",
+          "status": "done",
           "description": "Owner-run, like P8.3: the eval repositories live only on the owner's machine and are pointed at by ARCHMAP_EVAL_REPO_A/B (never named in a tracked file). Run evals 1, 2 and 4 with the skill, headless, on the P8 harness into <home>/.claude/archmap/evals/iteration-2/, on the same orchestrator model as the baseline you compare against, grade them with the P8 grader and the issue-recall scorer, and profile each stream with scripts/cost-profile.mjs (take the LAST result event's modelUsage; it is cumulative). Pass when every expectation that passed in iteration-1 still passes, eval 2 recall is at least 60 percent, and the profiled list-price cost is under 5 USD for each of evals 1, 2 and 4 and at most twice that eval's no-skill baseline, with the orchestrator, synthesizer and explorer shares recorded. Record the before and after table in .private/evals/ and a repo-free summary (costs and shares only) in skills/architecture-map/evals/README.md. If a target is missed, file the gap as a note on this task with the profiler table and stop; the owner decides the next iteration.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -5464,14 +5634,25 @@
           ],
           "attempts": 3,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2f5debea72f2",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Six rounds of the three with-skill evals (1 build, 2 build with --issues, 4 monorepo build) on the Opus orchestrator, each round after the fix tasks it exposed (P10.6 to P10.15). Round 6 on b7dfb73 plus P10.15's working tree (now b1963e8): eval 1 7/7 at 1.22 USD (0.79x the no-skill baseline 1.55), 11 orchestrator turns, context never above 63 K; eval 2 7/7 at 2.09 USD (0.91x of 2.29), recall 0.667 (10/15; AR-01 high and AR-07/10/12/13 medium missed), 17 orchestrator turns of which five read script sources to find the overlay location and the ledger command; eval 4 8/8 at 1.66 USD (0.91x of 1.82), 11 turns, 8 app areas plus 3 leftover areas. Iteration 1 cost 13.84 / 9.79 / 12.79 USD. Orchestrator context stayed at or under 72 K in every run and held no fragment and no model; explorers wrote fragments to files and replied in three lines; merge computed entities, relations, cross-area edges, zones and access; the synthesizer only sequenced and wrote views. Cost shares (eval 1): explorers 41 percent, orchestrator 36 percent, synthesizer 7 percent; eval 2's reviewer 23 percent of its run. Measured with scripts/cost-profile.mjs on the stream-json transcripts at list prices; per-round results, root causes and the round-6 table are in the private results log, the before-and-after table in skills/architecture-map/evals/README.md. docs/design.md D11 now records the explorer on Sonnet medium and that synthesizer and reviewer write result files and reply in three lines. The eval repositories were read from clones in the workspace; the originals were verified unchanged after every round. Not met: the plan's 12-turn ceiling for the orchestrator on eval 2 (17 turns), a SKILL.md documentation gap rather than a script gap, left as a follow-up.",
+            "descriptive": "Evals 1, 2 and 4 run with the skill on the script-driven flow for well under 5 USD each and under the no-skill baseline on the same orchestrator model, all expectations pass, issue recall 0.67, and the evals README records the before-and-after cost."
           },
           "startedAt": "2026-10-31T14:21:16Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T14:22:34Z",
+          "verifiedBy": [
+            "eval 1 round 6: 7/7",
+            "1.22 USD vs baseline 1.55",
+            "11 orchestrator turns",
+            "eval 2 round 6: 7/7",
+            "recall 0.667 (10/15)",
+            "2.09 USD vs baseline 2.29",
+            "17 orchestrator turns",
+            "eval 4 round 6: 8/8",
+            "1.66 USD vs baseline 1.82",
+            "11 orchestrator turns"
+          ],
           "reviewPerTask": "phase",
           "notes": [
             {
@@ -5523,6 +5704,11 @@
             "runId": "2026-10-31T14:22:14Z.c04e59",
             "status": "passed",
             "at": "2026-10-31T14:22:14Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2f5debea72f2",
+            "at": "2026-10-31T14:22:34Z"
           }
         },
         {
@@ -6234,6 +6420,306 @@
             "status": "could-not-prove",
             "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P10.16-6rm",
+          "title": "Pipeline hardening: isolated python for DuckDB, realpath guard, private work dir, floor clamped to the node cap, exact usage labels, previous line in the trim ladder",
+          "status": "in_progress",
+          "description": "Phase review of P10, findings in scripts/pipeline.mjs grouped into one task because they share the file. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow. The DuckDB probe and query must run python3 in isolated mode (-I) with cwd set to the temp copy directory, never the scanned repository (scanner safety rule 7).\n\nP10-R17 (high, scripts/pipeline.mjs:697): Scanner safety (rule 7). P10.11 (14f5ecb) probes and then queries DuckDB through python3 (readerFor line 697 `spawnSync('python3', ['-c', 'import duckdb'])`, queryColumns line 716 `['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]]`) with no cwd and no isolated mode. The driver is run from the analysed project's root (SKILL.md), so cwd is the scanned repository, and `python3 -c` puts the cwd first on sys.path. A scanned repo that holds a duckdb.py (or a duckdb/ package) and a file database named by duckdb.connect gets that file executed by `import duckdb` whenever the duckdb CLI is absent. This breaks 'prescan and extractors never import, require, eval or execute files from the scanned repo'. The new tests stub python3 on PATH, so none of them exercises the real interpreter or this path.\nResolution asked: Run both python3 calls in isolated mode (`python3 -I -c ...`, which drops the cwd and PYTHON* variables from sys.path) and also pass `cwd: tmp` (the mkdtemp dir) to spawnSync. Add a test where the repo holds a duckdb.py that writes a marker file, and assert the marker never appears.\n\nP10-R9 (med, scripts/pipeline.mjs:355): coverageFloor() returns `floor: Math.max(1, total)` with no upper bound, and the brief states it as 'at least N nodes ... a fragment with fewer nodes than this floor is incomplete'. The same brief (CAPS) and the merge cap a fragment at 40 nodes, so a large area (30 router modules plus stores, queues and clients; p18 builds 30 route groups, a bigger monorepo area passes 40) gets a floor the explorer is told to reach and the merge then truncates. The brief contradicts itself and invites the explorer to spend its calls on nodes that are dropped.\nResolution asked: Clamp the floor to CAPS.nodes (and say in the brief when the extract holds more than the cap), and add a p18-style case with more than 40 groups.\n\nP10-R10 (low, scripts/pipeline.mjs:169-195): matchUsage() assigns an unmatched --usage label to the first area that still lacks a row 'by position' (and by unique prefix). The orchestrator copies labels off completion lines that carry the description, not the area id, so a wrong guess silently books one explorer's tokens and duration on another area; only a warning in the JSON says so, and the ledger and the share figures built from it are then wrong. This leniency (and the misc partition naming, brief trimming and the temp-dir default work dir) is not in P10.6's description, which covers only dangling references; it is in the task's tests.add list.\nResolution asked: Match on exact id and unique prefix only; record everything else under its own label (as the extras already are) instead of assigning it to an area by position, or have plan print an area-to-description map the orchestrator can copy.\n\nP10-R11 (low, scripts/pipeline.mjs:493): The default work dir is <os tmpdir>/archmap/<12 hex of sha256(repo path)>: predictable, and shared on a multi-user Linux host where tmpdir is /tmp. plan then rmSync()s the BUILD_FILES inside it and writes briefs, extracts and fragments there with the process umask. Another local user can pre-create /tmp/archmap or that directory (or symlink 'fragments', 'briefs') so plan removes or writes through into places it picked, and the subagents read the briefs from a directory others can write (a brief is an instruction to an agent that has Write). p16 tests only the happy path.\nResolution asked: Create the directory with mode 0o700, lstat it and refuse (exit 2) when it is a symlink or not owned by the current uid, or use fs.mkdtempSync under the tmpdir and print the result; add a p16 case for a pre-existing foreign-owned or symlinked directory.\n\nP10-R19 (low, scripts/pipeline.mjs:756): P10.11 (14f5ecb): the outside-the-repository guard `file.startsWith(repoRoot + sep)` compares resolved strings only, so a symlink inside the repo that points at a database file elsewhere on the machine passes it. queryColumns then copies and opens the target. Only schema names reach the model, but the guard says the file is inside the repository when it is not.\nResolution asked: Compare `realpathSync(file)` with `realpathSync(repoRoot)` (guarded by existsSync) before reading, and add the outside-the-repo skip row for a symlink that escapes.\n\nP10-R20 (med, scripts/pipeline.mjs:580-607): contradicts task clause: P10.15 clause 1 asks for \"rungs that always end under BRIEF_CAP\" and says the throw stays only as a last guard. The ladder never trims the `- Previous model: <path>. Reuse the node ids ...` line (explorerBrief, pipeline.mjs:438), which is about 110 characters plus a path, added in --update mode. p29 builds its pathological input without `previous`, and the executor measured the terminal rung at 3902 characters for a 200-character work path, so a 98-character margin. In update mode with the same area the brief is about 4200 characters and writeBrief throws, which kills the build with exit 2, the failure this task set out to remove. The new header comment (\"a brief ends under BRIEF_CAP\") overstates what the ladder does.\nResolution asked: Add the previous line to the terminal rung (drop its Reuse-the-ids sentence, or keep only the path), or fold it into the `terse` option. Extend p29 with `previous: <200-character path>/model.json` and assert the brief still fits. Alternatively make the comment say the guarantee holds for first builds only.",
+          "files": [
+            "scripts/pipeline.mjs",
+            "tests/pipeline.test.mjs",
+            "scripts/pipeline.mjs",
+            "tests/pipeline.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/pipeline.test.mjs: a repo holding a duckdb.py that writes a marker file is scanned with a .duckdb file present; the DuckDB probe and query run python3 with -I and cwd outside the repo, so the marker is never written",
+              "tests/pipeline.test.mjs: coverageFloor clamps floor to CAPS.nodes for an area with more than 40 groups and the brief says the extract holds more than the cap",
+              "tests/pipeline.test.mjs: matchUsage books an unmatched --usage label under its own label, never on an area by position; exact id and unique prefix still match",
+              "tests/pipeline.test.mjs: plan refuses (exit 2) a pre-existing work dir that is a symlink or not owned by the current uid, and creates a fresh one with mode 0o700",
+              "tests/pipeline.test.mjs: a symlink inside the repo pointing at a database file outside it gets the outside-the-repository skip row (realpath comparison)",
+              "tests/pipeline.test.mjs: p29 extended with previous set to a 200-character model path still yields a brief at or under BRIEF_CAP"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T15:05:33Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T15:04:36Z",
+              "text": "scope: scripts/pipeline.mjs, every path the finding(s) P10-R17, P10-R9, P10-R10, P10-R11, P10-R19, P10-R20 name"
+            },
+            {
+              "at": "2026-10-31T15:04:36Z",
+              "text": "scope: tests/pipeline.test.mjs, the suite that tests scripts/pipeline.mjs (the test file that names pipeline.mjs)"
+            },
+            {
+              "at": "2026-10-31T15:04:36Z",
+              "text": "the resolution of P10-R17 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-10-31T15:04:36Z",
+              "text": "no test runner in this task's gate for the test P10-R17 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P10 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P10-R17",
+            "P10-R9",
+            "P10-R10",
+            "P10-R11",
+            "P10-R19",
+            "P10-R20"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T15:24:24Z.40ce71",
+            "status": "passed",
+            "at": "2026-10-31T15:24:24Z"
+          }
+        },
+        {
+          "id": "P10.17-6rm",
+          "title": "Merge correctness: zones and access rows from the slices, inferred confidence for wildcard http edges, update mode keeps an unreadable area and resolves hubs of unaffected areas",
+          "status": "pending",
+          "description": "Phase review of P10, findings in scripts/merge.mjs grouped into one task because they share the file. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow. Zones come from the slice containers and the owning directory with kind and stack as the fallback; access rows come from the ORM table rows and the queue producer and consumer rows the slices carry; http edges matched through a wildcard segment are inferred, not verified; update mode keeps the previous elements of an area whose fragment is unreadable and resolves area:<id> hubs of unaffected areas from the previous model.\n\nP10-R2 (med, scripts/merge.mjs:158-165): contradicts task clause: P10.3 asks for 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'. zoneFor() (158-165) derives a zone only from the node kind and the area's stack and never reads the slice's `containers` or directory layout; the zone work otherwise only unifies spellings (resolveZone). deriveLayer's access loop (about 455-475) reads `sqlTables` only: no ORM-call evidence and no queue-evidence access row is produced. The synthesizer can no longer add access rows, so any access the explorers did not emit is lost. The executor's claim says 'SQL access rows' and so describes the narrower diff accurately, but the scope is narrower than the clause.\nResolution asked: Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them.\n\nP10-R3 (med, scripts/merge.mjs:607-620): An unreadable fragment file becomes the stub `{area, skipped:{count:1,...}}` (line 618). In update mode (`--previous` with `--areas`) that stub counts as the area's fragment (it is in `present`, so the existing 'no fragment' conflict does not fire), and the area's previous nodes, edges, entities and access rows are removed with nothing replacing them; only locked/noted nodes survive. Before this change a broken file threw a UsageError (exit 2) and wrote nothing. The loss is visible only as a `skipped` row in meta.sources; with no --strict the run exits 0. A single explorer that writes a truncated JSON file therefore erases a good area on `/archmap:update`. m12d covers only the full-build case.\nResolution asked: In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive.\n\nP10-R4 (med, scripts/merge.mjs:431): Every derived edge is written `confidence: 'verified'`, but the http links behind them come from prescan's segment matcher, where a `*` (a template or `{param}` segment) on either side matches anything and `served.find` takes the first route of another area (scripts/prescan.mjs:284 at f39a917). A call such as `fetch(`${base}/x`)` or `/${id}` therefore links to any other-area route with the same segment count (for example `/health`) and the edge is stamped verified with citations on both sides. Import edges are cited by the first line that mentions the target's basename (importLine), which can pick a different module with the same file name. Inferred matches shown as verified conflict with the evidence-and-honesty rule.\nResolution asked: Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches.\n\nP10-R8 (med, scripts/merge.mjs:884-887): hubOf() resolves `to: \"area:<id>\"` only through `placed`, which holds only the areas whose fragments are in this run. In update mode (--areas) the explorers of the affected areas are told to name other areas as `area:<id>`; the targets are mostly unaffected areas whose nodes sit in `nodes` from --previous but not in `placed`. hubOf returns null, the edge is deleted and a dropped-ref row says the node 'does not exist' although it does. Every cross-area edge from a re-explored area to an untouched one is lost on update. The tests (m19, m19b, p13) all run a full build, so none reaches this.\nResolution asked: Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area.",
+          "files": [
+            "scripts/merge.mjs",
+            "scripts/prescan.mjs",
+            "tests/merge.test.mjs",
+            "tests/prescan-wiring.test.mjs",
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: a node in a slice container directory gets the container's zone, a node outside any container falls back to kind and stack, and no zone is duplicated",
+              "tests/merge.test.mjs: ORM table rows and queue producer and consumer rows of a slice become access rows with evidence",
+              "tests/merge.test.mjs: an http edge matched through a wildcard segment is confidence inferred with the desc saying so, an all-wildcard call path makes no edge, a literal match stays verified",
+              "tests/merge.test.mjs: in update mode an area with an unreadable fragment keeps its previous nodes, edges, entities and access rows, is marked skipped and gets a conflict row",
+              "tests/merge.test.mjs: in update mode an edge from a re-explored area to area:<id> of an unaffected area resolves to that area's level-2 node from the previous model, no dropped-ref row"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "scope: scripts/merge.mjs, every path the finding(s) P10-R2, P10-R3, P10-R4, P10-R8 name"
+            },
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            },
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "the resolution of P10-R3 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "no test runner in this task's gate for the test P10-R3 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P10 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P10-R2",
+            "P10-R3",
+            "P10-R4",
+            "P10-R8"
+          ]
+        },
+        {
+          "id": "P10.18-6rm",
+          "title": "Prescan precision: SQL table refs skip CTE names and FROM inside EXTRACT, SUBSTRING, TRIM and OVERLAY; a file-named queue only for a Worker",
+          "status": "pending",
+          "description": "Phase review of P10, findings in the prescan extractors grouped into one task. Fix both; the finding texts and the resolutions the reviewer asked for follow.\n\nP10-R18 (med, scripts/lib/prescan/generic.mjs:315): P10.13 (a871e37): SQL_TABLE_REF takes the identifier after every `from`/`join` as a table, and sqlStatements (line 498) never discards names that are not tables. A CTE name used later (`WITH recent AS (...) SELECT ... FROM recent`), `EXTRACT(year FROM created_at)`, `SUBSTRING(s FROM 2)`, `TRIM(BOTH FROM s)` and `IS DISTINCT FROM x` all yield a table ref. Before this task such a ref was only a skipped access row. Now generateFromExtracts in scripts/merge.mjs makes an inferred entity, a generated store and an access row for each one, so the architecture model fills with entities that are not tables. CTEs are common in the DuckDB/SQLite analytics code this task targets. The tests (py13, m23, pc13) only use plain table names.\nResolution asked: In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col).\n\nP10-R21 (low, scripts/lib/prescan/node-backend.mjs:896-905): queueNameOf names a queue after the file path for any unresolved lowercase bare identifier, and extractQueues applies it to `new Queue(x)` as well as `new Worker(x, ...)`. The task asked only for a Worker without a resolvable name to be named after its file. A Queue built from a parameter or an unresolved import now becomes a queue row named for a file. Two Queues or Workers with different unresolved parameters in one file collapse into one row, and a Worker's file-named row never pairs with the Queue it consumes. The file header still says nothing is guessed. nb14 covers only the Worker case, so the Queue behaviour is untested.\nResolution asked: Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue.",
+          "files": [
+            "scripts/lib/prescan/generic.mjs",
+            "scripts/lib/prescan/node-backend.mjs",
+            "tests/prescan-python.test.mjs",
+            "tests/prescan-node-backend.test.mjs",
+            "scripts/lib/prescan/generic.mjs",
+            "scripts/lib/prescan/node-backend.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-python.test.mjs: WITH recent AS (...) SELECT ... FROM recent, EXTRACT(year FROM created_at), SUBSTRING(s FROM 2), TRIM(BOTH FROM s) and IS DISTINCT FROM x yield no table ref, while a real FROM orders still does",
+              "tests/prescan-node-backend.test.mjs: new Queue(param) with an unresolved lowercase identifier lands in skipped.queues, new Worker(param, ...) is still named after its file"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "scope: scripts/lib/prescan/generic.mjs, scripts/lib/prescan/node-backend.mjs, every path the finding(s) P10-R18, P10-R21 name"
+            },
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "no suite: scripts/lib/prescan/generic.mjs - no test sits beside it and no test file names it; name the one that tests it with `scope --files`, none was guessed"
+            },
+            {
+              "at": "2026-10-31T15:04:37Z",
+              "text": "no suite: scripts/lib/prescan/node-backend.mjs - 2 test files name it and none is named for it (tests/prescan-node-backend.test.mjs, tests/prescan-wiring.test.mjs); name the one that tests it with `scope --files`, none was guessed"
+            }
+          ],
+          "fixes": [
+            "P10-R18",
+            "P10-R21"
+          ]
+        },
+        {
+          "id": "P10.19-6rm",
+          "title": "Docs and tests after the review: synthesizer choice recorded, SKILL.md names the overlay location, the ledger command and the Write-tool check, README explains the 17 turns and the shares, rate table sourced, three tests made able to fail",
+          "status": "pending",
+          "description": "Phase review of P10, the documentation and test findings grouped into one task, to run after the three code fix tasks so the text describes the final code. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow.\n\nOwner decisions already taken, to record rather than reopen: (P10-R1) the balanced synthesizer stays on Sonnet; docs/design.md D11 gets one sentence saying the choice was confirmed by the round-6 eval results (eval 1 7/7, eval 2 7/7 with recall 0.67, eval 4 8/8) rather than by a fixture comparison. (P10-R14, P10-R16) skills/architecture-map/SKILL.md must state, in the build flow, where the --issues overlay is written when the caller asks for an output outside the repository and the exact command that prints the token ledger after render, so the orchestrator never reads script sources to find them (eval 2 spent five of its 17 turns on that); scripts/pipeline.mjs is not in this task, so the documentation route is the one to take, naming the existing command. The evals README gets one sentence under the table saying eval 2 exceeded the 12-turn target and why, and the shares sentence says they are shares of the per-agent stream cost (a lower bound) and names the residual or gives the shares for evals 2 and 4. (P10-R6) the residual risk of the Write tool on the explorer and synthesizer is documented beside hard rule 1 in SKILL.md together with the orchestrator check that the only new or changed file after a dispatch is the named fragment or synth path. (P10-R5) every row of the rate table in scripts/cost-profile.mjs names where and when it was read, and a row that does not match its source is corrected. (P10-R7, P10-R12, P10-R13) the tests named are made able to fail. Nothing in this task may name a client, a dataset or a repository: the denylist test runs in the gate.\n\nP10-R1 (med, agents/archmap-synthesizer.md:5): contradicts task clause: P10.3 says the balanced synthesizer model is an open choice, 'decide from the measured quality on the e2e fixtures and record the choice'. The diff sets `model: sonnet` / `effort: medium` (and the balanced row of the profile table) with no measurement. The executor's own claim says 'No LLM e2e quality run was possible here, so the choice rests on the reduced task, not on measured quality'. SKILL.md then records the choice as settled ('moved from Opus to Sonnet because the digest leaves it no structural reasoning') and never says it is unmeasured. This is the request's second open choice, made by the task without the evidence the task asked for.\nResolution asked: Either run the e2e fixture build with the synthesizer on Sonnet and on Opus and record the sequence quality (counts, cited lines valid, drafts kept or dropped) before keeping Sonnet, or keep `model: opus` for balanced until that is done. If Sonnet stays, state in the SKILL.md note and in the final report that the choice is unmeasured, so the owner can overrule it.\n\nP10-R5 (low, scripts/cost-profile.mjs:25-28): The embedded rate table gives no source for its prices, and its cache-read rates are inconsistent as a share of input (opus 0.05x, fable 0.025x, sonnet and haiku 0.1x). Phase success is stated in list-price USD per eval, so a wrong row silently moves the pass/fail of the 5 USD target. The test c7 only pins the table to itself.\nResolution asked: Add a comment naming where each row was read (the price page and date), and fix any row that does not match it. Keep the `unpriced` path for models not in the table.\n\nP10-R6 (low, agents/archmap-synthesizer.md:4): The synthesizer (and the explorer, agents/archmap-explorer.md:4) now has the Write tool while it reads text from a repository it does not control. 'Write is for that one path only' is a prompt rule; frontmatter cannot scope it, so an injected instruction in scanned content could make the agent write elsewhere. The synthesizer had no write tool and no Bash before this change. a2 and a6 test only that the word Write is listed.\nResolution asked: Document the residual risk beside hard rule 1 in SKILL.md, and have the orchestrator check after each dispatch that the only new or changed file is the named fragment or synth path (for example a `git status --porcelain` of the project and a listing of the work directory).\n\nP10-R7 (med, tests/skill.test.mjs:196): contradicts task clause: P10.4 asks that the turn and context targets be 'measured on the e2e fixture with canned fragments' with 'scripts/cost-profile.mjs on that transcript' showing max context under 80 K tokens. The executor's own claim says 'NOT measured: no live headless session was run'. The diff substitutes a character count (tests/pipeline.test.mjs p11) and an assertion that cannot fail, `1 + steps.length <= 12`, where s10 has just asserted steps.length === 6. The live figures (11 turns, 72 K) only arrive later in the P10.5 README, which this task does not cite.\nResolution asked: Drop the arithmetic assertion or replace it with a check against a cost-profile run of a recorded transcript fixture (turns from byAgent orchestrator, maxContext), and point the task's note at the P10.5 live measurement as the evidence for the 12-turn / 80 K targets.\n\nP10-R12 (low, tests/skill.test.mjs:200): s11 'the guard in s10 can fail' re-states the three regexes of s10 inline against a local string `bad`. It never calls s10's checks, so it keeps passing if s10's guard is weakened or deleted; it proves the regex literals match a string, not that the guard fails.\nResolution asked: Factor s10's checks into a function over the flow text, call it from both s10 and s11, and assert s11's `bad` flow makes it throw or return violations.\n\nP10-R13 (low, tests/pipeline.test.mjs:301): p8 ends with `if (sqlite.status !== 0) return;` after the skip half, so on a host without the sqlite3 CLI (CI images) the observed-entities half passes vacuously and the test reports green without any trace of the skip. The DuckDB branch (copy to a temp dir, `-readonly -list -separator -c`) has no case at all; the executor says it never ran.\nResolution asked: Use `t.skip()` (the node:test context) with the reason for the second half, and add a DuckDB case guarded the same visible way, or a stub CLI on PATH that prints the expected rows.\n\nP10-R14 (med, skills/architecture-map/evals/README.md:75): The table reports 17 orchestrator turns for eval 2 and says nothing else; the phase's desired outcome is a build in at most 12 turns through the driver and the README presents the result as meeting the cost targets. The filed outcome admits the ceiling was missed (five turns reading script sources for the overlay location and the ledger command) and left 'as a follow-up', but no task or note in the diff or README carries it. P10.5's own text says to file a missed target and stop for the owner; the README is the only artefact a reader sees.\nResolution asked: Add a sentence under the table that eval 2 exceeded the 12-turn target and why, and file the SKILL.md/issues-step gap as a task so the turn count is closed or explicitly accepted by the owner.\n\nP10-R15 (low, skills/architecture-map/evals/README.md:78-80): The shares for eval 1 (explorers 41, orchestrator 36, synthesizer 7 percent) sum to 84 percent and the remaining 16 are not named. They come from the per-agent table, whose output column and cost are the stream's lower bound after P10.8 (output is under-counted several times over and is the dominant price class), while the per-model total is the result event's figure. Shares are given for eval 1 only; the task asked for them per eval.\nResolution asked: Say that shares are of the per-agent stream cost (lower bound) or compute them against the result-event total and name the residual; give the shares for evals 2 and 4 or say why they are omitted.\n\nP10-R16 (low, skills/architecture-map/SKILL.md:87-88): P10.7 adds 'The ledger is copied to where the caller asked after render' to the build flow, but no step of pipeline.mjs does it and no command is given, so the orchestrator is left to improvise a copy (an extra turn, or a read of script sources, both of which the flow forbids). s13 only matches the sentence.\nResolution asked: Either make render copy usage.jsonl / the table to an --ledger-out path the caller names, or state the exact command and which step runs it, and test that.",
+          "files": [
+            "agents/archmap-synthesizer.md",
+            "agents/archmap-explorer.md",
+            "docs/design.md",
+            "scripts/cost-profile.mjs",
+            "skills/architecture-map/SKILL.md",
+            "skills/architecture-map/evals/README.md",
+            "tests/pipeline.test.mjs",
+            "tests/skill.test.mjs",
+            "tests/cost-profile.test.mjs",
+            "tests/agents.test.mjs",
+            "tests/evals.test.mjs",
+            "agents/archmap-synthesizer.md",
+            "scripts/cost-profile.mjs",
+            "tests/skill.test.mjs",
+            "tests/pipeline.test.mjs",
+            "skills/architecture-map/evals/README.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/cost-profile.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill.test.mjs: the SKILL.md build flow names the --issues overlay location for an outside output and the exact ledger command, and states the Write-tool check after a dispatch",
+              "tests/skill.test.mjs: s10's guard is a function called by s10 and s11, and s11 asserts the bad flow makes it report violations",
+              "tests/skill.test.mjs: the 12-turn check reads turns from a recorded cost-profile fixture, not from an arithmetic identity",
+              "tests/pipeline.test.mjs: p8 skips visibly with t.skip when sqlite3 is absent, and a DuckDB case runs against a stub CLI on PATH",
+              "tests/cost-profile.test.mjs: every rate row carries a source comment with a date",
+              "tests/evals.test.mjs: the evals README says eval 2 exceeded the 12-turn target and labels the shares as per-agent stream shares"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P10.16-6rm",
+            "P10.17-6rm",
+            "P10.18-6rm"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T15:05:32Z",
+              "text": "scope: agents/archmap-synthesizer.md, scripts/cost-profile.mjs, tests/skill.test.mjs, tests/pipeline.test.mjs, skills/architecture-map/evals/README.md, skills/architecture-map/SKILL.md, every path the finding(s) P10-R1, P10-R5, P10-R6, P10-R7, P10-R12, P10-R13, P10-R14, P10-R15, P10-R16 name"
+            },
+            {
+              "at": "2026-10-31T15:05:32Z",
+              "text": "scope: tests/cost-profile.test.mjs, the suite that tests scripts/cost-profile.mjs (the test file that names cost-profile.mjs)"
+            },
+            {
+              "at": "2026-10-31T15:05:32Z",
+              "text": "no suite: agents/archmap-synthesizer.md - a document, so no test of it is inferred; nothing names it as a file name in any test, tool or script"
+            },
+            {
+              "at": "2026-10-31T15:05:32Z",
+              "text": "no suite: skills/architecture-map/evals/README.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/diffmap.test.mjs, tests/evals.test.mjs, tests/glob.test.mjs, tests/prescan-core.test.mjs, tests/review-scan.test.mjs, tests/staleness.test.mjs"
+            },
+            {
+              "at": "2026-10-31T15:05:32Z",
+              "text": "no suite: skills/architecture-map/SKILL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/commands.test.mjs, tests/evals.test.mjs, tests/pipeline.test.mjs, tests/skill.test.mjs"
+            },
+            {
+              "at": "2026-10-31T15:05:32Z",
+              "text": "no test runner in this task's gate for the test P10-R1, P10-R5, P10-R6, P10-R7, P10-R12, P10-R13, P10-R14, P10-R15, P10-R16 asks for: the gate is ['node --test'], derived as the phase's testGate, wide -- no sibling task in P10 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P10-R1",
+            "P10-R5",
+            "P10-R6",
+            "P10-R7",
+            "P10-R12",
+            "P10-R13",
+            "P10-R14",
+            "P10-R15",
+            "P10-R16"
+          ]
         }
       ],
       "area": "cost",
@@ -6353,7 +6839,8 @@
       "P10.11-6rm",
       "P10.14-6rm",
       "P10.13-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P10.17-6rm"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
@@ -6374,7 +6861,8 @@
       "P10.2-2xj",
       "P10.10-6rm",
       "P10.11-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.18-6rm"
     ],
     "tests/prescan-core.test.mjs": [
       "P3.1",
@@ -6404,7 +6892,8 @@
       "P10.10-6rm",
       "P10.11-6rm",
       "P10.13-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P10.18-6rm"
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
@@ -6424,7 +6913,8 @@
       "P10.2-2xj",
       "P10.10-6rm",
       "P10.13-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.18-6rm"
     ],
     "tests/fixtures/repos/node-api/README.md": [
       "P3.4",
@@ -6435,7 +6925,8 @@
       "P10.2-2xj",
       "P10.10-6rm",
       "P10.14-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.18-6rm"
     ],
     "tests/fixtures/repos/python-api/pyproject.toml": [
       "P3.2"
@@ -6604,7 +7095,8 @@
     ],
     "tests/prescan-wiring.test.mjs": [
       "P3.5-cdj",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P10.17-6rm"
     ],
     "skills/architecture-map/references/model-schema.md": [
       "P4.1",
@@ -6672,7 +7164,8 @@
       "P10.4-2xj",
       "P10.7-6rm",
       "P10.10-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.19-6rm"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -6685,7 +7178,8 @@
       "P10.4-2xj",
       "P10.7-6rm",
       "P10.10-6rm",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.19-6rm"
     ],
     "agents/archmap-explorer.md": [
       "P4.5",
@@ -6695,13 +7189,15 @@
       "P10.6-6rm",
       "P10.7-6rm",
       "P10.10-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.19-6rm"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5",
       "P10.3-2xj",
       "P10.4-2xj",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P10.19-6rm"
     ],
     "agents/archmap-reviewer.md": [
       "P4.5",
@@ -6715,7 +7211,8 @@
       "P10.7-6rm",
       "P10.10-6rm",
       "P10.12-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.19-6rm"
     ],
     "scripts/merge.mjs": [
       "P5.1",
@@ -6730,7 +7227,8 @@
       "P10.11-6rm",
       "P10.12-6rm",
       "P10.13-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.17-6rm"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -6745,7 +7243,8 @@
       "P10.10-6rm",
       "P10.12-6rm",
       "P10.13-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.17-6rm"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -6838,7 +7337,8 @@
     "docs/design.md": [
       "BF1.1",
       "P10.4-2xj",
-      "P10.5-2xj"
+      "P10.5-2xj",
+      "P10.19-6rm"
     ],
     "scripts/export.mjs": [
       "P7.1",
@@ -6876,12 +7376,14 @@
     "skills/architecture-map/evals/README.md": [
       "P8.1",
       "P8.4",
-      "P10.5-2xj"
+      "P10.5-2xj",
+      "P10.19-6rm"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
       "P8.2",
-      "P8.6"
+      "P8.6",
+      "P10.19-6rm"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"
@@ -6897,11 +7399,13 @@
     ],
     "scripts/cost-profile.mjs": [
       "P10.1-2xj",
-      "P10.8-6rm"
+      "P10.8-6rm",
+      "P10.19-6rm"
     ],
     "tests/cost-profile.test.mjs": [
       "P10.1-2xj",
-      "P10.8-6rm"
+      "P10.8-6rm",
+      "P10.19-6rm"
     ],
     "tests/fixtures/cost/stream-sample.jsonl": [
       "P10.1-2xj",
@@ -6927,7 +7431,8 @@
       "P10.12-6rm",
       "P10.13-6rm",
       "P10.14-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P10.16-6rm"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -6938,7 +7443,9 @@
       "P10.12-6rm",
       "P10.13-6rm",
       "P10.14-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P10.16-6rm",
+      "P10.19-6rm"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -7038,6 +7545,80 @@
       "taskId": "BF1.4",
       "fixedIn": "61959cbd358a",
       "notes": null
+    }
+  ],
+  "proposals": [
+    {
+      "id": "PROP-1-6rm",
+      "name": "User-facing documentation of what a build costs and delivers, with evidence",
+      "status": "proposed",
+      "origin": "audit-task add-phase --park",
+      "createdISO": "2026-10-31T15:23:33Z",
+      "branch": "audit/p10-scripts-instead-of-agents-cut",
+      "benefit": "A prospective user of the plugin can read, in the tracked documentation (README and the skill's evals README), what a build costs on each eval at list prices, how many orchestrator turns and how much context it takes, what the map contains and how each claim was measured (cost-profile on the stream transcript, grading against the eval expectations, test counts), with the before-and-after of the script-driven flow; every number points at the script or log that produced it; no client, dataset or repository name appears.",
+      "openQuestions": [],
+      "materializedAs": null,
+      "materializedAt": null,
+      "payload": {
+        "phase": {
+          "id": "P11-6rm",
+          "title": "User-facing documentation of what a build costs and delivers, with evidence",
+          "status": "pending",
+          "description": "",
+          "desiredOutcome": "A prospective user of the plugin can read, in the tracked documentation (README and the skill's evals README), what a build costs on each eval at list prices, how many orchestrator turns and how much context it takes, what the map contains and how each claim was measured (cost-profile on the stream transcript, grading against the eval expectations, test counts), with the before-and-after of the script-driven flow; every number points at the script or log that produced it; no client, dataset or repository name appears.",
+          "testGate": [
+            "test"
+          ],
+          "blockedBy": [],
+          "baseRef": null,
+          "branch": null,
+          "mergedAt": null,
+          "review": {
+            "tool": null,
+            "model": "sonnet",
+            "status": "pending",
+            "findings": []
+          },
+          "summary": null,
+          "tasks": []
+        }
+      }
+    },
+    {
+      "id": "PROP-2-6rm",
+      "name": "Release 1.0.0 benchmark: the same task against other architecture and codebase-mapping plugins",
+      "status": "proposed",
+      "origin": "audit-task add-phase --park",
+      "createdISO": "2026-10-31T15:23:33Z",
+      "branch": "audit/p10-scripts-instead-of-agents-cut",
+      "benefit": "After 1.0.0 is cut, the same build task on the same evaluation repositories is run with this plugin and with two or more comparable plugins or skills for Claude Code; a tracked, repo-free report compares cost, duration, orchestrator turns, expectation pass rate, issue recall and the owner's judgement of the maps, with the method and the transcripts' cost profiles as evidence.",
+      "openQuestions": [],
+      "materializedAs": null,
+      "materializedAt": null,
+      "payload": {
+        "phase": {
+          "id": "P12-6rm",
+          "title": "Release 1.0.0 benchmark: the same task against other architecture and codebase-mapping plugins",
+          "status": "pending",
+          "description": "",
+          "desiredOutcome": "After 1.0.0 is cut, the same build task on the same evaluation repositories is run with this plugin and with two or more comparable plugins or skills for Claude Code; a tracked, repo-free report compares cost, duration, orchestrator turns, expectation pass rate, issue recall and the owner's judgement of the maps, with the method and the transcripts' cost profiles as evidence.",
+          "testGate": [
+            "test"
+          ],
+          "blockedBy": [],
+          "baseRef": null,
+          "branch": null,
+          "mergedAt": null,
+          "review": {
+            "tool": null,
+            "model": "sonnet",
+            "status": "pending",
+            "findings": []
+          },
+          "summary": null,
+          "tasks": []
+        }
+      }
     }
   ]
 }

@@ -11,7 +11,8 @@
 //
 // plan    starts a fresh build in <work> (it removes the files an earlier build left there; without --work that is
 //         <os tmpdir>/archmap/<short hash of the repo path>, a place a subagent may write, which Claude Code does not
-//         allow outside the project and the OS temp dir), runs prescan.mjs (the per-area extracts and the explorers'
+//         allow outside the project and the OS temp dir; both levels are made mode 0o700, and one that is a symlink or
+//         another user's exits 2), runs prescan.mjs (the per-area extracts and the explorers'
 //         capped summaries of them), takes its areas as the partition (at most 8), and writes one explorer brief per
 //         area, <work>/briefs/<area>.md, under BRIEF_CAP characters: the area, its globs, the summary and fragment
 //         paths (the full extract is merge.mjs's: it makes the entities, relations and queue edges from it, so the
@@ -48,14 +49,16 @@
 // Every step prints ONE JSON line: {step, ok, exit, ..., runs: [{script, args, exit, messages?}], findings, next}.
 // Nothing is hidden (each wrapped script's exit code and its messages, capped), and nothing big is printed: no
 // fragment, extract, digest or model content. Wrapped scripts run with this Node, from the analysed repo's root,
-// never through a shell. The scanned code is never executed. Exit 0 ok; 1 a wrapped script found the result invalid
-// (merge, validate, layout or render exit 1); 2 usage error, missing work dir, plan, fragment or synth file, or a
-// wrapped script's usage error. Node >= 18, ESM, zero npm dependencies.
+// never through a shell. The scanned code is never executed: python3, the duckdb fallback, runs isolated (-I) from a
+// temp directory of ours, so a duckdb.py in the repo is never imported. Exit 0 ok; 1 a wrapped script found the
+// result invalid (merge, validate, layout or render exit 1); 2 usage error, missing work dir, plan, fragment or
+// synth file, or a wrapped script's usage error. Node >= 18, ESM, zero npm dependencies.
 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
-  copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync,
+  chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync,
+  statSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from 'node:path';
@@ -172,36 +175,26 @@ function usageMap(pairs, allowed, step) {
 
 /**
  * Match the explorers' --usage labels to areas, never refusing over a label: the exact area id first, then a unique
- * prefix of one, then position among the areas that still have no row; what is left over is recorded under its own
- * label. Returns the row for each area, the unmatched rows and a warning for every guess.
+ * prefix of one. Any other label is recorded under its own name with a warning, never booked on an area by position:
+ * a guess would put one explorer's tokens on another area and the ledger and its shares would be wrong without a sign.
+ * Returns the row for each area, the unmatched rows and a warning for each of them.
  */
 export function matchUsage(pairs, areas) {
   const byArea = new Map();
-  const warnings = [];
-  let pending = [];
+  const pending = [];
   for (const p of pairs) {
     const row = parseUsage(p);
     if (areas.includes(row.label) && !byArea.has(row.label)) byArea.set(row.label, row);
     else pending.push(row);
   }
-  pending = pending.filter((row) => {
+  const extras = pending.filter((row) => {
     const hits = areas.filter((a) => a.startsWith(row.label));
     if (hits.length !== 1 || byArea.has(hits[0])) return true;
     byArea.set(hits[0], { ...row, label: hits[0] });
     return false;
   });
-  const free = areas.filter((a) => !byArea.has(a));
-  const extras = [];
-  for (const row of pending) {
-    const area = free.shift();
-    if (area === undefined) {
-      extras.push(row);
-      warnings.push(`--usage ${row.label}: no area is left without a row; recorded under its own label`);
-    } else {
-      byArea.set(area, { ...row, label: area });
-      warnings.push(`--usage ${row.label} is not an area id; matched to ${area} by position`);
-    }
-  }
+  const warnings = extras.map((row) =>
+    `--usage ${row.label}: not an area id, nor a unique prefix of one without a row; recorded under its own label`);
   return { byArea, extras, warnings };
 }
 
@@ -273,6 +266,31 @@ const isDir = (p) => {
     return false;
   }
 };
+
+/**
+ * Make `dir` a directory of the current user that nobody else can enter (mode 0o700), creating it when it is
+ * missing, or say why it cannot be one: it is a symlink, not a directory, or owned by another uid. Returns null when
+ * it is fine, else the reason. Where the platform has no uids (Windows) only the symlink and directory checks apply.
+ */
+export function privateDir(dir, uid = process.getuid?.()) {
+  let st;
+  try {
+    st = lstatSync(dir);
+  } catch (e) {
+    if (e.code !== 'ENOENT') return `${dir} cannot be read: ${e.message}`;
+    try {
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      st = lstatSync(dir);
+    } catch (err) {
+      return `${dir} cannot be made: ${err.message}`;
+    }
+  }
+  if (st.isSymbolicLink()) return `${dir} is a symlink`;
+  if (!st.isDirectory()) return `${dir} is not a directory`;
+  if (uid !== undefined && st.uid !== uid) return `${dir} is not owned by the current user (uid ${uid}, owner ${st.uid})`;
+  if ((st.mode & 0o777) !== 0o700) chmodSync(dir, 0o700);
+  return null;
+}
 
 function git(repo, args) {
   const r = spawnSync('git', args, { cwd: repo, encoding: 'utf8' });
@@ -358,7 +376,9 @@ const distinctOf = (xs) => [...new Set(xs.filter((x) => x !== undefined && x !==
  * The coverage floor of one area, counted from its extract: entry-point groups (by directory), route groups (by
  * file), stores (by schema file), queues, jobs and external clients, plus, where the area has any, middleware modules
  * (a module path, or `<file>:<name>` for a middleware python code names) and modules (the sibling modules of a python
- * entry point). `names` is what each kind holds, for the brief.
+ * entry point). `names` is what each kind holds, for the brief. The floor is clamped to CAPS.nodes, the most nodes
+ * merge.mjs keeps of a fragment: a floor above it would send the explorer after nodes the merge then drops. `total`
+ * is the unclamped sum, which the brief states when it is over the cap.
  */
 export function coverageFloor(extract) {
   const x = extract ?? {};
@@ -380,18 +400,23 @@ export function coverageFloor(extract) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   // the workspace apps of the area ride along: the brief names them, they are not part of the floor (merge makes their nodes)
   const apps = list(x.workspaceApps).filter((a) => a && typeof a.dir === 'string');
-  return { floor: Math.max(1, total), counts, names: parts, apps };
+  return { floor: Math.min(CAPS.nodes, Math.max(1, total)), total, counts, names: parts, apps };
 }
 
 const shortName = (n) => String(n).split('/').slice(-2).join('/');
 
 /**
  * The two floor lines: the number with its parts, and what each kind must cover (compact, cut at `room`; a room of 0
- * leaves the second line out, the count stays).
+ * leaves the second line out, the count stays). Over the node cap the first line says how many the extract holds;
+ * `terse` keeps that to the number and lists only the kinds the area has.
  */
-function floorLines(cov, room = FLOOR_ROOM) {
-  const parts = Object.entries(cov.counts).map(([k, n]) => `${k}=${n}`).join(', ');
-  const head = `- Coverage floor: at least ${cov.floor} nodes (${parts}). A fragment with fewer nodes than this floor is incomplete.`;
+function floorLines(cov, room = FLOOR_ROOM, terse = false) {
+  // terse leaves the kinds of which there are none out of the parts
+  const parts = Object.entries(cov.counts).filter(([, n]) => !terse || n > 0).map(([k, n]) => `${k}=${n}`).join(', ');
+  const over = (cov.total ?? 0) > CAPS.nodes
+    ? ` The extract holds ${cov.total}, more than the ${CAPS.nodes}-node cap${terse ? '' : ': map the most structural'}.` : '';
+  const incomplete = terse ? 'A fragment under the floor is incomplete.' : 'A fragment with fewer nodes than this floor is incomplete.';
+  const head = `- Coverage floor: at least ${cov.floor} nodes (${parts}).${over} ${incomplete}`;
   const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients'], ['middleware', 'middleware modules'], ['modules', 'modules']]
     .map(([label, key]) => [label, cov.names[key] ?? []])
     .filter(([, v]) => v.length)
@@ -418,35 +443,43 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
   const lines = [
     `# archmap explorer brief: ${area.id}`,
     '',
+    // terse: the title, the paths and the contract say what the intro does
     ...(terse
-      ? ['You map one area into one JSON fragment; this brief is all you need.']
+      ? []
       : ['You map one area into one JSON fragment. This brief carries the contract, the caps and the vocabulary; you need no',
-        'reference file.']),
-    '',
+        'reference file.', '']),
     short
-      ? `- Area: ${code(area.id)}, ${area.files} files.`
+      ? `- Area: ${code(area.id)}, ${area.files} files${terse ? `, profile ${profile}` : ''}.`
       : `- Area: ${code(area.id)} (${area.title}), ${area.files} files, stacks: ${list(area.stacks).join(', ') || 'none recognised'}.`,
-    `- Globs, your boundary (map nothing outside them): ${capGlobs(list(area.globs), globRoom)}.`,
+    `- Globs${terse ? '' : ', your boundary'} (map nothing outside them): ${capGlobs(list(area.globs), globRoom)}.`,
     summary
-      ? `- Summary of prescan's extract, read it first: ${summary}`
+      ? `- ${terse ? 'Summary' : 'Summary of prescan\'s extract'}, read it first: ${summary}`
       : '- Summary: none (this area is not in the current prescan partition); start from the globs.',
     `- Fragment, the one file you write: ${fragment}`,
-    `- Profile ${profile}.`,
-    ...floorLines(coverage ?? coverageFloor(null), floorRoom),
+    ...(short && terse ? [] : [`- Profile ${profile}.`]),
+    ...floorLines(coverage ?? coverageFloor(null), floorRoom, terse),
     ...appLines(coverage?.apps, short, appShort),
   ];
-  if (previous) lines.push(`- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
+  // --update: the model the ids come from. The terse rung keeps the path and the ask, not the how
+  if (previous) {
+    lines.push(terse
+      ? `- Previous model (keep its ids): ${previous}`
+      : `- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
+  }
   if (stackRef) lines.push(`- Only if the summary leaves a framework question open: ${stackRef}`);
   lines.push(
     '',
     '## Work',
     '',
-    `1. Read the summary, then make at least 6 and at most ${EXPLORER_TOOL_CALLS} tool calls in all, the Write included.`,
-    '   Grep for the next fact, then a line-range Read; never read a whole tree or walk it file by file.',
-    '2. One node per feature directory of a frontend, per router, handler or listed module of a backend, plus every',
-    terse
-      ? '   store, queue, job and external client.'
-      : '   store, queue, job and external client; then what prescan cannot see: what a handler does, which store it uses.',
+    ...(terse
+      ? [`1. Read the summary, then make at least 6 and at most ${EXPLORER_TOOL_CALLS} tool calls in all, the Write included:`,
+        '   Grep, then a line-range Read; never a whole tree.',
+        '2. A node per frontend feature directory, backend router, handler or listed module, store, queue, job and',
+        '   external client.']
+      : [`1. Read the summary, then make at least 6 and at most ${EXPLORER_TOOL_CALLS} tool calls in all, the Write included.`,
+        '   Grep for the next fact, then a line-range Read; never read a whole tree or walk it file by file.',
+        '2. One node per feature directory of a frontend, per router, handler or listed module of a backend, plus every',
+        '   store, queue, job and external client; then what prescan cannot see: what a handler does, which store it uses.']),
     '3. Never execute the project\'s code. Bash only for read-only database introspection; Write only the fragment path.',
     '',
     '## Fragment contract',
@@ -582,10 +615,12 @@ function writeBrief(path, text) {
 // What an explorer brief gives up, in order, when it would pass the cap: the optional lines (the stack reference),
 // then the area line (the area's title and stacks, the long glob list), then the floor's list of names, then the
 // whole names line (the floor keeps its count and parts), the globs down to 40 characters, the app line down to a
-// count, and the intro and the last clause of the work step down to their gist. The last four rungs are terminal:
-// what is left is the contract, the paths, the floor's count and fixed text, so a brief ends under BRIEF_CAP even
-// with a 200-character work path (tests/pipeline.test.mjs p29); writeBrief's throw is only a guard against a change
-// that breaks that. The contract and the paths are never cut.
+// count, and, last, the wording: the intro goes, the labels, the floor line (its kinds of none, its cap note), the
+// work steps and the --update previous-model line (to its path and the ask to keep the ids) down to their gist. The
+// last four rungs are terminal: what is left is the contract, the paths, the floor's count and fixed text, so a
+// brief ends under BRIEF_CAP even with a 200-character work path and, on --update, a previous-model path as long
+// (tests/pipeline.test.mjs p29); writeBrief's throw is only a guard against a change that breaks that. The
+// contract and the paths are never cut.
 export const BRIEF_TRIMS = [
   { drop: 'stack reference line', opts: { stackRef: null } },
   { drop: 'area title and stacks', opts: { stackRef: null, short: true } },
@@ -595,7 +630,7 @@ export const BRIEF_TRIMS = [
   { drop: 'floor names (the count stays)', opts: { stackRef: null, short: true, globRoom: 80, floorRoom: 0 } },
   { drop: 'globs beyond 40 characters', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0 } },
   { drop: 'app names (their count stays)', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0, appShort: true } },
-  { drop: 'intro and the work step\'s last clause', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0, appShort: true, terse: true } },
+  { drop: 'intro, and the labels, floor line, work steps and previous-model line to their gist', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0, appShort: true, terse: true } },
 ];
 
 /** The explorer brief under BRIEF_CAP, with the note of what was trimmed (null when nothing was). */
@@ -632,8 +667,15 @@ function plan(o, ctx) {
   const repo = resolve(repoArg);
   if (!isDir(repo)) throw new StepError(`repo ${repoArg} is not a directory`);
   // subagents write their fragments here, and Claude Code denies a subagent a Write outside the project and the OS
-  // temp dir when nobody can approve it: the default is a directory under the OS temp dir, one per repo path
+  // temp dir when nobody can approve it: the default is a directory under the OS temp dir, one per repo path. Its
+  // name is predictable and the temp dir may be shared (/tmp), so both levels must be the user's own and private
   const work = resolve(o.work ?? join(tmpdir(), 'archmap', createHash('sha256').update(repo).digest('hex').slice(0, 12)));
+  if (o.work === undefined) {
+    for (const dir of [dirname(work), work]) {
+      const refused = privateDir(dir);
+      if (refused) throw new StepError(`default work dir: ${refused}; remove it or pass --work <dir>`);
+    }
+  }
   const out = resolve(o.out ?? join(repo, 'docs/architecture'));
   const inside = relative(repo, work);
   if (inside === '' || (!inside.startsWith('..') && !isAbsolute(inside))) {
@@ -783,6 +825,13 @@ const DUCKDB_PY =
   'for r in con.execute(sys.argv[2]).fetchall():\n' +
   "    print('\\t'.join('' if v is None else str(v) for v in r))\n";
 
+/**
+ * python3 for the duckdb module, never able to load the scanned repo's code (scanner safety): isolated mode (-I), so
+ * neither the working directory nor PYTHON* variables reach sys.path, run from `cwd`, a temp directory of ours, never
+ * the analysed repo's root the driver is run from. A duckdb.py there is never imported.
+ */
+const python = (args, cwd) => spawnSync('python3', ['-I', ...args], { encoding: 'utf8', cwd });
+
 /** How a database kind can be read here: {tool} when it can, {reason} naming what is missing when it cannot. */
 function readerFor(kind) {
   const cli = DB_CLI[kind];
@@ -790,7 +839,13 @@ function readerFor(kind) {
   const missing = `${cli} CLI not found on PATH`;
   // sqlite3 is in python's standard library, so a python fallback would make the CLI check meaningless: duckdb only
   if (kind !== 'duckdb') return { reason: missing };
-  const py = spawnSync('python3', ['-c', 'import duckdb'], { encoding: 'utf8' });
+  const probeDir = mkdtempSync(join(tmpdir(), 'archmap-probe-'));
+  let py;
+  try {
+    py = python(['-c', 'import duckdb'], probeDir);
+  } finally {
+    rmSync(probeDir, { recursive: true, force: true });
+  }
   if (py.error) return { reason: `${missing} and python3 is not on PATH` };
   if (py.status !== 0) return { reason: `${missing} and the python duckdb module is not installed` };
   return { tool: 'python3 duckdb module' };
@@ -811,7 +866,7 @@ function queryColumns(kind, file, tool) {
         ? ['duckdb', ['-readonly', '-noheader', '-list', '-separator', '\t', copy, '-c', DUCKDB_COLUMNS]]
         : ['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]];
     }
-    const r = spawnSync(run[0], run[1], { encoding: 'utf8' });
+    const r = run[0] === 'python3' ? python(run[1], tmp) : spawnSync(run[0], run[1], { encoding: 'utf8' });
     if (r.error || r.status !== 0) return { error: clip(r.stderr || r.error?.message || 'failed')[0] ?? 'failed' };
     const tables = new Map();
     for (const line of r.stdout.split('\n')) {
@@ -847,6 +902,7 @@ function introspect(ctx, state, fragmentsDir) {
   const pending = [];
   const readers = new Map();
   const repoRoot = resolve(state.repo);
+  const realRoot = existsSync(repoRoot) ? realpathSync(repoRoot) : repoRoot;
   for (const db of state.databases) {
     const file = resolve(repoRoot, db.path);
     if (!file.startsWith(repoRoot + sep)) {
@@ -857,14 +913,20 @@ function introspect(ctx, state, fragmentsDir) {
       rows.push(skippedRow(db, `${db.path} does not exist in the repository: a ${db.kind} file is created when the program runs, so there is no schema to read`));
       continue;
     }
-    if (!statSync(file).isFile()) {
+    // the path is inside, but a symlink on it may lead out: compare where it really is, and read that file only
+    const real = realpathSync(file);
+    if (!real.startsWith(realRoot + sep)) {
+      rows.push(skippedRow(db, `${db.path} is a link that leads outside the repository, so it is not read`));
+      continue;
+    }
+    if (!statSync(real).isFile()) {
       rows.push(skippedRow(db, `${db.path} is not a file`));
       continue;
     }
     if (!readers.has(db.kind)) readers.set(db.kind, readerFor(db.kind));
     const reader = readers.get(db.kind);
     if (reader.reason) rows.push(skippedRow(db, reader.reason));
-    else pending.push({ ...db, file, tool: reader.tool });
+    else pending.push({ ...db, file: real, tool: reader.tool });
   }
   const entities = [];
   if (pending.length) {

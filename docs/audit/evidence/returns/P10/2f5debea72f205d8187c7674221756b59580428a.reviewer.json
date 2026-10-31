@@ -1,0 +1,489 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "agents/archmap-synthesizer.md:5",
+      "issue": "contradicts task clause: P10.3 says the balanced synthesizer model is an open choice, 'decide from the measured quality on the e2e fixtures and record the choice'. The diff sets `model: sonnet` / `effort: medium` (and the balanced row of the profile table) with no measurement. The executor's own claim says 'No LLM e2e quality run was possible here, so the choice rests on the reduced task, not on measured quality'. SKILL.md then records the choice as settled ('moved from Opus to Sonnet because the digest leaves it no structural reasoning') and never says it is unmeasured. This is the request's second open choice, made by the task without the evidence the task asked for.",
+      "resolution": "Either run the e2e fixture build with the synthesizer on Sonnet and on Opus and record the sequence quality (counts, cited lines valid, drafts kept or dropped) before keeping Sonnet, or keep `model: opus` for balanced until that is done. If Sonnet stays, state in the SKILL.md note and in the final report that the choice is unmeasured, so the owner can overrule it."
+    },
+    {
+      "id": 2,
+      "severity": "med",
+      "file": "scripts/merge.mjs:158-165",
+      "issue": "contradicts task clause: P10.3 asks for 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'. zoneFor() (158-165) derives a zone only from the node kind and the area's stack and never reads the slice's `containers` or directory layout; the zone work otherwise only unifies spellings (resolveZone). deriveLayer's access loop (about 455-475) reads `sqlTables` only: no ORM-call evidence and no queue-evidence access row is produced. The synthesizer can no longer add access rows, so any access the explorers did not emit is lost. The executor's claim says 'SQL access rows' and so describes the narrower diff accurately, but the scope is narrower than the clause.",
+      "resolution": "Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them."
+    },
+    {
+      "id": 3,
+      "severity": "med",
+      "file": "scripts/merge.mjs:607-620",
+      "issue": "An unreadable fragment file becomes the stub `{area, skipped:{count:1,...}}` (line 618). In update mode (`--previous` with `--areas`) that stub counts as the area's fragment (it is in `present`, so the existing 'no fragment' conflict does not fire), and the area's previous nodes, edges, entities and access rows are removed with nothing replacing them; only locked/noted nodes survive. Before this change a broken file threw a UsageError (exit 2) and wrote nothing. The loss is visible only as a `skipped` row in meta.sources; with no --strict the run exits 0. A single explorer that writes a truncated JSON file therefore erases a good area on `/archmap:update`. m12d covers only the full-build case.",
+      "resolution": "In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive."
+    },
+    {
+      "id": 4,
+      "severity": "med",
+      "file": "scripts/merge.mjs:431",
+      "issue": "Every derived edge is written `confidence: 'verified'`, but the http links behind them come from prescan's segment matcher, where a `*` (a template or `{param}` segment) on either side matches anything and `served.find` takes the first route of another area (scripts/prescan.mjs:284 at f39a917). A call such as `fetch(`${base}/x`)` or `/${id}` therefore links to any other-area route with the same segment count (for example `/health`) and the edge is stamped verified with citations on both sides. Import edges are cited by the first line that mentions the target's basename (importLine), which can pick a different module with the same file name. Inferred matches shown as verified conflict with the evidence-and-honesty rule.",
+      "resolution": "Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches."
+    },
+    {
+      "id": 5,
+      "severity": "low",
+      "file": "scripts/cost-profile.mjs:25-28",
+      "issue": "The embedded rate table gives no source for its prices, and its cache-read rates are inconsistent as a share of input (opus 0.05x, fable 0.025x, sonnet and haiku 0.1x). Phase success is stated in list-price USD per eval, so a wrong row silently moves the pass/fail of the 5 USD target. The test c7 only pins the table to itself.",
+      "resolution": "Add a comment naming where each row was read (the price page and date), and fix any row that does not match it. Keep the `unpriced` path for models not in the table."
+    },
+    {
+      "id": 6,
+      "severity": "low",
+      "file": "agents/archmap-synthesizer.md:4",
+      "issue": "The synthesizer (and the explorer, agents/archmap-explorer.md:4) now has the Write tool while it reads text from a repository it does not control. 'Write is for that one path only' is a prompt rule; frontmatter cannot scope it, so an injected instruction in scanned content could make the agent write elsewhere. The synthesizer had no write tool and no Bash before this change. a2 and a6 test only that the word Write is listed.",
+      "resolution": "Document the residual risk beside hard rule 1 in SKILL.md, and have the orchestrator check after each dispatch that the only new or changed file is the named fragment or synth path (for example a `git status --porcelain` of the project and a listing of the work directory)."
+    },
+    {
+      "id": 7,
+      "severity": "med",
+      "file": "tests/skill.test.mjs:196",
+      "issue": "contradicts task clause: P10.4 asks that the turn and context targets be 'measured on the e2e fixture with canned fragments' with 'scripts/cost-profile.mjs on that transcript' showing max context under 80 K tokens. The executor's own claim says 'NOT measured: no live headless session was run'. The diff substitutes a character count (tests/pipeline.test.mjs p11) and an assertion that cannot fail, `1 + steps.length <= 12`, where s10 has just asserted steps.length === 6. The live figures (11 turns, 72 K) only arrive later in the P10.5 README, which this task does not cite.",
+      "resolution": "Drop the arithmetic assertion or replace it with a check against a cost-profile run of a recorded transcript fixture (turns from byAgent orchestrator, maxContext), and point the task's note at the P10.5 live measurement as the evidence for the 12-turn / 80 K targets."
+    },
+    {
+      "id": 8,
+      "severity": "med",
+      "file": "scripts/merge.mjs:884-887",
+      "issue": "hubOf() resolves `to: \"area:<id>\"` only through `placed`, which holds only the areas whose fragments are in this run. In update mode (--areas) the explorers of the affected areas are told to name other areas as `area:<id>`; the targets are mostly unaffected areas whose nodes sit in `nodes` from --previous but not in `placed`. hubOf returns null, the edge is deleted and a dropped-ref row says the node 'does not exist' although it does. Every cross-area edge from a re-explored area to an untouched one is lost on update. The tests (m19, m19b, p13) all run a full build, so none reaches this.",
+      "resolution": "Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area."
+    },
+    {
+      "id": 9,
+      "severity": "med",
+      "file": "scripts/pipeline.mjs:355",
+      "issue": "coverageFloor() returns `floor: Math.max(1, total)` with no upper bound, and the brief states it as 'at least N nodes ... a fragment with fewer nodes than this floor is incomplete'. The same brief (CAPS) and the merge cap a fragment at 40 nodes, so a large area (30 router modules plus stores, queues and clients; p18 builds 30 route groups, a bigger monorepo area passes 40) gets a floor the explorer is told to reach and the merge then truncates. The brief contradicts itself and invites the explorer to spend its calls on nodes that are dropped.",
+      "resolution": "Clamp the floor to CAPS.nodes (and say in the brief when the extract holds more than the cap), and add a p18-style case with more than 40 groups."
+    },
+    {
+      "id": 10,
+      "severity": "low",
+      "file": "scripts/pipeline.mjs:169-195",
+      "issue": "matchUsage() assigns an unmatched --usage label to the first area that still lacks a row 'by position' (and by unique prefix). The orchestrator copies labels off completion lines that carry the description, not the area id, so a wrong guess silently books one explorer's tokens and duration on another area; only a warning in the JSON says so, and the ledger and the share figures built from it are then wrong. This leniency (and the misc partition naming, brief trimming and the temp-dir default work dir) is not in P10.6's description, which covers only dangling references; it is in the task's tests.add list.",
+      "resolution": "Match on exact id and unique prefix only; record everything else under its own label (as the extras already are) instead of assigning it to an area by position, or have plan print an area-to-description map the orchestrator can copy."
+    },
+    {
+      "id": 11,
+      "severity": "low",
+      "file": "scripts/pipeline.mjs:493",
+      "issue": "The default work dir is <os tmpdir>/archmap/<12 hex of sha256(repo path)>: predictable, and shared on a multi-user Linux host where tmpdir is /tmp. plan then rmSync()s the BUILD_FILES inside it and writes briefs, extracts and fragments there with the process umask. Another local user can pre-create /tmp/archmap or that directory (or symlink 'fragments', 'briefs') so plan removes or writes through into places it picked, and the subagents read the briefs from a directory others can write (a brief is an instruction to an agent that has Write). p16 tests only the happy path.",
+      "resolution": "Create the directory with mode 0o700, lstat it and refuse (exit 2) when it is a symlink or not owned by the current uid, or use fs.mkdtempSync under the tmpdir and print the result; add a p16 case for a pre-existing foreign-owned or symlinked directory."
+    },
+    {
+      "id": 12,
+      "severity": "low",
+      "file": "tests/skill.test.mjs:200",
+      "issue": "s11 'the guard in s10 can fail' re-states the three regexes of s10 inline against a local string `bad`. It never calls s10's checks, so it keeps passing if s10's guard is weakened or deleted; it proves the regex literals match a string, not that the guard fails.",
+      "resolution": "Factor s10's checks into a function over the flow text, call it from both s10 and s11, and assert s11's `bad` flow makes it throw or return violations."
+    },
+    {
+      "id": 13,
+      "severity": "low",
+      "file": "tests/pipeline.test.mjs:301",
+      "issue": "p8 ends with `if (sqlite.status !== 0) return;` after the skip half, so on a host without the sqlite3 CLI (CI images) the observed-entities half passes vacuously and the test reports green without any trace of the skip. The DuckDB branch (copy to a temp dir, `-readonly -list -separator -c`) has no case at all; the executor says it never ran.",
+      "resolution": "Use `t.skip()` (the node:test context) with the reason for the second half, and add a DuckDB case guarded the same visible way, or a stub CLI on PATH that prints the expected rows."
+    },
+    {
+      "id": 14,
+      "severity": "med",
+      "file": "skills/architecture-map/evals/README.md:75",
+      "issue": "The table reports 17 orchestrator turns for eval 2 and says nothing else; the phase's desired outcome is a build in at most 12 turns through the driver and the README presents the result as meeting the cost targets. The filed outcome admits the ceiling was missed (five turns reading script sources for the overlay location and the ledger command) and left 'as a follow-up', but no task or note in the diff or README carries it. P10.5's own text says to file a missed target and stop for the owner; the README is the only artefact a reader sees.",
+      "resolution": "Add a sentence under the table that eval 2 exceeded the 12-turn target and why, and file the SKILL.md/issues-step gap as a task so the turn count is closed or explicitly accepted by the owner."
+    },
+    {
+      "id": 15,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/README.md:78-80",
+      "issue": "The shares for eval 1 (explorers 41, orchestrator 36, synthesizer 7 percent) sum to 84 percent and the remaining 16 are not named. They come from the per-agent table, whose output column and cost are the stream's lower bound after P10.8 (output is under-counted several times over and is the dominant price class), while the per-model total is the result event's figure. Shares are given for eval 1 only; the task asked for them per eval.",
+      "resolution": "Say that shares are of the per-agent stream cost (lower bound) or compute them against the result-event total and name the residual; give the shares for evals 2 and 4 or say why they are omitted."
+    },
+    {
+      "id": 16,
+      "severity": "low",
+      "file": "skills/architecture-map/SKILL.md:87-88",
+      "issue": "P10.7 adds 'The ledger is copied to where the caller asked after render' to the build flow, but no step of pipeline.mjs does it and no command is given, so the orchestrator is left to improvise a copy (an extra turn, or a read of script sources, both of which the flow forbids). s13 only matches the sentence.",
+      "resolution": "Either make render copy usage.jsonl / the table to an --ledger-out path the caller names, or state the exact command and which step runs it, and test that."
+    },
+    {
+      "id": 17,
+      "severity": "high",
+      "file": "scripts/pipeline.mjs:697",
+      "issue": "Scanner safety (rule 7). P10.11 (14f5ecb) probes and then queries DuckDB through python3 (readerFor line 697 `spawnSync('python3', ['-c', 'import duckdb'])`, queryColumns line 716 `['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]]`) with no cwd and no isolated mode. The driver is run from the analysed project's root (SKILL.md), so cwd is the scanned repository, and `python3 -c` puts the cwd first on sys.path. A scanned repo that holds a duckdb.py (or a duckdb/ package) and a file database named by duckdb.connect gets that file executed by `import duckdb` whenever the duckdb CLI is absent. This breaks 'prescan and extractors never import, require, eval or execute files from the scanned repo'. The new tests stub python3 on PATH, so none of them exercises the real interpreter or this path.",
+      "resolution": "Run both python3 calls in isolated mode (`python3 -I -c ...`, which drops the cwd and PYTHON* variables from sys.path) and also pass `cwd: tmp` (the mkdtemp dir) to spawnSync. Add a test where the repo holds a duckdb.py that writes a marker file, and assert the marker never appears."
+    },
+    {
+      "id": 18,
+      "severity": "med",
+      "file": "scripts/lib/prescan/generic.mjs:315",
+      "issue": "P10.13 (a871e37): SQL_TABLE_REF takes the identifier after every `from`/`join` as a table, and sqlStatements (line 498) never discards names that are not tables. A CTE name used later (`WITH recent AS (...) SELECT ... FROM recent`), `EXTRACT(year FROM created_at)`, `SUBSTRING(s FROM 2)`, `TRIM(BOTH FROM s)` and `IS DISTINCT FROM x` all yield a table ref. Before this task such a ref was only a skipped access row. Now generateFromExtracts in scripts/merge.mjs makes an inferred entity, a generated store and an access row for each one, so the architecture model fills with entities that are not tables. CTEs are common in the DuckDB/SQLite analytics code this task targets. The tests (py13, m23, pc13) only use plain table names.",
+      "resolution": "In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col)."
+    },
+    {
+      "id": 19,
+      "severity": "low",
+      "file": "scripts/pipeline.mjs:756",
+      "issue": "P10.11 (14f5ecb): the outside-the-repository guard `file.startsWith(repoRoot + sep)` compares resolved strings only, so a symlink inside the repo that points at a database file elsewhere on the machine passes it. queryColumns then copies and opens the target. Only schema names reach the model, but the guard says the file is inside the repository when it is not.",
+      "resolution": "Compare `realpathSync(file)` with `realpathSync(repoRoot)` (guarded by existsSync) before reading, and add the outside-the-repo skip row for a symlink that escapes."
+    },
+    {
+      "id": 20,
+      "severity": "med",
+      "file": "scripts/pipeline.mjs:580-607",
+      "issue": "contradicts task clause: P10.15 clause 1 asks for \"rungs that always end under BRIEF_CAP\" and says the throw stays only as a last guard. The ladder never trims the `- Previous model: <path>. Reuse the node ids ...` line (explorerBrief, pipeline.mjs:438), which is about 110 characters plus a path, added in --update mode. p29 builds its pathological input without `previous`, and the executor measured the terminal rung at 3902 characters for a 200-character work path, so a 98-character margin. In update mode with the same area the brief is about 4200 characters and writeBrief throws, which kills the build with exit 2, the failure this task set out to remove. The new header comment (\"a brief ends under BRIEF_CAP\") overstates what the ladder does.",
+      "resolution": "Add the previous line to the terminal rung (drop its Reuse-the-ids sentence, or keep only the path), or fold it into the `terse` option. Extend p29 with `previous: <200-character path>/model.json` and assert the brief still fits. Alternatively make the comment say the guarantee holds for first builds only."
+    },
+    {
+      "id": 21,
+      "severity": "low",
+      "file": "scripts/lib/prescan/node-backend.mjs:896-905",
+      "issue": "queueNameOf names a queue after the file path for any unresolved lowercase bare identifier, and extractQueues applies it to `new Queue(x)` as well as `new Worker(x, ...)`. The task asked only for a Worker without a resolvable name to be named after its file. A Queue built from a parameter or an unresolved import now becomes a queue row named for a file. Two Queues or Workers with different unresolved parameters in one file collapse into one row, and a Worker's file-named row never pairs with the Queue it consumes. The file header still says nothing is guessed. nb14 covers only the Worker case, so the Queue behaviour is untested.",
+      "resolution": "Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue."
+    }
+  ],
+  "intent": {
+    "answer": "diverges",
+    "note": "slice 1: Slice 1 holds P10.1-P10.3. P10.1 adds scripts/cost-profile.mjs and extends usage.mjs as asked (a measured per-model and per-agent profile from the transcript, with the four classes). P10.2 moves discovery into prescan extracts, makes the explorer write a fragment file and reply in three lines, and makes merge truncate and normalise instead of re-asking. P10.3 makes merge.mjs compute cross-area edges, path dedup, SQL access rows, fk relations and a digest, and restricts the synthesizer to sequences and views. Those parts agree with the desired outcome ('measured by a script from the transcript', 'explorers write fragments to files and return a three-line summary, without re-asks', 'cross-area edges, dedup and zones are computed by merge.mjs, and the synthesizer only writes sequences and views from a digest'), with the narrowing in findings 1 and 2. The outcome's cost targets (at most twice the baseline, under 5 USD for evals 1, 2 and 4, recall of at least 60 percent, at most 12 orchestrator turns) are measured outcomes of the whole phase; this slice shows no run that measures them, so they cannot be judged here. Where a task chose something the request left open: P10.3 chose to drop the balanced synthesizer to Sonnet (request choice: 'whether the balanced profile keeps Opus for the synthesizer ... or drops to Sonnet'), without the measurement its own description required (finding 1). P10.2 also added one thing beyond its brief, the unreadable-fragment-as-skipped path in merge.mjs main, which causes finding 3. | slice 2: Slice 2 (P10.4 to P10.9) builds the driver (pipeline.mjs plan/finish/render/ledger, briefs, SKILL.md as a three-step flow), makes merge tolerant (dangling area refs resolved or dropped, evidence clamped or dropped against meta.commit), fixes the profiler's output reconciliation and the explorer's coverage floor, and records the iteration-2 costs in the evals README. Measured against the desired outcome: the cost table (1.22 / 2.09 / 1.66 USD, recall 0.67, all under 5 USD and under baseline) is recorded, explorers write files and reply in three lines, merge computes cross-area edges and the synthesizer only writes sequences and views. It diverges on 'a build in at most 12 turns': eval 2 took 17 turns (README.md:75, finding 8) and P10.4's turn/context targets were never measured in its own task (finding 1). Where a task chose something the request left open: the request's second open choice, Opus or Sonnet for the balanced synthesizer, is decided as Sonnet medium in P10.4's docs/design.md D11 and PROFILE_MODELS.balanced (the agent frontmatter change itself is P10.3, outside this slice); P10.4 also put the explorer on Sonnet low and P10.7 reverted it to medium, which the request does not mention. No task in this slice touches the P9 ordering. The new --usage positional matching and temp-dir default work dir (P10.6) are behaviour the task description does not ask for. | slice 3: Slice 3 (P10.10-P10.13). The code of P10.10, P10.11 and P10.12 does what each description asked and each claim describes its diff. P10.10 writes the full extract and the capped summary, merge builds entities, foreign-key relations and queue nodes and edges, the node scanners run on any area with ts/js code, and Hono chains and generics are followed. P10.11 detects file databases in code and introspects through the CLI or the python module, or records an introspection-skipped row. P10.12 drops an unplaceable synth step with a dropped-step row, accepts any --usage label, adds the reviewer brief and a pipeline issues step. P10.13 (a871e37) does what its description asked in substance (SQL statements in python and js/ts literals, CREATE TABLE columns as declared tables, inferred entities with access rows, summary count, brief and agent wording; SKILL.md untouched). Two differences from the wording: it extends the existing sqlTables kind (rows 'table op path:line') instead of a new sqlRefs kind, which the executor disclosed, and a table gets one row per op instead of one row with all op letters. The divergence is in the CLAIM, not the code: the filed P10.13 outcome says PARTIAL and BLOCKED, that scripts/prescan.mjs was refused so the area slice and summary part is NOT in the tree, that the full suite fails (p27 and pc13 red), and that schema/archmap-model.schema.json and model-schema.md do not document entity provenance. The diff for a871e37 contains the prescan.mjs change (the nb.sqlTables loop, the ddl-to-tables rows and counts.inferredTables), the schema `provenance` property and the model-schema.md row, and the recorded gate run passed (node --test exit 0). The claim therefore describes an earlier state, and its gate entry 'node --test (full suite): fail' contradicts the recorded pass. Choices the request left open: none of these four tasks makes one (the synthesizer-model choice is not touched). | slice 4: Slice 4 holds P10.14 and P10.15. P10.14: the diff does what its description asked. workspaceApps() reads pnpm-workspace.yaml, package.json workspaces and turbo.json. partition() keeps each apps/* directory as its own area or the head of one. The node scanner names queues from the literal, the resolved constant (OBJ.key members and enums included) or the identifier text, and FlowProducer gets a row. merge makeAppNodes adds a level-2 app node per uncovered app with evidence at its package.json and demotes the area's nodes inside the directory to level 3. Relations resolve by table name after the entities are generated, and a duplicate is emitted once. The brief names the app and the floor counts middleware modules. The executor's claim fits the diff, with one imprecision: it says the 28 dropped-ref rows were fixed \"not by a lookup change\", but the diff also adds the name lookup (entityResolver, resolve by table name), as the task asked. P10.15: terminal trim rungs (a fourth, terse, was added beyond the three named; the claim says so), LEFTOVER_AREAS = 3 with a fold only for a single leftover under SMALL, python middleware rows and modules, joinMiddleware, and the modules group in the floor and the Work step all match the description and the claim. The one gap is the update-mode Previous model line the ladder does not trim (finding 1). No choice the request left open (P9 ordering, Opus or Sonnet for the synthesizer) is made by either task. The phase outcome (cost, turn counts, tokens measured by script) is served by moving queue, app, relation and middleware discovery into scripts, which is what these two tasks do. Scan.mjs over a871e37..b1963e8 reported no leads (denylist, URLs, imports, post-Node-18 APIs).",
+    "missing": [
+      "a measured eval run (cost per eval, issue recall, orchestrator turns) for the phase desired outcome",
+      "filed executor return for P10.5-2xj at its current start (the brief says none filed)",
+      "the other three slices of the phase brief (tasks after P10.3)",
+      "the private results log the P10.5 README figures come from (not readable here)"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase slice: no test of this review is owed a red of its own. P10.4, P10.6, P10.7, P10.8 and P10.9 carry the computed word could-not-prove (node --test output has no tally the helper reads, so an assertion failure cannot be told from a crash); P10.5 declares tests.add none.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test`, which runs the whole project, so the question is not asked (the brief marks inherited tests computed, not-asked, for each task)."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P10.1-2xj",
+      "commit": "2b23e1a49081",
+      "answer": "matches",
+      "note": "Description: 'prints a table of input, output, cache-read and cache-write tokens per model and per agent ... number of assistant turns and the median and maximum context size per agent, and a list-price cost per row from a rate table embedded in the script with its date ... exit 0, --json'. The diff does this in scripts/cost-profile.mjs (profile(), renderText(), RATES dated 2026-10-30, agent rows from Agent/Task tool_use ids and parent_tool_use_id, unique message ids, reconcile against the LAST result event's cumulative modelUsage, exit 2 on unreadable input). usage.mjs gains the four class flags, the one-line note and `estimate --turns --context`; SKILL.md section 9 and the Final report each get the two sentences; fixtures are synthetic (c12 checks no path or name). The claim (technical outcome) describes this diff. Only the unsourced rate table (finding 5) is open.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/cost-profile.test.mjs tests/usage.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.1-2xj/20261030T225620Z.executor.json, at 2026-10-30T23:00:09Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.2-2xj",
+      "commit": "f39a917da5e1",
+      "answer": "matches",
+      "note": "Description: extracts per area carrying routes with method, path, handler, file and line, import and call edges between areas, tables with fields, env keys, queue producers and consumers, clients, written as <work>/extracts/<area>.json; the explorer writes ONE fragment to the brief's path and replies with exactly three lines; budget stated; effort low; merge truncates or normalises with a meta.sources note and never exits 1 for a cap; the re-ask path is removed; brief plus extract under 12 K. The diff does each (prescan.mjs areaExtracts/writeExtracts with EXTRACT_BUDGET 5500, generic.mjs scanEnvKeys/scanClients/importEdges, python.mjs extractQueues, merge.mjs normaliseFragment and CAPS, explorer and SKILL.md text, tests py9/py10/nb9/nb10/pc8/pc9/m12-m12d/a5/s9). The claim describes the diff, including its stale-docs note for docs/design.md. The beyond-brief unreadable-fragment stub it added drops an area on update (finding 3).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.2-2xj/20261030T230319Z.executor.json, at 2026-10-30T23:20:28Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.3-2xj",
+      "commit": "ba55582c1b41",
+      "answer": "diverges",
+      "note": "Clause 1: 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'; diff: zoneFor() uses node kind and stack only (merge.mjs:158-165) and access rows come from `sqlTables` only (deriveLayer, about 455-475). Clause 2: 'the balanced synthesizer model is an open choice: keep Opus or drop to Sonnet, decide from the measured quality on the e2e fixtures and record the choice'; diff: agents/archmap-synthesizer.md:5 `model: sonnet`, SKILL.md profile table 'Sonnet (medium)'; the claim itself says 'No LLM e2e quality run was possible here, so the choice rests on the reduced task, not on measured quality'. The rest matches the description: digest.json capped at 29000 characters, drafts from entry points, the synthesizer rewritten to read the digest, 12 reads, Write to the synth path, three-line reply, refusal of structural additions in --synth. The claim describes the diff accurately, including its own admissions.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/merge.test.mjs tests/agents.test.mjs tests/golden.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.3-2xj/20261030T232049Z.executor.json, at 2026-10-30T23:40:45Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.4-2xj",
+      "commit": "b4eddc143de4",
+      "answer": "diverges",
+      "note": "Does what the clauses ask: pipeline.mjs plan/finish/render (and ledger), per-area briefs under the 4000-character cap carrying caps, fragment path and contract, introspection when a CLI is present, merge with --repo, validate --repo, digest and synthesizer brief, ledger rows from --usage, SKILL.md rewritten to plan, dispatch, finish, dispatch, render, report with the cap table and three-line replies and no polling, build.md/update.md pointing at the driver. Diverges on the closing clause: 'at most 12 assistant turns ... and scripts/cost-profile.mjs on that transcript shows the orchestrator's maximum context under 80 K tokens' measured on the e2e fixture. The claim says 'NOT measured: no live headless session was run' and offers a character count and 7 turns by arithmetic instead (tests/skill.test.mjs:196 asserts 1 + steps.length <= 12 right after asserting steps.length is 6). The claim describes the diff accurately otherwise; it also says the plan gate allowed edits to agent files and design.md outside the declared list, which the diff shows. The synthesizer on Sonnet medium in D11 is the open choice of the request, decided here without the owner.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.4-2xj/20261030T234129Z.executor.json, at 2026-10-31T00:07:13Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.5-2xj",
+      "commit": "2f5debea72f2",
+      "answer": "cannot-tell",
+      "note": "The diff records the before/after table in skills/architecture-map/evals/README.md (repo-free, costs and shares only) and updates D11 and the agent listing in docs/design.md (explorer to Sonnet medium, reviewer writes reviewer.json, result files instead of replies), which is what the description asks for the repository half. Whether the numbers are true (1.22 / 2.09 / 1.66 USD, 7/7, 7/7, 8/8, recall 0.67, same-model baselines 1.55 / 2.29 / 1.82) cannot be checked: the brief hands no executor return and the measurements are in .private/evals. Read at face value they meet the pass line (each under 5 USD, each under 2x baseline, recall at least 60 percent) but the README shows 17 turns for eval 2 against the phase's 12 and its shares sum to 84 percent (findings 8 and 9). Only eval 1 has orchestrator/synthesizer/explorer shares recorded.",
+      "missing": [
+        "the filed executor return (outcome, testsAdded, redFirst) for P10.5-2xj at its current start",
+        "the private results log (.private/evals) holding the measurements"
+      ],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "tests.add is none and the task changes only documentation (README and design.md), so it owes no red; no executor return is filed to quote.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.6-6rm",
+      "commit": "953760451587",
+      "answer": "matches",
+      "note": "The described behaviour is in the diff: before validation, a from/to equal to an area id or area:<id> is resolved to the area's level-2 app/service node else its first node, evidence kept (merge.mjs resolveNode/hubOf), anything still unresolved in edges, entity stores and access rows is dropped with one dropped-ref row {area,type,id,target}, merge exits 0 when the result is valid; the explorer brief and agents/archmap-explorer.md now say 'area:<id>'. Gap: resolution only sees areas in this run's `placed`, so update mode drops edges to unaffected areas (finding 2). The diff also carries unrequested behaviour: positional --usage matching, misc partition ids, brief trimming, temp-dir default work dir (findings 4 and 5), all listed in tests.add but not in the description. The claim describes the diff; it reads 'extract summary' as the area title/stacks, which is stated.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/prescan-core.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.6-6rm/20261031T001526Z.executor.json, at 2026-10-31T00:24:55Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.7-6rm",
+      "commit": "ecbc1ef7d70a",
+      "answer": "matches",
+      "note": "The diff does what the description lists: coverageFloor() counts entry-point groups, route groups, stores, queues, jobs and external clients from the extract and writes the floor and a must-cover list into the brief; the brief demands 6 to 20 tool calls with Grep then a line-range Read, one node per feature directory or router module, and says a fragment under the floor is incomplete; archmap-explorer.md goes to effort medium with a floor section; SKILL.md agent and profile tables follow and the build flow gains the work-dir rule. Gaps: the floor is not clamped to the 40-node cap (finding 3) and the 'ledger is copied' sentence names no mechanism (finding 10). The claim matches the diff, including that jobs is forward-looking (prescan emits no jobs) and that design.md was left stale (fixed in P10.5).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.7-6rm/20261031T002530Z.executor.json, at 2026-10-31T00:30:59Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.8-6rm",
+      "commit": "d5519aa9a283",
+      "answer": "matches",
+      "note": "cost-profile.mjs now takes all four classes per model and the cost from the last result event's modelUsage (stream sums, flagged lower bound, only when none exists), keeps the stream's turns, context and cache figures per agent and labels its output column and cost as the stream's lower bound, and the reconciliation line prints MATCH or names model, class and difference (output only when the stream exceeds the result). The fixture gains partial output_tokens so c13 and the changed c1/c2/c6/c7 depend on the fix; c14 covers drift and the no-result case. The claim describes the diff. Side effect noted in finding 9: per-agent costs no longer sum to the model total, so shares derived from them are a lower bound.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.8-6rm/20261031T001451Z.executor.json, at 2026-10-31T00:16:55Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.9-6rm",
+      "commit": "10170a9f9039",
+      "answer": "matches",
+      "note": "merge.mjs gains evidenceReader (git at meta.commit, line-count logic identical to validate.mjs:239-241) and normaliseEvidence: a range past EOF is clamped (start past end becomes the last line), an entry whose path is not a file (or is empty) is dropped, a node or edge left without evidence is dropped and the reference pass removes what pointed at it, one clamped-evidence / dropped-evidence row per change; the CLI validates with {repo} when evidence was checked and exits 1 only over remaining findings, listed as 'invalid:' lines; without a resolvable commit it says so on stderr. Only this run's fragments are touched; the claim states that kept --previous elements and sequences naming a dropped node are left to validate. m20 to m20f cover clamping, dropping, cascade, commit-vs-working-tree, remaining findings and determinism. The claim describes the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.9-6rm/20261031T003500Z.executor.json, at 2026-10-31T00:38:37Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.10-6rm",
+      "commit": "69c442e3e705",
+      "answer": "matches",
+      "note": "Clause: 'prescan writes the FULL extract per area ... and a separate capped summary'. Diff: scripts/prescan.mjs drops EXTRACT_BUDGET, TRIM_WEIGHT and ROW_CAP, writes <area>.json in full and <area>.summary.json (SUMMARY_BUDGET 4200, counts per kind, first rows). Clause: 'merge generates ... one entity per declared table ... one relation per declared foreign key, one queue node per queue name and the queue edges with async true, merging an explorer's entity of the same table name'. Diff: generateFromExtracts in scripts/merge.mjs, the CLI skips *.summary.json. Clause: 'node scanners run on any area that holds .ts or .js files whatever its stack label; the Hono parser handles generics and route composition'. Diff: plug-in `scans`, ctorParen and follow() in node-backend.mjs. Brief, agent file and SKILL.md all point at the summary. The filed outcome describes this diff (it admits no executor brief existed). The filed redFirst is could-not-prove with its helper basis verbatim, which holds.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.10-6rm/20261031T004719Z.executor.json, at 2026-10-31T01:10:18Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.11-6rm",
+      "commit": "14f5ecb1185f",
+      "answer": "matches",
+      "note": "Clause: detect file databases in code even when the file is absent, 'introspect when a CLI exists, otherwise record the skip in meta.sources'. Diff: scanDatabases in generic.mjs (duckdb.connect, sqlite3.connect, new Database, DuckDBInstance.create), store rows with path in the python and generic extracts, databasesOf and introspect in pipeline.mjs with an introspection-skipped row naming the missing file or tool, plus a python duckdb-module fallback. The claim describes the diff. Finding 1 (python3 run in the scanned repo's cwd, pipeline.mjs:697 and 716) and finding 3 (symlink guard, pipeline.mjs:756) are against this diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.11-6rm/20261031T011118Z.executor.json, at 2026-10-31T01:18:57Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.12-6rm",
+      "commit": "cafd08bc21b8",
+      "answer": "matches",
+      "note": "Clause: 'merge --synth drops a step it cannot place (and a sequence left under 2 steps) with a meta.sources row instead of refusing'. Diff: placeSteps in merge.mjs checks each step against the schema's step shapes and writes dropped-step rows. Clause: 'render tolerates usage labels and prints ... the reviewer brief ... and the one Agent call'. Diff: agentRows and reviewerBrief. Clause: 'a new pipeline.mjs issues step does the overlay merge, validation, internal render and ledger row and prints one JSON object'. Diff: issuesStep, which writes only outside the repository. Clause: the reviewer 'writes its file and replies in three lines'. Diff: archmap-reviewer.md gains Write and the reply contract. The claim describes the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.12-6rm/20261031T012006Z.executor.json, at 2026-10-31T01:29:53Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.13-6rm",
+      "commit": "a871e3791f2a",
+      "answer": "diverges",
+      "note": "The code does what the description asked (see intent.note). Quote of the claim: 'PARTIAL - BLOCKED on scripts/prescan.mjs: ... the area slice and summary part is NOT in the tree' and gate 'node --test (full suite): fail', against a diff that contains the scripts/prescan.mjs change (sqlTables loop, ddl rows as tables, counts.inferredTables, SUMMARY_NOTE), the schema provenance property and the model-schema.md row, and a recorded gate run that passed. The claim is stale, not the code. Smaller differences from the wording: sqlTables is reused where the description says sqlRefs, and one row per op instead of one row with every op letter. Finding 2 (CTE names and EXTRACT(... FROM col) become inferred entities, generic.mjs:315 and 498) is against this diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/merge.test.mjs tests/agents.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.13-6rm/20261031T013806Z.executor.json, at 2026-10-31T01:53:25Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.14-6rm",
+      "commit": "b7dfb737b45b",
+      "answer": "matches",
+      "note": "Each description clause is in the diff: workspaceApps (inventory.mjs), the apps option in partition.mjs (an app is never a leftover; the cap merges touch non-apps only), queueNameOf and the FlowProducer row (node-backend.mjs), makeAppNodes and entityResolver with the relation pass moved after generation (merge.mjs), and the middleware floor plus appLines (pipeline.mjs). The claim describes the diff. It says the dropped-ref rows were fixed \"not by a lookup change\", yet the diff adds the by-name lookup the task asked for. Finding 2 (file-named rows for a Queue with an unresolved lowercase parameter) is charged to this diff. Weak assertion in pc14: the `many` case's `find(...).paths.length >= 1` proves little, but the preceding length and sum checks carry it.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-core.test.mjs tests/prescan-node-backend.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.14-6rm/20261031T015701Z.executor.json, at 2026-10-31T02:09:48Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P10.15-6rm",
+      "commit": "b1963e8391c2",
+      "answer": "matches",
+      "note": "BRIEF_TRIMS gains floorRoom 0, globRoom 40, appShort and a fourth terse rung (disclosed in the claim; the task's three rungs measured 4036 characters). fitExplorerBrief is exported and the throw stays as a guard. partition adds LEFTOVER_AREAS and SMALL, and folds only a single leftover under SMALL. python.mjs emits middleware {name,file,line} and entry-point sibling modules, and joinMiddleware, prescan.mjs and coverageFloor wire them in, as described. The claim describes the diff. Gap: the ladder leaves the update-mode Previous model line untrimmed, so \"always fits\" does not hold for `plan --update` with a pathological area (finding 1). The full suite failed d1 in the executor's own run on audit docs it did not touch; the recorded gate run passed.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/pipeline.test.mjs tests/prescan-core.test.mjs tests/prescan-python.test.mjs tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P10.15-6rm/20261031T141949Z.executor.json, at 2026-10-31T02:32:18Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "preExisting": [],
+  "computedAnswers": {
+    "P10.1-2xj": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.2-2xj": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.3-2xj": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.4-2xj": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.5-2xj": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.6-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.7-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.8-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.9-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.10-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.11-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.12-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.13-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.14-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P10.15-6rm": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P10.1-2xj",
+      "commit": "2b23e1a49081"
+    },
+    {
+      "id": "P10.2-2xj",
+      "commit": "f39a917da5e1"
+    },
+    {
+      "id": "P10.3-2xj",
+      "commit": "ba55582c1b41"
+    },
+    {
+      "id": "P10.4-2xj",
+      "commit": "b4eddc143de4"
+    },
+    {
+      "id": "P10.5-2xj",
+      "commit": "2f5debea72f2"
+    },
+    {
+      "id": "P10.6-6rm",
+      "commit": "953760451587"
+    },
+    {
+      "id": "P10.7-6rm",
+      "commit": "ecbc1ef7d70a"
+    },
+    {
+      "id": "P10.8-6rm",
+      "commit": "d5519aa9a283"
+    },
+    {
+      "id": "P10.9-6rm",
+      "commit": "10170a9f9039"
+    },
+    {
+      "id": "P10.10-6rm",
+      "commit": "69c442e3e705"
+    },
+    {
+      "id": "P10.11-6rm",
+      "commit": "14f5ecb1185f"
+    },
+    {
+      "id": "P10.12-6rm",
+      "commit": "cafd08bc21b8"
+    },
+    {
+      "id": "P10.13-6rm",
+      "commit": "a871e3791f2a"
+    },
+    {
+      "id": "P10.14-6rm",
+      "commit": "b7dfb737b45b"
+    },
+    {
+      "id": "P10.15-6rm",
+      "commit": "b1963e8391c2"
+    }
+  ]
+}

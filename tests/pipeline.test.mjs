@@ -2,7 +2,8 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync,
+  chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -21,6 +22,7 @@ const CANNED = join(ROOT, 'tests/fixtures/e2e/pipeline/fragments');
 const SYNTH = join(ROOT, 'tests/fixtures/e2e/synth.json');
 const GENERATED_AT = '2026-10-29T00:00:00Z';
 const BRIEF_CAP = 4000;
+const NODE_CAP = 40; // CAPS.nodes in scripts/merge.mjs: the merge keeps at most this many nodes of a fragment
 
 const tmp = mkdtempSync(join(tmpdir(), 'archmap-pipeline-'));
 after(() => rmSync(tmp, { recursive: true, force: true }));
@@ -39,8 +41,8 @@ function fixtureRepo(name) {
 }
 
 /** Run one driver step; stdout must be exactly one JSON object on one line, whatever the exit code. */
-function step(args, env) {
-  const r = spawnSync(process.execPath, [PIPELINE, ...args], { encoding: 'utf8', env: env ?? process.env });
+function step(args, env, cwd) {
+  const r = spawnSync(process.execPath, [PIPELINE, ...args], { encoding: 'utf8', env: env ?? process.env, cwd });
   const lines = r.stdout.split('\n').filter((l) => l.trim());
   assert.equal(lines.length, 1, `one JSON line on stdout, got:\n${r.stdout}\n${r.stderr}`);
   const json = JSON.parse(lines[0]);
@@ -439,7 +441,7 @@ test('p13 the explorer brief says to name another area as area:<id>, and finish 
   assert.ok(model.meta.sources.some((x) => x.type === 'dropped-ref' && x.target === 'area:ghost'));
 });
 
-test('p14 --usage takes any label without an equals sign: exact id, then unique prefix, then position; an unmatched label is kept under its own name with a warning', () => {
+test('p14 --usage takes any label without an equals sign: exact id, then unique prefix; any other label is booked under its own name with a warning, never on an area by position', () => {
   const w = join(tmp, 'work-usage');
   assert.equal(planInto(w).status, 0);
   cannedInto(w);
@@ -448,22 +450,25 @@ test('p14 --usage takes any label without an equals sign: exact id, then unique 
   assert.equal(r.status, 0, r.stdout);
   const rows = ledgerRows(w).filter((x) => x.phase === 'explorer');
   const byLabel = Object.fromEntries(rows.map((x) => [x.label, x]));
-  assert.deepEqual(Object.keys(byLabel).sort(), ['extra/one.two+three', 'prisma', 'root', 'src']);
-  assert.equal(byLabel.src.tokens, 34500);
+  assert.deepEqual(Object.keys(byLabel).sort(), [odd, 'extra/one.two+three', 'prisma', 'root', 'src'].sort());
+  assert.equal(byLabel.src.tokens, 34500, 'an exact id finds its area');
   assert.equal(byLabel.prisma.tokens, 12000, 'a unique prefix finds its area');
-  assert.equal(byLabel.root.tokens, 8100, 'the label left over takes the area that still lacks a row');
-  assert.equal(byLabel.root.durationMs, 9500);
-  assert.equal(byLabel['extra/one.two+three'].tokens, 5, 'no area left: recorded under its own label');
-  assert.ok(Array.isArray(r.json.warnings) && r.json.warnings.length >= 1, JSON.stringify(r.json));
-  assert.ok(r.json.warnings.some((x) => x.includes('extra/one.two+three')), JSON.stringify(r.json.warnings));
-  // an exact id given after a stray label still wins the area
+  assert.equal(byLabel[odd].tokens, 8100, 'a label matching no area is kept under its own name, not booked on root');
+  assert.equal(byLabel[odd].durationMs, 9500);
+  assert.equal(byLabel.root.tokens, undefined, 'the area no label names keeps its row without tokens, none booked on it by position');
+  assert.equal(byLabel.root.durationMs, undefined);
+  assert.equal(byLabel['extra/one.two+three'].tokens, 5, 'recorded under its own label');
+  assert.ok(Array.isArray(r.json.warnings), JSON.stringify(r.json));
+  for (const label of [odd, 'extra/one.two+three']) assert.ok(r.json.warnings.some((x) => x.includes(label)), `${label}: ${JSON.stringify(r.json.warnings)}`);
+  // a stray label before the exact ids: the ids still win their areas, the stray label stays its own row
   const w2 = join(tmp, 'work-usage2');
   assert.equal(planInto(w2).status, 0);
   cannedInto(w2);
   const r2 = step(['finish', '--work', w2, '--usage', 'a.b+c=7', '--usage', 'src=9', '--usage', 'prisma=8']);
   assert.equal(r2.status, 0, r2.stdout);
   const rows2 = Object.fromEntries(ledgerRows(w2).filter((x) => x.phase === 'explorer').map((x) => [x.label, x.tokens]));
-  assert.deepEqual(rows2, { src: 9, prisma: 8, root: 7 });
+  assert.deepEqual(rows2, { 'a.b+c': 7, src: 9, prisma: 8, root: undefined });
+  assert.ok(r2.json.warnings.some((x) => x.includes('a.b+c')), JSON.stringify(r2.json.warnings));
 });
 
 /** Three ordinary directories and a dozen one-file directories with long names: the small ones merge into misc. */
@@ -571,7 +576,7 @@ test('p17 the brief carries a coverage floor computed from the extract, says a f
     const want = expectedFloor(extract);
     assert.deepEqual(parts, want, `${a.id}: the floor's parts are counted from the extract`);
     const sum = Object.values(want).reduce((x, y) => x + y, 0);
-    assert.equal(total, Math.max(1, sum), `${a.id}: the floor is the sum of its parts, at least one`);
+    assert.equal(total, Math.min(NODE_CAP, Math.max(1, sum)), `${a.id}: the floor is the sum of its parts, at least one, at most the node cap`);
     assert.match(brief, /fewer nodes than (the|this) (coverage )?floor[^\n]*incomplete|under (the|this) (coverage )?floor[^\n]*incomplete/i, `${a.id}: a fragment under the floor is incomplete`);
     assert.match(brief, /at least 6\b[^\n]*\bat most 20\b[^\n]*tool calls|at least 6 and at most 20 tool calls/i, `${a.id}: 6 to 20 tool calls`);
     assert.match(brief, /Grep[^\n]*(line-range|line range)[^\n]*Read|(line-range|line range)[^\n]*Read[^\n]*Grep/i, `${a.id}: Grep, then a line-range Read`);
@@ -667,6 +672,9 @@ function dbRepo(name, { present = [], code }) {
   return { r, w };
 }
 
+/** sh that sets $code to the argument after -c, wherever the flags put it, for a python3 stand-in. */
+const PY_CODE_ARG = 'code=; prev=; for a in "$@"; do if [ "$prev" = "-c" ]; then code="$a"; fi; prev="$a"; done\n';
+
 /** A PATH holding git and, when `script` is given, a `duckdb` stand-in running it (and `python3` when `py` is). */
 function binWith(name, script, py) {
   const bin = join(tmp, `bin-${name}`);
@@ -719,12 +727,13 @@ test('p21 a file database named in code is introspected when present and a tool 
 test('p22 without the duckdb CLI the python duckdb module reads the schema when it is installed, and the skip row names both when it is not', () => {
   const code = 'import duckdb\n\nWAREHOUSE = duckdb.connect("src/entities/warehouse.duckdb")\n';
   const { r, w } = dbRepo('db-module', { present: ['src/entities/warehouse.duckdb'], code });
-  // a python3 stand-in: `-c "import duckdb"` is the probe; any other call is the query and prints tab-separated rows
+  // a python3 stand-in: the argument after -c being `import duckdb` is the probe; any other call is the query and
+  // prints tab-separated rows (the flags before -c are free, so -I is not tied to a position here)
   const log = join(tmp, 'python-args.log');
-  const withModule = '#!/bin/sh\nif [ "$2" = "import duckdb" ]; then exit 0; fi\n' +
+  const withModule = `#!/bin/sh\n${PY_CODE_ARG}if [ "$code" = "import duckdb" ]; then exit 0; fi\n` +
     `echo "$@" >> "${log}"\n` +
     "printf 'view\\tlatest\\t1\\tday\\tDATE\\t0\\t1\\n'\n";
-  const noModule = '#!/bin/sh\nif [ "$2" = "import duckdb" ]; then echo "ModuleNotFoundError: No module named duckdb" >&2; exit 1; fi\nexit 0\n';
+  const noModule = `#!/bin/sh\n${PY_CODE_ARG}if [ "$code" = "import duckdb" ]; then echo "ModuleNotFoundError: No module named duckdb" >&2; exit 1; fi\nexit 0\n`;
 
   const missing = step(['finish', '--work', w], { ...process.env, PATH: binWith('py-no-module', null, noModule) });
   assert.equal(missing.status, 0, missing.stdout);
@@ -984,7 +993,7 @@ test('p28 the explorer brief of an area holding a workspace app names the app an
 // ---------------------------------------------------------------------------------------------
 // P10.15: the trim ladder has a terminal rung, so a brief always fits; the throw is only a last guard.
 
-test('p29 fitExplorerBrief never throws: an area with 30 globs, a 37-group floor and a 200-character work path fits under BRIEF_CAP, the note names the last rung, and the contract and both file paths stay intact', async () => {
+test('p29 fitExplorerBrief never throws: an area with 30 globs, an extract over the node cap and a 200-character work path fits under BRIEF_CAP, in --update mode with a 200-character previous path too, the note names the last rung, and the contract and the file paths stay intact', async () => {
   const { BRIEF_TRIMS, coverageFloor, explorerBrief, fitExplorerBrief } = await import('../scripts/pipeline.mjs');
   const work = `/${'nested-work-directory/'.repeat(10)}`.slice(0, 200);
   assert.equal(work.length, 200);
@@ -1025,4 +1034,196 @@ test('p29 fitExplorerBrief never throws: an area with 30 globs, a 37-group floor
   assert.ok(fit.text.includes(input.fragment), 'the fragment path');
   assert.match(fit.text, new RegExp(`Coverage floor: at least ${coverage.floor} nodes`), 'the floor keeps its count');
   assert.doesNotMatch(fit.text, /Each of these needs its own node/, 'the floor names went with the terminal rungs');
+
+  // P10.16: the same area in --update mode carries the previous-model line (a path as long as the work path): it still fits
+  const updating = { ...input, previous: `${work}/model.json` };
+  assert.ok(explorerBrief(updating).length > full.length, 'the previous line adds to the brief');
+  let upd;
+  assert.doesNotThrow(() => { upd = fitExplorerBrief(updating, id); });
+  assert.ok(upd.text.length <= BRIEF_CAP, `update mode: ${upd.text.length} characters`);
+  assert.ok(upd.text.includes(updating.previous), 'the previous model path is kept');
+  assert.equal(contract(upd.text), contract(explorerBrief(updating)), 'the contract section is never cut');
+  assert.ok(upd.text.includes(input.summary) && upd.text.includes(input.fragment), 'both file paths stay');
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.16: pipeline hardening from the P10 phase review.
+
+test('p30 a repo holding a duckdb.py that writes a marker is scanned with a .duckdb file present: the probe and the query run python3 -I outside the repo, so the marker is never written', () => {
+  const marker = join(tmp, 'planted-duckdb-ran.marker');
+  const planted = `open(${JSON.stringify(marker)}, "w").write("the scanned repo's duckdb.py ran")\n`;
+  const r = fixtureRepo('db-planted');
+  writeFileSync(join(r, 'src/entities/load.py'), 'import duckdb\n\nWAREHOUSE = duckdb.connect("src/entities/warehouse.duckdb")\n');
+  writeFileSync(join(r, 'src/entities/warehouse.duckdb'), 'not a database, only a file of that name\n');
+  writeFileSync(join(r, 'duckdb.py'), planted);
+  git(r, 'add', '-A');
+  git(r, 'commit', '-q', '-m', 'planted module');
+  const w = join(tmp, 'work-db-planted');
+  assert.equal(step(['plan', r, '--work', w, '--out', join(tmp, 'out-db-planted'), '--generated-at', GENERATED_AT], undefined, r).status, 0);
+  cannedInto(w);
+
+  // the real interpreter, run from the scanned repo's root as SKILL.md has it, with no duckdb CLI on PATH
+  const which = spawnSync('/bin/sh', ['-c', 'command -v python3'], { encoding: 'utf8' });
+  if (which.status === 0) {
+    const py = realpathSync(which.stdout.trim());
+    // control: the planted file is what a plain `python3 -c "import duckdb"` from the repo root imports
+    spawnSync(py, ['-c', 'import duckdb'], { cwd: r, encoding: 'utf8' });
+    assert.ok(existsSync(marker), 'the control run imports the planted duckdb.py, so the check below has teeth');
+    rmSync(marker);
+    const bin = binWith('real-python');
+    if (!existsSync(join(bin, 'python3'))) symlinkSync(py, join(bin, 'python3'));
+    const f = step(['finish', '--work', w], { ...process.env, PATH: bin }, r);
+    assert.equal(f.status, 0, f.stdout);
+    assert.ok(!existsSync(marker), 'finish never imported the duckdb.py of the scanned repo');
+  }
+
+  // a stand-in records where and how it ran: every call carries -I before -c, and none runs in the repo
+  const log = join(tmp, 'python-isolated.log');
+  // shell builtins only: PATH holds git and this stand-in, nothing else
+  const stub = `#!/bin/sh\n${PY_CODE_ARG}printf '%s\\n' "$code" | { IFS= read -r first; echo "$(pwd -P)|$1|$first" >> "${log}"; }\n` +
+    'if [ "$code" = "import duckdb" ]; then exit 0; fi\n' +
+    "printf 'table\\tevents\\t1\\tid\\tBIGINT\\t0\\t1\\n'\n";
+  const f2 = step(['finish', '--work', w], { ...process.env, PATH: binWith('py-isolated', null, stub) }, r);
+  assert.equal(f2.status, 0, f2.stdout);
+  const calls = readFileSync(log, 'utf8').trim().split('\n').map((l) => l.split('|'));
+  assert.ok(calls.length >= 2, `the probe and the query both ran: ${JSON.stringify(calls)}`);
+  assert.ok(calls.some(([, , code]) => code === 'import duckdb'), 'the probe ran');
+  const real = realpathSync(r);
+  for (const [cwd, first] of calls) {
+    assert.equal(first, '-I', `python3 runs in isolated mode: ${JSON.stringify(calls)}`);
+    assert.ok(cwd !== real && !cwd.startsWith(`${real}/`), `python3 runs outside the repo, not in ${cwd}`);
+  }
+  assert.ok(readJson(join(w, 'model.json')).entities.some((e) => e.name === 'events'), 'the query still reads the schema');
+  assert.ok(!existsSync(marker));
+});
+
+test('p31 coverageFloor clamps the floor to the node cap for an area with more than 40 groups, and the brief says the extract holds more than the cap', async () => {
+  const { coverageFloor, explorerBrief } = await import('../scripts/pipeline.mjs');
+  const routes = Array.from({ length: 45 }, (_, i) => ({ file: `src/routes/feature-${String(i).padStart(2, '0')}.ts` }));
+  const big = coverageFloor({ routes });
+  assert.equal(big.floor, NODE_CAP, 'the floor is never above the cap the merge truncates to');
+  assert.equal(big.counts['route groups'], 45, 'the parts still count everything the extract holds');
+  assert.equal(coverageFloor({ routes: routes.slice(0, 3) }).floor, 3, 'a floor under the cap is the plain sum');
+  assert.equal(coverageFloor({ routes: routes.slice(0, NODE_CAP) }).floor, NODE_CAP, 'exactly the cap is not clamped');
+
+  const area = { id: 'src', title: 'src', files: 46, stacks: ['node-backend'], globs: ['src/**'] };
+  const base = { area, summary: '/w/extracts/src.summary.json', fragment: '/w/fragments/src.json', profile: 'balanced' };
+  const brief = explorerBrief({ ...base, coverage: big });
+  assert.match(brief, new RegExp(`Coverage floor: at least ${NODE_CAP} nodes`));
+  assert.match(brief, new RegExp(`extract holds 45[^\\n]*more than the ${NODE_CAP}-node cap`, 'i'));
+  const atCap = explorerBrief({ ...base, coverage: coverageFloor({ routes: routes.slice(0, NODE_CAP) }) });
+  assert.doesNotMatch(atCap, /more than the \d+-node cap/i, 'no cap note when the extract fits');
+
+  // p18-style through plan: 45 router modules in one backend
+  const dir = join(tmp, 'more-routers-than-cap');
+  mkdirSync(join(dir, 'src', 'routes'), { recursive: true });
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'many', dependencies: { express: '^4.0.0' } }));
+  writeFileSync(join(dir, 'src', 'app.ts'), "import express from 'express';\nconst app = express();\napp.listen(3000);\n");
+  for (let i = 0; i < 45; i++) {
+    const name = `feature-${String(i).padStart(2, '0')}-${'long'.repeat(8)}`;
+    writeFileSync(join(dir, 'src', 'routes', `${name}.ts`), `import { Router } from 'express';\nconst router = Router();\nrouter.get('/${name}', (req, res) => res.json([]));\nexport default router;\n`);
+  }
+  git(dir, 'init', '-q');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'initial');
+  const w = join(tmp, 'work-more-routers');
+  const r = step(['plan', dir, '--work', w, '--out', join(tmp, 'out-more-routers'), '--generated-at', GENERATED_AT]);
+  assert.equal(r.status, 0, r.stdout);
+  let over = 0;
+  for (const a of r.json.areas) {
+    const text = readFileSync(join(w, 'briefs', `${a.id}.md`), 'utf8');
+    assert.ok(text.length <= BRIEF_CAP, `${a.id}: ${text.length} characters`);
+    const { total, parts } = floorOf(text);
+    assert.deepEqual(parts, expectedFloor(readJson(join(w, 'extracts', `${a.id}.json`))), a.id);
+    assert.ok(total <= NODE_CAP, `${a.id}: floor ${total} is at most the cap`);
+    const sum = Object.values(parts).reduce((x, y) => x + y, 0);
+    if (sum > NODE_CAP) {
+      over += 1;
+      assert.equal(total, NODE_CAP, a.id);
+      assert.match(text, new RegExp(`extract holds ${sum}[^\\n]*more than the ${NODE_CAP}-node cap`, 'i'), `${a.id}: the cap note survives the trimming`);
+    }
+  }
+  assert.ok(over >= 1, 'one area holds more groups than the cap');
+});
+
+test('p32 plan refuses (exit 2) a pre-existing default work dir that is a symlink or not owned by the current uid, and creates a fresh one with mode 0o700', async () => {
+  const { privateDir } = await import('../scripts/pipeline.mjs');
+  const envFor = (home) => ({ PATH: process.env.PATH, TMPDIR: home, TEMP: home, TMP: home });
+  const planDefault = (home) => step(['plan', repo, '--out', join(tmp, 'out-p32'), '--generated-at', GENERATED_AT], envFor(home));
+
+  const fresh = join(tmp, 'os-tmp-fresh');
+  mkdirSync(fresh);
+  const a = planDefault(fresh);
+  assert.equal(a.status, 0, a.stdout);
+  const wd = a.json.work;
+  assert.equal(statSync(wd).mode & 0o777, 0o700, 'the work dir is private to the user');
+  assert.equal(statSync(join(wd, '..')).mode & 0o777, 0o700, 'so is the archmap directory above it');
+  const hash = wd.split('/').pop();
+
+  // the work dir itself is a symlink somebody planted: refused, nothing removed or written through it
+  const linked = join(tmp, 'os-tmp-linked');
+  mkdirSync(join(linked, 'archmap'), { recursive: true, mode: 0o700 });
+  const target = join(tmp, 'planted-target');
+  mkdirSync(join(target, 'briefs'), { recursive: true });
+  writeFileSync(join(target, 'prescan.json'), 'somebody else\'s file\n');
+  symlinkSync(target, join(linked, 'archmap', hash));
+  const b = planDefault(linked);
+  assert.equal(b.status, 2, b.stdout);
+  assert.match(b.json.error ?? b.stdout, /symlink/i);
+  assert.equal(readFileSync(join(target, 'prescan.json'), 'utf8'), 'somebody else\'s file\n');
+  assert.deepEqual(readdirSync(target).sort(), ['briefs', 'prescan.json']);
+  assert.deepEqual(readdirSync(join(target, 'briefs')), []);
+
+  // the archmap directory above it is a symlink: refused as well
+  const parent = join(tmp, 'os-tmp-parent');
+  mkdirSync(parent);
+  const target2 = join(tmp, 'planted-parent');
+  mkdirSync(target2);
+  symlinkSync(target2, join(parent, 'archmap'));
+  const c = planDefault(parent);
+  assert.equal(c.status, 2, c.stdout);
+  assert.match(c.json.error ?? c.stdout, /symlink/i);
+  assert.deepEqual(readdirSync(target2), [], 'nothing was made through the link');
+
+  // not owned by the current uid: one user here, so the check is driven with another uid
+  if (typeof process.getuid === 'function') {
+    const uid = process.getuid();
+    const mine = join(tmp, 'private-mine');
+    mkdirSync(mine);
+    chmodSync(mine, 0o755);
+    assert.match(String(privateDir(mine, uid + 1)), /not owned/i, 'a directory of another uid is refused');
+    assert.equal(privateDir(mine, uid), null, 'the user\'s own directory is accepted');
+    assert.equal(statSync(mine).mode & 0o777, 0o700, 'and made private');
+    const made = join(tmp, 'private-made');
+    assert.equal(privateDir(made, uid), null);
+    assert.equal(statSync(made).mode & 0o777, 0o700, 'a fresh one is created private');
+    const link = join(tmp, 'private-link');
+    symlinkSync(mine, link);
+    assert.match(String(privateDir(link, uid)), /symlink/i);
+  }
+});
+
+test('p33 a symlink inside the repo pointing at a database file outside it gets the outside-the-repository skip row (realpath comparison), and the target is never opened', () => {
+  const outside = join(tmp, 'outside-warehouse.duckdb');
+  writeFileSync(outside, 'a database somewhere else on the machine\n');
+  const r = fixtureRepo('db-escape');
+  writeFileSync(join(r, 'src/entities/load.py'), 'import duckdb\n\nWAREHOUSE = duckdb.connect("src/entities/warehouse.duckdb")\n');
+  symlinkSync(outside, join(r, 'src/entities/warehouse.duckdb'));
+  git(r, 'add', '-A');
+  git(r, 'commit', '-q', '-m', 'escaping link');
+  const w = join(tmp, 'work-db-escape');
+  assert.equal(step(['plan', r, '--work', w, '--out', join(tmp, 'out-db-escape'), '--generated-at', GENERATED_AT]).status, 0);
+  cannedInto(w);
+  const log = join(tmp, 'duckdb-escape.log');
+  const stub = '#!/bin/sh\nif [ "$1" = "-version" ]; then echo v0.0.0; exit 0; fi\n' +
+    `echo "$@" >> "${log}"\n` +
+    "printf 'table\\tevents\\t1\\tid\\tBIGINT\\t0\\t1\\n'\n";
+  const f = step(['finish', '--work', w], { ...process.env, PATH: binWith('duckdb-escape', stub) });
+  assert.equal(f.status, 0, f.stdout);
+  const m = readJson(join(w, 'model.json'));
+  const skip = m.meta.sources.find((x) => x.type === 'introspection-skipped' && x.path === 'src/entities/warehouse.duckdb');
+  assert.ok(skip, JSON.stringify(m.meta.sources));
+  assert.match(skip.reason, /outside the repository/);
+  assert.ok(!existsSync(log), 'the database the link points at is never copied and queried');
+  assert.ok(!m.entities.some((e) => e.name === 'events'));
 });
