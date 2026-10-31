@@ -1,0 +1,133 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "skills/architecture-map/SKILL.md:356-357",
+      "issue": "P11.1 rewrote the reviewer bullet at lines 356-357 (targeted reads per catalogue pattern, then at most 12 more) but left the agent table row at SKILL.md:61 saying the reviewer makes 'at most 12 targeted reads'. The skill now contradicts itself, and the row understates the reads the brief obliges (16 patterns' targeted reads plus 12). The executor's outcome says SKILL.md was brought in line, but only the one bullet was.",
+      "resolution": "Change the reviewer row at SKILL.md:61 to 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching line 357 and agents/archmap-reviewer.md."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "docs/architecture/architecture.model.json:904-912",
+      "issue": "The committed public example map has an edge misc-hooks-to-scripts (desc 'The SessionStart hook runs scripts/staleness.mjs.', evidence hooks/hooks.json:5-12) whose target is scripts-pipeline. staleness.mjs belongs to the scripts-diffmap node (paths scripts/diffmap.mjs, scripts/staleness.mjs), and the same model's session-staleness sequence correctly routes the hook to scripts-diffmap. hooks/hooks.json runs only staleness.mjs, so the edge points at the wrong node in the map the README offers as the plugin's own example.",
+      "resolution": "Retarget the edge to scripts-diffmap (and its id to misc-hooks-to-diffmap) in docs/architecture/architecture.model.json, re-render the viewer and layout, and re-check the README counts (unchanged). If the map must stay byte-identical to the owner-run build, add a sentence in the evals README saying the committed map is unedited and may contain such inferred-edge errors."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/README.md:140-149",
+      "issue": "The new run-1 paragraph states '32 of the 63 nodes and 15 of the 16 entities cite only files under tests/fixtures/'. The run 1 model is not tracked (the same section says so), so the figure points at no script or log a reader can run; the phase outcome requires every number to point at its producing script or log. The executor measured it privately.",
+      "resolution": "Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private."
+    }
+  ],
+  "intent": {
+    "answer": "matches",
+    "note": "slice 1: Phase desired outcome: a prospective user can read, in README.md and the evals README, what a build costs per eval at list prices, orchestrator turns and context, what the map holds and how each claim was measured, with the before and after of the script-driven flow, every number pointing at its script or log, and no client, dataset or repository name. The slice does this. P11.3 tracks 21 cost-profile JSON files and e19/e20 derive the cost table from them; I checked that the two files whose reconciliation.matchesModelUsage is false (iteration-1 eval 4, iteration-2 eval 3) are the ones the README names. P11.4 corrects the sentence to four issues missed by category, names the source run and evidence file of every eval 2 figure and records the P11.2 outcome (0.93 x3). P11.5 rewrites the top-level README with a command table checked against commands/*.md and a cost table checked against the evidence files. The archmap-review mechanical scan over the phase diff reports 0 leads (denylist checked, 14 terms) and no evidence file carries a machine path. The recall values, the 14-of-15 matches and the reviewer issue counts come from private overlays; the READMEs state this and the tests do not tie them to anything tracked. Executor claims match the diffs: p40 uses the default --issues render, the 21 evidence files are present, and the README cost corrections (13.84 to 13.78, 9.79 to 9.71, 12.79 to 12.55) equal the profiles' totals. P11.1 does not do the description's optional item (prescan or explorer brief carrying cheap facts) and its return says so. HEAD later committed the self-map (P11.6, slice 2); its counts 30/18/1/4/5 equal the committed model, so the P11.5 README is consistent at this head. No request or open choices were saved for the phase, so the choices-left-open question could not be asked of the record. | slice 2: Phase slice 2 (P11.6, P11.7-6o1) against the desiredOutcome: the plugin's own map is committed and linked from the README with counts, cost, turns and context from a tracked profile (self-with-skill-2.json), with tests that bind the README, the evals README and the committed model together; and the evals README now states why the three iteration-1 cells moved. Verified at head: validate.mjs on docs/architecture/architecture.model.json --repo . exits 0 'OK: no findings'; no '/Users/', 'aleksandar' or 'bisevac' string in the three committed map files; no archmap-issues block in the committed viewer; evals README rows show 13.78 and 9.71 and README.md cost rows show the same figures. The only defects are the two low findings above (a mis-targeted inferred edge in the committed map; an unreferenced private-measurement figure).",
+    "missing": [
+      "phase.openChoices",
+      "phase.request"
+    ],
+    "redFirst": "could-not-prove",
+    "redFirstBasis": "Computed for the phase. The executors' red-first runs (node --test on the changed suites in a throwaway tree at HEAD) exited 1 with no readable test tally, so no assertion failure could be told from a crash.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Computed for the phase: every task's tests.gate is `node --test`, a whole-project run, so the question does not reach a bounded selection."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P11.1",
+      "commit": "9c80074546e5",
+      "answer": "matches",
+      "note": "Description: add a readiness and loading-state pattern (design, med); give the reviewer per-pattern targeted reads instead of confirm-only reads; keep the calibrated wording and the three-line reply; optionally let prescan or the explorer brief carry cheap facts. The diff adds P16 (design, med, retry covered), a Targeted reads line on P1-P15, med-raising notes for P6 and P10 and the P8 credential wording. It adds catalogueReads() and a '## Targeted reads' section in reviewerBrief, built from the catalogue at render time. REVIEWER_BRIEF_CAP is 8000 and the explorer and synthesizer caps are unchanged. I ran catalogueReads on the head catalogue and all 16 patterns return reads. Not done: the optional prescan item, which the return discloses. The claim describes the diff; the one gap is that the SKILL.md agent-table row at line 61 still says 'at most 12 targeted reads' (finding 1).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed. The filed red-first run of `node --test tests/skill-issues-catalog.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1 but its output carried no test tally, so an assertion failure cannot be told from a crash.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run."
+    },
+    {
+      "id": "P11.3",
+      "commit": "a18b73beb97e",
+      "answer": "matches",
+      "note": "Description: save the --json profile of every iteration-1 and iteration-2 run of evals 1 to 5 and the self-build under evidence/<iteration>/<eval>-<configuration>-<run>.json; a test that checks each cost cell, turn count and the stated maximum context against the files and fails on a tampered README; a 'How each number was produced' subsection; a --basename switch with a test; no machine path in any file. The diff adds the 21 profiles. I grepped them: every file entry is 'stream.jsonl', with no /Users, /home or /tmp. It adds --basename with c17, e19 and e20 (e20 mutates cells, turns, reruns sentences, the 72 K sentence, a file name, a profile and an unnamed file), and the subsection. The claim matches. The three corrected iteration-1 cells equal total.costUsd of the profiles (13.782, 9.712, 12.553). The README's statement that matchesModelUsage is false for iteration-1 eval 4 and iteration-2 eval 3 is true of the files.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed. The filed run of `node --test tests/cost-profile.test.mjs tests/evals.test.mjs` at HEAD exited 1 with no readable tally.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run."
+    },
+    {
+      "id": "P11.4",
+      "commit": "8620f77fe63c",
+      "answer": "matches",
+      "note": "Description: correct the two-issue sentence and e17 to four by category; give every eval 2 figure its run and evidence file; add the self-build row; record the P11.2 outcome, replacing the below-threshold statement if the reruns pass; keep the other e17 pins. The diff does each of these: a six-row run-by-run table with evidence files, and a self-build table with cost, turns, context, Opus and Sonnet counts and map counts. e17 requires the four-category sentence and the P11.2 result and forbids the old text. e19 checks the run table and self-build rows cell by cell against the profiles. The derived figures I could check are consistent: means 2.53 and 1.96 USD, 0.58 recall, and the missed counts against 15 reference issues (5, 7, 7, 1, 1, 1). The recall and the missed categories rest on private overlays and are not tied to a tracked file. The task's own gate run had no overlap with its files, which the brief marks. The claim matches the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed. The filed run of `node --test tests/evals.test.mjs` at HEAD exited 1 with no readable tally. The return also says e17 to e20 were seen red on the unchanged README (16 pass, 4 fail), but that is a narrative without a recorded command and exit code.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run; the recorded gate also had no overlap with this task's files."
+    },
+    {
+      "id": "P11.5",
+      "commit": "8174e41149ab",
+      "answer": "matches",
+      "note": "Description: rewrite the README with status (release candidate for 1.0.0), a command table matching commands/*.md, 'What a build delivers' with the self-build counts, 'What a build costs' (one table over five evals plus the self-build line, the caveats), 'How these numbers were measured', and tests/readme.test.mjs for the table, the figures and the stale wording, with no client, dataset or repository name. The diff does all of this. The README names no private repository. The only paths are repo-relative. The scan reports 0 leads. r2 ties cost, baseline, turns, context and the before cell to the cited evidence files and the rate date; r5 mutates each. Weakness within the task's reach: r2 checks only the denominator of a grade (7/7 against evals.json), so a changed numerator or the 0.93 recall is not tied to anything. The README says where those come from. The claim matches the diff. At head the README counts (30/18/1/4/5) match the committed model and the evals README, so P11.6's later edit stays consistent.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Computed. The filed run of `node --test tests/readme.test.mjs` at HEAD exited 1 with no readable tally; the file was new, so the failure could be a missing file.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "Computed. The task's tests.gate is `node --test`, a whole project run; the recorded gate had no overlap with this task's files."
+    },
+    {
+      "id": "P11.6",
+      "commit": "6b5f702d4a9e",
+      "answer": "matches",
+      "note": "Clause 'copy docs/architecture (model, layout, clean HTML) into this repository' - done, three files present, no home path or client string, no issues block in the viewer, validate.mjs --repo exit 0 at head. Clause 'the README links the viewer and states the build's cost, turns and counts from its evidence file in the P11.3 layout' - README.md links docs/architecture/archmap.html, counts row 30|18|1|4|5 and cost row 1.00 USD / 10 turns / 57.6 K citing iteration-2/self-with-skill-2.json; r4/r5 and e17-e19 bind them to the committed model and profile. Clause 'staleness hook reports from then on' - README says so. The executor's claim describes the diff accurately. Two low defects: a wrong-target edge in the committed model (architecture.model.json:912) and the untracked 32/15 fixture-citation figure in the evals README.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The task owes none: tests.add is none, gate-only, expectRedFirst false. The executor filed not-attempted with that basis; its r5 and e18 assert.throws cases are mutation checks on adjusted existing tests, not added tests, and none was seen red.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the single command 'node --test', which runs the whole project, so the question is not asked."
+    },
+    {
+      "id": "P11.7-6o1",
+      "commit": "fa5116799444",
+      "answer": "matches",
+      "note": "Clause 'Add one or two sentences under the cost table that name the earlier three figures, the rate change and the task that made it' - a two-sentence paragraph under the cost table names 13.84, 9.79, 12.79, the re-derived 13.78, 9.71, 12.55, the Sonnet 5.5 cache-read halving in P8.8 (0.20 to 0.10 USD per million) and that the Opus-only baselines did not move. Clause 'extend the cost-section test so that it fails when those sentences are dropped' - checkCostSection gains four assert.match lines and e18 two assert.throws cases altering the figures and the rate sentence. Clause 'Nothing else changes' - the diff touches only that paragraph and those test lines. The executor's claim (18 pass, 2 fail before the README edit) is plausible but not reproduced by the recorded helper run.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "The red-first helper's block: 'node --test tests/evals.test.mjs in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected'. The executor's prose says e17 and e18 failed (18 pass, 2 fail) but names no output line the helper accepts, so no red is proved.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "tests.gate is the single command 'node --test', a whole-project run, so the question is not asked."
+    }
+  ],
+  "preExisting": [],
+  "shown": [
+    {
+      "id": "P11.1",
+      "commit": "9c80074546e5"
+    },
+    {
+      "id": "P11.3",
+      "commit": "a18b73beb97e"
+    },
+    {
+      "id": "P11.4",
+      "commit": "8620f77fe63c"
+    },
+    {
+      "id": "P11.5",
+      "commit": "8174e41149ab"
+    },
+    {
+      "id": "P11.6",
+      "commit": "6b5f702d4a9e"
+    },
+    {
+      "id": "P11.7-6o1",
+      "commit": "fa5116799444"
+    }
+  ]
+}

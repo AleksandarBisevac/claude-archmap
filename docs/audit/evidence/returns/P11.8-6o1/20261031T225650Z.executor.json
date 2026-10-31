@@ -1,0 +1,18 @@
+{
+  "gates": {
+    "test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, tests.expectRedFirst false; a one-cell documentation wording change with no test to add",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Edited the archmap-reviewer row of the agent table in skills/architecture-map/SKILL.md (line 61): 'at most 12 targeted reads' became 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching the bullet at lines 356-357. git diff --stat shows 1 line changed in that file. The brief said there was nothing of its own to run, but I ran `node --test` once as a sanity check (more than the brief asked): 449 tests, 449 pass, 0 fail. I piped it through tail, so the shell exit code printed (0) is tail's, not node's; the tally is the evidence. Dependants (docs/architecture/architecture.model.json, docs/architecture/archmap.html, tests/commands.test.mjs, tests/evals.test.mjs, tests/pipeline.test.mjs, tests/skill.test.mjs, .agents/skills/node/tile.json, scripts/issues.mjs, 5 more not shown): the dependants I could check are still correct. The change is one sentence in a markdown table cell, with no change to any name, path, command or schema. The test files that read SKILL.md pass in the full run above. I did not open the architecture model, the HTML or the other unshown dependants; I judge them unaffected because they reference the file by path or basename, not by that cell's wording.",
+    "descriptive": "The skill's agent table no longer contradicts its own reviewer bullet or the reviewer agent about how many reads the reviewer makes."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:64b9d52c947147e2e231487a32d249407357e4426e2a683ae01e1c83bbe08c4d\",\"dirtyDigest\":\"sha256:440de9aeae04de2ed8507d39ef3f5c44a4e39873e791488c2b20fddce0e04ec5\",\"dirtyPaths\":{\"skills/architecture-map/SKILL.md\":\"f443692a7017ad5b\"},\"head\":\"fa51167\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/SKILL.md\"],\"scopeDigest\":\"sha256:c7a0fa14b5a3c97249eaad87ac11554b3385629b06210670b59626562f7777a0\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

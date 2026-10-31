@@ -58,7 +58,7 @@ flow; read one only at the step that names it.
 |---|---|---|---|
 | `archmap-explorer` | Sonnet, medium effort | Its brief, its area's extract summary, excerpts (Grep, line ranges); at least 6 tool calls | Writes one size-capped fragment file of at least its coverage floor in nodes; replies with three lines |
 | `archmap-synthesizer` | Sonnet, medium effort | Its brief and the merge digest with its drafted sequences; at most 12 targeted reads | Writes one JSON object to the synth path: 3-7 `sequences`, `views`, `notes`, `conflicts`; replies with three lines |
-| `archmap-reviewer` | Opus, high effort | Its brief, the model and the issues catalogue (absolute paths in the brief); at most 12 targeted reads | Writes one JSON object to `<work>/reviewer.json`: `issues`, optional `import`, `unreviewed`; replies with three lines |
+| `archmap-reviewer` | Opus, high effort | Its brief, the model and the issues catalogue (absolute paths in the brief); the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm | Writes one JSON object to `<work>/reviewer.json`: `issues`, optional `import`, `unreviewed`; replies with three lines |
 
 Dispatch each with the `Agent` tool exactly as the driver prints the call: `subagent_type`, `description`, `prompt`,
 and `model` when the profile needs an override (see [Token rules](#token-rules)). The prompt is a pointer to the brief

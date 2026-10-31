@@ -7590,7 +7590,32 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P11-R1",
+            "severity": "low",
+            "file": "skills/architecture-map/SKILL.md:356-357",
+            "issue": "P11.1 rewrote the reviewer bullet at lines 356-357 (targeted reads per catalogue pattern, then at most 12 more) but left the agent table row at SKILL.md:61 saying the reviewer makes 'at most 12 targeted reads'. The skill now contradicts itself, and the row understates the reads the brief obliges (16 patterns' targeted reads plus 12). The executor's outcome says SKILL.md was brought in line, but only the one bullet was.",
+            "resolution": "Change the reviewer row at SKILL.md:61 to 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching line 357 and agents/archmap-reviewer.md.",
+            "fixTask": "P11.8-6o1"
+          },
+          {
+            "id": "P11-R2",
+            "severity": "low",
+            "file": "docs/architecture/architecture.model.json:904-912",
+            "issue": "The committed public example map has an edge misc-hooks-to-scripts (desc 'The SessionStart hook runs scripts/staleness.mjs.', evidence hooks/hooks.json:5-12) whose target is scripts-pipeline. staleness.mjs belongs to the scripts-diffmap node (paths scripts/diffmap.mjs, scripts/staleness.mjs), and the same model's session-staleness sequence correctly routes the hook to scripts-diffmap. hooks/hooks.json runs only staleness.mjs, so the edge points at the wrong node in the map the README offers as the plugin's own example.",
+            "resolution": "Retarget the edge to scripts-diffmap (and its id to misc-hooks-to-diffmap) in docs/architecture/architecture.model.json, re-render the viewer and layout, and re-check the README counts (unchanged). If the map must stay byte-identical to the owner-run build, add a sentence in the evals README saying the committed map is unedited and may contain such inferred-edge errors."
+          },
+          {
+            "id": "P11-R3",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/README.md:140-149",
+            "issue": "The new run-1 paragraph states '32 of the 63 nodes and 15 of the 16 entities cite only files under tests/fixtures/'. The run 1 model is not tracked (the same section says so), so the figure points at no script or log a reader can run; the phase outcome requires every number to point at its producing script or log. The executor measured it privately.",
+            "resolution": "Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private.",
+            "fixTask": "P11.9-6o1"
+          }
+        ],
+        "outcome": "[findings: 3 - 0 high, 0 med, 3 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -7958,7 +7983,7 @@
         {
           "id": "P11.7-6o1",
           "title": "Evals README says why the three iteration-1 cells moved: the Sonnet cache-read rate halved in P8.8",
-          "status": "in_progress",
+          "status": "done",
           "description": "P11.3 re-derived the iteration-1 cells of evals 1, 2 and 4 at the current rate table: 13.84 became 13.78, 9.79 became 9.71 and 12.79 became 12.55 USD. The whole difference is the Sonnet 5.5 cache-read price, halved in P8.8 (0.20 to 0.10 USD per million, the pricing page's 0.05x input), applied to the Sonnet explorers' cache reads of those runs; the Opus-only baselines did not move. The evals README states the new figures but not why they differ from the figures quoted earlier (the private log, the P10 phase description and the first version of the table), and P11.4 did not add it. Add one or two sentences under the cost table that name the earlier three figures, the rate change and the task that made it, and extend the cost-section test so that it fails when those sentences are dropped. Nothing else changes.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -7984,20 +8009,143 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "fa5116799444",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote the test first: checkCostSection in tests/evals.test.mjs gained a P11.7 block (earlier figures 13.84, 9.79, 12.79 named; re-derived 13.78, 9.71, 12.55 named; 'Sonnet 5.5 cache-read price was halved in P8.8 (0.20 to 0.10 USD per million'; 'Opus-only baselines did not move'), and e18 gained two throws cases (earlier figures altered, rate sentence altered). Ran node --test tests/evals.test.mjs on current README: e17 and e18 failed (18 pass, 2 fail). Then added one paragraph under the cost table in skills/architecture-map/evals/README.md naming the earlier three figures, the three re-derived cells, the P8.8 halving of the Sonnet 5.5 cache-read price (0.20 to 0.10 USD per million, 0.05x input) applied to the Sonnet explorers' cache reads, and that the Opus-only baselines did not move. node --test tests/evals.test.mjs then green; full node --test: 449 pass, 0 fail. Dependants: tests/readme.test.mjs, README.md, docs/architecture/*, .claude/audit.config.json, tests/diffmap.test.mjs, tests/fixtures/evals/issues.json - still correct: only one prose paragraph was added to the evals README and two test assertions to evals.test.mjs; no table cell, filename, count or structure changed, and the full suite (including readme.test.mjs and the denylist scan) is green.",
+            "descriptive": "The evals README now says why the three iteration-1 cost cells moved (Sonnet cache-read rate halved in P8.8), and the cost-section test fails if that is dropped."
           },
           "startedAt": "2026-10-31T22:11:34Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T22:14:21Z",
+          "verifiedBy": [
+            "checkCostSection asserts the earlier figures 13.84/9.79/12.79, the re-derived 13.78/9.71/12.55, the P8.8 Sonnet cache-read halving and the unmoved Opus baselines; e18 asserts it throws when the earlier figures or the rate sentence are altered"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T22:14:20Z.936481",
             "status": "passed",
             "at": "2026-10-31T22:14:20Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "fa5116799444",
+            "at": "2026-10-31T22:14:21Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T22:13:18Z",
+            "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P11.8-6o1",
+          "title": "fix P11-R1: P11.1 rewrote the reviewer bullet at lines 356-357 (targeted read...",
+          "status": "in_progress",
+          "description": "P11.1 rewrote the reviewer bullet at lines 356-357 (targeted reads per catalogue pattern, then at most 12 more) but left the agent table row at SKILL.md:61 saying the reviewer makes 'at most 12 targeted reads'. The skill now contradicts itself, and the row understates the reads the brief obliges (16 patterns' targeted reads plus 12). The executor's outcome says SKILL.md was brought in line, but only the one bullet was.\n\nResolution asked: Change the reviewer row at SKILL.md:61 to 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching line 357 and agents/archmap-reviewer.md.",
+          "files": [
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T22:56:50Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T22:56:49Z",
+              "text": "scope: skills/architecture-map/SKILL.md, every path the finding(s) P11-R1 name"
+            },
+            {
+              "at": "2026-10-31T22:56:49Z",
+              "text": "no suite: skills/architecture-map/SKILL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/commands.test.mjs, tests/evals.test.mjs, tests/pipeline.test.mjs, tests/skill.test.mjs"
+            },
+            {
+              "at": "2026-10-31T22:56:49Z",
+              "text": "gate-only, not tdd: every file P11-R1 names is a document (skills/architecture-map/SKILL.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P11-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T22:59:27Z.e8cea3",
+            "status": "passed",
+            "at": "2026-10-31T22:59:27Z"
+          }
+        },
+        {
+          "id": "P11.9-6o1",
+          "title": "fix P11-R3: The new run-1 paragraph states '32 of the 63 nodes and 15 of the ...",
+          "status": "pending",
+          "description": "The new run-1 paragraph states '32 of the 63 nodes and 15 of the 16 entities cite only files under tests/fixtures/'. The run 1 model is not tracked (the same section says so), so the figure points at no script or log a reader can run; the phase outcome requires every number to point at its producing script or log. The executor measured it privately.\n\nResolution asked: Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private.",
+          "files": [
+            "skills/architecture-map/evals/README.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T22:56:49Z",
+              "text": "scope: skills/architecture-map/evals/README.md, every path the finding(s) P11-R3 name"
+            },
+            {
+              "at": "2026-10-31T22:56:49Z",
+              "text": "no suite: skills/architecture-map/evals/README.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/diffmap.test.mjs, tests/evals.test.mjs, tests/glob.test.mjs, tests/prescan-core.test.mjs, tests/readme.test.mjs, tests/review-scan.test.mjs and 1 more"
+            },
+            {
+              "at": "2026-10-31T22:56:49Z",
+              "text": "gate-only, not tdd: every file P11-R3 names is a document (skills/architecture-map/evals/README.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            },
+            {
+              "at": "2026-10-31T22:57:34Z",
+              "text": "Owner decision on phase review finding P11-R2 (the committed map's SessionStart hook edge targets the pipeline script node instead of the node that holds scripts/staleness.mjs): the map stays as the build produced it and the cause is tracked as bug BUG-5-6o1. In the same edit of the evals README, add one sentence to the run 2 paragraph of the self-build section saying the committed map is unchanged from the run and that this one edge is a known build error tracked as BUG-5-6o1; README.md needs no change. Keep e17 to e20 and r1 to r5 passing."
+            }
+          ],
+          "fixes": [
+            "P11-R3"
+          ]
         }
       ],
       "priority": 1,
@@ -8453,7 +8601,8 @@
       "P10.19-6rm",
       "P10.20-6rm",
       "P8.9",
-      "P11.1"
+      "P11.1",
+      "P11.8-6o1"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -8685,7 +8834,8 @@
       "P11.3",
       "P11.4",
       "P11.7-6o1",
-      "P11.6"
+      "P11.6",
+      "P11.9-6o1"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -8886,6 +9036,22 @@
       "files": [],
       "taskId": "BF1.4",
       "fixedIn": "61959cbd358a",
+      "notes": null
+    },
+    {
+      "id": "BUG-5-6o1",
+      "title": "Synthesizer or merge targets a hook edge at the wrong script node",
+      "status": "open",
+      "severity": "low",
+      "reportedAt": "2026-10-31T22:57:21Z",
+      "reportedBy": "phase review P11",
+      "description": "In the plugin's own map (docs/architecture/architecture.model.json, built at 8174e41) the edge from the hooks node for the SessionStart hook targets the pipeline script node, while hooks/hooks.json runs only scripts/staleness.mjs, which belongs to the diffmap-and-staleness node; the session-staleness sequence in the same model routes it correctly. Phase review finding P11-R2. The map is kept as the build produced it; the fix is in how an edge target is resolved when the evidence names one script file.",
+      "repro": "Build this repository with /archmap:build (balanced, no issues) and read the edge whose evidence is hooks/hooks.json in docs/architecture/architecture.model.json.",
+      "expected": "The edge targets the node whose paths include scripts/staleness.mjs.",
+      "actual": "The edge targets the pipeline script node.",
+      "files": [],
+      "taskId": null,
+      "fixedIn": null,
       "notes": null
     }
   ],
