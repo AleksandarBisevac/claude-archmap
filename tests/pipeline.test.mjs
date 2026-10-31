@@ -530,3 +530,82 @@ test('p16 plan without --work uses a directory under the OS temp dir named from 
   assert.equal(bad.status, 2);
   assert.ok(existsSync(join(foreign, 'notes.txt')));
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.7: the explorer is held to a coverage floor computed from its extract, not left to transcribe it.
+
+/** What the floor counts, recomputed here from the extract file alone. */
+function expectedFloor(extract) {
+  const dirOf = (p) => p.split('/').slice(0, -1).join('/');
+  const distinct = (xs) => new Set(xs).size;
+  return {
+    'entry-point groups': distinct((extract.entryPoints || []).map((p) => dirOf(typeof p === 'string' ? p : p.file))),
+    'route groups': distinct((extract.routes || []).map((r) => r.file)),
+    stores: distinct((extract.tables || []).map((t) => t.file)),
+    queues: (extract.queues || []).length,
+    jobs: (extract.jobs || []).length,
+    'external clients': (extract.clients || []).length,
+  };
+}
+
+function floorOf(brief) {
+  const line = brief.split('\n').find((l) => /Coverage floor/.test(l));
+  assert.ok(line, 'the brief has a Coverage floor line');
+  const total = /Coverage floor:\s*at least (\d+) nodes?/.exec(line);
+  assert.ok(total, `the floor line states a number of nodes: ${line}`);
+  const parts = {};
+  for (const m of line.matchAll(/(entry-point groups|route groups|stores|queues|jobs|external clients)=(\d+)/g)) parts[m[1]] = Number(m[2]);
+  return { total: Number(total[1]), parts, line };
+}
+
+test('p17 the brief carries a coverage floor computed from the extract, says a fragment under it is incomplete, asks for 6 to 20 tool calls beyond the extract, and stays under its cap', () => {
+  const w = join(tmp, 'work-floor');
+  const r = planInto(w);
+  assert.equal(r.status, 0, r.stdout);
+  for (const a of r.json.areas) {
+    const brief = readFileSync(join(w, 'briefs', `${a.id}.md`), 'utf8');
+    const extract = readJson(join(w, 'extracts', `${a.id}.json`));
+    const { total, parts, line } = floorOf(brief);
+    const want = expectedFloor(extract);
+    assert.deepEqual(parts, want, `${a.id}: the floor's parts are counted from the extract`);
+    const sum = Object.values(want).reduce((x, y) => x + y, 0);
+    assert.equal(total, Math.max(1, sum), `${a.id}: the floor is the sum of its parts, at least one`);
+    assert.match(brief, /fewer nodes than (the|this) (coverage )?floor[^\n]*incomplete|under (the|this) (coverage )?floor[^\n]*incomplete/i, `${a.id}: a fragment under the floor is incomplete`);
+    assert.match(brief, /at least 6\b[^\n]*\bat most 20\b[^\n]*tool calls|at least 6 and at most 20 tool calls/i, `${a.id}: 6 to 20 tool calls`);
+    assert.match(brief, /Grep[^\n]*(line-range|line range)[^\n]*Read|(line-range|line range)[^\n]*Read[^\n]*Grep/i, `${a.id}: Grep, then a line-range Read`);
+    assert.ok(brief.length <= BRIEF_CAP, `${a.id}: ${brief.length} characters`);
+    assert.ok(line.length < 700, `${a.id}: the floor line is compact (${line.length})`);
+  }
+  // the area with routes, tables, a queue and clients has a floor of more than one
+  const src = floorOf(readFileSync(join(w, 'briefs', 'src.md'), 'utf8'));
+  assert.ok(src.total >= 4, `src floor is ${src.total}`);
+  assert.ok(src.parts['route groups'] >= 1 && src.parts.queues >= 1 && src.parts['external clients'] >= 1, JSON.stringify(src.parts));
+});
+
+test('p18 a backend with many router modules gets a floor that counts them, and the floor line survives the trimming under the cap', () => {
+  const dir = join(tmp, 'many-routers');
+  mkdirSync(join(dir, 'src', 'routes'), { recursive: true });
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'many', dependencies: { express: '^4.0.0' } }));
+  writeFileSync(join(dir, 'src', 'app.ts'), "import express from 'express';\nconst app = express();\napp.listen(3000);\n");
+  for (let i = 0; i < 30; i++) {
+    const name = `feature-${String(i).padStart(2, '0')}-${'long'.repeat(8)}`;
+    writeFileSync(join(dir, 'src', 'routes', `${name}.ts`), `import { Router } from 'express';\nconst router = Router();\nrouter.get('/${name}', (req, res) => res.json([]));\nexport default router;\n`);
+  }
+  git(dir, 'init', '-q');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'initial');
+  const w = join(tmp, 'work-many');
+  const r = step(['plan', dir, '--work', w, '--out', join(tmp, 'out-many'), '--generated-at', GENERATED_AT]);
+  assert.equal(r.status, 0, r.stdout);
+  let seen = 0;
+  for (const a of r.json.areas) {
+    const brief = readFileSync(join(w, 'briefs', `${a.id}.md`), 'utf8');
+    const extract = readJson(join(w, 'extracts', `${a.id}.json`));
+    assert.ok(brief.length <= BRIEF_CAP, `${a.id}: ${brief.length} characters`);
+    const { total, parts } = floorOf(brief);
+    assert.deepEqual(parts, expectedFloor(extract), a.id);
+    assert.ok(total >= 1);
+    seen += parts['route groups'];
+  }
+  assert.ok(seen >= 30, `the 30 router modules are counted as route groups, saw ${seen}`);
+});

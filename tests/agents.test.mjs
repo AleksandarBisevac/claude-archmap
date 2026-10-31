@@ -9,7 +9,7 @@ import { join } from 'node:path';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 const DESIGN = {
-  'archmap-explorer': { model: 'sonnet', effort: 'low', tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write'] },
+  'archmap-explorer': { model: 'sonnet', effort: 'medium', tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write'] },
   'archmap-synthesizer': { model: 'sonnet', effort: 'medium', tools: ['Read', 'Grep', 'Glob', 'Write'] },
   'archmap-reviewer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob'] },
 };
@@ -91,7 +91,7 @@ test('a4 explorer and model-schema state that a subtree coverage glob is dir/** 
 test('a5 the explorer states its tool-call budget, writes the fragment to the path in its brief and replies with three lines only', () => {
   const { fm, body } = load('archmap-explorer');
   assert.ok(toolList(fm).includes('Write'), 'Write is in the explorer tools');
-  assert.equal(fm.effort, 'low');
+  assert.equal(fm.effort, 'medium');
   assert.match(body, /budget[^\n]*\b\d+ tool calls\b|\b\d+ tool calls\b[^\n]*budget/i, 'a numeric tool-call budget is stated');
   assert.match(body, /fragment path|path (named|given) in (the|your) (brief|prompt)/i, 'the fragment goes to the path the brief names');
   assert.match(body, /Write[^\n]*(only|one)[^\n]*(path|file)|(only|one)[^\n]*(path|file)[^\n]*Write/i, 'Write is limited to that one path');
@@ -121,4 +121,16 @@ test('a6 the synthesizer reads the digest, states a read budget, writes only seq
   }
   assert.match(body, /draft/i, 'it confirms the pre-drafted sequences');
   assert.match(body, /3-7|3 to 7/);
+});
+
+test('a7 the explorer runs at medium effort, states the coverage floor rule and the minimum of 6 tool calls, and keeps Write for the fragment path only', () => {
+  const { fm, body } = load('archmap-explorer');
+  assert.equal(fm.effort, 'medium');
+  assert.match(body, /coverage floor/i, 'the coverage floor is named');
+  assert.match(body, /(fewer|less) nodes than (the|its) (coverage )?floor[^\n]*incomplete|under (the|its) (coverage )?floor[^\n]*incomplete/i, 'a fragment under the floor is incomplete');
+  assert.match(body, /at least 6\b[^\n]*tool calls|tool calls[^\n]*at least 6\b/i, 'at least 6 tool calls');
+  assert.match(body, /at most 20\b|\b20 tool calls/i, 'at most 20 tool calls');
+  assert.match(body, /one node per[^\n]*(feature director|router|handler)/i, 'one node per feature directory or router module');
+  assert.match(body, /Write[^\n]*(only|one)[^\n]*(path|file)|(only|one)[^\n]*(path|file)[^\n]*Write/i, 'Write is limited to the fragment path');
+  assert.doesNotMatch(body, /transcrib|do not re-derive the rest/i, 'it no longer tells the explorer to stop at the extract');
 });

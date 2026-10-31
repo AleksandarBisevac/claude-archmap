@@ -203,3 +203,28 @@ test('s11 the guard in s10 can fail: a flow that greps a reference or polls is c
   assert.deepEqual([...new Set([...bad.matchAll(/([a-z][a-z-]*)\.mjs\b/g)].map((m) => m[1]))], ['merge']);
   assert.ok(!bad.split('\n').some((l) => l.includes('ScheduleWakeup') && /\b(never|no|not|do not)\b/i.test(l)));
 });
+
+// s12 (P10.7): the explorer runs at medium effort, and the build flow carries the work-dir rule.
+test('s12 the agents table and the profile table say the explorer runs at medium effort; SKILL.md stays within 500 lines', () => {
+  const row = skill.split('\n').find((l) => /^\|\s*`archmap-explorer`/.test(l) && /Sonnet/.test(l));
+  assert.ok(row, 'the agents table has an explorer row');
+  assert.match(row, /medium effort/i, row);
+  assert.doesNotMatch(row, /low effort/i);
+  const profile = skill.split('\n').find((l) => /^\|\s*`balanced`/.test(l));
+  assert.ok(profile, 'the profile table has a balanced row');
+  const cells = profile.split('|').map((c) => c.trim());
+  assert.match(cells[2], /Sonnet \(medium\)/, `balanced explorer cell: ${cells[2]}`);
+  assert.doesNotMatch(skill, /Sonnet \(low\)/);
+  assert.match(skill, /coverage floor/i, 'the explorer row or flow names the coverage floor');
+  assert.ok(skill.split('\n').length <= 500, 'SKILL.md stays within 500 lines');
+});
+
+test('s13 the build flow tells the caller to leave --work off, why subagents must be able to write there, and that the ledger is copied to where the caller asked after render', () => {
+  const flow = section('Build flow').replace(/\s+/g, ' ');
+  assert.match(flow, /Leave `--work` off/, 'leave --work off');
+  assert.match(flow, /<OS temp dir>\/archmap\/<hash of the repo path>/, 'the default work dir');
+  assert.match(flow, /subagents must be able to write their fragments under the work dir/i);
+  assert.match(flow, /denies a subagent a Write outside the project and the OS temp dir/i);
+  assert.match(flow, /never point `--work` at another directory, a symlink or a non-ignored directory in the repo/i);
+  assert.match(flow, /ledger is copied to where the caller asked after render/i, 'the ledger is copied after render');
+});

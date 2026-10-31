@@ -328,7 +328,49 @@ function capGlobs(globs, room) {
   return out.join(', ');
 }
 
-export function explorerBrief({ area, extract, fragment, profile, previous, stackRef, short = false, globRoom = 600 }) {
+const FLOOR_NAMES = 4; // names listed per kind in the "must cover" line
+const FLOOR_ROOM = 380; // characters of that line
+
+/** The directory part of a repo-relative path ('' for a root file). */
+const dirPart = (p) => String(p).split('/').slice(0, -1).join('/');
+const distinctOf = (xs) => [...new Set(xs.filter((x) => x !== undefined && x !== null))];
+
+/**
+ * The coverage floor of one area, counted from its extract: entry-point groups (by directory), route groups (by
+ * file), stores (by schema file), queues, jobs and external clients. `names` is what each kind holds, for the brief.
+ */
+export function coverageFloor(extract) {
+  const x = extract ?? {};
+  const entry = distinctOf(list(x.entryPoints).map((e) => dirPart(typeof e === 'string' ? e : e?.file) || '.'));
+  const routes = distinctOf(list(x.routes).map((r) => r?.file));
+  const stores = distinctOf(list(x.tables).map((t) => t?.file));
+  const queues = list(x.queues).map((q) => q?.name);
+  const jobs = list(x.jobs).map((j) => (typeof j === 'string' ? j : j?.name ?? j?.file));
+  const clients = list(x.clients).map((c) => c?.client);
+  const parts = {
+    'entry-point groups': entry, 'route groups': routes, stores, queues, jobs, 'external clients': clients,
+  };
+  const counts = Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, v.length]));
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  return { floor: Math.max(1, total), counts, names: parts };
+}
+
+const shortName = (n) => String(n).split('/').slice(-2).join('/');
+
+/** The two floor lines: the number with its parts, and what each kind must cover (compact, cut at FLOOR_ROOM). */
+function floorLines(cov) {
+  const parts = Object.entries(cov.counts).map(([k, n]) => `${k}=${n}`).join(', ');
+  const head = `- Coverage floor: at least ${cov.floor} nodes (${parts}). A fragment with fewer nodes than this floor is incomplete.`;
+  const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients']]
+    .map(([label, key]) => [label, cov.names[key]])
+    .filter(([, v]) => v.length)
+    .map(([label, v]) => `${label} ${v.slice(0, FLOOR_NAMES).map(shortName).join(', ')}${v.length > FLOOR_NAMES ? ` (+${v.length - FLOOR_NAMES})` : ''}`);
+  let cover = groups.join('; ');
+  if (cover.length > FLOOR_ROOM) cover = `${cover.slice(0, FLOOR_ROOM - 1)}…`;
+  return cover ? [head, `- Each of these needs its own node: ${cover}.`] : [head];
+}
+
+export function explorerBrief({ area, extract, fragment, profile, previous, stackRef, coverage, short = false, globRoom = 600 }) {
   const lines = [
     `# archmap explorer brief: ${area.id}`,
     '',
@@ -344,6 +386,7 @@ export function explorerBrief({ area, extract, fragment, profile, previous, stac
       : '- Extract: none (this area is not in the current prescan partition); start from the globs.',
     `- Fragment, the one file you write: ${fragment}`,
     `- Profile ${profile}. Budget: ${EXPLORER_TOOL_CALLS} tool calls, the final Write included.`,
+    ...floorLines(coverage ?? coverageFloor(null)),
   ];
   if (previous) lines.push(`- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
   if (stackRef) lines.push(`- Only if the extract leaves a framework question open: ${stackRef}`);
@@ -351,10 +394,10 @@ export function explorerBrief({ area, extract, fragment, profile, previous, stac
     '',
     '## Work',
     '',
-    '1. Read the extract. Spot-check what carries the structure (the entry point, one route group, one table, one queue)',
-    '   with a line-range Read and fix what is wrong; do not re-derive the rest.',
-    '2. Add what the extract cannot see: what a handler does, which store a service uses, the layers. Grep or Glob for',
-    '   the next fact, then Read a line range. Never read a whole tree or walk it file by file.',
+    '1. Read the extract, then make at least 6 and at most 20 tool calls in all, the Write included.',
+    '   Grep for the next fact, then a line-range Read; never read a whole tree or walk it file by file.',
+    '2. One node per feature directory of a frontend and per router or handler module of a backend, plus every store,',
+    '   queue, job and external client; then what the extract cannot see: what a handler does, which store a service uses.',
     '3. Never execute the project\'s code. Bash only for read-only database introspection; Write only the fragment path.',
     '',
     '## Fragment contract',
@@ -559,7 +602,8 @@ function plan(o, ctx) {
     const brief = join(work, 'briefs', `${a.id}.md`);
     const fragment = join(work, 'fragments', `${a.id}.json`);
     const stack = list(a.stacks).map((s) => STACK_REFS[s]).find(Boolean) ?? 'discovery-generic.md';
-    const input = { area: a, extract: a.extractPath, fragment, profile, previous: update ? previous : null, stackRef: join(REFS, stack) };
+    const coverage = coverageFloor(a.extractPath && existsSync(a.extractPath) ? readJson(a.extractPath, 'extract') : null);
+    const input = { area: a, extract: a.extractPath, fragment, profile, previous: update ? previous : null, stackRef: join(REFS, stack), coverage };
     const fitted = fitExplorerBrief(input, a.id);
     if (fitted.note) trimmed.push(fitted.note);
     writeBrief(brief, fitted.text);

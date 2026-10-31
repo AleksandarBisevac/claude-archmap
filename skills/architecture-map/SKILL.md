@@ -52,7 +52,7 @@ flow; read one only at the step that names it.
 
 | Agent | Default model | Reads | Returns |
 |---|---|---|---|
-| `archmap-explorer` | Sonnet, low effort | Its brief, its area's extract file, excerpts (Grep, line ranges) | Writes one size-capped fragment file; replies with three lines |
+| `archmap-explorer` | Sonnet, medium effort | Its brief, its area's extract file, excerpts (Grep, line ranges); at least 6 tool calls | Writes one size-capped fragment file of at least its coverage floor in nodes; replies with three lines |
 | `archmap-synthesizer` | Sonnet, medium effort | Its brief and the merge digest with its drafted sequences; at most 12 targeted reads | Writes one JSON object to the synth path: 3-7 `sequences`, `views`, `notes`, `conflicts`; replies with three lines |
 | `archmap-reviewer` | Opus, high effort | The model and the issues catalogue; targeted reads only | One JSON object (no write tools): `issues`, optional `import`, `unreviewed`; you write it as `issues.json` |
 
@@ -81,8 +81,11 @@ Triggered by `/archmap:build [--issues] [--profile p] [--db dsn] [--scope path] 
 a build you read no reference, script or agent file and run nothing but the three driver steps; the driver runs
 prescan, the partition, the briefs, introspection, merge, validate, layout, render and the usage ledger, and prints one
 JSON line per step with every script's exit code and findings. A build without `--issues` is seven assistant turns:
-loading the skill, then one turn per step below. `<work>` is a scratch directory outside version control (the session
-scratchpad, or a git-ignored `.archmap-work/`); plan refuses one the repo would map.
+loading the skill, then one turn per step below. `<work>` is the scratch directory plan prints. Leave `--work` off (plan
+picks `<OS temp dir>/archmap/<hash of the repo path>` and prints it): subagents must be able to write their fragments
+under the work dir, and Claude Code denies a subagent a Write outside the project and the OS temp dir, so never point
+`--work` at another directory, a symlink or a non-ignored directory in the repo. The ledger is copied to where the
+caller asked after render.
 
 **Dispatch rule.** Send every Agent call a step prints in ONE message, as foreground calls: they run concurrently and
 the message returns when all have replied. Never set `run_in_background`, never use ScheduleWakeup or Monitor, and do
@@ -120,11 +123,13 @@ merge normalises a fragment and truncates it to the caps, recording the area and
 ### 1. Plan
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" plan . --work <work> [--scope <path>] [--profile <p>] [--issues]
+node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" plan . [--scope <path>] [--profile <p>] [--issues]
 ```
 
-Exit 0: `areas` is the partition and `agents` the explorer calls, one per area, each reading
-`<work>/extracts/<area>.json` and writing `<work>/fragments/<area>.json`. Exit 2: stop and report `error`.
+Exit 0: `work` is the work dir to pass to the later steps, `areas` the partition and `agents` the explorer calls, one per
+area, each reading `<work>/extracts/<area>.json` and writing `<work>/fragments/<area>.json`. Each brief states the
+explorer's coverage floor, the fewest nodes its fragment may carry, counted from the extract. Exit 2: stop and report
+`error`.
 
 ### 2. Dispatch the explorers
 
@@ -224,7 +229,7 @@ Triggered by `/archmap:update [--issues] [--profile p] [--since sha]`. The model
 dispatch rule as the build flow:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" plan . --work <work> --update [--since <sha>] [--profile <p>] [--issues]
+node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" plan . --update [--since <sha>] [--profile <p>] [--issues]
 ```
 
 Plan runs prescan, then `diffmap.mjs` against `docs/architecture/architecture.model.json`, and briefs only the affected
@@ -287,7 +292,7 @@ A run without `--repo` does not check evidence; the driver always passes it.
 - **Your context stays small.** You read this file once and the driver's one-line JSON; never an extract, a fragment,
   the digest, the synth file or the model, and no reference, script or agent file during a build.
 - **Excerpts, not trees.** Explorers start from the prescan extract, use Grep and line ranges, never whole-tree reads,
-  stay within 20 tool calls, and write fragments within the caps, one sentence per `desc` and `role`, no source excerpts.
+  make 6 to 20 tool calls, reach their coverage floor in nodes, and write fragments within the caps, one sentence per `desc` and `role`, no source excerpts.
 - **The synthesizer reads the digest only**: the merge computes edges, zones, access rows and relations and pre-drafts
   sequences, so the agent confirms flows and writes views within 12 targeted reads.
 - **The reviewer** receives the model, with targeted reads only to confirm a specific claim.
@@ -301,7 +306,7 @@ A run without `--repo` does not check evidence; the driver always passes it.
 | Profile | `archmap-explorer` | `archmap-synthesizer` | `archmap-reviewer` |
 |---|---|---|---|
 | `max` | Opus (high) | Opus (high) | Opus (high) |
-| `balanced` (default) | Sonnet (low) | Sonnet (medium) | Opus (high) |
+| `balanced` (default) | Sonnet (medium) | Sonnet (medium) | Opus (high) |
 | `economy` | Haiku | Sonnet | Sonnet |
 
 The balanced synthesizer moved from Opus to Sonnet because the digest leaves it no structural reasoning: the edges,

@@ -1,0 +1,37 @@
+{
+  "gates": {
+    "node --test (full suite, tests staged)": "pass",
+    "node --test tests/denylist.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T00:30:59Z",
+    "basis": "`node --test tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/pipeline.mjs: new coverageFloor(extract) counts entry-point groups (by directory), route groups (by file), stores (distinct table files), queues, jobs (extract.jobs, which prescan does not emit yet, so 0 today) and external clients; explorerBrief writes two lines that are never trimmed (Coverage floor: at least N nodes (parts), a fragment under it is incomplete; and a compact must-cover list, 4 names per kind, 380 chars) right after the Profile line; Work steps rewritten to demand at least 6 and at most 20 tool calls, Grep then a line-range Read, one node per feature directory / router or handler module plus every store, queue, job, client. The P10.6 behaviours (trim order stack reference, title and stacks, globs; area:<id>; temp-dir default work) are untouched; briefs measured 3.6-3.9 K with long temp paths. agents/archmap-explorer.md: effort medium, Coverage floor section, at least 6 tool calls, floor listed in Input; shrunk to 6536 bytes because tests/prescan-core.test.mjs pc9 (not mine) bounds agent file + extract under 12000 (it was 6195 before). SKILL.md (323 lines, frontmatter line 3 byte-identical, checked by md5 against HEAD): agents table and balanced profile row say medium, coverage floor named, the verbatim work-dir sentence plus 'The ledger is copied to where the caller asked after render' in the build flow, plan commands no longer pass --work (build and update flows), Plan step says work is printed. Tests: p17 (floor parts recomputed from each extract file, sum, incomplete wording, 6..20 calls, cap), p18 (30 router modules counted, brief under cap), a7, s12, s13; a1 and a5 updated from low to medium. Full suite: node --test 355 pass 0 fail; denylist 2 pass. Dependants: scripts/usage.mjs, tests/commands.test.mjs, tests/e2e.test.mjs, commands/build.md and update.md still correct (full suite green; the commands only delegate to the skill and name no work dir or effort); tests/skill.test.mjs, tests/pipeline.test.mjs changed as described; tests/prescan-core.test.mjs pc9 still correct only because the agent file stayed under its 12 K bound; docs/design.md (not in my files) still says explorer Sonnet low in D11 and line 81 and is now stale - the orchestrator should update it. Unexplored: whether real extracts name jobs - prescan has no jobs key, so the jobs part of the floor is forward-looking.",
+    "descriptive": "Explorer briefs now state a node floor computed from the extract and demand 6-20 tool calls, the explorer runs at medium, and SKILL.md carries the work-dir rule."
+  },
+  "testsAdded": [
+    "p17 brief carries a coverage floor equal to the extract-derived counts, incomplete wording, 6-20 tool calls, under cap",
+    "p18 30 router modules counted in floors and brief stays under cap",
+    "a7 explorer medium effort, floor rule, 6 tool calls, Write only fragment path",
+    "s12 agents/profile tables say medium, SKILL.md at most 500 lines",
+    "s13 build flow work-dir rule and ledger copy sentence"
+  ],
+  "casesAdded": [
+    [
+      "p17",
+      "p18"
+    ],
+    "a7",
+    [
+      "s12",
+      "s13"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f11c3a034f39ecccc53dda2f2b49fb62b467c7ab93e06647371baa6cef981822\",\"dirtyDigest\":\"sha256:fd3cb29f72c7b27db247cf64bee0db99058352fd7190a40498f8dfefabf46b17\",\"dirtyPaths\":{},\"head\":\"d5519aa\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"scripts/pipeline.mjs\",\"skills/architecture-map/SKILL.md\",\"tests/agents.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:18af829963ea6c5c7669537a5371e769ff407422c8293f174ea80ab963c4afbb\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -5558,7 +5558,7 @@
         {
           "id": "P10.7-6rm",
           "title": "Explorer coverage: the brief demands one node per structural element of the extract and the effort is medium",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Measured on the iteration-2 run of eval 1 (2026-10-31): each of the 8 explorers made exactly two Reads (the brief, the extract) and one Write, 3 to 4 tool calls of the 20 allowed, and the fragments carried 19 nodes in total against 58 nodes (34 modules, 9 route groups, 6 jobs) in the iteration-1 build of the same repository; three areas came back empty and the 208-file frontend area had 4 nodes. Eval 4 (a monorepo) gave the same 19 nodes over 5 fragments. The brief's \"do not re-derive the rest\" plus effort low turned the explorer into a transcriber of the extract. Fix: pipeline.mjs plan computes a coverage floor from the extract (entry-point groups by directory, route groups, stores, queues, jobs, external clients) and writes it into the brief as the minimum number of nodes with the list of what each must cover; the brief requires at least 6 and at most 20 tool calls, Grep for the next fact then a line-range Read, one node per feature directory of a frontend and per router or handler module of a backend, and says a fragment under the floor is incomplete. agents/archmap-explorer.md goes back to effort medium (low saved nothing: the explorers were 0.4 USD of a 0.75 USD build) and states the same floor rule. SKILL.md's agents table and profile table follow, and SKILL.md's build flow gains the work-dir rule that P10.6 reports (the work dir must be writable by subagents: plan's default under the OS temp dir, or a git-ignored directory; never a directory the subagents cannot write, and copy the ledger to where the caller asked after render). Briefs stay under their cap. This task runs after P10.6 (same files: pipeline.mjs, archmap-explorer.md, tests/pipeline.test.mjs). No client or repository name in tests.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5588,21 +5588,27 @@
           "dependsOn": [
             "P10.6-6rm"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T00:25:30Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T00:31:25Z.a8b9f3",
+            "status": "passed",
+            "at": "2026-10-31T00:31:25Z"
+          }
         },
         {
           "id": "P10.8-6rm",
           "title": "cost-profile.mjs reconciles output tokens with the result event instead of the stream's partial counts",
-          "status": "in_progress",
+          "status": "done",
           "description": "On the iteration-2 streams (2026-10-31) the profiler's cache-read, cache-write and input totals equalled the last result event's modelUsage exactly, but output did not (891 against 5981 for Opus): assistant events in stream-json carry the output_tokens counted at emission time, not the message's final count, so summing them under-counts output and the profile printed \"totals DO NOT equal\". Fix scripts/cost-profile.mjs: the per-model table and the cost take every class from the LAST result event's modelUsage when one exists (the stream's per-message sums are used only when no result event is present, and then flagged as a lower bound); the per-agent table keeps the stream's turns, context sizes and cache figures (which do reconcile) and labels its output column as the stream's lower bound; the reconciliation line says MATCH, or names the class and the difference. The fixture gains partial output_tokens on its assistant events so the test fails before the fix. No client or repository name in the fixture.",
           "files": [
             "scripts/cost-profile.mjs",
@@ -5628,19 +5634,33 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "d5519aa9a283",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/cost-profile.mjs: per-model table, total and cost now take all four classes from the LAST result event's modelUsage (turns still from unique stream message ids; a model the result omits keeps stream figures); without a result event the stream sums are used and flagged lower bound. reconcile() compares input/cacheRead/cacheWrite for equality and output only as stream<=result, returning per-file mismatches [{model,class,stream,result,difference}]. New top-level JSON key 'basis' {byModel, byAgentOutput}. Text: per-agent output column headed 'output (stream, lower bound)', agent cost column 'cost USD (stream)', agent total row summed from agent rows; reconciliation line prints MATCH or 'DO NOT equal ...: <model> <class> differs by N (stream, result)'. Fixture: partial output_tokens on every assistant event (result events unchanged, still cumulative); expected.json byAgent output/cost updated (costs computed independently in python). Tests: c1/c2/c6/c7 adjusted to the new contract, added c13 (MATCH, lower-bound label, orchestrator turns 4/median 8555/max 9570 unchanged) and c14 (drift names class and difference; no-result stream flagged lower bound). First run of the new/updated suite before the implementation: 8 fail of 14; after: node --test tests/cost-profile.test.mjs 14/14 pass; node --test full suite 343/343 pass (exit 0), denylist test included. No new untracked files (fixtures were already tracked). Dependants: pipeline.mjs:829, usage.mjs:191, SKILL.md:297, pipeline.test.mjs:211 and docs/design.md only name cost-profile.mjs/the script in prose or a string match, none read its JSON keys - still correct; stream-sample.jsonl and expected.json are read only by tests/cost-profile.test.mjs, updated here.",
+            "descriptive": "cost-profile.mjs no longer under-counts output 5-7x: per-model figures and cost come from the result event, the per-agent output is labelled a stream lower bound, and reconciliation says MATCH or names the class and gap."
           },
           "startedAt": "2026-10-31T00:14:51Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T00:25:29Z",
+          "verifiedBy": [
+            "c13: partial-output fixture, model table from last result event reports MATCH, agent table labelled lower bound, orchestrator turns/median/max context unchanged",
+            "c14: drifted result names model, class and difference; stream without result event flagged as lower bound"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T00:25:29Z.a86be8",
             "status": "passed",
             "at": "2026-10-31T00:25:29Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "d5519aa9a283",
+            "at": "2026-10-31T00:25:29Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T00:16:55Z",
+            "basis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
