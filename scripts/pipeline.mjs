@@ -69,6 +69,7 @@ import { basename, dirname, join, relative, resolve, isAbsolute, sep } from 'nod
 import { fileURLToPath } from 'node:url';
 import { matchAny } from './lib/glob.mjs';
 import { CAPS } from './merge.mjs';
+import { SKIPPED_CAP } from './prescan.mjs';
 import { makeRow, readLedger, renderTable, summarize } from './usage.mjs';
 
 export const BRIEF_CAP = 4000; // characters per brief; with the agent file and an area summary it stays under 12 K
@@ -828,12 +829,14 @@ function cliPresent(cli) {
 }
 
 /**
- * What prescan left out as test data: the file count and one row per test data directory ({dir, reason, files}).
- * The capped file list stays in prescan.json; a prescan output without the block reads as nothing skipped.
+ * What prescan left out as test data: the file count and one row per test data directory ({dir, reason, files}),
+ * the first SKIPPED_CAP in path order as prescan's file list is; the count holds the rest. The capped file list stays
+ * in prescan.json; a prescan output without the block reads as nothing skipped.
  */
 function testDataOf(pre) {
   const s = isObj(pre.skipped) ? pre.skipped : {};
-  const dirs = list(s.dirs).filter((d) => isObj(d) && typeof d.dir === 'string').map(({ dir, reason, files }) => ({ dir, reason, files }));
+  const dirs = list(s.dirs).filter((d) => isObj(d) && typeof d.dir === 'string').slice(0, SKIPPED_CAP)
+    .map(({ dir, reason, files }) => ({ dir, reason, files }));
   return { count: Number.isInteger(s.count) ? s.count : 0, dirs };
 }
 

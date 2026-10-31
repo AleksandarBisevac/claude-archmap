@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/pipeline.test.mjs -- name pattern p39": "pass",
+    "node --test (full suite, 438 tests, exit 0)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T20:22:25Z",
+    "basis": "`node --test --test-name-pattern=p39 tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/pipeline.mjs: imports SKIPPED_CAP from ./prescan.mjs (it is exported there, not from lib/prescan/inventory.mjs; the main block there is guarded so the import has no side effect) and testDataOf slices the dirs list to SKIPPED_CAP, count unchanged; doc comment updated. tests/pipeline.test.mjs: new case p39 builds a scratch repo with SKIPPED_CAP+7 pkgNNN/fixtures directories, asserts plan's testData.count is the full count, dirs.length === SKIPPED_CAP in path order with keys dir/reason/files, the same field in pipeline.json, then finish+render with the canned fragments and synth and asserts the report's 'Skipped or not checked:' line starts with the test-data line and counts the rest ('and N more'). Full 'node --test': 438 pass, 0 fail. Dependants (tests/pipeline.test.mjs, usage.mjs, commands.test.mjs, skill.test.mjs, commands/build.md, commands/update.md, SKILL.md, evals/README.md): still correct, they reference pipeline.mjs by path and none reads testData.dirs beyond the cap; the full suite passes. Hint corrected: SKIPPED_CAP lives in scripts/prescan.mjs.",
+    "descriptive": "The plan step's testData.dirs list is capped at the prescan's SKIPPED_CAP, and a pipeline test now covers the testData field and the report's leading test-data line."
+  },
+  "testsAdded": [
+    "p39: plan on a scratch repo with more test-data dirs than SKIPPED_CAP returns testData with dirs capped and the true count; the render report's skipped line leads with the test-data line"
+  ],
+  "casesAdded": [
+    "p39"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:895c247b1b1753c400d63de67aca13816d5340f1190bf0b7cfbae3bab26503d3\",\"dirtyDigest\":\"sha256:db5238841c3a412654c5984b9574125f8c56c97ee8f1b7f0f36096d80633b4c0\",\"dirtyPaths\":{\"scripts/pipeline.mjs\":\"ba41eff607a45b7f\",\"tests/pipeline.test.mjs\":\"34e08e9aabc8aa5e\"},\"head\":\"0058766\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/pipeline.mjs\",\"tests/pipeline.test.mjs\"],\"scopeDigest\":\"sha256:9bf00ec48680694593cf32369d25b6f8d84fb1ebfcb39d05ad42e44ddde4e7da\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

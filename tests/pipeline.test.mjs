@@ -1397,3 +1397,39 @@ test('p38 the balanced profile description in the report names the explorer on S
   const line = r.json.report.split('\n').find((l) => l.startsWith('Profile: '));
   assert.match(line, /^Profile: balanced \(explorer Sonnet medium, /, line);
 });
+
+// P9.1 (P8-R4): P8.9 made plan return testData {count, dirs} and the final report lead its skipped list with a
+// test-data line. The dirs list is capped at the prescan's SKIPPED_CAP, as the file list is; the count is not.
+test('p39 plan on a repository with more test data directories than SKIPPED_CAP returns testData {count, dirs} with dirs capped at SKIPPED_CAP, and the final report\'s skipped list leads with the test-data line', async () => {
+  const { SKIPPED_CAP } = await import('../scripts/prescan.mjs');
+  const r0 = fixtureRepo('node-api-testdata');
+  const extra = SKIPPED_CAP + 7;
+  const dirs = Array.from({ length: extra }, (_, i) => `pkg${String(i).padStart(3, '0')}/fixtures`);
+  const base = step(['plan', r0, '--work', join(tmp, 'work-td-base'), '--out', join(tmp, 'out-td-base'), '--project', 'node-api', '--generated-at', GENERATED_AT]).json.testData;
+  assert.ok(base.dirs.length < SKIPPED_CAP, 'the fixture repo alone is under the cap, so the cap is reached by the added directories');
+  for (const d of dirs) {
+    mkdirSync(join(r0, d), { recursive: true });
+    writeFileSync(join(r0, d, 'case.json'), '{}\n');
+  }
+  git(r0, 'add', '-A');
+  git(r0, 'commit', '-q', '-m', 'test data');
+  const w = join(tmp, 'work-td');
+  const plan = step(['plan', r0, '--work', w, '--out', join(tmp, 'out-td'), '--project', 'node-api', '--generated-at', GENERATED_AT]);
+  assert.equal(plan.status, 0, plan.stdout);
+  const td = plan.json.testData;
+  assert.equal(td.count, base.count + extra, 'the count is every file left out, not the capped list');
+  assert.equal(td.dirs.length, SKIPPED_CAP, 'the dirs list is capped at SKIPPED_CAP');
+  assert.deepEqual(td.dirs.map((d) => d.dir), [...td.dirs.map((d) => d.dir)].sort(), 'in path order');
+  for (const d of td.dirs) assert.deepEqual(Object.keys(d), ['dir', 'reason', 'files'], d.dir);
+  assert.deepEqual(readJson(join(w, 'pipeline.json')).testData, td, 'the same field is stored in pipeline.json');
+
+  cannedInto(w);
+  assert.equal(step(['finish', '--work', w]).status, 0);
+  cpSync(SYNTH, join(w, 'synth.json'));
+  const r = step(['render', '--work', w]);
+  assert.equal(r.status, 0, r.stdout);
+  const line = r.json.report.split('\n').find((l) => l.startsWith('Skipped or not checked: '));
+  assert.ok(line, 'the report has a skipped line');
+  assert.ok(line.startsWith(`Skipped or not checked: test data: ${td.count} files left out of the map under `), line);
+  assert.match(line, / and \d+ more/, 'the line names the first directories and counts the rest');
+});

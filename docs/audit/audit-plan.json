@@ -5026,7 +5026,7 @@
     {
       "id": "P9",
       "title": "Release v1.0.0 and roadmap",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "Version 1.0.0 tagged in this repo with a changelog entry, the marketplace listing description updated, and docs/roadmap.md covering v1.1 and later.",
       "testGate": [
@@ -5037,8 +5037,8 @@
         "P8",
         "P10"
       ],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "0058766106a7f833ec1a781ad62cd6f92e74ee68",
+      "branch": "audit/p9-release-v1-0-0-and-roadmap",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -5051,7 +5051,7 @@
         {
           "id": "P9.1",
           "title": "Pipeline test covers the test-data plan field and report line, and the dirs list is capped",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Carried from the P8 phase review (finding P8-R4, low). P8.9 made plan return a testData field {count, dirs} (testDataOf in scripts/pipeline.mjs, stored in pipeline.json) and made the render report's skipped list lead with a test-data line, but no test reaches either path, and the dirs list is not capped while the prescan files list is capped at SKIPPED_CAP. Add the pipeline test case and cap dirs at the same constant.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5073,19 +5073,27 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T20:19:44Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T20:23:21Z.5a2521",
+            "status": "passed",
+            "at": "2026-10-31T20:23:21Z"
+          }
         }
       ],
-      "area": "release"
+      "area": "release",
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-31T20:19:44Z"
     },
     {
       "id": "BF1",
@@ -7551,6 +7559,29 @@
         "at": "2026-10-31T16:13:04Z"
       },
       "mergedHead": "dbb990a4430ad44d2a28cbeb6f699593b6d217d5"
+    },
+    {
+      "id": "P11",
+      "title": "User-facing documentation of what a build costs and delivers, with evidence",
+      "status": "pending",
+      "description": "",
+      "desiredOutcome": "A prospective user of the plugin can read, in the tracked documentation (README and the skill's evals README), what a build costs on each eval at list prices, how many orchestrator turns and how much context it takes, what the map contains and how each claim was measured (cost-profile on the stream transcript, grading against the eval expectations, test counts), with the before-and-after of the script-driven flow; every number points at the script or log that produced it; no client, dataset or repository name appears.",
+      "testGate": [
+        "test"
+      ],
+      "blockedBy": [],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [],
+      "priority": 1
     }
   ],
   "fileIndex": {
@@ -8409,17 +8440,17 @@
     {
       "id": "PROP-1-6rm",
       "name": "User-facing documentation of what a build costs and delivers, with evidence",
-      "status": "proposed",
+      "status": "materialized",
       "origin": "audit-task add-phase --park",
       "createdISO": "2026-10-31T15:23:33Z",
       "branch": "audit/p10-scripts-instead-of-agents-cut",
       "benefit": "A prospective user of the plugin can read, in the tracked documentation (README and the skill's evals README), what a build costs on each eval at list prices, how many orchestrator turns and how much context it takes, what the map contains and how each claim was measured (cost-profile on the stream transcript, grading against the eval expectations, test counts), with the before-and-after of the script-driven flow; every number points at the script or log that produced it; no client, dataset or repository name appears.",
       "openQuestions": [],
-      "materializedAs": null,
-      "materializedAt": null,
+      "materializedAs": "P11",
+      "materializedAt": "2026-10-31T19:24:54Z",
       "payload": {
         "phase": {
-          "id": "P11-6rm",
+          "id": "P11",
           "title": "User-facing documentation of what a build costs and delivers, with evidence",
           "status": "pending",
           "description": "",
