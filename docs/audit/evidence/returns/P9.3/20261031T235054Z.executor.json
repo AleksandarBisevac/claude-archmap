@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/readme.test.mjs": "pass",
+    "node --test tests/manifest.test.mjs tests/readme.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T23:51:40Z",
+    "basis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "plugin.json already carried 1.0.0 from P9.2 (unchanged). README.md Status paragraph replaced: released, version 1.0.0, one sentence on what it covers, CHANGELOG link, kept the six commands / test suite / evals sentence. tests/readme.test.mjs: checkWording now takes the plugin.json version (default read from .claude-plugin/plugin.json), requires 'released', 'version <plugin.json version>', a CHANGELOG.md link, six commands, test suite and evals in the Status section, and forbids planned / pre-release / release candidate wording and machine paths; r3 title updated; r5 wording checks updated (dropped CHANGELOG link, wrong version 9.9.9, 'release candidate' text, machine path, planned). node --test tests/readme.test.mjs: 5 pass 0 fail; with tests/manifest.test.mjs (mf3 CHANGELOG version = plugin.json version): 9 pass 0 fail. Dependants: plugin.json dependants (architecture model/html, manifest.test, design.md, readme.test) unchanged by this task since plugin.json was not edited; README dependants (evals README, fixtures, other tests citing README by basename) unaffected, only the Status paragraph changed and r1/r2/r4 still pass. Full node --test was not run (own-tests reading).",
+    "descriptive": "README now states the 1.0.0 release and r3 pins that status to the plugin.json version."
+  },
+  "testsAdded": [
+    "r3 requires the released status, the plugin.json version, the CHANGELOG link, and forbids planned/pre-release/release-candidate wording and machine paths; r5 extended with negative cases"
+  ],
+  "casesAdded": [
+    "r3"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:79b615dac8cb5986ca57d13c29e8058589ca68ad114a24aa74de357c7e42b9f9\",\"dirtyDigest\":\"sha256:624e39a1ddb886dad6701c72e2f5f8cd7a5649b015ee8d16b7b6c39c651f7146\",\"dirtyPaths\":{\"README.md\":\"bbb1149428990837\",\"tests/readme.test.mjs\":\"a991017213568d3f\"},\"head\":\"4618cf3\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\".claude-plugin/plugin.json\",\"README.md\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:cd77fd2fed47717208d8b88733213c82d6b95b800abfeeec916bcbc3ad8667ae\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

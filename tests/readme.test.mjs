@@ -166,13 +166,20 @@ const PATH_LIKE = new RegExp(
   ].join('|'),
   'm',
 );
-const STALE_WORDING = /\bplanned\b|\bpre-?release\b|not usable yet|coming soon/i;
-const checkWording = (text) => {
+const STALE_WORDING = /\bplanned\b|\bpre-?release\b|release candidate|not usable yet|coming soon/i;
+const pluginVersion = () => JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')).version;
+const checkWording = (text, version = pluginVersion()) => {
   const path = text.match(PATH_LIKE);
   assert.equal(path, null, `no machine path in the README${path ? `: "${text.slice(Math.max(0, path.index - 20), path.index + 30)}"` : ''}`);
   const stale = text.match(STALE_WORDING);
   assert.equal(stale, null, `no planned or pre-release wording in the README${stale ? `: "${stale[0]}"` : ''}`);
-  assert.match(section(text, 'Status'), /release candidate for 1\.0\.0/i, 'the status says release candidate for 1.0.0');
+  const status = section(text, 'Status');
+  assert.match(status, /\breleased\b/i, 'the status says the plugin is released');
+  assert.ok(new RegExp(`\\bversion ${version.replace(/\./g, '\\.')}\\b`, 'i').test(status), `the status names version ${version}, the version plugin.json carries`);
+  assert.ok(status.includes('](CHANGELOG.md)'), 'the status links CHANGELOG.md');
+  assert.match(status, /six commands/i, 'the status keeps the sentence about the six commands');
+  assert.match(status, /test suite/i, 'the status keeps the tests');
+  assert.match(status, /evals/i, 'the status keeps the evals');
 };
 
 // --- r4: what a build delivers carries the self-build counts of the evals README, and the method section ------------
@@ -223,7 +230,7 @@ test('r2 every cost, baseline, turn, context and before figure of the README cos
   checkCostTable(readReadme());
 });
 
-test('r3 the README carries no machine path and no planned, pre-release or not-usable-yet wording, and its status is release candidate for 1.0.0', () => {
+test('r3 the README carries no machine path and no planned, pre-release or not-usable-yet wording, and its status is released, with the version plugin.json carries and a CHANGELOG link', () => {
   checkWording(readReadme());
 });
 
@@ -279,7 +286,9 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
   // wording: a machine path, planned wording, a dropped status
   assert.throws(() => checkWording(`${text}\nSee /Users/someone/checkout/README.md.\n`), /machine path/);
   assert.throws(() => checkWording(`${text}\nThe export command is planned.\n`), /planned or pre-release/);
-  assert.throws(() => checkWording(swap(text.match(/release candidate for 1\.0\.0/i)[0], 'beta')), /release candidate/);
+  assert.throws(() => checkWording(swap('](CHANGELOG.md)', ']')), /links CHANGELOG/);
+  assert.throws(() => checkWording(text, '9.9.9'), /names version 9\.9\.9/);
+  assert.throws(() => checkWording(`${text}\nThis is a release candidate.\n`), /planned or pre-release/);
   // delivers: an altered self-build count
   const counts = row(/^\| \d+ \| \d+ \| \d+ \| \d+ \| \d+ \|$/);
   assert.throws(() => checkDeliversAndMethod(swap(counts, counts.replace(/^\| \d+/, '| 99'))), /self-build Nodes count/);

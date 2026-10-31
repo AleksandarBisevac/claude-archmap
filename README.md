@@ -7,9 +7,10 @@ and draw it. The design is in [docs/design.md](docs/design.md).
 
 ## Status
 
-Release candidate for 1.0.0. All six commands below work and are covered by the test suite and by five evals on three
-private repositories plus a build of this repository (see [What a build costs](#what-a-build-costs)). The version
-number in `.claude-plugin/plugin.json` is set when the release is cut.
+Released: version 1.0.0 is the first release, a Claude Code plugin that maps a repository's architecture into one
+evidence-backed model and renders it as an offline HTML viewer; see the [CHANGELOG](CHANGELOG.md). All six commands
+below work and are covered by the test suite and by five evals on three private repositories plus a build of this
+repository (see [What a build costs](#what-a-build-costs)).
 
 ## Install
 
