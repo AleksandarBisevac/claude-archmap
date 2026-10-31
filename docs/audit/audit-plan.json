@@ -7597,7 +7597,7 @@
         {
           "id": "P11.1",
           "title": "Reviewer recall on eval 2: the four medium reference issues missed in all three runs",
-          "status": "in_progress",
+          "status": "done",
           "description": "Eval 2 recall over three runs is 0.67, 0.53 and 0.53 against the 0.60 threshold (score-recall.mjs on the saved overlays). Four medium reference issues are missed in every run, one each in performance, security, reliability and design: a full data pull that runs sequentially inside the request path; user credentials copied into the process environment and kept beyond the request; a fallback or retry that handles the wrong exception class; a UI with no loading state and no retry against the readiness endpoint. Likely cause, to confirm from the three transcripts and the saved models: the reviewer works from the model and opens code only to confirm a suspicion it already has, and the script-made model after P10 carries few facts, so the patterns that live only in code (P6, P8 and P10 of issues-catalog.md) never surface; the loading-state pattern has no catalogue entry at all. Fix: add a readiness and loading-state pattern to the catalogue (design, medium by default); give the reviewer, per pattern, the targeted reads it must make (the entry point's exception handlers, writes to the process environment, the loop around a bulk pull, the client's health or readiness call) instead of confirm-only reads; where a fact is cheap to extract, let prescan or the explorer brief carry it (middleware is already in the python extract). Keep the calibrated wording and the three-line reply. The proof is P11.2 (owner-run reruns); this task's tests cover the catalogue entry and the brief text.",
           "files": [
             "skills/architecture-map/references/issues-catalog.md",
@@ -7625,25 +7625,40 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "9c80074546e5",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "issues-catalog.md: the scope rule now says to make each pattern's targeted reads whether or not the model suggests the issue (a Grep, then a line-range Read; confirm-only reads only beyond them). Every pattern P1-P15 gained a one-line **Targeted reads:** field (P5/P6 exception handlers, P8 writes to the process environment, P10 the loop around a bulk or full pull, etc.). P6 and P10 say to raise to med when the fallback or the full pull sits in the request path. P8's look-for covers request code copying a user's credentials into the process environment. New P16 'Readiness with no loading state or retry in the client' (anchor node, design, med) has the client's health/readiness call as its targeted read. scripts/pipeline.mjs: new exported catalogueReads(text) parses the patterns and their Targeted reads lines. reviewerBrief() adds a '## Targeted reads' section listing '- <pattern heading>: <reads>' for every pattern, read from the catalogue at render time so the catalogue stays the single source. The budget line is now 'the targeted reads below, then at most 12 more reads, only to confirm'. The brief came to ~4.3K characters, over the shared 4000 BRIEF_CAP, so writeBrief takes a cap argument and the reviewer brief uses a new exported REVIEWER_BRIEF_CAP = 8000 (room for two 200-character work paths and an update's touched ids). Explorer and synthesizer briefs keep BRIEF_CAP. agents/archmap-reviewer.md: the input rule and the 'How to work' list (now 6 steps) say to make the brief's targeted reads and name the four code-only patterns. The calibrated wording and the three-line reply are unchanged. Adjacent file outside the task's files: skills/architecture-map/SKILL.md line 356 still said the reviewer gets 'at most 12 targeted reads only to confirm a specific claim'. I edited it to match the new behaviour (targeted reads, then at most 12 confirming reads), and the plan gate (hooks/require-plan.py) allowed the edit. Not done: the description's optional item, letting prescan or the explorer brief carry cheap facts. That would touch prescan/extract files outside this task's scope and is left for a follow-up. Commands: node --test tests/skill-issues-catalog.test.mjs gave 6/6 pass; node --test tests/pipeline.test.mjs gave 40/40 pass; node --test (the gate) gave 441 tests, 441 pass, 0 fail, 0 skipped, exit 0, run twice (before and after the SKILL.md edit). Dependants: scripts/issues.mjs still correct (it reads only the 'Audit import' and 'Calibrated wording' sections, both unchanged). tests/pipeline.test.mjs changed (p40 added; p10/p24 still pass). tests/skill-issues-catalog.test.mjs changed (i5, i6 added; i2's >=11 patterns still holds with 16). scripts/pipeline.mjs changed as above. skills/architecture-map/evals/evals.json still correct (it names the catalogue's categories, unchanged). tests/agents.test.mjs still correct (reviewer model, tools and reference names unchanged; passes). tests/issues-overlay.test.mjs still correct (calibration rules unchanged; passes). agents/archmap-reviewer.md changed as above. For pipeline.mjs's dependants: scripts/usage.mjs, tests/commands.test.mjs and tests/skill.test.mjs are still correct (no step output or CLI shape changed; all pass). commands/build.md and commands/update.md are still correct (the reviewer call and the next line are unchanged). skills/architecture-map/SKILL.md is updated as noted. skills/architecture-map/evals/README.md is still correct (this task changes no recorded numbers; the reruns are P11.2). docs/design.md still correct: it points at issues-catalog.md for the generalised patterns and does not enumerate them.",
+            "descriptive": "The reviewer brief now lists, per catalogue pattern, the code reads to make whether or not the model hints at the issue, and the catalogue gains a readiness/loading-state pattern, aimed at the four eval 2 issues missed in every run."
           },
           "startedAt": "2026-10-31T21:02:18Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T21:14:45Z",
+          "verifiedBy": [
+            "i5: the catalogue has exactly one readiness and loading-state pattern, category design, default severity med, mentioning retry, whose targeted read names the health or readiness call",
+            "i6: every catalogue pattern has a **Targeted reads:** line, and together they cover exception handlers, process-environment writes, the loop around a bulk pull and the readiness call; the catalogue says the reads are made whether or not the model suggests the issue",
+            "p40: after render with --issues, the reviewer brief names every catalogue pattern with its targeted reads text, says they are made whether or not the model suggests the issue, and keeps the three-line reply"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T21:14:08Z.7e44a2",
             "status": "passed",
             "at": "2026-10-31T21:14:08Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "9c80074546e5",
+            "at": "2026-10-31T21:14:45Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T21:11:25Z",
+            "basis": "`node --test tests/skill-issues-catalog.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P11.2",
           "title": "Eval 2 reruns on the P11.1 reviewer: recall at least 0.60 in each of three runs (owner-run)",
-          "status": "pending",
+          "status": "blocked",
           "description": "Run eval 2 three times with the skill on the P11.1 code through the private harness, one run at a time and while nothing edits the scripts (the harness reads them live through --plugin-dir). Grade each run with the harness grader and score-recall.mjs and profile each stream with cost-profile.mjs --json. Done when recall is at least 0.60 in each run, the 12-turn target and the under-5-USD target still hold, and the three recall values, turn counts, costs and the remaining misses by category are recorded in the private results log, with the three profiles saved for P11.3. If a run stays below 0.60, record which categories still miss and reopen P11.1 with that evidence instead of closing this task. No repository, path or client name in any tracked file or task text.",
           "files": [
             "skills/architecture-map/evals/evals.json"
@@ -7664,16 +7679,18 @@
           "dependsOn": [
             "P11.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T21:14:45Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "blockedReason": "Owner-run: the three eval 2 reruns on the P11.1 reviewer are run by the owner through the private harness, one at a time and with no executor editing the scripts meanwhile; unblock when the private results log holds the three recall values and the three profiles."
         },
         {
           "id": "P11.3",
