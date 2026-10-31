@@ -1,0 +1,51 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "scripts/pipeline.mjs:827-846",
+      "issue": "The new plan return field `testData` (testDataOf(pre), stored in pipeline.json state) and the render report line (testDataLine, unshifted into `skipped` before the MAX_MESSAGES cut) are reached by no test: the executor says so itself and tests/pipeline.test.mjs was outside the task's files. The plan's `testData.dirs` list is also not capped (the prescan files list is capped at SKIPPED_CAP, the dirs rows are not), so a repo with many examples or samples directories below tests directories grows the plan return without bound. Deleting testDataLine or the `testData` assignment at pipeline.mjs:793/804 would leave every gate test green.",
+      "resolution": "Carry to a task that adds a pipeline.test.mjs case: plan on a repo with tests/fixtures data returns testData {count, dirs}, the final report's Skipped or not checked line leads with 'test data: N files left out of the map under ...', and an old state without testData reads as nothing skipped; cap the dirs rows in testDataOf (or in skippedBlock) with a 'more' count."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "diverges",
+    "note": "The code and the README are honest and consistent with each other. Against the phase desiredOutcome ('issue recall is at least 60 percent of high and medium reference issues; balanced is cheaper than max'): the evals README at skills/architecture-map/evals/README.md now records recall 0.67, 0.53, 0.53 (mean 0.58), two of three runs and the mean below 60 percent, and says the balanced-versus-max run was never measured (the max run was stopped), so two clauses of the outcome are documented as not met rather than met. The other clauses (evals 1-5 with and without the skill, trigger description optimised with run_loop) are recorded as done by earlier-reviewed tasks. This is for the owner to accept or reopen; it is not a code defect, and the wrong half of the divergence is the outcome, not the diff. The three first-round findings are fixed as asked: prescan emits `skipped` {count, files capped at 50, dirs}, the plan return and final report carry it, examples and samples count only below tests, test, __tests__ or fixtures directories (inventory.mjs testDataOf), merge carries only elements with at least one evidence file none of which changed (merge.mjs carriable), and README step 6 no longer asserts the cheaper claim. The mechanical scan's one lead (an 'express' string in a test fixture literal, tests/prescan-core.test.mjs:651) is a false positive, not an import.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "phase diff; no phase-level red-first claim. Per task: P8.9 filed could-not-prove (helper run exited 1 without a readable tally); P8.10 not-attempted (expectRedFirst false).",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "the gate command read for the owed task is `node --test`, which runs the whole project, so the question has no bound."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P8.10",
+      "commit": "1880b9c",
+      "answer": "diverges",
+      "note": "Clause (1) of the description says 'the target now holds (11 and 13 turns)'; the diff (README.md, eval 2 paragraph) says '11 meets the target, 13 is one over it'. 13 is above the 12-turn target, so the diff is the accurate half and the description's clause is wrong; the executor's outcome states this deviation openly and describes the diff correctly. The rest matches: the 'exceeded' paragraph is rewritten and the five source-reading turns are reported gone; the eval 2 result cell states recall over three runs (0.67, 0.53, 0.53; mean 0.58) and the paragraph says the row shows the first run; eval 3 and 5 rows are added with iteration-1 cost, baseline 0/N and the one sentence that the baselines score 0 because the expectations are archmap-shaped and the cost column is not like for like; repositories are named A only; no denylist hit in the scan. Clause (3): e17 is moved into checkCostSection and extended to five rows, and e18 feeds it three broken READMEs (a share changed 27.4 to 30.4, the eval 5 row renamed, the caveat reworded), each asserted to throw, so it still fails on a shares row that does not sum to 100. The executor also narrowed the old '72 K never exceeded' claim to evals 1, 2 and 4, which the diff shows. The cost figures themselves are not checkable from the tree, since the transcripts are not tracked.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "the executor's redFirst is not-attempted, with the basis 'regression task with tests.expectRedFirst false'; tests.add is empty, so the task owes none. e18 mutates the README text and asserts the check throws, which shows the check can fail.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P8.10": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P8.9",
+      "commit": "61f4917f5f7b"
+    },
+    {
+      "id": "P8.10",
+      "commit": "1880b9c"
+    }
+  ]
+}

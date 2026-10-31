@@ -4323,7 +4323,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P8-R1",
@@ -4354,11 +4354,30 @@
             "fixTask": "P8.9",
             "commit": "61f4917f5f7b",
             "status": "fixed"
+          },
+          {
+            "id": "P8-R4",
+            "severity": "low",
+            "file": "scripts/pipeline.mjs:827-846",
+            "issue": "The new plan return field `testData` (testDataOf(pre), stored in pipeline.json state) and the render report line (testDataLine, unshifted into `skipped` before the MAX_MESSAGES cut) are reached by no test: the executor says so itself and tests/pipeline.test.mjs was outside the task's files. The plan's `testData.dirs` list is also not capped (the prescan files list is capped at SKIPPED_CAP, the dirs rows are not), so a repo with many examples or samples directories below tests directories grows the plan return without bound. Deleting testDataLine or the `testData` assignment at pipeline.mjs:793/804 would leave every gate test green.",
+            "resolution": "Carry to a task that adds a pipeline.test.mjs case: plan on a repo with tests/fixtures data returns testData {count, dirs}, the final report's Skipped or not checked line leads with 'test data: N files left out of the map under ...', and an old state without testData reads as nothing skipped; cap the dirs rows in testDataOf (or in skippedBlock) with a 'more' count.",
+            "status": "carried",
+            "carriedTo": "P9.1"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 1 med, 2 low; 3 with a recorded fix commit]"
+        "outcome": "phase review filed at head 1880b9c8522d [findings: 4 - 0 high, 1 med, 3 low; 3 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P8/1880b9c8522d61a0d4375c0f50149c12b32244ac.reviewer.json",
+            "sha256": "03981c15e8b2fe727534bf266bac8652c2b406da4a49fafd57fa520826b0771d"
+          },
+          {
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "sha256": "0437c1bf147cec20c7b534633b28fbe35f0d9f9d09fecab6d9771d20146c68ce"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "Evals 1-5 ran with and without the skill on the final code (7/7, 7/7, 8/8, 8/8, 7/7 with skill); the owner reviewed the runs in the viewer and closed the review in chat; issue recall on eval 2 measured 0.67, 0.53, 0.53 over three runs (mean 0.58, recorded in the evals README, reviewer-recall work deferred to a later phase); the balanced-versus-max comparison was not completed and the README says so, the cost claim rests on the with-skill versus no-skill table (1.16, 2.02, 1.57 USD against 1.55, 2.29, 1.82); the trigger description was optimised with run_loop (15/20 from 13/20); the first real build on the plugin's own repository fed P8.5 and P8.9 (test data skipped and reported); the Sonnet cache-read rate corrected (P8.8). Two phase reviews: 3 findings fixed in P8.9, 1 low carried to P9.1; six reviewer answers accepted by the owner ('Potpiši sa izmerenim 0,58'). Reviewer answers accepted: Owner on 2026-10-31: 'Potpiši sa izmerenim 0,58'. P8.10: the README states 11 meets the target and 13 is one over, which is the truth the owner wants recorded. Invariant breach accepted: Owner-ordered history rewrite on 2026-10-31 ('prepravi komit P8.6 da izbaciš termin pre nego što P8 ide dalje', then 'prebaci se na P8 granu i zatvori P8.6 protiv bac07c4'): the old tip 620014dd carried commit 0b5d5a2 with a denylisted term in a trigger query; the branch was rebuilt on the P10 tip 17ee9d9 with the scrubbed P8.6 work bac07c4, the landed stamp 4003509 and the P8 state record 4da4155; nothing was pushed, the old tip is noted in the session scratchpad.",
       "tasks": [
         {
           "id": "P8.1",
@@ -4405,9 +4424,14 @@
             "at": "2026-10-29T23:31:39Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "51658926c28e",
-            "at": "2026-10-29T23:31:41Z"
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.1/20261029T232908Z.executor.json, at 2026-10-29T23:30:58Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T23:30:58Z",
@@ -4464,9 +4488,14 @@
             "at": "2026-10-29T23:33:42Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "0f35f972f354",
-            "at": "2026-10-29T23:33:43Z"
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.2/20261029T233141Z.executor.json, at 2026-10-29T23:33:28Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-29T23:33:28Z",
@@ -4621,9 +4650,14 @@
             "at": "2026-10-31T18:41:16Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "846767ca89f3",
-            "at": "2026-10-31T18:41:17Z"
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-core.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.5/20261031T183041Z.executor.json, at 2026-10-31T18:39:53Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T18:39:53Z",
@@ -4689,9 +4723,14 @@
             }
           ],
           "intentCheck": {
-            "answer": "deferred",
             "commit": "bac07c4",
-            "at": "2026-10-31T17:31:17Z"
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "answer": "cannot-tell",
+            "redFirst": "not-proved",
+            "redFirstBasis": "No executor return is filed and nothing in the brief shows a red run. e15 would fail while trigger-evals.json is absent, but that is reading, not a seen red. e16 (description under 1024 characters, name present) would also have passed on the previous description.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           }
         },
         {
@@ -4750,9 +4789,14 @@
             "at": "2026-10-31T18:12:12Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2faa6ded02d6",
-            "at": "2026-10-31T18:12:13Z"
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/diffmap.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.7/20261031T175751Z.executor.json, at 2026-10-31T18:11:19Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T18:11:19Z",
@@ -4807,9 +4851,14 @@
             "at": "2026-10-31T18:44:56Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2d2f9f8e3700",
-            "at": "2026-10-31T18:44:57Z"
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/2d2f9f8e37008b9a9a37e3eab14f7bf205c78f1c.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P8.8/20261031T184117Z.executor.json, at 2026-10-31T18:43:34Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T18:43:34Z",
@@ -4908,7 +4957,7 @@
         {
           "id": "P8.10",
           "title": "Evals README records the eval 2 reruns (turn target met, recall over three runs) and the eval 3 and 5 rows",
-          "status": "in_progress",
+          "status": "done",
           "description": "Documentation only, evidence for prospective users; every number comes from scripts/cost-profile.mjs on the run transcripts (paths are handed to the executor, never written into a tracked file). (1) Eval 2 was rerun twice on the final P8 code (after audit tasks P8.5 and P8.8): 11 and 13 orchestrator turns, context at most 69.6 K, 2.05 and 1.80 USD, grade 6/7 with issue recall 0.533 both times (8 matched), against 0.667 (10 matched) on the first run; two medium reference issues (one performance, one security) were missed in all three runs, and the reviewer returned 12 issues in the reruns against 14 in the first. Rewrite the paragraph that says eval 2 exceeded the 12-turn target: the target now holds (11 and 13 turns), the five source-reading turns are gone since SKILL.md names the overlay location and the ledger command. Change the eval 2 row's result cell to state recall over three runs (0.67, 0.53, 0.53; mean 0.58) and keep the row's cost and turns as the first run's or state which run the row shows. (2) Add rows for eval 3 (update mode on repository A: build plus update in one session, 8/8, with skill 1.89 USD and 29 turns, baseline without skill 1.00 USD and 0/8) and eval 5 (build of repository C, 7/7, with skill 1.65 USD and 13 turns, baseline 2.96 USD and 0/7), with their iteration-1 with-skill cost computed from the iteration-1 transcripts by the same script; say in one sentence that the no-skill baselines of evals 3 and 5 score 0 because the expectations are archmap-shaped (validate script, model file, viewer) and that their cost column is therefore not a like-for-like comparison. (3) tests/evals.test.mjs case e17 checks this section: extend or adjust it so it still holds for the new rows and still fails on a row whose shares do not sum to 100. Keep the section free of any repository, client or dataset name; repositories are A, B, C.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -4930,25 +4979,48 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "1880b9c",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "No executor brief file existed for P8.10 (drive-phase brief exited 2: no brief written for this start), so I worked from the task text in the manifest and the orchestrator's dispatch message; no skills were listed, tests.add is empty. skills/architecture-map/evals/README.md: cost table now has rows for eval 3 (iteration-1 6.40 USD, 46 orchestrator turns; iteration 2 1.89 USD, 29 turns; baseline 1.00 USD; 8/8, baseline 0/8) and eval 5 (iteration-1 9.53 USD; iteration 2 1.65 USD, 13 turns; baseline 2.96 USD; 7/7, baseline 0/7), figures from scripts/cost-profile.mjs result-event totals on the iteration-1 and iteration-2 with-skill transcripts. Eval 2 row keeps the first run (2.02 USD, 17 turns) and its result cell states recall 0.67, 0.53, 0.53 (mean 0.58); reruns from cost-profile: round-2 2.05 USD with 11 orchestrator turns, run-1 1.80 USD with 13 turns, max orchestrator context 69,553 tokens; both reruns graded 6/7 and the failed expectation is the recall one (checked in grading.json). Rewrote the 'exceeded the 12-turn target' paragraph. Deviation from the task text: it says the target now holds at 11 and 13 turns, but 13 is above 12, so the README says 11 meets it and 13 is one over; likewise eval 5 (13 turns) is stated as one over, eval 3 (29 turns, build plus update) is stated as outside a single-build target, and the README says recall falls below the 60 percent threshold in two of three runs and in the mean. The old '72 K never exceeded' claim is narrowed to evals 1, 2 and 4 because the eval 3 orchestrator reached 94.5 K and eval 5 75.7 K. One sentence says the evals 3 and 5 baselines score 0 because expectations are archmap-shaped so the cost column is not like for like. Repositories are A, B, C only. tests/evals.test.mjs: e17's checks moved into checkCostSection(readme) and extended (rows 1 to 5, rows over 12 turns are 2, 3 and 5 each with a stated reason, eval 2 recall cell and reruns, eval 3 and 5 baselines and 0/N, caveat sentence, shares still 1, 2, 4 summing to 100); new e18 runs the same check on the real README, then on copies with a share changed (27.4 to 30.4), the eval 5 row renamed, and the caveat reworded, and asserts each throws. Commands: node --test tests/evals.test.mjs exit 0, 18 pass; node --test exit 0, 437 pass 0 fail.",
+            "descriptive": "The evals README now records eval 2 over three runs (turn target and recall stated honestly) and carries eval 3 and 5 rows with the baseline caveat, and e17/e18 lock it, including failing on a share row not summing to 100."
           },
           "startedAt": "2026-10-31T19:06:10Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T19:10:19Z",
+          "verifiedBy": [
+            "e17 extended to cover the five-row table, the eval 2 three-run recall and rerun turns, the eval 3 and 5 baseline rows and caveat",
+            "e18: the same check fails on a shares row not summing to 100, a missing eval 5 row, and a dropped caveat"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T19:10:09Z.c0b3a7",
             "status": "passed",
             "at": "2026-10-31T19:10:09Z"
+          },
+          "intentCheck": {
+            "commit": "1880b9c",
+            "at": "2026-10-31T19:24:12Z",
+            "return": "returns/P8/1880b9c8522d61a0d4375c0f50149c12b32244ac.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "the executor's redFirst is not-attempted, with the basis 'regression task with tests.expectRedFirst false'; tests.add is empty, so the task owes none. e18 mutates the README text and asserts the check throws, which shows the check can fail.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task with tests.expectRedFirst false: the README text was corrected first, then e17 was extended and e18 added to lock it",
+            "at": "n/a"
           }
         }
       ],
       "area": "evals",
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-29T23:29:08Z"
+      "startedAt": "2026-10-29T23:29:08Z",
+      "testEvidence": {
+        "runId": "2026-10-31T19:24:11Z.45a157",
+        "status": "empty-gate",
+        "at": "2026-10-31T19:24:11Z"
+      }
     },
     {
       "id": "P9",
@@ -4974,7 +5046,44 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "P9.1",
+          "title": "Pipeline test covers the test-data plan field and report line, and the dirs list is capped",
+          "status": "pending",
+          "description": "Carried from the P8 phase review (finding P8-R4, low). P8.9 made plan return a testData field {count, dirs} (testDataOf in scripts/pipeline.mjs, stored in pipeline.json) and made the render report's skipped list lead with a test-data line, but no test reaches either path, and the dirs list is not capped while the prescan files list is capped at SKIPPED_CAP. Add the pipeline test case and cap dirs at the same constant.",
+          "files": [
+            "scripts/pipeline.mjs",
+            "tests/pipeline.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/pipeline.test.mjs: plan on a repository with files under tests/fixtures returns testData {count, dirs} with dirs capped, and the final report's skipped list leads with the test-data line"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
       "area": "release"
     },
     {
@@ -8175,7 +8284,8 @@
       "P10.20-6rm",
       "P8.7",
       "P8.5",
-      "P8.9"
+      "P8.9",
+      "P9.1"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -8191,7 +8301,8 @@
       "P10.19-6rm",
       "P10.20-6rm",
       "P8.7",
-      "P8.5"
+      "P8.5",
+      "P9.1"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
