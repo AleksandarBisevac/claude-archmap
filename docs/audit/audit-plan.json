@@ -5101,7 +5101,7 @@
     {
       "id": "P10",
       "title": "Scripts instead of agents: cut the cost of a build",
-      "status": "in_progress",
+      "status": "done",
       "description": "Corrected measurement (2026-10-30, from the stream transcripts; the first table over-counted because each result event's modelUsage is cumulative): iteration-1 with-skill builds cost 6.5 to 13.8 USD at list prices, 4.5x the no-skill baselines. Per build the orchestrating session is the largest part (eval 4: 67 turns at a median context of 199 K, 11.6 M cache-read tokens, 58 percent of the Opus input), then the synthesizer (70 turns at 132 K, 8.5 M), then the Sonnet explorers (2.4 M input, 156 K output, with 5 re-asks). The orchestrator's context is large because every explorer reply (the whole fragment JSON) lands in it, and its turns are spent on polling wake-ups (11 in eval 4), ledger rows (12 Bash calls), re-asks (15 turns) and reading plugin sources to learn caps. Owner direction, 2026-10-30: more through scripts, fewer agents. Order: measure first, then shrink the two biggest agents, then bound the orchestrator, then prove the targets on the P8 harness. No eval repository or client is ever named in a tracked file.",
       "desiredOutcome": "A with-skill build costs at most twice the no-skill baseline of the same eval on the same orchestrator model and, at list prices, under 5 USD each for evals 1, 2 and 4 (iteration-1 measured 13.8, 9.8 and 12.8 USD; baselines 5.1, 2.3 and 1.8 USD), while passing the same evals with issue recall still at least 60 percent; every token class (input, output, cache read, cache write) per model and per agent is measured by a script from the transcript, not estimated; the orchestrating session runs a build in at most 12 turns through a driver script and never holds a fragment or the model in its context; explorers write fragments to files and return a three-line summary, without re-asks; cross-area edges, dedup and zones are computed by merge.mjs, and the synthesizer only writes sequences and views from a digest.",
       "testGate": [
@@ -5110,7 +5110,7 @@
       "blockedBy": [],
       "baseRef": "0b5d5a2b1e02fa3f4dc7e5860d1a42368e04fb59",
       "branch": "audit/p10-scripts-instead-of-agents-cut",
-      "mergedAt": null,
+      "mergedAt": "2026-10-31T16:27:01Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -7097,7 +7097,8 @@
         "runId": "2026-10-31T16:13:04Z.69ff11",
         "status": "passed",
         "at": "2026-10-31T16:13:04Z"
-      }
+      },
+      "mergedHead": "dbb990a4430ad44d2a28cbeb6f699593b6d217d5"
     }
   ],
   "fileIndex": {
