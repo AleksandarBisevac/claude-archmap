@@ -1201,3 +1201,106 @@ test('m23b an explorer entity named like a queried table is the table\'s entity 
   assert.equal(fwd, rev, 'the order of the statements does not change the model');
   assert.equal(JSON.stringify(sqlMerged().model), fwd, 'two runs are identical');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.14: a level-2 app node per workspace app the explorers did not produce, and relations resolved by table name.
+
+const appSlice = (area, apps, extra = {}) => ({ area, stacks: ['node-backend'], links: [], queues: [], tables: [], workspaceApps: apps, ...extra });
+const HUB = { name: '@fict/hub', dir: 'apps/hub', manifest: 'apps/hub/package.json' };
+const ATLAS = { name: '@fict/atlas', dir: 'apps/atlas', manifest: 'apps/atlas/package.json' };
+const appFrags = () => [
+  frag('misc', {
+    nodes: [
+      node('hub-svc', { zone: 'svc', kind: 'service', title: 'Hub service', paths: ['apps/hub/**'], level: 2, evidence: ev('apps/hub/src/main.ts', '1-5') }),
+      node('hub-routes', { zone: 'svc', kind: 'route-group', title: 'Hub routes', paths: ['apps/hub/src/routes/**'], level: 3, evidence: ev('apps/hub/src/routes/index.ts') }),
+      node('hub-jobs', { zone: 'svc', kind: 'job', title: 'Hub jobs', paths: ['apps/hub/src/jobs/**'], level: 2, evidence: ev('apps/hub/src/jobs/run.ts') }),
+      node('hub-db', { zone: 'data', kind: 'store', title: 'Hub store', paths: ['apps/hub/db/**'], level: 2, evidence: ev('apps/hub/db/schema.ts') }),
+      node('atlas-app', { zone: 'svc', kind: 'app', title: 'Atlas', paths: ['apps/atlas/**'], level: 2, evidence: ev('apps/atlas/src/main.ts') }),
+      node('atlas-api', { zone: 'svc', kind: 'module', title: 'Atlas API', paths: ['apps/atlas/src/api/**'], level: 3, evidence: ev('apps/atlas/src/api/a.ts') }),
+      node('shared-kit', { zone: 'svc', kind: 'module', title: 'Shared kit', paths: ['packages/kit/**'], level: 2, evidence: ev('packages/kit/index.ts') }),
+    ],
+    edges: [{ id: 'hub-to-atlas', from: 'hub-svc', to: 'area:misc', type: 'call', desc: 'x', evidence: ev('apps/hub/src/main.ts'), confidence: 'inferred' }],
+  }),
+];
+const appMerged = (frags = appFrags(), apps = [HUB, ATLAS]) =>
+  merge({ fragments: frags, extracts: [appSlice('misc', apps)], meta: META });
+
+test('m24 merge generates a level-2 app node for each workspace app the explorers made none for (kind app, paths dir/**, evidence at its package.json) and reparents that area\'s nodes of the app under it; an app the explorers did make is left as it is', () => {
+  const { model } = appMerged();
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const hub = model.nodes.find((n) => n.kind === 'app' && n.paths.includes('apps/hub/**'));
+  assert.ok(hub, ids(model.nodes).join());
+  assert.equal(hub.level, 2);
+  assert.equal(hub.title, 'hub');
+  assert.deepEqual(hub.paths, ['apps/hub/**']);
+  assert.deepEqual(hub.evidence, ev('apps/hub/package.json', '1'));
+  const byId = Object.fromEntries(model.nodes.map((n) => [n.id, n]));
+  assert.equal(byId['hub-svc'].level, 3, 'the explorer service of the app sits under the app now');
+  assert.equal(byId['hub-jobs'].level, 3);
+  assert.equal(byId['hub-routes'].level, 3);
+  assert.deepEqual(hub.sub, ['Hub jobs', 'Hub routes', 'Hub service'], 'the app lists its parts');
+  assert.equal(byId['hub-db'].level, 2, 'a store stays a container');
+  assert.equal(byId['shared-kit'].level, 2, 'a node outside the app stays where it is');
+  assert.equal(byId['atlas-app'].level, 2);
+  assert.equal(model.nodes.filter((n) => n.kind === 'app').length, 2, 'no second node for the app the explorer made');
+  assert.equal(byId['atlas-api'].level, 3);
+  assert.equal(byId['atlas-app'].sub, undefined, 'the explorer\'s own node is not rewritten');
+  // an area name in an edge resolves to the area's main node, which is now the app node when the area has one first
+  const e = model.edges.find((x) => x.id === 'hub-to-atlas');
+  assert.equal(byId[e.to].kind, 'app');
+  // deterministic: two runs, and either order of apps
+  const a = JSON.stringify(appMerged().model);
+  assert.equal(JSON.stringify(appMerged().model), a);
+  assert.equal(JSON.stringify(appMerged(appFrags(), [ATLAS, HUB]).model), a);
+  // a second app-less run adds nothing when the slice lists no app
+  assert.equal(merge({ fragments: appFrags(), extracts: [appSlice('misc', [])], meta: META }).model.nodes.filter((n) => n.kind === 'app').length, 1);
+});
+
+const relExtracts = () => [
+  {
+    area: 'db', stacks: ['node-backend'], links: [], queues: [],
+    tables: [
+      { name: 'users', table: 'users', orm: 'drizzle', fields: ['id serial pk', 'email text'], file: 'db/schema.ts', line: 3, lines: '3-6' },
+      { name: 'posts', table: 'posts', orm: 'drizzle', fields: ['id serial pk', 'authorId integer fk=users.id'], file: 'db/schema.ts', line: 8, lines: '8-11' },
+    ],
+  },
+];
+const relFrags = () => [
+  frag('db', {
+    nodes: [node('main-db', { zone: 'data', kind: 'store', paths: ['db/**'] })],
+    entities: [{
+      id: 'user-account', store: 'main-db', name: 'users', kind: 'table',
+      fields: [{ name: 'id', type: 'serial', pk: true, provenance: 'declared' }, { name: 'orgId', type: 'integer', provenance: 'observed', fk: { entity: 'orgs', field: 'id' } }],
+    }, {
+      id: 'org-record', store: 'main-db', name: 'orgs', kind: 'table',
+      fields: [{ name: 'id', type: 'serial', pk: true, provenance: 'declared' }],
+    }],
+    relations: [
+      { from: { entity: 'posts', field: 'authorId' }, to: { entity: 'users', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' },
+      { from: { entity: 'posts', field: 'authorId' }, to: { entity: 'user-account', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' },
+    ],
+  }),
+];
+
+test('m24b a relation or foreign key that names its target by table name resolves to the entity id the merge ended with (generated or the explorer\'s), is not dropped as dangling while the entity exists, and a relation repeated by name and by id is emitted once', () => {
+  const { model } = merge({ fragments: relFrags(), extracts: relExtracts(), meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const dropped = model.meta.sources.filter((s) => s.type === 'dropped-ref');
+  assert.deepEqual(dropped, [], JSON.stringify(dropped));
+  const posts = model.entities.find((e) => e.name === 'posts');
+  const rel = (r) => `${r.from.entity}.${r.from.field} > ${r.to.entity}.${r.to.field}`;
+  assert.deepEqual(model.relations.map(rel).sort(), [
+    `${posts.id}.authorId > user-account.id`,
+    'user-account.orgId > org-record.id',
+  ].sort(), 'the declared key, the explorer\'s by name and by id are one relation; the explorer\'s field fk is a relation too');
+  assert.equal(model.entities.find((e) => e.id === 'user-account').fields.find((f) => f.name === 'orgId').fk.entity, 'org-record', 'the field\'s own fk now names the id');
+  // an entity that does not exist still drops, with the row naming what is missing
+  const missing = relFrags();
+  missing[0].relations.push({ from: { entity: 'posts', field: 'authorId' }, to: { entity: 'ghosts', field: 'id' }, cardinality: '1-n', kind: 'fk', provenance: 'declared' });
+  const m2 = merge({ fragments: missing, extracts: relExtracts(), meta: META }).model;
+  const rows = m2.meta.sources.filter((s) => s.type === 'dropped-ref');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].target, 'ghosts');
+  assert.equal(m2.relations.length, 2);
+  assert.equal(JSON.stringify(merge({ fragments: relFrags(), extracts: relExtracts(), meta: META }).model), JSON.stringify(model));
+});

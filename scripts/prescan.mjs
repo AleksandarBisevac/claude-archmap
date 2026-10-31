@@ -5,7 +5,10 @@
 //
 // Prints (or writes to --out) JSON:
 //   { schemaVersion, repo, commit, stacks[], areas[{id,title,globs[],files,stacks[],extract,summary}],
-//     sources[{kind,path,status,reason?}], extracts{<stackId>: fragment} }
+//     workspaceApps[{name,dir,manifest}], sources[{kind,path,status,reason?}], extracts{<stackId>: fragment} }
+// workspaceApps are the members of a declared workspace (pnpm-workspace.yaml, package.json workspaces or a turbo.json)
+// that sit under an apps/ directory: the partition keeps each as its own area or the head of its area, merge.mjs makes
+// a level-2 app node for each the explorers did not, and the explorer brief of its area names it.
 // With --out <work>/prescan.json (or --extracts <dir>) it also writes two files per area. The full extract,
 // <work>/extracts/<area>.json, is the record merge.mjs builds entities, relations and queue nodes from, so it is
 // never cut to a budget: that area's routes (method, path, handler, file, line), every table with its fields and
@@ -27,7 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { buildInventory, byCodeUnit } from './lib/prescan/inventory.mjs';
+import { buildInventory, byCodeUnit, middlewareModules, workspaceApps } from './lib/prescan/inventory.mjs';
 import { detectStacks, genericRecipe, importEdges, workspaceContainers } from './lib/prescan/generic.mjs';
 import { matchAny } from './lib/glob.mjs';
 import { partition } from './lib/prescan/partition.mjs';
@@ -87,7 +90,8 @@ export async function prescan(repoDir, { scope = '', extractors } = {}) {
   const relFiles = inv.files.map(rel);
   const relRead = (p) => inv.read(sc ? `${sc}/${p}` : p);
   const pre = sc ? `${sc}/` : '';
-  const areas = partition(relFiles, { containers: workspaceContainers(relFiles, relRead) }).map((a) => ({
+  const apps = workspaceApps(relFiles, relRead);
+  const areas = partition(relFiles, { containers: workspaceContainers(relFiles, relRead), apps: apps.map((a) => a.dir) }).map((a) => ({
     id: a.id,
     title: a.title,
     globs: a.globs.map((g) => pre + g),
@@ -98,6 +102,7 @@ export async function prescan(repoDir, { scope = '', extractors } = {}) {
   }));
 
   const generic = genericRecipe(inv.files, inv.read);
+  generic.middleware = middlewareModules(inv.files);
   const edges = importEdges(inv.files, inv.read);
   generic.imports = edges.slice(0, MAX_IMPORT_EDGES);
   if (edges.length > MAX_IMPORT_EDGES) generic.importsTruncated = edges.length - MAX_IMPORT_EDGES;
@@ -117,6 +122,7 @@ export async function prescan(repoDir, { scope = '', extractors } = {}) {
     commit,
     stacks,
     areas,
+    workspaceApps: apps.map((a) => ({ name: a.name, dir: pre + a.dir, manifest: pre + a.manifest })),
     sources: inv.sources,
     extracts: sorted,
   };
@@ -141,8 +147,8 @@ const normSegs = (u) =>
 const sameMethod = (a, b) => !a || !b || a === 'ANY' || b === 'ANY' || a === b;
 
 const KEY_ORDER = [
-  'area', 'title', 'globs', 'stacks', 'files', 'entryPoints', 'manifests', 'containers', 'ci', 'sources', 'routes',
-  'tables', 'schemas', 'migrations', 'sqlTables', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
+  'area', 'title', 'globs', 'stacks', 'files', 'workspaceApps', 'entryPoints', 'manifests', 'containers', 'ci', 'sources', 'routes',
+  'middleware', 'tables', 'schemas', 'migrations', 'sqlTables', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
   'imports', 'links', 'truncated',
 ];
 const ALWAYS = new Set(['area', 'title', 'globs', 'stacks', 'files', 'routes', 'tables', 'envKeys', 'queues', 'imports', 'links', 'truncated']);
@@ -313,8 +319,12 @@ export function areaExtracts(out) {
 
   // generic hints, per area
   const owned = (list) => (list ?? []).map((p) => [areaOf(p), p]).filter(([a]) => slices.has(a));
-  for (const [key, list] of [['entryPoints', gen.entryPoints], ['manifests', gen.manifests], ['containers', gen.containers], ['ci', gen.ci]]) {
+  for (const [key, list] of [['entryPoints', gen.entryPoints], ['manifests', gen.manifests], ['containers', gen.containers], ['ci', gen.ci], ['middleware', gen.middleware]]) {
     for (const [a, p] of owned(list)) (slices.get(a)[key] ??= []).push(p);
+  }
+  for (const app of out.workspaceApps ?? []) {
+    const a = areaOf(app.manifest);
+    if (slices.has(a)) (slices.get(a).workspaceApps ??= []).push(app);
   }
   for (const src of out.sources ?? []) {
     const a = areaOf(src.path);
@@ -345,7 +355,8 @@ const SUMMARY_ROWS = 12; // rows of one kind before the budget loop starts
 // script's, so they go first.
 const SUMMARY_WEIGHT = {
   tables: 1, imports: 1, sqlTables: 1, migrations: 1, schemas: 1, stores: 2, httpCalls: 2, envKeys: 2, openapi: 2,
-  sources: 2, manifests: 2, containers: 2, ci: 2, entryPoints: 3, clients: 3, links: 3, queues: 3, routes: 4,
+  sources: 2, manifests: 2, containers: 2, ci: 2, entryPoints: 3, clients: 3, links: 3, queues: 3, middleware: 3, routes: 4,
+  workspaceApps: 6,
 };
 const SUMMARY_KEYS = ['area', 'title', 'globs', 'stacks', 'files', 'extract', 'note', 'counts'];
 

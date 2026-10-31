@@ -8,6 +8,7 @@
 import { execFileSync } from 'node:child_process';
 import { lstatSync, readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
+import { matchAny } from '../glob.mjs';
 
 export const MAX_FILE_BYTES = 512 * 1024;
 
@@ -100,4 +101,90 @@ export function buildInventory(root, { scope = '', maxBytes = MAX_FILE_BYTES } =
     }
   };
   return { root: abs, files, sources, read };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Workspace apps and middleware modules: facts of the file list, found without running anything.
+
+const parseJson = (text) => {
+  try {
+    const v = JSON.parse(text);
+    return v !== null && typeof v === 'object' && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+/** The globs a pnpm-workspace.yaml lists under `packages:` (quotes and comments dropped; a `!` prefix is kept). */
+function pnpmGlobs(text) {
+  const out = [];
+  let inside = false;
+  for (const raw of String(text ?? '').split(/\r?\n/)) {
+    const line = raw.replace(/\s#.*$/, '');
+    if (/^packages\s*:/.test(line)) {
+      inside = true;
+      continue;
+    }
+    if (!inside) continue;
+    const m = /^\s*-\s*['"]?([^'"\s]+)['"]?\s*$/.exec(line);
+    if (m) out.push(m[1]);
+    else if (/^\S/.test(line)) inside = false; // the next top-level key
+  }
+  return out;
+}
+
+/**
+ * The deployable apps of a workspace: every member of the workspace (the globs of a pnpm-workspace.yaml, of the root
+ * package.json `workspaces`, or, with a turbo.json that declares none, apps/* and packages/*) that sits directly under a
+ * directory named `apps` and holds a package.json. Returns [{name, dir, manifest}] sorted by dir; [] when the repo
+ * declares no workspace. A `!glob` leaves members out. `files` are repo-relative, `read(path)` returns text or null.
+ */
+export function workspaceApps(files, read) {
+  const globs = [];
+  if (files.includes('package.json')) {
+    const ws = parseJson(read('package.json') ?? '')?.workspaces;
+    for (const g of Array.isArray(ws) ? ws : Array.isArray(ws?.packages) ? ws.packages : []) if (typeof g === 'string') globs.push(g);
+  }
+  if (files.includes('pnpm-workspace.yaml')) globs.push(...pnpmGlobs(read('pnpm-workspace.yaml')));
+  if (globs.length === 0 && files.includes('turbo.json')) globs.push('apps/*', 'packages/*');
+  if (globs.length === 0) return [];
+  const clean = (g) => g.replace(/^\.\//, '').replace(/\/+$/, '');
+  const include = globs.filter((g) => !g.startsWith('!')).map(clean);
+  const exclude = globs.filter((g) => g.startsWith('!')).map((g) => clean(g.slice(1)));
+  const apps = [];
+  for (const f of files) {
+    if (!f.endsWith('/package.json')) continue;
+    const dir = f.slice(0, -'/package.json'.length);
+    const parent = dir.includes('/') ? dir.slice(0, dir.lastIndexOf('/')) : '';
+    if (parent.slice(parent.lastIndexOf('/') + 1) !== 'apps') continue;
+    if (!matchAny(include, dir) || matchAny(exclude, dir)) continue;
+    const name = parseJson(read(f) ?? '')?.name;
+    apps.push({ name: typeof name === 'string' && name ? name : dir.slice(dir.lastIndexOf('/') + 1), dir, manifest: f });
+  }
+  return apps.sort((a, b) => byCodeUnit(a.dir, b.dir));
+}
+
+const MIDDLEWARE_WORD = /^(middlewares?|guards?|interceptors?)$/;
+const MIDDLEWARE_DIR = /^(middlewares|middleware|guards|interceptors)$/;
+const CODE_EXT = new Set(['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts', 'py']);
+
+/**
+ * The middleware modules of a file list, sorted: a directory named middleware, middlewares, guards or interceptors is one
+ * module (the directory), and a code file whose name says so (`middleware.ts`, `auth.middleware.ts`, `roles.guard.ts`,
+ * `audit.interceptor.ts`) outside such a directory is one module (the file). Tests and type declarations are not modules.
+ */
+export function middlewareModules(files) {
+  const out = new Set();
+  for (const f of files) {
+    if (!CODE_EXT.has(ext(f)) || /\.(?:spec|test)\.|\.d\.[cm]?ts$/.test(f)) continue;
+    const segs = f.split('/');
+    const at = segs.slice(0, -1).findIndex((s) => MIDDLEWARE_DIR.test(s));
+    if (at !== -1) {
+      out.add(segs.slice(0, at + 1).join('/'));
+      continue;
+    }
+    const parts = segs[segs.length - 1].split('.').slice(0, -1);
+    if (parts.some((p) => MIDDLEWARE_WORD.test(p))) out.add(f);
+  }
+  return [...out].sort(byCodeUnit);
 }

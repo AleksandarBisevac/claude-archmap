@@ -366,12 +366,16 @@ export function coverageFloor(extract) {
   const queues = list(x.queues).map((q) => q?.name);
   const jobs = list(x.jobs).map((j) => (typeof j === 'string' ? j : j?.name ?? j?.file));
   const clients = list(x.clients).map((c) => c?.client);
+  const middleware = distinctOf(list(x.middleware).filter((m) => typeof m === 'string'));
   const parts = {
     'entry-point groups': entry, 'route groups': routes, stores, queues, jobs, 'external clients': clients,
+    ...(middleware.length ? { 'middleware modules': middleware } : {}), // listed only where there is one: the brief is capped
   };
   const counts = Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, v.length]));
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  return { floor: Math.max(1, total), counts, names: parts };
+  // the workspace apps of the area ride along: the brief names them, they are not part of the floor (merge makes their nodes)
+  const apps = list(x.workspaceApps).filter((a) => a && typeof a.dir === 'string');
+  return { floor: Math.max(1, total), counts, names: parts, apps };
 }
 
 const shortName = (n) => String(n).split('/').slice(-2).join('/');
@@ -380,13 +384,22 @@ const shortName = (n) => String(n).split('/').slice(-2).join('/');
 function floorLines(cov, room = FLOOR_ROOM) {
   const parts = Object.entries(cov.counts).map(([k, n]) => `${k}=${n}`).join(', ');
   const head = `- Coverage floor: at least ${cov.floor} nodes (${parts}). A fragment with fewer nodes than this floor is incomplete.`;
-  const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients']]
-    .map(([label, key]) => [label, cov.names[key]])
+  const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients'], ['middleware', 'middleware modules']]
+    .map(([label, key]) => [label, cov.names[key] ?? []])
     .filter(([, v]) => v.length)
     .map(([label, v]) => `${label} ${v.slice(0, FLOOR_NAMES).map(shortName).join(', ')}${v.length > FLOOR_NAMES ? ` (+${v.length - FLOOR_NAMES})` : ''}`);
   let cover = groups.join('; ');
   if (cover.length > room) cover = `${cover.slice(0, room - 1)}…`;
   return cover ? [head, `- Each of these needs its own node: ${cover}.`] : [head];
+}
+
+/** The line naming the workspace apps of an area, or nothing: their app nodes are made by script. */
+function appLines(apps, short) {
+  const all = list(apps);
+  if (!all.length) return [];
+  const names = all.map((a) => `${code(a.name ?? a.dir)} (${a.dir})`).join(', ');
+  const tail = short ? 'made by script, write none.' : 'made by script (merge.mjs), so write none; its parts are your nodes, level 3.';
+  return [`- Workspace app${all.length > 1 ? 's' : ''}: ${names}. The level-2 app node of each is ${tail}`];
 }
 
 export function explorerBrief({ area, summary, fragment, profile, previous, stackRef, coverage, short = false, globRoom = 600, floorRoom = FLOOR_ROOM }) {
@@ -406,6 +419,7 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
     `- Fragment, the one file you write: ${fragment}`,
     `- Profile ${profile}.`,
     ...floorLines(coverage ?? coverageFloor(null), floorRoom),
+    ...appLines(coverage?.apps, short),
   ];
   if (previous) lines.push(`- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
   if (stackRef) lines.push(`- Only if the summary leaves a framework question open: ${stackRef}`);

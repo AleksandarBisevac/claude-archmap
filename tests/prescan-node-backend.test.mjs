@@ -203,8 +203,10 @@ test('nb6 unknown patterns are skipped and counted, never guessed; a large file 
     'docs/swagger-notes.json': '{"hello": 1}',
     'docs/openapi-broken.yaml': 'just: text\n',
   });
-  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, queues: 2, routes: 1, sqlTables: 0 });
-  for (const k of KINDS) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
+  // P10.14: a Worker named by an identifier is a queue row named for the identifier; a call as the name is still skipped
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, queues: 1, routes: 1, sqlTables: 0 });
+  for (const k of KINDS.filter((x) => x !== 'queues')) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
+  assert.deepEqual(odd.queues.map((q) => `${q.name} ${ev(q)}`), ['NAME svc/odd.ts:10'], 'the identifier text names the queue');
 
   const lines = ["import express from 'express';", 'const app = express();'];
   for (let i = 0; i < 400; i++) lines.push(`app.get('/r${String(i).padStart(3, '0')}', h);`);
@@ -458,4 +460,53 @@ test('nb13 an area labelled ts-frontend that holds .ts files still gets its queu
     rmSync(work, { recursive: true, force: true });
     rmSync(repo, { recursive: true, force: true });
   }
+});
+
+test('nb14 new Queue(NAME_CONST), new Queue(QUEUES.x), new Worker(name, ...) and new FlowProducer(...) yield queue rows: the literal, else the resolved constant, else the identifier text; a Worker with no resolvable name is named after its file', () => {
+  const f = memFrag({
+    'src/names.ts':
+      "export const QUEUE_NAMES = {\n  maintenance: 'maintenance',\n  reports: \"reports\",\n} as const;\n" +
+      "export enum Lane { Slow = 'slow-lane' }\nexport const MAIL = 'mail-out';\n",
+    'src/queues.ts':
+      "import { Queue, Worker, FlowProducer } from 'bullmq';\nimport { QUEUE_NAMES, MAIL, Lane } from './names';\n" +
+      "export const maint = new Queue(QUEUE_NAMES.maintenance, { connection });\n" +
+      "export const mail = new Queue(MAIL);\n" +
+      "export const lit = new Queue('emails', {});\n" +
+      "export const flow = new FlowProducer({ connection });\n" +
+      "const LOCAL = 'sweeps';\n" +
+      "new Worker(LOCAL, handler);\n" +
+      "new Queue(EXTERNAL_NAME);\n" +
+      "new Queue(config.queues.audit);\n" +
+      "new Worker(Lane.Slow, slowHandler);\n" +
+      "new Queue(name());\n",
+    'src/worker.ts':
+      "import { Worker } from 'bullmq';\nimport { QUEUE_NAMES } from './names';\n" +
+      "export function start(name: string) {\n  return new Worker(name, async (job) => job.data, { concurrency: 2 });\n}\n" +
+      "new Worker(QUEUE_NAMES.reports, reportHandler);\n",
+  });
+  const rows = f.queues.map((q) => `${q.name} ${ev(q)}`).sort();
+  assert.deepEqual(rows, [
+    'EXTERNAL_NAME src/queues.ts:9',
+    'config.queues.audit src/queues.ts:10',
+    'emails src/queues.ts:5',
+    'flow:src/queues src/queues.ts:6',
+    'mail-out src/queues.ts:4',
+    'maintenance src/queues.ts:3',
+    'reports src/worker.ts:6',
+    'slow-lane src/queues.ts:11',
+    'src/worker src/worker.ts:4',
+    'sweeps src/queues.ts:8',
+  ].sort());
+  const by = Object.fromEntries(f.queues.map((q) => [q.name, q]));
+  assert.deepEqual(by['src/worker'].workers.map((w) => `${w.concurrency} ${ev(w)}`), ['2 src/worker.ts:4']);
+  assert.deepEqual(by.reports.workers.map((w) => `${w.handler} ${ev(w)}`), ['reportHandler src/worker.ts:6']);
+  assert.equal(f.skipped.queues, 1, 'only the call new Queue(name()) is skipped');
+  assert.equal(memFrag({ 'src/a.ts': "new Worker('x', fn);\n" }).queues[0].name, 'x', 'a literal is still the name');
+  // the producer pairing of a literal-named queue still holds
+  const paired = memFrag({
+    'src/q.ts': "const jobs = new Queue('jobs');\njobs.add('run', {});\nnew Worker('jobs', h);\nnew Worker(jobsName, h);\n",
+  });
+  const jobs = paired.queues.find((q) => q.name === 'jobs');
+  assert.equal(jobs.producers.length, 1);
+  assert.equal(jobs.workers.length, 1);
 });

@@ -931,3 +931,52 @@ test('p27 the summary states the count of tables only queries name; the brief te
   const v = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', r], { encoding: 'utf8' });
   assert.equal(v.status, 0, v.stdout + v.stderr);
 });
+
+test('p28 the explorer brief of an area holding a workspace app names the app and says its app node is made by script; the coverage floor counts middleware modules; both stay under the brief cap', async () => {
+  const { coverageFloor, explorerBrief } = await import('../scripts/pipeline.mjs');
+  const cov = coverageFloor({ routes: [{ file: 'a.ts' }], middleware: ['src/middleware', 'src/auth.guard.ts'] });
+  assert.equal(cov.counts['middleware modules'], 2);
+  assert.equal(cov.floor, 3, 'one route group and two middleware modules');
+  assert.deepEqual(cov.names['middleware modules'], ['src/middleware', 'src/auth.guard.ts']);
+  assert.deepEqual(coverageFloor({ workspaceApps: [{ name: 'x', dir: 'apps/x', manifest: 'apps/x/package.json' }] }).apps, [{ name: 'x', dir: 'apps/x', manifest: 'apps/x/package.json' }]);
+
+  const area = { id: 'apps-hub', title: 'apps/hub', files: 5, stacks: ['node-backend'], globs: ['apps/hub/**'] };
+  const base = { area, summary: '/w/extracts/apps-hub.summary.json', fragment: '/w/fragments/apps-hub.json', profile: 'balanced' };
+  const plain = explorerBrief({ ...base, coverage: coverageFloor({}) });
+  assert.doesNotMatch(plain, /workspace app/i, 'an area with no app has no app line');
+  const withApp = explorerBrief({ ...base, coverage: coverageFloor({ workspaceApps: [{ name: '@fict/hub', dir: 'apps/hub', manifest: 'apps/hub/package.json' }], middleware: ['apps/hub/src/middleware'] }) });
+  assert.match(withApp, /workspace app[^\n]*@fict\/hub[^\n]*apps\/hub/i);
+  assert.match(withApp, /app node[^\n]*(made|written)[^\n]*script|script[^\n]*app node/i);
+  assert.match(withApp, /middleware modules=1/);
+  assert.match(withApp, /src\/middleware/);
+
+  // through plan: a workspace monorepo with a middleware directory
+  const repo = join(tmp, 'mono');
+  mkdirSync(join(repo, 'apps/hub/src/middleware'), { recursive: true });
+  mkdirSync(join(repo, 'apps/atlas/src'), { recursive: true });
+  mkdirSync(join(repo, 'packages/kit/src'), { recursive: true });
+  writeFileSync(join(repo, 'pnpm-workspace.yaml'), "packages:\n  - 'apps/*'\n  - 'packages/*'\n");
+  writeFileSync(join(repo, 'package.json'), '{"name":"fict-root","private":true}\n');
+  writeFileSync(join(repo, 'apps/hub/package.json'), '{"name":"@fict/hub","dependencies":{"express":"4"}}\n');
+  writeFileSync(join(repo, 'apps/hub/src/main.ts'), 'export {};\n');
+  writeFileSync(join(repo, 'apps/hub/src/middleware/auth.ts'), 'export {};\n');
+  writeFileSync(join(repo, 'apps/atlas/package.json'), '{"name":"@fict/atlas"}\n');
+  writeFileSync(join(repo, 'apps/atlas/src/main.ts'), 'export {};\n');
+  writeFileSync(join(repo, 'packages/kit/package.json'), '{"name":"@fict/kit"}\n');
+  writeFileSync(join(repo, 'packages/kit/src/index.ts'), 'export {};\n');
+  git(repo, 'init', '-q');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-q', '-m', 'initial');
+  const w = join(tmp, 'work-mono');
+  const r = step(['plan', repo, '--work', w, '--out', join(tmp, 'out-mono'), '--project', 'mono', '--generated-at', GENERATED_AT]);
+  assert.equal(r.status, 0, r.stdout);
+  const brief = readFileSync(join(w, 'briefs', 'apps-hub.md'), 'utf8');
+  assert.match(brief, /workspace app[^\n]*@fict\/hub[^\n]*apps\/hub/i);
+  assert.match(brief, /middleware modules=1/);
+  assert.ok(brief.length <= BRIEF_CAP, `${brief.length} characters`);
+  const areas = readJson(join(w, 'prescan.json')).areas.map((x) => x.id);
+  assert.deepEqual(areas.filter((id) => /^apps-/.test(id)), ['apps-atlas', 'apps-hub'], areas.join());
+  const atlas = readFileSync(join(w, 'briefs', 'apps-atlas.md'), 'utf8');
+  assert.match(atlas, /workspace app[^\n]*@fict\/atlas/i);
+  assert.doesNotMatch(atlas, /@fict\/hub/, 'each brief names its own app');
+});

@@ -34,6 +34,11 @@
 // each consumer to it, at that line. A table that SQL statements in the code name and nothing declares (the schema
 // of a program that creates its database file at runtime lives in its queries) becomes an entity with provenance
 // "inferred", no fields and evidence at the first statement that names it. These are not held to the fragment caps.
+// A workspace app the slices list (`workspaceApps`: a member of the declared workspace under apps/) that no explorer
+// made a level-2 app node for gets one: kind app, paths <dir>/**, evidence at its package.json; the area's level-2 nodes
+// inside the directory (a service or module the explorer took for the app) move to level 3 under it and are listed in its
+// `sub`. A relation or foreign key that names its entity by table name resolves to that entity's id once the entities are
+// final (a relation kept from --previous too); two spellings of one relation are emitted once.
 // What cannot be cited or resolved (a file no node owns, a table no entity models) is never guessed: it is counted
 // in one meta.sources row of type "derivation". The result also carries a digest (written with --digest
 // <work>/digest.json, at most DIGEST_CAP characters): node ids, kinds, zones, one-line roles, the edge list,
@@ -407,6 +412,83 @@ const declaredAt = (t) => {
   return lines === null ? [] : [{ path: t.file, lines }];
 };
 
+// ---------------------------------------------------------------------------
+// workspace apps: one level-2 app node per app of the workspace, made by script
+
+const appId = (name, dir) => {
+  const last = String(name).split('/').pop();
+  const s = slug(last) || slug(dir.split('/').pop()) || 'app';
+  return /(^|-)app$/.test(s) ? s : `${s}-app`;
+};
+// kinds of an area's nodes that stay containers of their own beside the app
+const BESIDE_APP = new Set([...STORE_KINDS, 'queue', 'external', 'app']);
+
+/**
+ * For each workspace app a slice lists ({name, dir, manifest}) that no level-2 node of kind app covers (its paths match
+ * the manifest, or it cites a file under the app's directory), add the node: kind app, level 2, paths <dir>/**,
+ * evidence at the manifest. The explorers' level-2 nodes of the same area that sit inside the app's directory (a service,
+ * a module or a job the explorer took for the app) become level 3 and are listed in the app's `sub`; stores, queues and
+ * external parties stay containers. The new node heads the area's list, so an area name in an edge finds it first.
+ * Returns the number of nodes made.
+ */
+function makeAppNodes({ nodes, placed, slices, stacksOf, zoneId }) {
+  const apps = [];
+  for (const s of slices) {
+    for (const a of list(s.workspaceApps)) {
+      if (isObj(a) && typeof a.dir === 'string' && a.dir && typeof a.manifest === 'string' && a.manifest) {
+        apps.push({ area: String(s.area ?? ''), name: typeof a.name === 'string' && a.name ? a.name : a.dir.split('/').pop(), dir: a.dir, manifest: a.manifest });
+      }
+    }
+  }
+  apps.sort((a, b) => cmp(a.dir, b.dir) || cmp(a.area, b.area));
+  let made = 0;
+  for (const app of apps) {
+    const covers = (n) =>
+      kindOf(n) === 'app' && Number(n.level) === 2 &&
+      (matchAny(list(n.paths).filter((g) => typeof g === 'string'), app.manifest) ||
+        list(n.evidence).some((e) => isObj(e) && typeof e.path === 'string' && e.path.startsWith(`${app.dir}/`)));
+    if ([...nodes.values()].some(covers)) continue;
+    let id = appId(app.name, app.dir);
+    for (let n = 2; nodes.has(id); n++) id = `${appId(app.name, app.dir)}-${n}`;
+    const mine = list(placed.get(app.area)).filter((x) => nodes.has(x));
+    const inside = (n) => list(n.paths).length > 0 && list(n.paths).every((g) => typeof g === 'string' && (g === `${app.dir}/**` || g.startsWith(`${app.dir}/`)));
+    const parts = mine.map((x) => nodes.get(x)).filter((n) => inside(n) && !BESIDE_APP.has(kindOf(n)) && [2, 3].includes(Number(n.level)));
+    for (const n of parts) n.level = 3;
+    const title = String(app.name).split('/').pop();
+    const node = {
+      id, zone: zoneId(zoneFor({ kind: 'app' }, stacksOf.get(app.area) ?? [])), kind: 'app', title,
+      role: `Workspace app ${app.name} (${app.dir}); made by merge.mjs from the workspace declaration.`,
+      paths: [`${app.dir}/**`], level: 2, evidence: [{ path: app.manifest, lines: '1' }],
+    };
+    if (parts.length) node.sub = [...new Set(parts.map((n) => String(n.title ?? n.id)))].sort(cmp);
+    nodes.set(id, node);
+    if (!placed.has(app.area)) placed.set(app.area, []);
+    placed.get(app.area).unshift(id);
+    made++;
+  }
+  return made;
+}
+
+/**
+ * The entity id a reference means: the id itself, else the entity of that name (a schema prefix and case dropped), else
+ * null. Ids win over names; among entities, the lowest id wins a shared name.
+ */
+function entityResolver(entities) {
+  const index = new Map();
+  const ents = [...entities.values()].sort(byId);
+  const put = (k, id) => {
+    if (typeof k === 'string' && k && !index.has(k.toLowerCase())) index.set(k.toLowerCase(), id);
+  };
+  for (const e of ents) put(e.id, e.id);
+  for (const e of ents) put(e.name, e.id);
+  return (ref) => {
+    if (typeof ref !== 'string' || !ref) return null;
+    if (entities.has(ref)) return ref;
+    const k = ref.toLowerCase();
+    return index.get(k) ?? index.get(k.split('.').pop()) ?? null;
+  };
+}
+
 /**
  * Make the entities and queue nodes the extracts declare, in place. An explorer's entity of the same table (or model)
  * name is merged into: its id, store and extra fields stay, the declared fields and the declaring lines are added.
@@ -734,11 +816,15 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
   const tally = made ?? { entities: 0, merged: 0, inferred: 0, stores: 0, queues: 0 };
   const source = {
     type: 'derivation',
-    derived: { ...count, entities: tally.entities, entitiesMerged: tally.merged, entitiesInferred: tally.inferred, stores: tally.stores, queues: tally.queues },
+    derived: {
+      ...count, entities: tally.entities, entitiesMerged: tally.merged, entitiesInferred: tally.inferred, stores: tally.stores, queues: tally.queues,
+      ...(tally.apps ? { apps: tally.apps } : {}),
+    },
     skipped: { count: skipped.length, reasons: reasons.slice(0, MAX_REASONS) },
     note:
       `merge.mjs made ${tally.entities} entit${tally.entities === 1 ? 'y' : 'ies'}${tally.inferred ? ` (${tally.inferred} inferred from the SQL the code runs)` : ''} (and merged ${tally.merged} into the explorers'), ` +
-      `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, and derived ` +
+      `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, ` +
+      `${tally.apps ? `${tally.apps} app node(s) from the workspace declaration, ` : ''}and derived ` +
       `${count.edges} edge(s), ${count.access} SQL access row(s) and ${count.relations} fk relation(s) from the prescan extracts; ` +
       `${skipped.length} link(s) or statement(s) could not be cited or resolved`,
   };
@@ -1235,6 +1321,18 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     sources.push(...rows);
   }
 
+  const dropRow = (area, id, target, what) => {
+    sources.push({ area, type: 'dropped-ref', id, target: String(target), note: `area ${area}: ${what} dropped: "${target}" does not exist` });
+  };
+  const areaOf = (map, key) => map.get(key) ?? 'previous';
+
+  // a level-2 app node per workspace app the explorers made none for, before the references are resolved so that an
+  // area name in an edge ("area:api") finds the app node first
+  const appsMade = makeAppNodes({
+    nodes, placed, zoneId: resolveZone, stacksOf,
+    slices: updateMode ? slices.filter((s) => affected.has(s.area)) : slices,
+  });
+
   // a reference from another fragment to a node that collapsed into its same-paths twin follows it
   const follow = (id) => (collapsed.has(id) && !nodes.has(id) ? collapsed.get(id) : id);
 
@@ -1252,10 +1350,6 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       if (nodes.has(follow(ref))) return ref;
       return hubOf(ref.startsWith('area:') ? ref.slice('area:'.length) : ref);
     };
-    const dropRow = (area, id, target, what) => {
-      sources.push({ area, type: 'dropped-ref', id, target: String(target), note: `area ${area}: ${what} dropped: "${target}" does not exist` });
-    };
-    const areaOf = (map, key) => map.get(key) ?? 'previous';
     for (const [id, e] of [...edges]) {
       const from = resolveNode(e.from);
       const to = resolveNode(e.to);
@@ -1286,21 +1380,6 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
         access.delete(k);
         addAccess(access, { ...a, node });
         origin.access.set(accessKey({ ...a, node }), areaOf(origin.access, k));
-      }
-    }
-    // what pointed at a dropped entity or a field it does not have goes with it
-    const hasField = (ent, field) => entities.has(ent) && list(entities.get(ent).fields).some((f) => isObj(f) && f.name === field);
-    for (const [k, r] of [...relations]) {
-      const bad = ['from', 'to'].map((side) => r?.[side]).find((side) => isObj(side) && !hasField(side.entity, side.field));
-      if (bad === undefined) continue;
-      relations.delete(k);
-      dropRow(areaOf(origin.relations, k), `relation:${k}`, bad.entity, `relation ${k}`);
-    }
-    for (const [id, e] of entities) {
-      for (const fld of list(e.fields)) {
-        if (!isObj(fld) || !isObj(fld.fk) || hasField(fld.fk.entity, fld.fk.field)) continue;
-        dropRow(areaOf(origin.entities, id), `${id}.${fld.name}`, fld.fk.entity, `foreign key ${id}.${fld.name}`);
-        delete fld.fk;
       }
     }
   }
@@ -1348,7 +1427,47 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     nodes, entities, placed, zoneId: resolveZone,
     slices: updateMode ? slices.filter((s) => affected.has(s.area)) : slices,
   });
+  gen.made.apps = appsMade;
+  // a foreign key that names its table (an explorer's field) means the entity of that name, whatever its id is now
+  {
+    const resolve = entityResolver(entities);
+    for (const e of entities.values()) {
+      for (const fld of list(e.fields)) {
+        if (isObj(fld) && isObj(fld.fk) && resolve(fld.fk.entity) !== null) fld.fk.entity = resolve(fld.fk.entity);
+      }
+    }
+  }
   const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues: gen.queues, made: gen.made });
+  // what pointed at an entity that does not exist, or at a field it does not have, goes with it (one dropped-ref row
+  // each). The entities are final only now, so a relation kept from --previous or written by an explorer is resolved
+  // here: its entity by id, else by table name; two spellings of one relation are emitted once.
+  {
+    const resolve = entityResolver(entities);
+    const hasField = (ent, field) => entities.has(ent) && list(entities.get(ent).fields).some((f) => isObj(f) && f.name === field);
+    const settled = [];
+    for (const [k, r] of [...relations].sort((a, b) => cmp(a[0], b[0]))) {
+      relations.delete(k);
+      const sides = ['from', 'to'].map((side) => r?.[side]);
+      const bad = sides.find((side) => isObj(side) && (resolve(side.entity) === null || !hasField(resolve(side.entity), side.field)));
+      if (bad !== undefined) {
+        dropRow(areaOf(origin.relations, k), `relation:${k}`, bad.entity, `relation ${k}`);
+        continue;
+      }
+      for (const side of sides) if (isObj(side)) side.entity = resolve(side.entity);
+      settled.push({ key: relKey(r), canonical: relKey(r) === k, r, k });
+    }
+    // a relation already spelled with entity ids is kept over a spelling by name
+    for (const x of settled.sort((a, b) => Number(b.canonical) - Number(a.canonical))) {
+      if (!relations.has(x.key)) relations.set(x.key, x.r);
+    }
+    for (const [id, e] of entities) {
+      for (const fld of list(e.fields)) {
+        if (!isObj(fld) || !isObj(fld.fk) || hasField(fld.fk.entity, fld.fk.field)) continue;
+        dropRow(areaOf(origin.entities, id), `${id}.${fld.name}`, fld.fk.entity, `foreign key ${id}.${fld.name}`);
+        delete fld.fk;
+      }
+    }
+  }
   if (extracts !== undefined) {
     for (let i = sources.length - 1; i >= 0; i--) if (isObj(sources[i]) && sources[i].type === 'derivation') sources.splice(i, 1);
     sources.push(derived.source);

@@ -442,3 +442,105 @@ test('pc13 SQL in python strings and js/ts template literals reaches the area ex
   assert.ok(!('inferredTables' in slice(area.id)), 'the full extract holds rows only');
   assert.match(sum.note, /inferred/i);
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.14: workspace apps are listed by script, and the partition never folds two of them into one bucket.
+
+const APP_NAMES = ['atlas', 'billing', 'console', 'gateway', 'hub', 'ledger', 'tenant-router', 'web'];
+const monorepo = (workspace = { 'pnpm-workspace.yaml': "packages:\n  - 'apps/*'\n  - 'packages/*'\n  - 'packages/kits/*'\n" }) => {
+  const files = {
+    ...workspace,
+    'package.json': JSON.stringify({ name: 'fictional-root', private: true }),
+    'README.md': '# Fictional workspace\n',
+    'packages/db/package.json': JSON.stringify({ name: '@fict/db' }),
+    'packages/db/src/schema.ts': 'export {};\n',
+    'packages/db/src/client.ts': 'export {};\n',
+    'packages/db/src/index.ts': 'export {};\n',
+    'packages/kits/forms/package.json': JSON.stringify({ name: '@fict/forms' }),
+    'packages/kits/forms/index.ts': 'export {};\n',
+    'infra/main.tf': 'x\n',
+    'scripts/release.sh': 'x\n',
+  };
+  for (const n of APP_NAMES) {
+    files[`apps/${n}/package.json`] = JSON.stringify({ name: `@fict/${n}`, dependencies: { express: '4.0.0' } });
+    files[`apps/${n}/src/main.ts`] = 'export {};\n';
+  }
+  files['apps/notes/readme.txt'] = 'a directory that is not a workspace member\n';
+  return files;
+};
+
+test('pc14 prescan lists the workspace apps of a pnpm-workspace.yaml, package.json workspaces or turbo.json as {name, dir, manifest}; the partition keeps every app as its own area or the head of its area and merges leftovers among themselves only', async () => {
+  const wantApps = APP_NAMES.map((n) => ({ name: `@fict/${n}`, dir: `apps/${n}`, manifest: `apps/${n}/package.json` }));
+  const pnpm = scan(makeRepo(monorepo()));
+  assert.deepEqual(pnpm.workspaceApps, wantApps, 'apps/notes has no package.json: not a member');
+
+  const viaJson = scan(makeRepo({
+    ...monorepo({}),
+    'package.json': JSON.stringify({ name: 'r', workspaces: { packages: ['apps/*', '!apps/web', 'packages/*'] } }),
+  }));
+  assert.deepEqual(viaJson.workspaceApps.map((a) => a.dir), wantApps.map((a) => a.dir).filter((d) => d !== 'apps/web'), 'a negated member is left out');
+
+  const viaTurbo = scan(makeRepo(monorepo({ 'turbo.json': '{"tasks":{"build":{}}}\n' })));
+  assert.deepEqual(viaTurbo.workspaceApps, wantApps, 'turbo.json alone: apps/* and packages/* are the members');
+
+  assert.deepEqual(scan(makeRepo({ 'apps/solo/package.json': '{"name":"solo"}', 'apps/solo/index.js': 'x\n' })).workspaceApps, [], 'no workspace declared, no app listed');
+
+  // the partition: 8 apps, each with 2 files (small), plus other units; the cap is 8 areas
+  const out = pnpm;
+  const owner = (f) => out.areas.filter((a) => a.globs.map(globRe).some((r) => r.test(f)));
+  for (const n of APP_NAMES) {
+    const hit = owner(`apps/${n}/src/main.ts`);
+    assert.equal(hit.length, 1, `apps/${n}`);
+    assert.equal(hit[0].id, `apps-${n}`, `apps/${n} is the head of its area`);
+    assert.equal(owner(`apps/${n}/package.json`)[0].id, hit[0].id);
+  }
+  assert.ok(out.areas.length <= 8, `${out.areas.length} areas`);
+  assert.ok(!out.areas.some((a) => a.id.startsWith('misc') && a.globs.some((g) => g.startsWith('apps/') && !g.startsWith('apps/notes'))), 'no misc bucket holds an app');
+  const appsIn = (a) => APP_NAMES.filter((n) => a.globs.some((g) => g === `apps/${n}/**`));
+  for (const a of out.areas) assert.ok(appsIn(a).length <= 1, `${a.id} holds ${appsIn(a)}`);
+  // every file is owned once
+  const { partition } = await import(pathToFileURL(join(ROOT, 'scripts', 'lib', 'prescan', 'partition.mjs')).href);
+  const paths = Object.keys(monorepo());
+  const areas = partition(paths, { containers: ['apps', 'packages', 'packages/kits'], apps: wantApps.map((a) => a.dir) });
+  for (const f of paths) assert.equal(areas.filter((a) => a.paths.includes(f)).length, 1, f);
+  // with only leftovers over the cap, the leftovers merge together first
+  const few = partition(
+    ['apps/a/package.json', 'apps/a/x.ts', 'apps/b/package.json', 'apps/b/x.ts', 'one/a.txt', 'two/a.txt', 'three/a.txt'],
+    { containers: ['apps'], apps: ['apps/a', 'apps/b'], maxAreas: 3 },
+  );
+  assert.deepEqual(few.map((a) => a.id), ['apps-a', 'apps-b', 'misc'], 'the three leftovers share one bucket; the apps stay apart');
+  // more apps than the cap: the cap yields to the apps, never the other way round
+  const many = partition(
+    ['apps/a/package.json', 'apps/b/package.json', 'apps/c/package.json', 'lib/x.ts'],
+    { containers: ['apps'], apps: ['apps/a', 'apps/b', 'apps/c'], maxAreas: 2 },
+  );
+  assert.equal(many.length, 3);
+  assert.ok(many.find((a) => a.id === 'apps-a' || a.id === 'apps-b' || a.id === 'apps-c').paths.length >= 1);
+  assert.equal(many.reduce((n, a) => n + a.paths.length, 0), 4);
+});
+
+test('pc15 the full extract of an area holding a workspace app lists it under workspaceApps, and a middleware, guards or interceptors file or directory under middleware; two runs are byte-identical', () => {
+  const repo = makeRepo({
+    ...monorepo(),
+    'apps/hub/src/middleware/auth.ts': 'export {};\n',
+    'apps/hub/src/middleware/log.ts': 'export {};\n',
+    'apps/hub/src/users/users.guard.ts': 'export {};\n',
+    'apps/hub/src/audit.interceptor.ts': 'export {};\n',
+    'apps/hub/src/middleware.test.ts': 'export {};\n',
+    'apps/web/src/guards/session.ts': 'export {};\n',
+  });
+  const { pre, slice, work } = sliceOf(repo);
+  const hub = slice('apps-hub');
+  assert.deepEqual(hub.workspaceApps, [{ name: '@fict/hub', dir: 'apps/hub', manifest: 'apps/hub/package.json' }]);
+  assert.deepEqual(hub.middleware, ['apps/hub/src/audit.interceptor.ts', 'apps/hub/src/middleware', 'apps/hub/src/users/users.guard.ts']);
+  assert.deepEqual(slice('apps-web').middleware, ['apps/web/src/guards']);
+  assert.ok(!('middleware' in slice('apps-ledger')), 'only where there is something');
+  assert.deepEqual(slice('apps-ledger').workspaceApps.map((x) => x.dir), ['apps/ledger'], 'an area lists the apps it owns');
+  const sum = readJson(join(work, pre.areas.find((a) => a.id === 'apps-hub').summary));
+  assert.equal(sum.counts.workspaceApps, 1);
+  assert.equal(sum.counts.middleware, 3);
+  const a = run(repo);
+  const b = run(repo);
+  assert.equal(a.status, 0);
+  assert.equal(a.stdout, b.stdout);
+});

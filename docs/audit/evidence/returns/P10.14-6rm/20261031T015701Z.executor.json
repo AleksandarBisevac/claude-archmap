@@ -1,0 +1,44 @@
+{
+  "gates": {
+    "node --test (full suite, 400 tests)": "pass",
+    "node --test tests/denylist.test.mjs": "pass",
+    "node --test tests/prescan-core.test.mjs tests/prescan-node-backend.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T02:09:48Z",
+    "basis": "`node --test tests/prescan-core.test.mjs tests/prescan-node-backend.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "prescan: scripts/lib/prescan/inventory.mjs gains workspaceApps(files, read) (pnpm-workspace.yaml packages, package.json workspaces incl. negations, or a turbo.json defaulting to apps/* and packages/*; members directly under apps/ with a package.json -> {name, dir, manifest}) and middlewareModules(files) (a directory named middleware/middlewares/guards/interceptors is one module, a code file named *.middleware/*.guard/*.interceptor outside one is one; tests and .d.ts excluded). scripts/prescan.mjs puts workspaceApps in the output, middleware in extracts.generic, and both into the area slices (workspaceApps, middleware keys, only when non-empty; summary counts and weights). scripts/lib/prescan/partition.mjs takes opts.apps: an app is never a leftover, the small-leftover and cap merges touch non-apps only, a last leftover folds into the smallest app as its head (id stays apps-<name>), more apps than the cap keeps them all. scripts/lib/prescan/node-backend.mjs: new Queue/new Worker names are the literal, else the resolved constant (same file, imported, or OBJ.key member of an object literal or enum of literals), else the identifier text (NAME_CONST, a.b.c), else for a lowercase parameter the file path without extension; a call as the name is still skipped; new FlowProducer yields a row flow:<file path>. scripts/merge.mjs: makeAppNodes makes a level-2 kind app node (id <name>-app, paths dir/**, evidence at package.json line 1, zone via zoneFor) for each slice workspace app that no level-2 app node covers, demotes the area's level-2 non-data nodes inside the dir to level 3 and lists their titles in sub, puts the node first in the area's placed list; the relation and foreign-key resolution moved from before generation to after it (entityResolver: id, else table or entity name), so relations kept from --previous or written with table names resolve to the generated or explorer id, only truly dangling ones are dropped (one dropped-ref row each), and spellings of one relation collapse to one (the id-spelled one wins); the derivation row counts apps only when non-zero. scripts/pipeline.mjs: coverageFloor counts middleware modules (listed in the floor only when there is one, so existing briefs keep their size) and carries the area's apps; the explorer brief gets one Workspace app line (shortened by the existing trims), still under BRIEF_CAP (p9 briefs unchanged). Tests: pc14, pc15, nb14, m24, m24b, p28 added; nb6 updated (a Worker named NAME is now a row; skipped queues 2 -> 1). Measured: node --test full suite 400 pass 0 fail (exit 0); tests/denylist.test.mjs 2 pass; the four files 28+15+14+53 pass. No new files, nothing committed; docs/design.md untouched. Dependants: generic.mjs, python.mjs, ts-frontend.mjs, partition.mjs, prescan.mjs import inventory.mjs - still correct, only exports were added (and a glob.mjs import); stacks/node-backend.mjs and prescan-wiring/nb tests - still correct, same extractor entry, node-api fixture queue rows unchanged (nb4 green); tests/fixtures/repos/node-api untouched so e2e, golden and pipeline p1-p27 are unchanged; merge.mjs dependants (pipeline, golden, merge tests, e2e) - still correct, output for a model with no workspaceApps and no previous relations is byte-identical (goldens green); pipeline.mjs dependants (usage, commands, skill tests) - still correct. One deviation worth a look: the spec's 28 dropped-ref rows were traced to relations kept from --previous being checked against entities before the entities were regenerated; fixed by settling them after generation, not by a lookup change.",
+    "descriptive": "A workspace monorepo keeps every apps/* app as its own area, gets one level-2 app node per app by script, gets queue rows from constants, members and identifiers, resolves relations by table name once, and briefs the explorer with the app and the middleware floor."
+  },
+  "testsAdded": [
+    "pc14: workspace apps from pnpm-workspace.yaml, package.json workspaces with a negation and turbo.json, no app without a declared workspace, 8 small apps stay 8 separate areas headed by apps-<name>, partition never merges two apps, leftovers merge first, more apps than the cap are kept",
+    "pc15: area slice carries workspaceApps and middleware (dir or file), summary counts them, two runs byte-identical",
+    "nb14: Queue(CONST), Queue(OBJ.key), enum member, Worker(parameter), Worker(NAME), FlowProducer, unresolved dotted name, call still skipped, producer pairing intact",
+    "m24: generated app node, demoted parts listed in sub, store and outside nodes stay, explorer app untouched, area name resolves to the app node, order independent",
+    "m24b: relation and field fk by table name resolve to ids, no dropped-ref, duplicate spelling emitted once, missing entity still drops with one row",
+    "p28: coverageFloor counts middleware modules, explorer brief names the app and says the node is made by script, plan on a workspace repo stays under the cap and each brief names only its own app"
+  ],
+  "casesAdded": [
+    [
+      "pc14",
+      "pc15"
+    ],
+    [
+      "nb14"
+    ],
+    [
+      "m24",
+      "m24b"
+    ],
+    [
+      "p28"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:7b7de00648e38a9ff7ed628b0852d10deff9b417f2b24e5fb36567ceb5406bbb\",\"dirtyDigest\":\"sha256:dc348a2252d5e8234a67901d4af2ffb3b8e37c9b41a3cc66ef0b5747365d864c\",\"dirtyPaths\":{\"docs/design.md\":\"184a0895cdcae9b3\",\"scripts/lib/prescan/inventory.mjs\":\"ea4562e1707d99bb\",\"scripts/lib/prescan/node-backend.mjs\":\"522a4d61d0cf5484\",\"scripts/lib/prescan/partition.mjs\":\"9c107d0a00908f2f\",\"scripts/merge.mjs\":\"423706ed36f2deb1\",\"scripts/pipeline.mjs\":\"7dff252061e91d02\",\"scripts/prescan.mjs\":\"7057440798132385\",\"tests/merge.test.mjs\":\"8760745a760f75ab\",\"tests/pipeline.test.mjs\":\"35de9de4858463a9\",\"tests/prescan-core.test.mjs\":\"8993ad224cf6c605\",\"tests/prescan-node-backend.test.mjs\":\"f27c2875ecc28051\"},\"head\":\"a871e37\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/inventory.mjs\",\"scripts/lib/prescan/node-backend.mjs\",\"scripts/lib/prescan/partition.mjs\",\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"scripts/prescan.mjs\",\"tests/fixtures/repos/node-api\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/prescan-core.test.mjs\",\"tests/prescan-node-backend.test.mjs\"],\"scopeDigest\":\"sha256:5e8f86f3b8475ed2e9c0d9bd2e0bf6506776c6dd1d6e6aeee4ebf65016a374a6\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

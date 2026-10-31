@@ -10,8 +10,11 @@
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
 // ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
 // counted in `truncated`. A recognised shape whose arguments cannot be resolved statically (a computed
-// path, a variable queue name) is counted in `skipped`, never guessed. Only string literals and
-// single-literal constants are resolved. Hono sub-apps may carry type arguments (new Hono<Env>()) and
+// path, a call as a queue name) is counted in `skipped`, never guessed. Only string literals,
+// single-literal constants and OBJ.key members of an object literal or enum of literals are resolved. A queue (new Queue,
+// new Worker) takes its name from the literal, else the resolved constant, else the identifier text (NAME_CONST,
+// config.queues.audit), else, for a parameter, the file's path without its extension; a FlowProducer is a row named
+// `flow:<file>`. Hono sub-apps may carry type arguments (new Hono<Env>()) and
 // compose their routes as one chain (new Hono<Env>().get(...).post(...)); a mount takes the prefix.
 //
 // The scanned code is only ever read as text: no import, no eval, no process spawn. The default
@@ -139,12 +142,41 @@ function splitTop(masked, a, b) {
   return out;
 }
 
+/**
+ * OBJ.key = '<one literal>' members: `const OBJ = { key: 'lit', ... }` (also `as const`, `satisfies T`, `Object.freeze(...)`)
+ * and `enum OBJ { Key = 'lit' }`. A member whose value is anything but one literal is left out.
+ */
+function collectMembers(f) {
+  const { masked, clean, strAt, members } = f;
+  const pieces = (owner, open, close, sep) => {
+    for (const p of splitTop(masked, open + 1, close)) {
+      const m = new RegExp(`^\\s*(?:['"]([\\w$-]+)['"]|([\\w$]+))\\s*${sep}\\s*`).exec(clean.slice(p.a, p.b));
+      if (!m) continue;
+      const lit = strAt.get(p.a + m[0].length);
+      if (lit && lit.closed && !lit.tpl && lit.end === p.b) members.set(`${owner}.${m[1] ?? m[2]}`, lit.value);
+    }
+  };
+  const obj = new RegExp(`\\b(?:const|let|var)\\s+(${ID})\\s*(?::[^=\\n]+)?=\\s*(?:Object\\s*\\.\\s*freeze\\s*\\(\\s*)?(?=\\{)`, 'g');
+  for (const m of masked.matchAll(obj)) {
+    const open = m.index + m[0].length;
+    const close = matchClose(masked, open);
+    if (close < 0) continue;
+    pieces(m[1], open, close, ':');
+  }
+  for (const m of masked.matchAll(new RegExp(`\\benum\\s+(${ID})\\s*(?=\\{)`, 'g'))) {
+    const open = m.index + m[0].length;
+    const close = matchClose(masked, open);
+    if (close < 0) continue;
+    pieces(m[1], open, close, '=');
+  }
+}
+
 // One parsed code file.
 function parseCode(path, src) {
   const { clean, masked, strAt } = lex(src);
   const lineStarts = [0];
   for (let i = 0; i < src.length; i++) if (src[i] === '\n') lineStarts.push(i + 1);
-  const f = { path, src, clean, masked, strAt, consts: new Map(), imports: new Map(), routers: new Map(), queueVars: new Map(), defaultExport: null };
+  const f = { path, src, clean, masked, strAt, consts: new Map(), members: new Map(), imports: new Map(), routers: new Map(), queueVars: new Map(), defaultExport: null };
   f.lineOf = (off) => {
     let lo = 0;
     let hi = lineStarts.length - 1;
@@ -160,6 +192,7 @@ function parseCode(path, src) {
     const s = strAt.get(m.index + m[0].length);
     if (s && s.closed && !s.tpl && /^[ \t]*(?:;|,|\)|\r?\n|$)/.test(masked.slice(s.end, s.end + 40))) f.consts.set(m[1], s.value);
   }
+  collectMembers(f);
   for (const m of clean.matchAll(new RegExp(`\\bimport\\s+(?:type\\s+)?(?:(${ID})\\s*,?\\s*)?(?:\\{([^}]*)\\})?\\s*from\\s*(['"])([^'"\\n]+)\\3`, 'g'))) {
     if (m[1]) f.imports.set(m[1], { spec: m[4], name: 'default' });
     for (const part of (m[2] ?? '').split(',')) {
@@ -217,7 +250,12 @@ function strValue(ctx, f, a, b) {
   while (y > x && /\s/.test(f.masked[y - 1])) y--;
   const lit = f.strAt.get(x);
   if (lit) return lit.closed && !lit.tpl && lit.end === y ? lit.value : null;
-  const id = f.masked.slice(x, y);
+  const id = f.masked.slice(x, y).replace(/\s+/g, '');
+  const member = new RegExp(`^(${ID})\\.(${ID})$`).exec(id);
+  if (member) {
+    const o = origin(ctx, f, member[1]);
+    return o && o.file.members.has(`${o.name}.${member[2]}`) ? o.file.members.get(`${o.name}.${member[2]}`) : null;
+  }
   if (!new RegExp(`^${ID}$`).test(id)) return null;
   const o = origin(ctx, f, id);
   return o && o.file.consts.has(o.name) ? o.file.consts.get(o.name) : null;
@@ -849,6 +887,22 @@ function finishDoc(path, doc, lastLine, acc) {
 // ---------------------------------------------------------------------------------------------
 // BullMQ queues.
 
+/**
+ * The name of a queue from the first argument of `new Queue(...)` / `new Worker(...)`: the literal, else the constant it
+ * names (same file, imported, or an OBJ.key member), else the identifier text of a constant-like name (NAME_CONST) or a
+ * dotted one (config.queues.audit); a lowercase bare identifier is a parameter, so the queue is named after the file.
+ * null when the argument is no identifier at all (a call, an expression): that is skipped, never guessed.
+ */
+function queueNameOf(ctx, f, arg) {
+  if (!arg) return null;
+  const v = strValue(ctx, f, arg.a, arg.b);
+  if (v !== null) return v;
+  const text = textOf(f, arg).replace(/\s+/g, '');
+  if (new RegExp(`^${ID}(?:\\.${ID})+$`).test(text) || /^[A-Z][A-Z0-9_]*$/.test(text)) return text;
+  if (new RegExp(`^${ID}$`).test(text)) return f.path.replace(/\.[^./]+$/, '');
+  return null;
+}
+
 function extractQueues(ctx, acc) {
   const queues = new Map(); // name -> item
   const get = (name) => {
@@ -861,7 +915,7 @@ function extractQueues(ctx, acc) {
     for (const d of f.masked.matchAll(re)) {
       const call = callAt(f, d.index + d[0].length);
       if (!call) continue;
-      const name = call.args[0] ? strValue(ctx, f, call.args[0].a, call.args[0].b) : null;
+      const name = queueNameOf(ctx, f, call.args[0]);
       if (name === null) {
         acc.skipped.queues++;
         continue;
@@ -875,7 +929,7 @@ function extractQueues(ctx, acc) {
     for (const d of f.masked.matchAll(wre)) {
       const call = callAt(f, d.index + d[0].length);
       if (!call) continue;
-      const name = call.args[0] ? strValue(ctx, f, call.args[0].a, call.args[0].b) : null;
+      const name = queueNameOf(ctx, f, call.args[0]);
       if (name === null) {
         acc.skipped.queues++;
         continue;
@@ -883,6 +937,11 @@ function extractQueues(ctx, acc) {
       const cv = call.args[2] ? objProp(f, call.args[2], 'concurrency') : null;
       const num = cv ? /^\d+$/.exec(textOf(f, cv)) : null;
       get(name).workers.push({ handler: identText(f, call.args[1]), concurrency: num ? Number(num[0]) : null, evidence: evidence(f, d.index, call.close + 1) });
+    }
+    // a FlowProducer has no name of its own: the row is named for its file
+    for (const d of f.masked.matchAll(/\bnew\s+FlowProducer\s*(?=\()/g)) {
+      const call = callAt(f, d.index + d[0].length);
+      if (call) get(`flow:${f.path.replace(/\.[^./]+$/, '')}`).decl.push({ f, ev: evidence(f, d.index, call.close + 1) });
     }
     const pre = new RegExp(`(?<![\\w$.])(${ID})\\s*\\.\\s*(addBulk|add)\\s*(?=\\()`, 'g');
     for (const d of f.masked.matchAll(pre)) {
