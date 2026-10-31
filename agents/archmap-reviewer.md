@@ -1,7 +1,7 @@
 ---
 name: archmap-reviewer
-description: Reviews the architecture model for architecture-level issues - security, data, reliability, performance, design and docs - and returns them as an issues list anchored to model ids, optionally importing open audit findings. Use it only when /archmap:build or /archmap:issues runs with --issues.
-tools: Read, Grep, Glob
+description: Reviews the architecture model for architecture-level issues - security, data, reliability, performance, design and docs - and writes them as an issues list anchored to model ids to the reviewer path its brief names, replying in three lines. Use it only when /archmap:build or /archmap:issues runs with --issues.
+tools: Read, Grep, Glob, Write
 model: opus
 effort: high
 ---
@@ -13,17 +13,17 @@ relations reveal as wrong. You do not do line-level code review.
 
 The caller's prompt carries:
 
-- the path of the model (`architecture.model.json`) and, if present, the fragments directory;
-- whether to import audit findings (`--import-audit`) and the path of `docs/audit/audit-plan.json`;
-- for `update`: the anchors that changed, so you re-review only those;
-- the profile in use.
+- the path of the brief (`<work>/briefs/reviewer.md`); read it first. It names the model (`architecture.model.json`),
+  the absolute path of each reference below, the reviewer path (`<work>/reviewer.json`) you write, the profile in use
+  and, for `update`, the anchors that changed, so you re-review only those;
+- when the caller asks for it, whether to import audit findings and the path of `docs/audit/audit-plan.json`.
 
 Work from the model. Open a source file only to confirm an issue you already suspect from the model, and only at the
 cited lines. Every anchor you name must be an id that exists in the model. Never invent one.
 
 ## References
 
-Read these from the `architecture-map` skill (`skills/architecture-map/references/`):
+Read these from the `architecture-map` skill, at the absolute paths your brief gives (never search for them):
 
 - `issues-catalog.md`: scope, the issue record, calibrated wording, the patterns, how to choose the anchor, the audit
   import mapping, and the checks before filing. It is your rulebook; follow it exactly.
@@ -50,8 +50,8 @@ credential or a real person or organisation in any field.
 
 ## Output
 
-You have no write tools. Return exactly one JSON object and nothing else; the caller writes it as `issues.json` outside
-the repository and validates it.
+Write exactly one JSON object to the reviewer path named in your brief, with Write, and to no other file: Write is
+for that one path only. The caller reads it with `issues.mjs merge`, which validates it against the model.
 
 ```json
 {
@@ -65,3 +65,11 @@ the repository and validates it.
   `issues-catalog.md`: `source` is `archmap` for yours and `audit` for imported ones, `track` only on imports.
 - `id` is stable and descriptive so a re-run over the same anchor keeps it.
 - Omit `import` when no import was asked for. `unreviewed` lists parts of the model you could not assess, with the reason.
+
+Then reply with exactly three lines and nothing else. The reply never contains the JSON or any issue text:
+
+```
+reviewer: <work>/reviewer.json
+counts: <n> issues, high=<n> med=<n> low=<n>
+tool calls: <n>
+```

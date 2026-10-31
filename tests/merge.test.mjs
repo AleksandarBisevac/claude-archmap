@@ -1064,3 +1064,65 @@ test('m21d 150 generated entities are not held to the fragment caps, and the dig
   assert.ok(text.length <= DIGEST_CAP, `${text.length} > ${DIGEST_CAP}`);
   assert.equal((d.entities ?? []).length + ((d.truncated && d.truncated.entities) || 0), 150, 'every entity is in the digest or counted out');
 });
+
+// P10.12: a synthesizer slip is normalised, not refused. Real build: one sequence step matched no step shape and the
+// model was refused, so the orchestrator re-asked the agent. merge drops the step and says so in meta.sources.
+const goodStep = (t) => ({ m: ['ui', 'svc'], k: 'api', t, d: 'a call', r: ['web/app.js:3'] });
+const synthWith = (sequences) => ({ sequences, views: [{ id: 'system', title: 'System', nodes: ['ui', 'svc', 'store'] }], notes: [], conflicts: [] });
+const seqOf = (id, steps) => ({
+  id, title: id, summary: id,
+  participants: [{ id: 'ui', label: 'UI', node: 'ui' }, { id: 'svc', label: 'Service', node: 'svc' }],
+  steps,
+});
+
+test('m22 a synth step that matches no step shape is dropped with a dropped-step row naming the sequence, the index and the reason; the rest of the sequence is kept and the model validates', () => {
+  const synth = synthWith([seqOf('place-order', [goodStep('A'), goodStep('B'), { t: 'no shape here', d: 7 }, goodStep('C')])]);
+  const { model } = merge({ fragments: buildFrags(), synth, meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(model.sequences.find((s) => s.id === 'place-order').steps.map((s) => s.t), ['A', 'B', 'C']);
+  const rows = model.meta.sources.filter((r) => r.type === 'dropped-step');
+  assert.equal(rows.length, 1, JSON.stringify(rows));
+  assert.equal(rows[0].sequence, 'place-order');
+  assert.equal(rows[0].index, 2, 'the index in the synth sequence');
+  assert.equal(typeof rows[0].reason, 'string');
+  assert.ok(rows[0].reason.length > 0);
+  // the other step shapes are untouched
+  const mixed = synthWith([seqOf('s2', [goodStep('A'), { frag: 'alt', t: 'cond' }, goodStep('B'), { frag: 'end', t: '' }, { note: ['n'], t: 'x', tone: 'info' }])]);
+  const r2 = merge({ fragments: buildFrags(), synth: mixed, meta: META });
+  assert.equal(r2.model.sequences.find((s) => s.id === 's2').steps.length, 5);
+  assert.deepEqual(r2.model.meta.sources.filter((r) => r.type === 'dropped-step'), []);
+});
+
+test('m22b a sequence left with fewer than 2 steps by a drop is dropped the same way, and a clean one-step sequence is not touched', () => {
+  const synth = synthWith([
+    seqOf('left-one', [goodStep('A'), { bogus: true }]),
+    seqOf('left-none', [{ bogus: 1 }, 'text']),
+    seqOf('plain-one', [goodStep('A')]),
+  ]);
+  const { model } = merge({ fragments: buildFrags(), synth, meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(ids(model.sequences), ['plain-one']);
+  const rows = model.meta.sources.filter((r) => r.type === 'dropped-step');
+  assert.deepEqual(rows.filter((r) => r.index !== undefined).map((r) => [r.sequence, r.index]), [['left-none', 0], ['left-none', 1], ['left-one', 1]]);
+  for (const seq of ['left-one', 'left-none']) {
+    assert.ok(rows.some((r) => r.sequence === seq && r.index === undefined && /fewer than 2|under 2/i.test(r.reason)), `${seq}: a row for the dropped sequence ${JSON.stringify(rows)}`);
+  }
+});
+
+test('m22c through the CLI a synth with an unplaceable step exits 0 and writes a valid model; the same dropped-step rows come out byte-identically on a second run', () => {
+  const dir = tmp();
+  const synthPath = join(dir, 'synth.json');
+  writeFileSync(synthPath, JSON.stringify(synthWith([seqOf('place-order', [goodStep('A'), goodStep('B'), { nonsense: true }])])));
+  const args = [join(FIX, 'build'), '--synth', synthPath, '--commit', 'abc123', '--project', 'shop', '--profile', 'balanced', '--generated-at', '2026-01-01T00:00:00Z'];
+  const out1 = join(dir, 'a.json');
+  const out2 = join(dir, 'b.json');
+  const r = cli([...args, '--out', out1]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(cli([...args, '--out', out2]).status, 0);
+  assert.equal(readFileSync(out1, 'utf8'), readFileSync(out2, 'utf8'));
+  const model = readJson(out1);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.equal(model.meta.sources.filter((x) => x.type === 'dropped-step').length, 1);
+  assert.deepEqual(model.sequences.find((s) => s.id === 'place-order').steps.map((s) => s.t), ['A', 'B']);
+  rmSync(dir, { recursive: true, force: true });
+});

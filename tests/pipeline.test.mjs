@@ -359,7 +359,7 @@ test('p10 with --issues render prints the reviewer call, and ledger --usage reco
   assert.equal(r.status, 0, r.stdout);
   assert.equal(r.json.agents.length, 1);
   assert.equal(r.json.agents[0].subagent_type, 'archmap-reviewer');
-  assert.ok(r.json.agents[0].prompt.includes(join(o, 'architecture.model.json')), 'the reviewer gets the model path');
+  assert.ok(readFileSync(join(w, 'briefs', 'reviewer.md'), 'utf8').includes(join(o, 'architecture.model.json')), 'the reviewer brief carries the model path');
   for (let i = 0; i < 2; i++) {
     const l = step(['ledger', '--work', w, '--usage', 'reviewer=40k@3m']);
     assert.equal(l.status, 0, l.stdout);
@@ -739,4 +739,149 @@ test('p22 without the duckdb CLI the python duckdb module reads the schema when 
   assert.deepEqual([latest.kind, latest.fields.map((f) => [f.name, f.provenance])], ['view', [['day', 'observed']]]);
   assert.ok(!readFileSync(log, 'utf8').includes(join(r, 'src/entities/warehouse.duckdb')), 'the module opens a copy, never the original');
   assert.ok(!m.meta.sources.some((x) => x.type === 'introspection-skipped'), 'nothing was skipped');
+});
+
+// P10.12: the issues flow by script. Real --issues build: render refused a --usage label other than "synthesizer"
+// and the same label twice, the reviewer's reply was written to <work>/reviewer.json by the orchestrator, and
+// issues.mjs merge, validate --issues and render --mode internal were hand-run in one Bash.
+const GIT_HOME_ENV = (home) => ({ ...process.env, HOME: home, USERPROFILE: home });
+const slugDir = (home) => execFileSync(process.execPath, [join(ROOT, 'scripts/issues.mjs'), 'path', '--project', repo], { encoding: 'utf8', env: GIT_HOME_ENV(home) }).trim();
+
+/** A work dir taken through plan --issues, finish and the canned synth file, ready for render. */
+function readyForRender(name, extra = ['--issues']) {
+  const w = join(tmp, name);
+  assert.equal(planInto(w, extra).status, 0);
+  cannedInto(w);
+  assert.equal(step(['finish', '--work', w]).status, 0);
+  cpSync(SYNTH, join(w, 'synth.json'));
+  return w;
+}
+
+test('p23 render takes the synthesizer row under any label and a repeated label adds a second row, never exit 2', () => {
+  const w = readyForRender('work-labels', []);
+  const r = step(['render', '--work', w, '--usage', 'synthesizer-fix=33.2k@25s', '--usage', 'synthesizer=21k@48s', '--usage', 'synthesizer=1k']);
+  assert.equal(r.status, 0, r.stdout);
+  const rows = ledgerRows(w).filter((x) => x.phase === 'synthesizer');
+  assert.deepEqual(rows.map((x) => [x.agent, x.tokens]).sort(), [['archmap-synthesizer', 1000], ['archmap-synthesizer', 21000], ['archmap-synthesizer', 33200]]);
+  assert.equal(rows.length, 3, 'one row per pair');
+  // a run twice records the same rows once
+  const again = step(['render', '--work', w, '--usage', 'synthesizer-fix=33.2k@25s', '--usage', 'synthesizer=21k@48s', '--usage', 'synthesizer=1k']);
+  assert.equal(again.status, 0);
+  assert.equal(ledgerRows(w).filter((x) => x.phase === 'synthesizer').length, 3);
+  // a pair that is not a token count is still a usage error
+  assert.equal(step(['render', '--work', w, '--usage', 'synthesizer=lots']).status, 2);
+  assert.equal(r.json.ledger.total.tokens >= 55200, true, JSON.stringify(r.json.ledger.total));
+});
+
+test('p24 with --issues render writes the reviewer brief (absolute catalogue path, model path, <work>/reviewer.json) and prints the one Agent call, a short pointer to it', () => {
+  const w = readyForRender('work-reviewer-brief');
+  const o = join(tmp, 'out-work-reviewer-brief');
+  assert.equal(readJson(join(w, 'pipeline.json')).issues, true, 'plan carries --issues into pipeline.json');
+  const r = step(['render', '--work', w]);
+  assert.equal(r.status, 0, r.stdout);
+  assert.equal(r.json.agents.length, 1);
+  const call = r.json.agents[0];
+  assert.equal(call.subagent_type, 'archmap-reviewer');
+  const briefPath = join(w, 'briefs', 'reviewer.md');
+  assert.ok(existsSync(briefPath), 'the reviewer brief is written');
+  assert.ok(call.prompt.includes(briefPath), 'the prompt points at the brief');
+  assert.ok(call.prompt.length < 600, `the prompt is ${call.prompt.length} characters`);
+  assert.equal(call.run_in_background, undefined);
+  const brief = readFileSync(briefPath, 'utf8');
+  const catalogue = join(ROOT, 'skills/architecture-map/references/issues-catalog.md');
+  assert.ok(existsSync(catalogue));
+  assert.ok(brief.includes(catalogue), 'the absolute path of issues-catalog.md');
+  for (const ref of ['model-schema.md', 'relation-taxonomy.md', 'sequences.md']) {
+    assert.ok(brief.includes(join(ROOT, 'skills/architecture-map/references', ref)), `absolute path of ${ref}`);
+  }
+  assert.ok(brief.includes(join(o, 'architecture.model.json')), 'the model path');
+  assert.ok(brief.includes(join(w, 'reviewer.json')), 'the reviewer writes its object to <work>/reviewer.json');
+  for (const line of ['reviewer: ', 'counts: ', 'tool calls: ']) assert.ok(brief.includes(line), `reply line ${line}`);
+  assert.match(brief, /three lines/i);
+  assert.match(r.json.next, /pipeline\.mjs issues --work/, r.json.next);
+  assert.ok(r.stdout.length < 6000);
+  // without --issues there is no brief and no call
+  const w2 = readyForRender('work-no-reviewer-brief', []);
+  assert.deepEqual(step(['render', '--work', w2]).json.agents, []);
+  assert.equal(existsSync(join(w2, 'briefs', 'reviewer.md')), false);
+});
+
+/** A reviewer object anchored to a node of the model render wrote, with that node's own evidence. */
+function reviewerFile(w, out, extra = {}) {
+  const model = readJson(join(out, 'architecture.model.json'));
+  const n = model.nodes[0];
+  const issue = {
+    id: 'zq-pipeline-issue', sev: 'med', category: 'design', title: 'Zq a module with no owner',
+    anchor: { node: n.id },
+    summary: 'The module has no clear owner in the structure.', impact: 'Changes to it are not reviewed by anyone in particular.',
+    fix: 'Name an owner for the module.', detail: 'ZQDETAIL-PIPE internal note.', evidence: [n.evidence[0]], source: 'archmap', ...extra,
+  };
+  writeFileSync(join(w, 'reviewer.json'), JSON.stringify({ issues: [issue], unreviewed: [] }));
+  return { node: n.id, issue };
+}
+
+test('p25 the issues step merges <work>/reviewer.json into the overlay outside the repository, validates it, renders the internal HTML there, records the reviewer row once and prints one JSON object', () => {
+  const home = join(tmp, 'home-p25');
+  mkdirSync(home);
+  const env = GIT_HOME_ENV(home);
+  const w = readyForRender('work-p25');
+  const o = join(tmp, 'out-work-p25');
+  assert.equal(step(['render', '--work', w]).status, 0);
+  const { issue } = reviewerFile(w, o);
+  const before = git(repo, 'status', '--porcelain');
+  const r = step(['issues', '--work', w, '--usage', 'reviewer=40k@3m'], env);
+  assert.equal(r.status, 0, r.stdout);
+  const j = r.json;
+  assert.equal(j.step, 'issues');
+  assert.equal(j.ok, true);
+  const dir = slugDir(home);
+  assert.equal(j.files.issues, join(dir, 'issues.json'));
+  assert.equal(j.files.html, join(dir, 'archmap.internal.html'));
+  for (const f of Object.values(j.files)) {
+    assert.ok(existsSync(f), `${f} written`);
+    assert.ok(!f.startsWith(repo), `${f} is outside the repository`);
+  }
+  assert.equal(git(repo, 'status', '--porcelain'), before, 'the repository is untouched');
+  assert.deepEqual(readJson(j.files.issues).issues.map((x) => x.id), [issue.id]);
+  assert.match(readFileSync(j.files.html, 'utf8'), /zq-pipeline-issue/, 'the internal build carries the issue');
+  assert.equal(j.validate.exit, 0);
+  assert.match(j.validate.command, /validate\.mjs.*--issues/);
+  assert.equal(j.counts.issues, 1);
+  assert.ok(j.runs.some((x) => x.script === 'issues.mjs' && x.exit === 0));
+  assert.ok(j.runs.some((x) => x.script === 'render.mjs' && x.exit === 0));
+  const reviewer = ledgerRows(w).filter((x) => x.phase === 'reviewer');
+  assert.deepEqual(reviewer.map((x) => [x.agent, x.model, x.tokens, x.durationMs]), [['archmap-reviewer', 'opus', 40000, 180000]]);
+  assert.match(j.report, /reviewer/, 'the printed ledger names the reviewer');
+  assert.ok(r.stdout.length < 6000);
+  assert.doesNotMatch(r.stdout, /ZQDETAIL-PIPE/, 'no issue content on stdout');
+  // a second run replaces, never duplicates: the overlay and the ledger row are the same
+  const bytes = readFileSync(j.files.issues, 'utf8');
+  assert.equal(step(['issues', '--work', w, '--usage', 'reviewer=40k@3m'], env).status, 0);
+  assert.equal(readFileSync(j.files.issues, 'utf8'), bytes);
+  assert.equal(ledgerRows(w).filter((x) => x.phase === 'reviewer').length, 1);
+  // any label for the reviewer's usage is taken
+  assert.equal(step(['issues', '--work', w, '--usage', 'reviewer-2=1k'], env).status, 0);
+});
+
+test('p26 the issues step exits 2 naming the path when <work>/reviewer.json is missing, and exits 1 with the findings, writing no overlay, over an issue anchored to nothing', () => {
+  const home = join(tmp, 'home-p26');
+  mkdirSync(home);
+  const env = GIT_HOME_ENV(home);
+  const w = readyForRender('work-p26');
+  const o = join(tmp, 'out-work-p26');
+  assert.equal(step(['render', '--work', w]).status, 0);
+  const missing = step(['issues', '--work', w], env);
+  assert.equal(missing.status, 2, missing.stdout);
+  assert.equal(missing.json.step, 'issues');
+  assert.ok(missing.json.error.includes(join(w, 'reviewer.json')), missing.json.error);
+  reviewerFile(w, o, { anchor: { node: 'no-such-node' } });
+  const bad = step(['issues', '--work', w], env);
+  assert.equal(bad.status, 1, bad.stdout);
+  assert.ok(bad.json.runs.some((x) => x.script === 'issues.mjs' && x.exit === 1));
+  assert.equal(existsSync(join(slugDir(home), 'issues.json')), false, 'no overlay written');
+  // a work dir that was not planned with --issues is a usage error, not a silent no-op
+  const w2 = readyForRender('work-p26b', []);
+  assert.equal(step(['render', '--work', w2]).status, 0);
+  writeFileSync(join(w2, 'reviewer.json'), '{"issues":[]}');
+  assert.equal(step(['issues', '--work', w2], env).status, 2);
 });

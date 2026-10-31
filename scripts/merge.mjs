@@ -71,7 +71,11 @@
 //
 // Synthesizer object (--synth): sequences and views merge by id; notes and conflicts are passed through. The
 // synthesizer may not add nodes, edges, entities, access rows or relations: any it carries are ignored and each
-// kind is reported as a conflict. Conflicts are reported and never resolved silently.
+// kind is reported as a conflict. Conflicts are reported and never resolved silently. A sequence step that matches no
+// step shape of the schema (message, fragment or note) is dropped, and a sequence that a drop leaves under 2 steps goes
+// with it, one meta.sources row {area: "synthesizer", type: "dropped-step", sequence, index, reason} each (index is the
+// step's place in the synth sequence; the row of a dropped sequence has none): a slip of the synthesizer never costs the
+// build a refusal, and nobody asks the agent again.
 //
 // User-authored fields (node locked + notes) are never overwritten or dropped. A locked node keeps its
 // authored content; if the new analysis disagrees, or no longer finds it, a conflict is reported. Notes on an
@@ -87,6 +91,7 @@ import { execFileSync } from 'node:child_process';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
+import { validateSchema } from './lib/jsonschema.mjs';
 import { matchAny } from './lib/glob.mjs';
 
 export const SCHEMA_VERSION = '1.0';
@@ -767,6 +772,33 @@ export function draftSequences({ flows, model }) {
 }
 
 export const DIGEST_CAP = 29000; // characters of digest.json: under 30 K with room for the brief
+// A synth step is placed when it matches exactly one step shape of the model schema, the rule validate applies to it.
+const STEP_SCHEMA = (() => {
+  const schema = JSON.parse(readFileSync(new URL('../schema/archmap-model.schema.json', import.meta.url), 'utf8'));
+  return { $defs: schema.$defs, ...schema.$defs.sequence.properties.steps.items };
+})();
+
+/**
+ * Keep the steps of a synth sequence that match a step shape. Returns the sequence (or null when a drop left it under
+ * 2 steps) and the meta.sources rows for what was dropped. A sequence nothing was dropped from is returned as it came.
+ */
+function placeSteps(seq) {
+  if (!Array.isArray(seq.steps)) return { seq, rows: [] };
+  const rows = [];
+  const kept = [];
+  seq.steps.forEach((step, index) => {
+    const problems = validateSchema(STEP_SCHEMA, step);
+    if (problems.length === 0) kept.push(step);
+    else rows.push({ area: 'synthesizer', type: 'dropped-step', sequence: seq.id, index, reason: `step matches no step shape: ${problems[0].message}` });
+  });
+  if (rows.length === 0) return { seq, rows };
+  if (kept.length < 2) {
+    rows.push({ area: 'synthesizer', type: 'dropped-step', sequence: seq.id, reason: `sequence left with ${kept.length} step(s) after ${rows.length} unplaceable step(s) were dropped, fewer than 2: sequence dropped` });
+    return { seq: null, rows };
+  }
+  return { seq: { ...seq, steps: kept }, rows };
+}
+
 const DIGEST_ORDER = ['about', 'project', 'commit', 'counts', 'zones', 'nodes', 'edges', 'entities', 'access', 'sequences', 'drafts', 'truncated'];
 // kinds the cap trims, with the weight that protects the ones the synthesizer needs most
 const DIGEST_TRIM = { access: 1, edges: 2, drafts: 2, entities: 3, nodes: 6 };
@@ -1297,7 +1329,16 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
         reason: `synthesizer may not add ${key}: ${items.length} ignored (merge.mjs computes nodes, edges, entities, access rows and relations; the synthesizer returns sequences, views, notes and conflicts only)`,
       });
     }
-    for (const s of list(synth.sequences)) if (isObj(s) && typeof s.id === 'string') sequences.set(s.id, clone(s));
+    const synthSeqs = list(synth.sequences).filter((s) => isObj(s) && typeof s.id === 'string');
+    const staleIds = new Set(synthSeqs.map((s) => s.id));
+    for (let i = sources.length - 1; i >= 0; i--) {
+      if (isObj(sources[i]) && sources[i].type === 'dropped-step' && staleIds.has(sources[i].sequence)) sources.splice(i, 1);
+    }
+    for (const s of synthSeqs) {
+      const placed = placeSteps(clone(s));
+      sources.push(...placed.rows);
+      if (placed.seq !== null) sequences.set(s.id, placed.seq);
+    }
     for (const v of list(synth.views)) if (isObj(v) && typeof v.id === 'string') views.set(v.id, clone(v));
     for (const n of list(synth.notes)) if (typeof n === 'string') notes.push(n);
     for (const c of list(synth.conflicts)) if (isObj(c)) conflicts.push(clone(c));

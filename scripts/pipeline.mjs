@@ -5,7 +5,8 @@
 //   node scripts/pipeline.mjs plan <repo> [--work <dir>] [--out <dir>] [--scope <path>] [--profile max|balanced|economy]
 //        [--issues] [--update [--since <sha>]] [--project <name>] [--generated-at <iso>]
 //   node scripts/pipeline.mjs finish --work <dir> [--usage <area>=<tokens>[@<duration>] ...] [--allow-missing]
-//   node scripts/pipeline.mjs render --work <dir> [--usage synthesizer=<tokens>[@<duration>]]
+//   node scripts/pipeline.mjs render --work <dir> [--usage <label>=<tokens>[@<duration>] ...]
+//   node scripts/pipeline.mjs issues --work <dir> [--usage <label>=<tokens>[@<duration>]] [--anchors a,b]
 //   node scripts/pipeline.mjs ledger --work <dir> [--usage reviewer=<tokens>[@<duration>]]
 //
 // plan    starts a fresh build in <work> (it removes the files an earlier build left there; without --work that is
@@ -30,6 +31,11 @@
 //         HTML (with archmap.theme.json when --out holds one). It prints the files, the counts, the ledger and a
 //         final report skeleton; with --issues it also prints the reviewer Agent call.
 // ledger  records the reviewer's row after an --issues review and prints the ledger.
+// issues  (after a plan with --issues and a render) reads the reviewer's object from <work>/reviewer.json, merges it
+//         into the overlay <home>/.claude/archmap/<repo-slug>/issues.json (issues.mjs merge, validated against the
+//         model; an existing overlay is kept except on the anchors the reviewer covers), validates the model with
+//         --issues, renders the internal HTML beside it (archmap.internal.html), records the reviewer's ledger row and
+//         prints one JSON object. Nothing is written inside the repository. A missing reviewer.json exits 2 naming it.
 //
 // --usage pairs are what the orchestrator copies off the Agent completion lines: tokens as 34500, 34.5k or 1.2M,
 // an optional duration after @ as 62s, 1m2s, 850ms or plain milliseconds. Each step records its own ledger rows
@@ -106,6 +112,7 @@ const FLAGS = {
   plan: { value: ['--work', '--out', '--scope', '--profile', '--since', '--project', '--generated-at'], bool: ['--issues', '--update'], positional: 1 },
   finish: { value: ['--work'], multi: ['--usage'], bool: ['--allow-missing'], positional: 0 },
   render: { value: ['--work'], multi: ['--usage'], bool: [], positional: 0 },
+  issues: { value: ['--work', '--anchors'], multi: ['--usage'], bool: [], positional: 0 },
   ledger: { value: ['--work'], multi: ['--usage'], bool: [], positional: 0 },
 };
 
@@ -313,6 +320,16 @@ function agentRow(phase, label, agent, model, usage) {
   return { phase, label, agent, model, ...(u ? { tokens: u.tokens, durationMs: u.durationMs } : {}) };
 }
 
+/**
+ * The ledger rows of one agent role from its parsed --usage pairs, whatever label each carries (the orchestrator copies
+ * it off a completion line): one row per pair, so a repeated label is a second row. No pair at all is one row with the
+ * figures unknown, so the ledger says the agent ran.
+ */
+function agentRows(phase, agent, model, pairs, { whenNone = true } = {}) {
+  if (!pairs.length) return whenNone ? [{ phase, label: phase, agent, model }] : [];
+  return pairs.map((u) => ({ phase, label: u.label, agent, model, tokens: u.tokens, ...(u.durationMs !== undefined ? { durationMs: u.durationMs } : {}) }));
+}
+
 // ---------------------------------------------------------------------------
 // briefs
 
@@ -479,6 +496,45 @@ export function synthBrief({ digest, synth, profile, touched }) {
     '',
     'synth: <the synth path above>',
     'counts: <n> sequences, <n> views',
+    'tool calls: <n>',
+    '',
+  );
+  return lines.join('\n');
+}
+
+const REVIEW_READS = 12;
+
+/** The reviewer's brief: the model, the references by absolute path, the one file it writes and the three-line reply. */
+export function reviewerBrief({ model, reviewer, profile, touched }) {
+  const ref = (name) => join(REFS, name);
+  const lines = [
+    '# archmap reviewer brief',
+    '',
+    'You review the architecture the model describes and report what its structure and relations reveal as wrong:',
+    'architecture-level issues, not line-level code review.',
+    '',
+    `- Model, read it whole first (every anchor you name must be an id in it): ${model}`,
+    `- Reviewer path, the one file you write: ${reviewer}`,
+    `- Profile ${profile}. Budget: at most ${REVIEW_READS} targeted source reads, only to confirm a suspicion at the cited lines.`,
+    '- References, read these by the paths given here (nothing else is needed):',
+    `  - ${ref('issues-catalog.md')}: your rulebook; follow it exactly`,
+    `  - ${ref('model-schema.md')}: the element shapes and the evidence rule`,
+    `  - ${ref('relation-taxonomy.md')}: edge types and confidence`,
+    `  - ${ref('sequences.md')}: the step grammar, for a step anchor "<sequenceId>:<stepIndex>"`,
+  ];
+  if (touched) {
+    const parts = Object.entries(touched).filter(([, ids]) => ids.length).map(([k, ids]) => `${k} ${ids.slice(0, 30).join(', ')}`);
+    lines.push(`- Update: re-review only what these touch: ${parts.join('; ') || 'none'}.`);
+  }
+  lines.push(
+    '',
+    '## Output',
+    '',
+    'Write one JSON object {"issues":[],"unreviewed":[]} to the reviewer path (issue records as the catalogue defines',
+    'them), then reply with exactly three lines and nothing else (never the JSON):',
+    '',
+    'reviewer: <the reviewer path above>',
+    'counts: <n> issues, high=<n> med=<n> low=<n>',
     'tool calls: <n>',
     '',
   );
@@ -933,7 +989,8 @@ function render(o, ctx) {
   const state = loadState(work);
   ctx.cwd = state.repo;
   ctx.aliases = aliasesFor(state);
-  const usage = usageMap(o.usage, state.update?.nothing ? [] : ['synthesizer'], 'render');
+  const usage = o.usage.map(parseUsage);
+  if (state.update?.nothing && usage.length) throw new StepError(`--usage ${o.usage[0]}: render takes no usage when the update left nothing to synthesize`);
   const out = state.out;
   const files = {
     model: join(out, 'architecture.model.json'),
@@ -951,7 +1008,7 @@ function render(o, ctx) {
     }
     if (!existsSync(synth)) throw new StepError(`synth file ${synth} is missing: dispatch the synthesizer from finish first`);
     done = readJson(join(work, 'finish.json'), 'finish record');
-    rows.push(agentRow('synthesizer', 'synthesizer', 'archmap-synthesizer', PROFILE_MODELS[state.profile].synthesizer, usage));
+    rows.push(...agentRows('synthesizer', 'archmap-synthesizer', PROFILE_MODELS[state.profile].synthesizer, usage));
     mkdirSync(out, { recursive: true });
     const m = runScript(ctx, 'merge.mjs', mergeArgs(state, {
       out: files.model, previous: join(work, 'model.json'), synth, areas: state.mode === 'update' ? done.areas : null,
@@ -984,11 +1041,16 @@ function render(o, ctx) {
   };
   const skipped = list(model.meta?.sources).filter((s) => isObj(s) && (s.status === 'skipped' || (s.type === 'truncation'))).map((s) =>
     [s.area, s.kind ?? s.type, s.path, s.reason ?? (s.dropped ? JSON.stringify(s.dropped) : '')].filter(Boolean).join(' ')).slice(0, MAX_MESSAGES);
-  const agents = state.issues && exitCode === 0
-    ? [agentCall('archmap-reviewer', 'archmap reviewer',
-      `Review the architecture model at ${files.model} for architecture-level issues. Return the one JSON object your instructions define.`,
-      overrideFor(state.profile, 'reviewer'))]
-    : [];
+  const agents = [];
+  if (state.issues && exitCode === 0) {
+    const brief = join(work, 'briefs', 'reviewer.md');
+    writeBrief(brief, reviewerBrief({
+      model: files.model, reviewer: join(work, 'reviewer.json'), profile: state.profile, touched: state.update?.touched ?? null,
+    }));
+    agents.push(agentCall('archmap-reviewer', 'archmap reviewer',
+      `Your brief is ${brief}. Read it first and follow it: it names the model, the references and the one file you write. Reply with the three lines it specifies.`,
+      overrideFor(state.profile, 'reviewer')));
+  }
   return {
     exitCode,
     files,
@@ -1004,7 +1066,7 @@ function render(o, ctx) {
     agents,
     next: exitCode !== 0
       ? 'a step found the model invalid and nothing was rendered: report the findings'
-      : agents.length ? 'dispatch the reviewer, then follow the --issues step of the skill' : 'write the final report from `report`',
+      : agents.length ? `dispatch the reviewer Agent call alone in one message, wait for it, then run pipeline.mjs issues --work ${work} --usage reviewer=<tokens>@<duration>` : 'write the final report from `report`',
   };
 }
 
@@ -1037,20 +1099,80 @@ function ledgerStep(o) {
 }
 
 // ---------------------------------------------------------------------------
+// issues (the overlay of an --issues run: merge, validate, internal render, the reviewer's ledger row)
+
+function issuesStep(o, ctx) {
+  const work = resolve(o.work);
+  const state = loadState(work);
+  ctx.cwd = state.repo;
+  ctx.aliases = aliasesFor(state);
+  if (!state.issues) throw new StepError(`work dir ${work} was planned without --issues: run plan again with --issues`);
+  const reviewer = join(work, 'reviewer.json');
+  if (!existsSync(reviewer)) {
+    throw new StepError(`reviewer file ${reviewer} is missing: dispatch the reviewer from render first; it writes that file`);
+  }
+  const out = state.out;
+  const files = { model: join(out, 'architecture.model.json'), layout: join(out, 'architecture.layout.json') };
+  if (!existsSync(files.model)) throw new StepError(`no model at ${files.model}: run pipeline.mjs render --work ${work} first`);
+  const usage = o.usage.map(parseUsage);
+  if (usage.length) writeLedger(work, 'ledger', agentRows('reviewer', 'archmap-reviewer', PROFILE_MODELS[state.profile].reviewer, usage, { whenNone: false }));
+
+  const where = runScript(ctx, 'issues.mjs', ['path', '--project', state.repo], { quietStdout: true, phase: 'merge' });
+  const dir = where.stdout.trim();
+  if (where.exit !== 0 || !dir) throw new StepError('issues.mjs path printed no overlay directory');
+  const overlay = join(dir, 'issues.json');
+  const html = join(dir, 'archmap.internal.html');
+  // the overlay's scripts cost no tokens: ctx.ledger is never written here, so the ledger keeps the reviewer's row only
+  const done = (exitCode, extra) => {
+    const ledger = ledgerSummary(work);
+    return {
+      exitCode, files: { issues: overlay, html }, ledger: { total: ledger.total },
+      report: `Usage ledger:\n${ledger.table.trimEnd()}`, agents: [], ...extra,
+    };
+  };
+
+  const merged = runScript(ctx, 'issues.mjs', [
+    'merge', ...(existsSync(overlay) ? ['--existing', overlay] : []), '--incoming', reviewer, '--model', files.model,
+    ...(o.anchors ? ['--anchors', o.anchors] : []), '--out', overlay, '--project', state.repo,
+  ], { quietStdout: true, phase: 'merge' });
+  if (merged.exit !== 0) {
+    return done(merged.exit === 1 ? 1 : 2, { next: 'issues.mjs refused the reviewer object: report the runs\' messages; nothing was written' });
+  }
+  const v = runScript(ctx, 'validate.mjs', [files.model, '--issues', overlay, '--repo', state.repo, '--json'], { quietStdout: true });
+  let findings = [];
+  try {
+    findings = list(JSON.parse(v.stdout).findings).slice(0, MAX_MESSAGES).map((f) => `${f.code} ${f.pointer || '/'} ${f.message}`);
+  } catch { /* the exit code says it */ }
+  const validate = { command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/validate.mjs" ${files.model} --issues ${overlay} --repo ${state.repo}`, exit: v.exit };
+  if (v.exit !== 0) return done(v.exit === 1 ? 1 : 2, { validate, findings, next: 'validate found the overlay invalid: report the findings' });
+  const theme = join(out, 'archmap.theme.json');
+  const r = runScript(ctx, 'render.mjs', [
+    files.model, '--layout', files.layout, ...(existsSync(theme) ? ['--theme', theme] : []), '--issues', overlay, '--mode', 'internal', '--out', html,
+  ]);
+  const issues = list(readJson(overlay, 'issues overlay').issues);
+  const counts = { issues: issues.length, high: 0, med: 0, low: 0 };
+  for (const i of issues) if (counts[i?.sev] !== undefined) counts[i.sev]++;
+  return done(r.exit === 0 ? 0 : r.exit === 1 ? 1 : 2, {
+    validate, counts,
+    next: r.exit === 0 ? 'write the final report from the render report and this ledger; the overlay stays outside the repository' : 'the internal render failed: report the runs',
+  });
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 
-const STEPS = { plan, finish, render, ledger: ledgerStep };
+const STEPS = { plan, finish, render, issues: issuesStep, ledger: ledgerStep };
 const USAGE_TEXT =
   'usage: node scripts/pipeline.mjs plan <repo> [--work <dir>] [--out <dir>] [--scope <path>] [--profile p] [--issues] [--update [--since sha]] ' +
   '[--project name] [--generated-at iso] | finish --work <dir> [--usage <area>=<tokens>[@<duration>] ...] [--allow-missing] | ' +
-  'render --work <dir> [--usage synthesizer=<tokens>[@<duration>]] | ledger --work <dir> [--usage reviewer=<tokens>[@<duration>]]';
+  'render --work <dir> [--usage <label>=<tokens>[@<duration>] ...] | issues --work <dir> [--usage reviewer=<tokens>[@<duration>]] [--anchors a,b] | ledger --work <dir> [--usage reviewer=<tokens>[@<duration>]]';
 
 export function main(argv) {
   const [step, ...rest] = argv;
   const ctx = { runs: [], findings: [], ledger: [], aliases: [], cwd: process.cwd() };
   let result;
   try {
-    if (!STEPS[step]) throw new StepError(step === undefined ? 'missing step (plan|finish|render|ledger)' : `unknown step ${step}`);
+    if (!STEPS[step]) throw new StepError(step === undefined ? 'missing step (plan|finish|render|issues|ledger)' : `unknown step ${step}`);
     const o = parseArgs(step, rest);
     const { exitCode = 0, findings = [], ...body } = STEPS[step](o, ctx);
     result = {

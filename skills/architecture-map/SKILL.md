@@ -15,8 +15,8 @@ npm dependencies. Run them from the analysed project's root so relative paths st
 
 ## Hard rules
 
-1. **Only the orchestrator writes the model.** Agents never write it: the reviewer returns JSON, the synthesizer and
-   an explorer each write only their own JSON file in the work directory; scripts write HTML, layout and issues files.
+1. **Only the orchestrator writes the model.** Agents never write it: the reviewer, the synthesizer and an explorer
+   each write only their own JSON file in the work directory; scripts write HTML, layout and issues files.
    Model + renderer: the model is the single source of truth (D1).
 2. **Nothing without evidence.** Every node and edge carries a non-empty `evidence` of `{path, lines}`. An element that
    cannot cite a file and lines is left out and tallied in `skipped`. See [Evidence](#evidence-rules).
@@ -54,7 +54,7 @@ flow; read one only at the step that names it.
 |---|---|---|---|
 | `archmap-explorer` | Sonnet, medium effort | Its brief, its area's extract summary, excerpts (Grep, line ranges); at least 6 tool calls | Writes one size-capped fragment file of at least its coverage floor in nodes; replies with three lines |
 | `archmap-synthesizer` | Sonnet, medium effort | Its brief and the merge digest with its drafted sequences; at most 12 targeted reads | Writes one JSON object to the synth path: 3-7 `sequences`, `views`, `notes`, `conflicts`; replies with three lines |
-| `archmap-reviewer` | Opus, high effort | The model and the issues catalogue; targeted reads only | One JSON object (no write tools): `issues`, optional `import`, `unreviewed`; you write it as `issues.json` |
+| `archmap-reviewer` | Opus, high effort | Its brief, the model and the issues catalogue (absolute paths in the brief); at most 12 targeted reads | Writes one JSON object to `<work>/reviewer.json`: `issues`, optional `import`, `unreviewed`; replies with three lines |
 
 Dispatch each with the `Agent` tool exactly as the driver prints the call: `subagent_type`, `description`, `prompt`,
 and `model` when the profile needs an override (see [Token rules](#token-rules)). The prompt is a pointer to the brief
@@ -78,14 +78,16 @@ an issues-bearing HTML inside the analysed repo.
 ## Build flow
 
 Triggered by `/archmap:build [--issues] [--profile p] [--db dsn] [--scope path] [--publish]`. Read this file once. During
-a build you read no reference, script or agent file and run nothing but the three driver steps; the driver runs
-prescan, the partition, the briefs, introspection, merge, validate, layout, render and the usage ledger, and prints one
-JSON line per step with every script's exit code and findings. A build without `--issues` is seven assistant turns:
-loading the skill, then one turn per step below. `<work>` is the scratch directory plan prints. Leave `--work` off (plan
+a build you read no reference, script or agent file and run nothing but the driver steps; the driver runs
+prescan, the partition, the briefs, introspection, merge, validate, layout, render, the issues overlay and the usage
+ledger, and prints one JSON line per step with every script's exit code and findings. A build without `--issues` is
+seven assistant turns: loading the skill, then one turn per step below. `<work>` is the scratch directory plan prints. Leave `--work` off (plan
 picks `<OS temp dir>/archmap/<hash of the repo path>` and prints it): subagents must be able to write their fragments
 under the work dir, and Claude Code denies a subagent a Write outside the project and the OS temp dir, so never point
 `--work` at another directory, a symlink or a non-ignored directory in the repo. The ledger is copied to where the
 caller asked after render.
+
+With `--issues` the steps are plan, explorers, finish, synthesizer, render, reviewer, issues, report (see `--issues` below).
 
 **Dispatch rule.** Send every Agent call a step prints in ONE message, as foreground calls: they run concurrently and
 the message returns when all have replied. Never set `run_in_background`, never use ScheduleWakeup or Monitor, and do
@@ -104,7 +106,7 @@ not poll, sleep or check on agents during a build: there is nothing to wait for 
 | brief | 4000 characters | plan and finish |
 | digest | under 30 K characters | finish |
 
-**Replies.** An explorer replies with exactly three lines; the synthesizer too:
+**Replies.** An explorer replies with exactly three lines; the synthesizer and the reviewer too:
 
 ```
 fragment: <work>/fragments/<area>.json
@@ -114,11 +116,19 @@ tool calls: <n>
 synth: <work>/synth.json
 counts: <n> sequences, <n> views
 tool calls: <n>
+
+reviewer: <work>/reviewer.json
+counts: <n> issues, high=<n> med=<n> low=<n>
+tool calls: <n>
 ```
 
-Read the counts and the token figure on the Agent completion line, and move on. Do not open a fragment or the synth
-file. A reply that is not those three lines is not acted on, and a weak or missing fragment is never sent back: the
-merge normalises a fragment and truncates it to the caps, recording the area and the count dropped in `meta.sources`.
+Read the counts and the token figure on the Agent completion line, and move on. Do not open a fragment, the synth
+file or the reviewer file. A reply that is not those three lines is not acted on, and a weak or missing fragment is
+never sent back: the merge normalises a fragment and truncates it to the caps, and drops a synthesizer step it cannot
+place, recording the area and the count dropped in `meta.sources`.
+
+Never use SendMessage to an agent that has finished: its reply is final.
+A refused object, a weak fragment or a reply that is not the three lines is reported and never asked again.
 
 ### 1. Plan
 
@@ -158,6 +168,8 @@ The one call in finish's `agents`, alone in one message, the same dispatch rule.
 node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" render --work <work> --usage synthesizer=<tokens>@<duration>
 ```
 
+`--usage` takes the label as it stands on the completion line, one pair per agent that ran.
+
 Only the orchestrator writes `architecture.model.json`, through this step.
 In it the orchestrator's driver merges the synthesizer's object into the model and validates it with `--repo`, lays it
 out (seeded from the previous layout, so only new nodes move) and renders the clean `archmap.html`. Exit 1: a step found
@@ -173,30 +185,45 @@ with the optional steps below first.
 
 ### `--issues` (opt-in)
 
-Only on `--issues`. Render then prints the `archmap-reviewer` call in `agents`; dispatch it the same way. It reads
-[issues-catalog.md](references/issues-catalog.md) and returns one JSON object; save that reply to
-`<work>/reviewer.json`. Issues are architecture-level, anchored to a node, edge, entity or sequence step, with severity
-high, med or low and a category (security, data, reliability, performance, design, docs). If
-`docs/audit/audit-plan.json` exists, its findings may be imported (`/archmap:issues --import-audit`).
+Only on `--issues` (given to plan, which carries it in `<work>/pipeline.json`). After render, two more steps run before
+the report: the reviewer, then the driver's `issues` step.
 
-`issues.mjs` does the deterministic half and never writes inside the repo (it refuses an `--out` in the project's git
-tree). Get the overlay directory, then import, merge and write there. `--existing` is optional: absent, or naming
-a file that does not exist yet (a first build), it means an empty overlay.
+1. **Dispatch the reviewer.** Render prints one `archmap-reviewer` call in `agents`; send it alone in one message
+   (the dispatch rule). Its brief, `<work>/briefs/reviewer.md`, names the model, the absolute path of
+   [issues-catalog.md](references/issues-catalog.md) and the other references, and the one file it writes,
+   `<work>/reviewer.json`. Issues are architecture-level, anchored to a node, edge, entity or sequence step, with
+   severity high, med or low and a category (security, data, reliability, performance, design, docs). You do not
+   write or open that file; a reply that is not the three lines is reported, not acted on.
+2. **Issues.**
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" issues --work <work> --usage reviewer=<tokens>@<duration>
+```
+
+   The driver merges `<work>/reviewer.json` into the overlay (`issues.json` in `<home>/.claude/archmap/<repo-slug>/`,
+   never inside the repo), validates the model with `--issues`, renders the internal build there as
+   `archmap.internal.html`, records the reviewer's ledger row and prints one JSON object: `files`, `counts`, `validate`
+   and the `report` ledger. Exit 1: report the `runs` messages and `findings`; exit 2 with a missing `reviewer.json`:
+   the reviewer wrote no file, report it and do not write the file yourself. `--anchors a,b` limits the merge to those
+   anchors (an update). Existing issues on other anchors are kept.
+
+With `--import-audit`, and only when `docs/audit/audit-plan.json` exists, import its findings into the overlay before
+the issues step (re-importing is idempotent; non-audit issues are kept):
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" path
 node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" import-audit docs/audit/audit-plan.json --model docs/architecture/architecture.model.json --existing <overlay-dir>/issues.json --out <overlay-dir>/issues.json
-node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" merge --existing <overlay-dir>/issues.json --incoming <work>/reviewer.json --model docs/architecture/architecture.model.json --out <overlay-dir>/issues.json
 ```
 
-`import-audit` runs only with `--import-audit` (re-importing is idempotent; non-audit issues are kept). `merge` replaces
-the existing issues on the anchors the reviewer's object covers (`--anchors a,b` to limit it). Output is validated
-against the model. Then validate, render the internal build and record the reviewer's ledger row:
+`/archmap:issues` over a model that already exists: run `plan . --update --issues`; with nothing affected it goes
+straight to render, which prints the reviewer call, then the same two steps. The scripts the issues step wraps stay
+usable on their own; by hand, merge the reviewer's object into the overlay (output validated against the model), validate
+and render the internal build:
 
 ```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/issues.mjs" merge --existing <overlay-dir>/issues.json --incoming <work>/reviewer.json --model docs/architecture/architecture.model.json --out <overlay-dir>/issues.json
 node "${CLAUDE_PLUGIN_ROOT}/scripts/validate.mjs" docs/architecture/architecture.model.json --issues <overlay-dir>/issues.json --repo .
 node "${CLAUDE_PLUGIN_ROOT}/scripts/render.mjs" docs/architecture/architecture.model.json --layout docs/architecture/architecture.layout.json --issues <overlay-dir>/issues.json --mode internal --out <overlay-dir>/archmap.internal.html
-node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" ledger --work <work> --usage reviewer=<tokens>@<duration>
 ```
 
 Before any `--mode shared` render, and before `--publish` of a shared build, lint the overlay (exit 0 clean, 1 findings:
@@ -240,7 +267,7 @@ in the build flow: `merge.mjs` runs with `--previous` and `--areas` listing exac
 wrote a fragment), so every other area keeps its elements and ids, and the synthesizer brief lists the touched ids so
 only those sequences and views are rewritten. `locked`, `notes` and layout `pinned` survive; a locked node keeps its
 authored content and a `conflict` is reported, not resolved silently. Uncommitted edits to tracked files are not seen:
-say so. Issues, only with `--issues`: re-review the affected anchors only and merge into the existing overlay.
+say so. Issues, only with `--issues`: the reviewer brief lists the touched ids, so it re-reviews those anchors only, and the issues step merges into the existing overlay.
 
 ## What the driver runs
 
@@ -299,7 +326,7 @@ A run without `--repo` does not check evidence; the driver always passes it.
   make 6 to 20 tool calls, reach their coverage floor in nodes, and write fragments within the caps, one sentence per `desc` and `role`, no source excerpts.
 - **The synthesizer reads the digest only**: the merge computes edges, zones, access rows and relations and pre-drafts
   sequences, so the agent confirms flows and writes views within 12 targeted reads.
-- **The reviewer** receives the model, with targeted reads only to confirm a specific claim.
+- **The reviewer** receives the model and its brief, with at most 12 targeted reads only to confirm a specific claim.
 - **Update touches only affected areas**; it never re-explores the whole repo.
 - **The ledger is the driver's.** Explorer, synthesizer and reviewer tokens reach it as `--usage` pairs; you never
   record a row yourself. It shows what the completion lines reported, not your own context, which

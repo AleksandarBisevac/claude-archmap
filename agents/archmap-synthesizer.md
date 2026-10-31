@@ -69,6 +69,7 @@ file: Write is for that one path only. The caller merges it with `merge.mjs --sy
 - Use the sequence and view shapes exactly; emit only schema keys.
 - `update` runs: include only the touched or new sequences and views, using the same ids so the caller replaces them.
 - Keep `summary`, step `t` and `d` text short. No source excerpts: cite `path:lines` only.
+- A step that merge cannot place is dropped, and a sequence left with fewer than 2 steps goes with it; each is recorded in `meta.sources`. A step is placed when it matches the message, fragment or note shape of `sequences.md`. You are never asked again to repair one, so write every step in the step grammar the first time.
 
 Then reply with exactly three lines and nothing else, never the JSON itself:
 

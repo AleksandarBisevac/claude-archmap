@@ -1,0 +1,44 @@
+{
+  "gates": {
+    "node --test tests/denylist.test.mjs": "pass",
+    "node --test (full suite, 387 tests)": "pass",
+    "node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T01:29:53Z",
+    "basis": "`node --test tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/merge.mjs: a synth sequence step matching none of the schema's step shapes (checked with lib/jsonschema.mjs against the model schema's step oneOf, the rule validate applies) is dropped with a meta.sources row {area:'synthesizer', type:'dropped-step', sequence, index, reason}; a sequence a drop leaves under 2 steps is dropped with a row without index; a clean one-step sequence is untouched; stale dropped-step rows of re-synthesized sequences are replaced; rows are sorted by the existing deterministic sources sort. merge --synth exits 0 for such a slip; m20e (exit 1 over unnormalised previous elements) still passes. scripts/pipeline.mjs: render --usage takes any label and one ledger row per pair (repeated label = second row, bad token count still exit 2); render writes <work>/briefs/reviewer.md (reviewerBrief: model path, absolute paths of issues-catalog.md, model-schema.md, relation-taxonomy.md, sequences.md, <work>/reviewer.json, three-line reply, touched ids on update) when pipeline.json carries issues:true (plan already stored it) and prints the one Agent call as a pointer to the brief, with next naming pipeline.mjs issues; new step `pipeline.mjs issues --work <w> [--usage reviewer=..] [--anchors a,b]` reads <work>/reviewer.json (missing: exit 2 naming the path; work dir planned without --issues: exit 2), runs issues.mjs path, issues.mjs merge (existing overlay kept; exit 1 refusals written nowhere), validate.mjs --issues --repo, render.mjs --mode internal into <home>/.claude/archmap/<slug>/archmap.internal.html, records the single reviewer ledger row (any label; rerun records it once) and prints one JSON line {files,counts,validate,ledger,report,runs}. agents/archmap-reviewer.md: Write added, writes to the reviewer path in its brief, three-line reply, absolute reference paths from the brief. agents/archmap-synthesizer.md: a step merge cannot place is dropped, never asked again. skills/architecture-map/SKILL.md (354 lines, line 3 byte-identical, md5 9aa77a14... before and after): --issues order line plan, explorers, finish, synthesizer, render, reviewer, issues, report; no SendMessage to a finished agent and no second ask (worded to avoid the words guarded by s9/s10); reviewer row of agents table and reply lines updated; --issues section rewritten around dispatch reviewer + pipeline.mjs issues, manual issues.mjs/validate/render kept as a by-hand fallback. Tests: m22, m22b, m22c (merge), p23-p26 (pipeline), a9, a10 (agents; a1/a2 table and writers list now include reviewer Write), s15 (skill); p10 edited to read the model path from the reviewer brief instead of the prompt. Full suite 387 pass, 0 fail; denylist 2 pass. No new files (nothing to stage); tests/fixtures/merge unchanged (cases build their synth in code). Dependants: commands/build.md, commands/update.md, commands/issues.md, tests/commands.test.mjs, tests/e2e.test.mjs, tests/evals.test.mjs, usage.mjs, scripts/issues.mjs - still correct, full suite green, none names a changed interface (commands hand off to the skill; issues.mjs CLI unchanged; render's JSON keys unchanged apart from a longer next and a brief-pointer prompt). docs/design.md (dependant of the reviewer and synthesizer agent files) still describes the reviewer as having no write tools and returning JSON: NOT changed, because P10.5 holds an uncommitted edit of it as instructed; it needs a follow-up line. Not verified: a real --issues build with an Opus orchestrator (no network/agents here).",
+    "descriptive": "An --issues build now runs plan, explorers, finish, synthesizer, render, reviewer, pipeline.mjs issues, report with no hand-run scripts, no render flag refusals, and a synthesizer slip is dropped and recorded instead of refusing the model."
+  },
+  "testsAdded": [
+    "m22/m22b/m22c: unplaceable synth step dropped with a dropped-step row, sequence under 2 steps dropped, CLI exit 0 and byte-identical reruns",
+    "p23-p26: render usage labels and repeated labels, reviewer brief and Agent call, issues step end to end (overlay outside repo, internal HTML, one ledger row, one JSON line), missing reviewer.json exit 2 / bad anchor exit 1 / no --issues exit 2",
+    "a9/a10: reviewer writes its file and replies in three lines; synthesizer says an unplaceable step is dropped, never asked again",
+    "s15: --issues flow order, pipeline.mjs issues, SendMessage and second-ask bans, 500-line cap, line 3 intact"
+  ],
+  "casesAdded": [
+    [
+      "m22",
+      "m22b",
+      "m22c"
+    ],
+    [
+      "p23",
+      "p24",
+      "p25",
+      "p26"
+    ],
+    [
+      "a9",
+      "a10"
+    ],
+    "s15"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:7625e3fb3d973403e2369f9aa6674b8c31ac56dfca68f2e851e0428807f7088b\",\"dirtyDigest\":\"sha256:8477f1f5ec63bf78eb158c6385b1fc6a01c72ecddbc5e0ba4d47c1d955a9e629\",\"dirtyPaths\":{\"agents/archmap-reviewer.md\":\"b2214438a35f08e3\",\"agents/archmap-synthesizer.md\":\"e722d1b3a7343e2d\",\"docs/design.md\":\"b0d39ec0ed1b1a15\",\"scripts/merge.mjs\":\"dab74df6041bfc92\",\"scripts/pipeline.mjs\":\"1648745968fae97f\",\"skills/architecture-map/SKILL.md\":\"72760af5046cb232\",\"tests/agents.test.mjs\":\"9930ac4b19347fb5\",\"tests/merge.test.mjs\":\"f136e345714dab75\",\"tests/pipeline.test.mjs\":\"16474f333358d11a\",\"tests/skill.test.mjs\":\"bae873805c114713\"},\"head\":\"14f5ecb\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-reviewer.md\",\"agents/archmap-synthesizer.md\",\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"skills/architecture-map/SKILL.md\",\"tests/agents.test.mjs\",\"tests/fixtures/merge\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:c254f92b4f5cb67fbacf0d0cdf856d49b8ef7462a51913e2a92b5aa37b8b7835\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

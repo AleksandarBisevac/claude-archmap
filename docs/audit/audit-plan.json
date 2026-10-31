@@ -5852,7 +5852,7 @@
         {
           "id": "P10.11-6rm",
           "title": "File databases: detect them in code, introspect when a CLI exists, otherwise record the skip in meta.sources",
-          "status": "in_progress",
+          "status": "done",
           "description": "Round 3 of eval 1 (2026-10-31) failed the expectation \"entities carry observed fields from the file database, or meta.sources records the skipped introspection with a reason\": prescan found no database store because the DuckDB file is created at runtime and is not in the repository, the python scanner lists psycopg, asyncpg, sqlite3 and engines but not duckdb.connect, so finish had nothing to introspect and recorded nothing; on this machine neither the duckdb CLI nor the python module exists. Fix: the python scanner (and the generic one for JS) recognises duckdb.connect(<path>) and sqlite3.connect(<path>) and emits a store row with kind, the path literal and evidence whether or not the file exists; pipeline.mjs finish, for each file-database store, introspects when the file exists and a CLI or module is available (schema only, read-only, on a temp copy for duckdb) and otherwise writes one meta.sources row {type:'introspection-skipped', kind, path, reason} that names the missing file or the missing tool; merge carries the row into the model and validate accepts it. Runs after P10.10 (shared files). Fixtures stay synthetic.",
           "files": [
             "scripts/prescan.mjs",
@@ -5891,25 +5891,41 @@
           ],
           "attempts": 2,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "14f5ecb1185f",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/lib/prescan/generic.mjs: new scanDatabases(files, read, lang) returns {rows, skipped}: duckdb.connect/sqlite3.connect (python, positional or database= keyword) and new duckdb.Database / new sqlite3.Database / new Database(<path with a database extension>) / DuckDBInstance.create (js/ts) with a path literal give a store row {library, kind, name, path, evidence} whether or not the file exists; :memory: and no-arg calls give nothing, a non-literal path is counted in skipped.stores; commented calls are ignored. genericRecipe adds stores (js side) only when rows exist. scripts/lib/prescan/python.mjs: stores is a new kind (KINDS, skipped, truncated). scripts/lib/prescan/inventory.mjs: exports dbKindOf (extension to sqlite/duckdb) and its header no longer says nothing reads a database. scripts/prescan.mjs (not in the brief's files; the edit was accepted): the area extract's stores now take python, generic and ts rows and carry the path. scripts/pipeline.mjs: databasesOf(pre) unions inventory-found database files with code-named stores (kind+path, sorted) into state.databases; introspect now checks, per database, a path outside the repo, a missing file ('<path> does not exist in the repository: a <kind> file is created when the program runs, so there is no schema to read'), a non-file, and the reader (CLI, else for duckdb the python3 duckdb module through the same query on a temp copy; reasons 'duckdb CLI not found on PATH' plus ' and python3 is not on PATH' or ' and the python duckdb module is not installed'; sqlite keeps 'sqlite3 CLI not found on PATH'), and every skip row is {type:'introspection-skipped', kind, path, status:'skipped', reason}; it travels in fragments/introspection.json into meta.sources through merge unchanged (scripts/merge.mjs needed no edit: it already carries a fragment's sources; validate accepted the model in tests). Stale spots: scripts/lib/prescan/ts-frontend.mjs MAX_ITEMS 300 -> 20000 (comment updated; tests/prescan-ts-frontend.test.mjs ts6 case that asserted the 300 cap now asserts all 400 routes are kept - that file is not in the brief's files, the edit was accepted); skills/architecture-map/references/model-schema.md queue line now says producer and consumer each go to the queue's own <name>-queue node with async edges, and the sources row documents introspection-skipped; skills/architecture-map/references/discovery-generic.md now points at <area>.summary.json and says the full extract has no budget and is the script's. Tests: tests/fixtures/repos/python-api/app/warehouse.py (new, staged, synthetic, two connect calls on absent files plus one keyword call); tests/prescan-python.test.mjs py11 added, py6/py7 KINDS and skipped tallies updated; tests/prescan-core.test.mjs pc12 (js/ts and python rows reach prescan output, no file in the repo); tests/pipeline.test.mjs p21 (absent file names the file, present file without tool names the tool, duckdb stand-in on PATH gives observed entities read from a copy with -readonly, validate --repo passes) and p22 (python duckdb module via a python3 stand-in, and the skip row naming both when the module is missing); p8 expectation gains type introspection-skipped. docs/design.md untouched. Results: node --test tests/denylist.test.mjs 2 pass; node --test full suite 377 pass 0 fail. Dependants: scripts/usage.mjs, tests/commands.test.mjs, tests/skill.test.mjs, tests/e2e.test.mjs, commands/build.md, commands/update.md, skills/architecture-map/SKILL.md still correct (pipeline step names, flags and JSON keys unchanged; introspection report rows only gain a type key on skips); scripts/prescan.mjs and scripts/lib/prescan/node-backend.mjs, ts-frontend.mjs, stacks/python.mjs and partition.mjs importers still correct (full suite green); tests/prescan-wiring.test.mjs still correct (python-api fixture gained one file); stack-python-backend.md and the fixture README were not changed and still describe what they did.",
+            "descriptive": "A database file the code opens by path (duckdb.connect, sqlite3.connect, new duckdb.Database) is now found even when the file is absent; finish reads its schema when it can and otherwise records one introspection-skipped row naming the missing file or tool."
           },
           "startedAt": "2026-10-31T01:11:18Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T01:20:04Z",
+          "verifiedBy": [
+            "py11 python store rows for duckdb/sqlite connect with a path literal, absent file, in-memory and non-literal cases",
+            "pc12 js/ts and python store rows in prescan output",
+            "p21 absent file / missing tool / duckdb stand-in observed fields, validate passes",
+            "p22 python duckdb module fallback and its missing-module skip reason"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T01:20:03Z.f47a21",
             "status": "passed",
             "at": "2026-10-31T01:20:03Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "14f5ecb1185f",
+            "at": "2026-10-31T01:20:04Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T01:18:57Z",
+            "basis": "`node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.12-6rm",
           "title": "Issues flow by script: a pipeline issues step, the reviewer writes its file, merge normalises a synth slip instead of refusing",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Round 3 of eval 2 (2026-10-31, --issues, Opus orchestrator): the build passed 7/7 objective expectations with issue recall 0.73, but took 20 orchestrator turns and a 93 K peak context instead of 12 and 80 K. Measured from the stream: merge --synth refused the model over one sequence step matching no step shape, the orchestrator re-asked the synthesizer with SendMessage (a re-ask the skill no longer allows for explorers but did not forbid here), then render failed three more times on flags (--issues is not a render option; a --usage label other than \"synthesizer\" refused; the same label twice refused); the reviewer returned its JSON in the reply and the orchestrator wrote <work>/reviewer.json itself, then hand-ran issues.mjs merge, validate --issues and render --mode internal in one long Bash and copied files around; the reviewer also reported it could not find issues-catalog.md because the brief gave no path. Fix, in the spirit of the phase: merge --synth drops a step it cannot place (and a sequence left under 2 steps) with a meta.sources row instead of refusing; render tolerates usage labels and prints, when plan ran with --issues, the reviewer brief (with the absolute catalogue path and the reviewer's output path <work>/reviewer.json) and the one Agent call; a new `pipeline.mjs issues` step does the overlay merge, validation, internal render and ledger row and prints one JSON object; agents/archmap-reviewer.md writes its file and replies in three lines like the other agents; SKILL.md's --issues flow becomes plan, explorers, finish, synthesizer, render, reviewer, issues, report, and forbids SendMessage to a finished agent and any re-ask. Runs after P10.11 (shared files). Keep SKILL.md at or under 500 lines with line 3 byte-identical; fixtures synthetic.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5944,16 +5960,22 @@
           "dependsOn": [
             "P10.11-6rm"
           ],
-          "attempts": 0,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T01:20:06Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T01:30:47Z.f05fdc",
+            "status": "passed",
+            "at": "2026-10-31T01:30:47Z"
+          }
         }
       ],
       "area": "cost",

@@ -11,7 +11,7 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const DESIGN = {
   'archmap-explorer': { model: 'sonnet', effort: 'medium', tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write'] },
   'archmap-synthesizer': { model: 'sonnet', effort: 'medium', tools: ['Read', 'Grep', 'Glob', 'Write'] },
-  'archmap-reviewer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob'] },
+  'archmap-reviewer': { model: 'opus', effort: 'high', tools: ['Read', 'Grep', 'Glob', 'Write'] },
 };
 
 function load(name) {
@@ -42,8 +42,8 @@ test('a1 each agent frontmatter has exactly the designed name, model, effort and
   }
 });
 
-test('a2 no agent lists Edit or Agent; only the explorer and the synthesizer list Write (each for its one file); synthesizer and reviewer have no Bash', () => {
-  const writers = ['archmap-explorer', 'archmap-synthesizer'];
+test('a2 no agent lists Edit or Agent; only the explorer, the synthesizer and the reviewer list Write (each for its one file); synthesizer and reviewer have no Bash', () => {
+  const writers = ['archmap-explorer', 'archmap-synthesizer', 'archmap-reviewer'];
   for (const name of Object.keys(DESIGN)) {
     const tools = toolList(load(name).fm);
     for (const banned of writers.includes(name) ? ['Edit', 'Agent', 'NotebookEdit'] : ['Edit', 'Write', 'Agent', 'NotebookEdit']) {
@@ -142,4 +142,29 @@ test('a8 the explorer reads the summary, not the full extract, and never transcr
   assert.match(body, /(never|do not|don't) transcribe[^\n.]*\btables\b/i, 'tables are not transcribed');
   assert.match(body, /entities, relations and queue edges[^\n.]*\b(script|merge\.mjs)\b/i, 'who makes them is said');
   assert.match(fm.description, /summary/i, 'the description says the explorer starts from the summary');
+});
+
+// P10.12: the reviewer writes its file like the other agents, and a step merge cannot place is never re-asked.
+test('a9 the reviewer has Write for the path in its brief only, writes its object there and replies with exactly three lines; the brief render prints names the catalogue by absolute path', () => {
+  const { fm, body } = load('archmap-reviewer');
+  assert.ok(toolList(fm).includes('Write'), 'Write is in the reviewer tools');
+  for (const banned of ['Edit', 'Agent', 'Bash', 'NotebookEdit']) assert.ok(!toolList(fm).includes(banned), `no ${banned}`);
+  assert.match(body, /path (named|given) in (the|your) (brief|prompt)|reviewer path|<work>\/reviewer\.json/i, 'the result goes to the path the brief names');
+  assert.match(body, /Write[^\n]*(only|one)[^\n]*(path|file)|(only|one)[^\n]*(path|file)[^\n]*Write/i, 'Write is limited to that one path');
+  assert.match(body, /exactly three lines/i);
+  for (const key of ['reviewer:', 'counts:', 'tool calls:']) assert.ok(body.includes(key), `reply line ${key} is specified`);
+  assert.match(body, /never (contains?|includes?|returns?)[^\n]*(issues|JSON)|no JSON|not (the )?(issues|JSON)/i, 'the reply never carries the object');
+  assert.doesNotMatch(body, /You have no write tools|the caller writes it/i, 'the old return-the-JSON contract is gone');
+  assert.doesNotMatch(body, /re-requested|re-ask/i, 'no re-ask path');
+  assert.match(body, /absolute path|path (named|given) in (the|your) (brief|prompt)/i, 'references are read by the paths the brief gives');
+  const block = /```json\n([\s\S]*?)\n```/.exec(body);
+  assert.ok(block, 'an output example in a json block');
+  assert.deepEqual(Object.keys(JSON.parse(block[1])).sort(), ['import', 'issues', 'unreviewed']);
+});
+
+test('a10 the synthesizer says a step merge cannot place is dropped and recorded, never re-asked', () => {
+  const { body } = load('archmap-synthesizer');
+  assert.match(body, /step[^\n.]*(merge|script)[^\n.]*(cannot|can't|can not) place[^\n.]*(dropped|drops)|(dropped|drops)[^\n.]*step[^\n.]*(merge|script)[^\n.]*(cannot|can't|can not) place/i, 'a step merge cannot place is dropped');
+  assert.match(body, /never (re-?asked|asked again|sent back)|not (re-?asked|asked again|sent back)|is never asked again/i, 'never asked again');
+  assert.match(body, /step grammar|sequences\.md/i);
 });
