@@ -52,6 +52,9 @@ test('nb1 routes: NestJS controllers, Express and Hono routers with method, full
     'hono ANY /ping null src/hono/app.ts:12',
     'hono GET /search null src/hono/app.ts:13',
     'hono POST /search null src/hono/app.ts:13',
+    'hono GET /reviews null src/hono/reviews.ts:7',
+    'hono POST /reviews/:bookId addReview src/hono/reviews.ts:8',
+    'hono DELETE /reviews/:bookId/:reviewId null src/hono/reviews.ts:9',
   ]);
 });
 
@@ -184,7 +187,7 @@ test('nb5 every item carries {path, lines} evidence inside the file, output sort
   assert.deepEqual(Object.keys(frag), Object.keys(frag).slice().sort(), 'fragment keys are sorted');
 });
 
-test('nb6 unknown patterns are skipped and counted, never guessed; the fragment is size-capped', () => {
+test('nb6 unknown patterns are skipped and counted, never guessed; a large file keeps every route', () => {
   // Fixture tally: @Get(CONST), get(CONST), express .route(path) chain, a template path in Hono,
   // a pgTable whose name is not a literal, a queue.add whose job name is a variable.
   assert.deepEqual(frag.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 0, queues: 1, routes: 4 });
@@ -206,9 +209,10 @@ test('nb6 unknown patterns are skipped and counted, never guessed; the fragment 
   const lines = ["import express from 'express';", 'const app = express();'];
   for (let i = 0; i < 400; i++) lines.push(`app.get('/r${String(i).padStart(3, '0')}', h);`);
   const big = memFrag({ 'm/routes.ts': lines.join('\n') + '\n' });
-  assert.ok(big.routes.length <= 300 && big.routes.length > 0, `routes capped (${big.routes.length})`);
-  assert.equal(big.truncated.routes, 400 - big.routes.length);
-  assert.equal(big.routes[0].url, '/r000', 'the cap keeps the first items in sort order');
+  // P10.10: the extract is the full record (the explorer gets a capped summary instead), so 400 routes are 400 rows.
+  assert.equal(big.routes.length, 400, `every route is kept (${big.routes.length})`);
+  assert.equal(big.truncated.routes, 0);
+  assert.equal(big.routes[0].url, '/r000', 'rows stay in sort order');
   assert.ok(JSON.stringify(big).length < 200 * 1024, 'fragment stays small');
 });
 
@@ -311,12 +315,12 @@ test('nb10 prescan writes one extracts/<area>.json per area with routes, tables,
     const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'prescan.mjs'), FIXTURE, '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     const pre = JSON.parse(readFileSync(join(work, 'prescan.json'), 'utf8'));
-    assert.deepEqual(readdirSync(join(work, 'extracts')).sort(), pre.areas.map((a) => `${a.id}.json`).sort());
+    assert.deepEqual(readdirSync(join(work, 'extracts')).sort(), pre.areas.flatMap((a) => [`${a.id}.json`, `${a.id}.summary.json`]).sort());
     const slice = (id) => JSON.parse(readFileSync(join(work, 'extracts', `${id}.json`), 'utf8'));
 
     const src = slice('src');
     assert.deepEqual(src.routes[0], { method: 'GET', path: '/api/v1/books', handler: 'list', file: 'src/books/books.controller.ts', line: 7 });
-    assert.equal(src.routes.length, 20);
+    assert.equal(src.routes.length, 23);
     assert.deepEqual(src.envKeys.find((k) => k.name === 'REDIS_URL'), { name: 'REDIS_URL', at: ['src/config.ts:7'] });
     const email = src.queues.find((q) => q.name === 'email');
     assert.deepEqual(email.producers.map((p) => `${p.job} ${p.file}:${p.line}`), ['welcome src/queues/email.producer.ts:4', 'receipt src/queues/email.producer.ts:8']);
@@ -331,5 +335,127 @@ test('nb10 prescan writes one extracts/<area>.json per area with routes, tables,
     assert.ok(order.fields.includes('customerId Int fk=Customer.id'), JSON.stringify(order.fields));
   } finally {
     rmSync(work, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.10: the per-area extract is the full record a script builds the model's entities, relations and queues
+// from. It is never trimmed to a budget, the Hono parser follows generics and composition, and the node
+// scanners run on any area that holds .ts or .js files whatever its stack label.
+
+const prescanInto = (repo) => {
+  const work = mkdtempSync(join(tmpdir(), 'archmap-nbfull-'));
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'prescan.mjs'), repo, '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const pre = JSON.parse(readFileSync(join(work, 'prescan.json'), 'utf8'));
+  const full = Object.fromEntries(pre.areas.map((a) => [a.id, JSON.parse(readFileSync(join(work, 'extracts', `${a.id}.json`), 'utf8'))]));
+  return { work, pre, full };
+};
+const gitRepo = (files) => {
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-nbrepo-'));
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, rel)), { recursive: true });
+    writeFileSync(join(dir, rel), body);
+  }
+  const g = (...a) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd: dir });
+  g('init', '-q');
+  g('add', '-A');
+  g('commit', '-q', '-m', 'fixture');
+  return dir;
+};
+const noneTruncated = (x, kinds = ['tables', 'routes', 'queues']) =>
+  kinds.every((k) => !(x.truncated && Number(x.truncated[k]) > 0));
+
+test('nb11 the full extract lists every Drizzle table with fields and references, every Hono route of a generic sub-app mounted with a prefix, and every BullMQ queue, with nothing truncated', () => {
+  const { work, full } = prescanInto(FIXTURE);
+  try {
+    const all = Object.values(full);
+    // every table, route and queue the scanner found is in exactly one area's full extract
+    assert.equal(all.reduce((n, s) => n + (s.tables ?? []).length, 0), frag.entities.length, 'every table is in an extract');
+    assert.equal(all.reduce((n, s) => n + (s.routes ?? []).length, 0), frag.routes.length, 'every route is in an extract');
+    assert.equal(all.reduce((n, s) => n + (s.queues ?? []).length, 0), frag.queues.length, 'every queue is in an extract');
+    for (const s of all) assert.ok(noneTruncated(s), `${s.area}: nothing truncated in ${JSON.stringify(s.truncated)}`);
+
+    const src = full.src;
+    const editions = src.tables.find((t) => t.name === 'editions');
+    assert.deepEqual([editions.orm, editions.table, editions.file, editions.line, editions.lines], ['drizzle', 'editions', 'src/db/schema.ts', 11, '11-17']);
+    assert.deepEqual(editions.fields, ['id serial pk', 'isbn text', 'publisherId integer fk=publishers.id']);
+    assert.deepEqual(src.tables.find((t) => t.name === 'publishers').fields, ['id serial pk', 'name varchar']);
+
+    const rows = src.routes.filter((r) => r.file.startsWith('src/hono/')).map((r) => `${r.method} ${r.path} ${r.file}:${r.line}`);
+    for (const want of ['GET /reviews src/hono/reviews.ts:7', 'POST /reviews/:bookId src/hono/reviews.ts:8', 'DELETE /reviews/:bookId/:reviewId src/hono/reviews.ts:9']) {
+      assert.ok(rows.includes(want), `${want} in ${JSON.stringify(rows)}`);
+    }
+    const email = src.queues.find((q) => q.name === 'email');
+    assert.deepEqual([email.file, email.line], ['src/queues/email.queue.ts', 6], 'the queue carries its declaration');
+    assert.equal(email.producers.length, 2);
+    assert.equal(email.consumers.length, 1);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('nb12 Hono sub-apps declared with generics, in the same file or imported, take the prefix they are mounted under', () => {
+  const rows = routeRows(memFrag({
+    'h/index.ts':
+      "import { Hono } from 'hono';\nimport books from './books';\ntype Env = { Bindings: { DB: string } };\n" +
+      'const app = new Hono<Env>();\nconst r = new Hono<{ Bindings: { DB: string }; Variables: { id: string } }>();\n' +
+      "r.get('/list', (c) => c.json([]));\napp.route('/admin', r);\napp.route('/books', books);\napp.get('/up', (c) => c.text('ok'));\nexport default app;\n",
+    'h/books.ts': "import { Hono } from 'hono';\nconst books = new Hono<Env>();\nbooks.get('/:id', getBook);\nbooks.put('/:id', (c) => c.json({}));\nexport default books;\n",
+  }));
+  assert.deepEqual(rows, [
+    'hono GET /books/:id getBook h/books.ts:3',
+    'hono PUT /books/:id null h/books.ts:4',
+    'hono GET /admin/list null h/index.ts:6',
+    'hono GET /up null h/index.ts:9',
+  ]);
+  // route composition: a sub-app built as one chain of .get/.post calls, then mounted
+  const chained = routeRows(memFrag({
+    'c/app.ts':
+      "import { Hono } from 'hono';\nimport { notes } from './notes';\nconst app = new Hono<Env>();\napp.route('/notes', notes);\n" +
+      "app.get('/a', (c) => c.text('a')).post('/b', postB);\nexport default app;\n",
+    'c/notes.ts':
+      "import { Hono } from 'hono';\nexport const notes = new Hono<Env>()\n  .get('/', (c) => c.json([]))\n  .post('/', createNote)\n  .delete('/:id', (c) => c.body(null, 204));\n",
+  }));
+  assert.deepEqual(chained, [
+    'hono GET /a null c/app.ts:5',
+    'hono POST /b postB c/app.ts:5',
+    'hono GET /notes null c/notes.ts:3',
+    'hono POST /notes createNote c/notes.ts:4',
+    'hono DELETE /notes/:id null c/notes.ts:5',
+  ]);
+});
+
+test('nb13 an area labelled ts-frontend that holds .ts files still gets its queues, tables and routes extracted', () => {
+  const repo = gitRepo({
+    'package.json': JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+    'packages/console/package.json': JSON.stringify({ name: 'console', dependencies: { react: '^18.0.0' } }),
+    'packages/console/src/App.tsx': 'export const App = () => null;\n',
+    'packages/console/src/jobs.ts':
+      "import { Queue, Worker } from 'bullmq';\nexport const mail = new Queue('mail');\nexport async function send(to) {\n  await mail.add('notice', { to });\n}\n" +
+      "export const mailWorker = new Worker('mail', async (job) => job.data);\n",
+    'packages/console/src/db.ts':
+      "import { pgTable, serial, text } from 'drizzle-orm/pg-core';\nexport const notes = pgTable('notes', {\n  id: serial('id').primaryKey(),\n  body: text('body'),\n});\n",
+    'packages/console/src/api.ts':
+      "import { Hono } from 'hono';\ntype Env = {};\nconst api = new Hono<Env>();\napi.get('/notes', (c) => c.json([]));\nexport default api;\n",
+    'packages/site/package.json': JSON.stringify({ name: 'site', dependencies: { react: '^18.0.0' } }),
+    'packages/site/src/main.tsx': 'export {};\n',
+    'packages/site/src/Page.tsx': 'export const Page = () => null;\n',
+  });
+  const { work, pre, full } = prescanInto(repo);
+  try {
+    const area = pre.areas.find((a) => a.globs.some((g) => g.startsWith('packages/console')));
+    assert.ok(area, JSON.stringify(pre.areas));
+    assert.deepEqual(area.stacks, ['ts-frontend'], 'the label stays what the package.json says');
+    const s = full[area.id];
+    const mail = (s.queues ?? []).find((q) => q.name === 'mail');
+    assert.ok(mail, JSON.stringify(s.queues));
+    assert.deepEqual(mail.producers.map((p) => `${p.job} ${p.file}:${p.line}`), ['notice packages/console/src/jobs.ts:4']);
+    assert.deepEqual(mail.consumers.map((c) => `${c.file}:${c.line}`), ['packages/console/src/jobs.ts:6']);
+    assert.deepEqual((s.tables ?? []).map((t) => `${t.orm} ${t.table} ${t.file}:${t.lines}`), ['drizzle notes packages/console/src/db.ts:2-5']);
+    assert.deepEqual((s.routes ?? []).map((r) => `${r.method} ${r.path}`), ['GET /notes']);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+    rmSync(repo, { recursive: true, force: true });
   }
 });

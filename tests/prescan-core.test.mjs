@@ -290,13 +290,13 @@ test('pc8 the import and call edges between areas are listed with source and tar
   assert.deepEqual(slice('web').imports, ['web/src/App.tsx > web/src/api.ts', 'web/src/api.ts > web/src/http.ts']);
 });
 
-test('pc9 the explorer brief plus the extract is under 12 K characters for every area of every fixture repo, and an oversized area is trimmed with counts', () => {
+test('pc9 the explorer agent file plus the area summary is under 12 K characters for every area of every fixture repo; an oversized area keeps every row in its full extract and only the summary is capped', () => {
   const brief = readFileSync(join(ROOT, 'agents', 'archmap-explorer.md'), 'utf8').length;
   for (const name of ['python-api', 'node-api', 'ts-web']) {
     const { pre, slice, work } = sliceOf(join(ROOT, 'tests', 'fixtures', 'repos', name));
     for (const a of pre.areas) {
-      const size = readFileSync(join(work, 'extracts', `${a.id}.json`), 'utf8').length;
-      assert.ok(brief + size < 12000, `${name}/${a.id}: brief ${brief} + extract ${size} chars`);
+      const size = readFileSync(join(work, 'extracts', `${a.id}.summary.json`), 'utf8').length;
+      assert.ok(brief + size < 12000, `${name}/${a.id}: agent file ${brief} + summary ${size} chars`);
       assert.equal(slice(a.id).area, a.id);
     }
   }
@@ -306,12 +306,15 @@ test('pc9 the explorer brief plus the extract is under 12 K characters for every
   for (let i = 0; i < 280; i++) lines.push(`app.get('/route-number-${String(i).padStart(3, '0')}/:id', handlerNumber${i});`);
   wide['big/routes.js'] = lines.join('\n') + '\n';
   for (const d of ['one', 'two']) for (let i = 0; i < 3; i++) wide[`${d}/f${i}.py`] = 'x = 1\n';
-  const { slice, pre } = sliceOf(makeRepo(wide));
+  const { slice, pre, work } = sliceOf(makeRepo(wide));
   const id = pre.areas.find((a) => a.globs.some((g) => g.startsWith('big/'))).id;
   const s = slice(id);
-  assert.ok(JSON.stringify(s).length + brief < 12000, `trimmed slice is ${JSON.stringify(s).length} chars`);
-  assert.ok(s.routes.length > 0 && s.truncated.routes > 0, 'what the budget cut is counted in truncated');
-  assert.equal(s.routes.length + s.truncated.routes, 280);
+  assert.equal(s.routes.length, 280, 'the full extract keeps every route');
+  assert.ok(!(s.truncated && s.truncated.routes > 0), `nothing is trimmed from the full extract: ${JSON.stringify(s.truncated)}`);
+  const sum = readJson(join(work, 'extracts', `${id}.summary.json`));
+  assert.ok(JSON.stringify(sum).length + brief < 12000, `summary is ${JSON.stringify(sum).length} chars`);
+  assert.equal(sum.counts.routes, 280, 'the summary counts every route');
+  assert.ok(sum.routes.length > 0 && sum.routes.length < 280, `the summary carries the first rows only (${sum.routes.length})`);
 });
 
 test('pc10 a merged leftover bucket is named misc (misc-2, misc-3 for more) and its title lists its member directories, never an id joined with plus signs', () => {
@@ -332,4 +335,43 @@ test('pc10 a merged leftover bucket is named misc (misc-2, misc-3 for more) and 
     assert.ok(dirs.length >= 1, `${a.id} holds ${dirs.length} directories`);
     for (const d of dirs) assert.ok(a.title.includes(d), `${a.id}: title ${a.title} lists ${d}`);
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.10: prescan writes the full extract for the script and a capped summary for the explorer.
+
+test('pc11 prescan writes extracts/<area>.json in full and extracts/<area>.summary.json with counts per kind, the first rows and the note that entities, relations and queue edges are made by script', () => {
+  const brief = readFileSync(join(ROOT, 'agents', 'archmap-explorer.md'), 'utf8').length;
+  for (const name of ['python-api', 'node-api', 'ts-web']) {
+    const { pre, work } = sliceOf(join(ROOT, 'tests', 'fixtures', 'repos', name));
+    for (const a of pre.areas) {
+      assert.equal(a.extract, `extracts/${a.id}.json`);
+      assert.equal(a.summary, `extracts/${a.id}.summary.json`, `${name}/${a.id}: the area points at its summary`);
+      const full = readJson(join(work, a.extract));
+      const text = readFileSync(join(work, a.summary), 'utf8');
+      assert.ok(text.length + brief < 12000, `${name}/${a.id}: ${text.length} chars`);
+      const sum = JSON.parse(text);
+      assert.equal(sum.area, a.id);
+      assert.equal(sum.extract, a.extract, 'the summary names the full extract it summarises');
+      assert.match(sum.note, /entities, relations and queue edges[^.]*\bscript\b/i, `${name}/${a.id}: ${sum.note}`);
+      const kinds = Object.keys(full).filter((k) => Array.isArray(full[k]) && k !== 'globs' && k !== 'stacks');
+      assert.ok(kinds.length >= 3, JSON.stringify(kinds));
+      for (const k of kinds) {
+        assert.equal(sum.counts[k], full[k].length, `${name}/${a.id}: counts.${k}`);
+        if (Array.isArray(sum[k])) {
+          assert.ok(sum[k].length <= full[k].length, `${name}/${a.id}: ${k} rows`);
+          assert.deepEqual(sum[k], full[k].slice(0, sum[k].length), `${name}/${a.id}: the summary's ${k} are the first rows`);
+        }
+      }
+    }
+  }
+  // the node fixture's src area: the counts say how much there is although the summary shows less
+  const { pre, work } = sliceOf(join(ROOT, 'tests', 'fixtures', 'repos', 'node-api'));
+  const src = pre.areas.find((a) => a.id === 'src');
+  const sum = readJson(join(work, src.summary));
+  assert.ok(sum.counts.routes >= 20 && sum.counts.tables >= 4 && sum.counts.queues >= 1, JSON.stringify(sum.counts));
+  // byte-identical across runs
+  const again = sliceOf(join(ROOT, 'tests', 'fixtures', 'repos', 'node-api'));
+  assert.equal(readFileSync(join(again.work, src.summary), 'utf8'), readFileSync(join(work, src.summary), 'utf8'));
+  assert.equal(readFileSync(join(again.work, src.extract), 'utf8'), readFileSync(join(work, src.extract), 'utf8'));
 });

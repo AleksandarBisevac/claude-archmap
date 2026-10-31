@@ -18,12 +18,20 @@
 // from the zone id, else from its nodes' kinds, else "service").
 //
 // The cross-area layer is computed here, not asked of an agent. With --extracts <work>/extracts (the per-area
-// slices prescan.mjs writes) every cross-area link becomes an edge between the nodes that own its two files: an
-// HTTP call to a route an `api` edge, a queue producer to its consumer a `queue` edge (async), an import a `call`
-// edge. Each cites the link's file and line on both sides; an import link carries no line, so with --repo the merge
-// finds the import statement in the file (read as text, never run) and without it the link is skipped. SQL
+// slices prescan.mjs writes; the explorers' <area>.summary.json files beside them are not read) every cross-area
+// link becomes an edge between the nodes that own its two files: an HTTP call to a route an `api` edge, a queue
+// producer and its consumer each a `queue` edge (async) to the queue's node (straight to the consumer when no queue
+// node exists), an import a `call` edge. Each cites the link's file and line on both sides; an import link carries no
+// line, so with --repo the merge finds the import statement in the file (read as text, never run) and without it the
+// link is skipped. SQL
 // statements in the slices become access rows (select R, insert C, update U, delete D) of the node owning the file on
 // the entity of that table. Declared foreign keys (an entity field's fk, an ORM table's fk=) become `relations[]`.
+// The extracts are prescan's full record, so the script also makes what the explorers used to transcribe: one entity
+// per declared table (its fields with provenance declared, evidence at the declaring file and lines), merged into an
+// explorer's entity of the same table or model name when there is one, its store the store node that owns or covers
+// the file, else the area's one store node, else a store node made for the area; one queue node per queue name (an
+// explorer's queue node of that name is the node), and a `queue` edge (async) from the node owning each producer and
+// each consumer to it, at that line. These are not held to the fragment caps.
 // What cannot be cited or resolved (a file no node owns, a table no entity models) is never guessed: it is counted
 // in one meta.sources row of type "derivation". The result also carries a digest (written with --digest
 // <work>/digest.json, at most DIGEST_CAP characters): node ids, kinds, zones, one-line roles, the edge list,
@@ -359,11 +367,162 @@ function importLine(repo, from, to) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// entities, store and queue nodes made from the full extracts: one entity per declared table, one queue node per
+// queue name, each with evidence at the declaring file and lines. Nothing here is guessed or asked of an agent.
+
+const kindOf = (n) => String(n?.kind ?? '').toLowerCase();
+const queueId = (name) => {
+  const s = slug(name) || 'queue';
+  return /(^|-)queue$/.test(s) ? s : `${s}-queue`;
+};
+/** A node of kind queue named for `name`: its id or title reads as the name, "<name>-queue" or "queue-<name>". */
+const isQueueOf = (n, name) => {
+  if (kindOf(n) !== 'queue') return false;
+  const want = new Set([slug(name), queueId(name), `queue-${slug(name)}`]);
+  return [n.id, n.title].some((x) => typeof x === 'string' && want.has(slug(x)));
+};
+/** "<name> <type...> [pk] [fk=<target>]", the field row of a prescan table; null for a "+N more" row. */
+function parseFieldRow(row) {
+  const parts = String(row).trim().split(/\s+/);
+  if (!parts[0] || parts[0].startsWith('+')) return null;
+  let pk = false;
+  if (parts.length > 1 && parts[parts.length - 1].startsWith('fk=')) parts.pop();
+  if (parts.length > 1 && parts[parts.length - 1] === 'pk') {
+    parts.pop();
+    pk = true;
+  }
+  const [name, ...type] = parts;
+  return { name, type: type.join(' ') || 'unknown', ...(pk ? { pk: true } : {}), provenance: 'declared' };
+}
+const declaredAt = (t) => {
+  const lines = typeof t.lines === 'string' && /^\d+(-\d+)?$/.test(t.lines) ? t.lines : Number.isInteger(t.line) && t.line > 0 ? String(t.line) : null;
+  return lines === null ? [] : [{ path: t.file, lines }];
+};
+
+/**
+ * Make the entities and queue nodes the extracts declare, in place. An explorer's entity of the same table (or model)
+ * name is merged into: its id, store and extra fields stay, the declared fields and the declaring lines are added.
+ * A new entity goes to the store node that owns its file, else a store node whose paths cover it, else the store of
+ * an entity declared in the same file, else its area's one store node, else a store node made for the area. An
+ * explorer's queue node of the same name is the queue's node. Returns the queues, for deriveLayer to draw the
+ * producer and consumer edges, and the counts.
+ */
+function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
+  const made = { entities: 0, merged: 0, stores: 0, queues: 0 };
+  const owner = nodeResolver(nodes);
+  const storeOwner = nodeResolver(new Map([...nodes].filter(([, n]) => STORE_KINDS.has(kindOf(n)))));
+  const uniq = (pool, id) => {
+    let cand = id;
+    for (let n = 2; pool.has(cand); n++) cand = `${id}-${n}`;
+    return cand;
+  };
+
+  // --- entities
+  const byName = new Map();
+  const nameIt = (name, id) => {
+    if (typeof name === 'string' && name && !byName.has(name.toLowerCase())) byName.set(name.toLowerCase(), id);
+  };
+  for (const e of [...entities.values()].sort(byId)) nameIt(e.name, e.id);
+  const madeStores = new Map(); // area -> id of the store node made for it
+  const storeFor = (area, t) => {
+    const o = owner(t.file);
+    if (o !== null && STORE_KINDS.has(kindOf(nodes.get(o)))) return o;
+    const so = storeOwner(t.file);
+    if (so !== null) return so;
+    const twin = [...entities.values()].sort(byId).find((e) => nodes.has(e.store) && list(e.evidence).some((x) => isObj(x) && x.path === t.file));
+    if (twin) return twin.store;
+    const own = [...new Set(list(placed.get(area)).filter((id) => STORE_KINDS.has(kindOf(nodes.get(id)))))];
+    if (own.length === 1) return own[0];
+    if (!madeStores.has(area)) {
+      const id = uniq(nodes, slug(`${area}-db`) || 'db');
+      nodes.set(id, {
+        id, zone: zoneId('data'), kind: 'store', title: `${area} database`,
+        role: `Holds the tables the ${area} area declares; made by merge.mjs from the prescan extract.`,
+        paths: [], level: 2, evidence: declaredAt(t).length ? declaredAt(t) : [{ path: t.file, lines: '1' }],
+      });
+      madeStores.set(area, id);
+      made.stores++;
+    }
+    return madeStores.get(area);
+  };
+  for (const s of slices) {
+    const area = String(s.area ?? '');
+    for (const t of list(s.tables)) {
+      const table = typeof t?.table === 'string' && t.table ? t.table : typeof t?.name === 'string' && t.name ? t.name : null;
+      if (!isObj(t) || table === null || typeof t.file !== 'string') continue;
+      const fields = [];
+      for (const row of list(t.fields)) {
+        const f = parseFieldRow(row);
+        if (f !== null && !fields.some((x) => x.name === f.name)) fields.push(f);
+      }
+      const evidence = declaredAt(t);
+      const id = byName.get(table.toLowerCase()) ?? (typeof t.name === 'string' ? byName.get(t.name.toLowerCase()) : undefined);
+      if (id !== undefined && entities.has(id)) {
+        const e = entities.get(id);
+        const theirs = list(e.fields).filter(isObj);
+        const merged = fields.map((f) => {
+          const had = theirs.find((x) => x.name === f.name);
+          return had ? { ...had, ...f, ...(had.pk || f.pk ? { pk: true } : {}) } : f;
+        });
+        e.fields = [...merged, ...theirs.filter((x) => !fields.some((f) => f.name === x.name))];
+        const ev = unionEvidence(evidence, e.evidence);
+        if (ev.length) e.evidence = ev;
+        nameIt(t.name, id);
+        made.merged++;
+        continue;
+      }
+      const eid = uniq(entities, slug(table) || 'table');
+      const e = { id: eid, store: storeFor(area, t), name: table, kind: 'table', fields };
+      if (evidence.length) e.evidence = evidence;
+      entities.set(eid, e);
+      nameIt(table, eid);
+      nameIt(t.name, eid);
+      made.entities++;
+    }
+  }
+
+  // --- queue nodes: one per name, however many areas list it
+  const queues = new Map();
+  const loc = (x) => (isObj(x) && typeof x.file === 'string' && Number.isInteger(x.line) && x.line > 0 ? { path: x.file, lines: String(x.line) } : null);
+  for (const s of slices) {
+    for (const q of list(s.queues)) {
+      if (!isObj(q) || typeof q.name !== 'string' || !q.name) continue;
+      if (!queues.has(q.name)) queues.set(q.name, { name: q.name, decl: null, producers: [], consumers: [] });
+      const g = queues.get(q.name);
+      const d = loc(q);
+      if (d !== null && (g.decl === null || byLoc(d, g.decl) < 0)) g.decl = d;
+      for (const p of list(q.producers)) if (loc(p) !== null) g.producers.push(loc(p));
+      for (const c of list(q.consumers)) if (loc(c) !== null) g.consumers.push(loc(c));
+    }
+  }
+  const specs = [];
+  for (const name of [...queues.keys()].sort(cmp)) {
+    const g = queues.get(name);
+    g.producers.sort(byLoc);
+    g.consumers.sort(byLoc);
+    let id = [...nodes.values()].sort(byId).find((n) => isQueueOf(n, name))?.id;
+    if (id === undefined) {
+      const at = g.decl ?? g.producers[0] ?? g.consumers[0];
+      if (!at) continue;
+      id = uniq(nodes, queueId(name));
+      nodes.set(id, {
+        id, zone: zoneId('data'), kind: 'queue', title: name,
+        role: `Queue ${name}: ${g.producers.length} producer(s) and ${g.consumers.length} consumer(s) in the code; made by merge.mjs from the prescan extract.`,
+        paths: [], level: 2, evidence: [at],
+      });
+      made.queues++;
+    }
+    specs.push({ id, name, producers: g.producers, consumers: g.consumers });
+  }
+  return { queues: specs, made };
+}
+
 /**
  * Add the derived edges, access rows and relations to the maps in place. Returns the meta.sources row and the
  * flows (http and queue hops with their node ends) the sequence drafts are built from.
  */
-function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }) {
+function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues = [], made = null }) {
   const owner = nodeResolver(nodes);
   const skipped = [];
   const count = { edges: 0, access: 0, relations: 0 };
@@ -379,8 +538,8 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }
       if (!links.has(key)) links.set(key, { kind: String(l.kind), from: l.from, to: l.to, via: typeof l.via === 'string' ? l.via : null });
     }
   }
-  const queueNodes = [...nodes.values()].filter((n) => String(n.kind).toLowerCase() === 'queue').sort(byId);
-  const queueNode = (name) => queueNodes.find((n) => slug(n.id) === slug(name) || slug(n.title) === slug(name))?.id ?? null;
+  const queueNodes = [...nodes.values()].filter((n) => kindOf(n) === 'queue').sort(byId);
+  const queueNode = (name) => queueNodes.find((n) => isQueueOf(n, name))?.id ?? null;
   const groups = new Map();
   const add = (from, type, to, evidence, via, extra = {}) => {
     const key = `${from}\u0000${type}\u0000${to}`;
@@ -389,6 +548,19 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }
     g.evidence = unionEvidence(g.evidence, evidence);
     if (via && !g.vias.includes(via)) g.vias.push(via);
   };
+  // the producers and consumers of each queue the extracts declare, each with its own line, to the queue's node
+  for (const q of queues) {
+    for (const [side, places] of [['producer', q.producers], ['consumer', q.consumers]]) {
+      for (const at of places) {
+        const from = owner(at.path);
+        if (from === null) {
+          skipped.push(`queue ${q.name} ${side} ${locText(at)}: no node owns ${at.path}`);
+          continue;
+        }
+        if (from !== q.id) add(from, 'queue', q.id, [at], q.name, { async: true, consume: side === 'consumer' });
+      }
+    }
+  }
   for (const key of [...links.keys()].sort(cmp)) {
     const l = links.get(key);
     const a = splitLoc(l.from);
@@ -412,8 +584,8 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }
       } else {
         const q = l.via ? queueNode(l.via) : null;
         if (q !== null && q !== from && q !== to) {
-          add(from, 'queue', q, [a], l.via, { async: true });
-          add(to, 'queue', q, [b], l.via, { async: true });
+          add(from, 'queue', q, [a], l.via, { async: true, consume: false });
+          add(to, 'queue', q, [b], l.via, { async: true, consume: true });
         } else add(from, 'queue', to, [a, b], l.via ?? 'a queue', { async: true });
         flows.push({ kind: 'queue', from, to, a, b, via: l.via ?? 'queue' });
       }
@@ -432,6 +604,7 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }
     const more = g.vias.length > 1 ? ` and ${g.vias.length - 1} more` : '';
     const desc =
       g.type === 'api' ? `Calls ${g.vias[0]}${more} over HTTP.`
+      : g.type === 'queue' && g.consume ? `Takes ${g.vias[0]}${more} jobs off the queue and works them.`
       : g.type === 'queue' ? `Enqueues ${g.vias[0]}${more}; the sender does not wait.`
       : `Imports ${g.vias[0]}${more}.`;
     let id = slug(`${g.from}-${g.type}-${g.to}`);
@@ -518,11 +691,16 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo }
   }
 
   const reasons = [...new Set(skipped)].sort(cmp);
+  const tally = made ?? { entities: 0, merged: 0, stores: 0, queues: 0 };
   const source = {
     type: 'derivation',
-    derived: count,
+    derived: { ...count, entities: tally.entities, entitiesMerged: tally.merged, stores: tally.stores, queues: tally.queues },
     skipped: { count: skipped.length, reasons: reasons.slice(0, MAX_REASONS) },
-    note: `merge.mjs derived ${count.edges} cross-area edge(s), ${count.access} SQL access row(s) and ${count.relations} fk relation(s) from the prescan extracts; ${skipped.length} link(s) or statement(s) could not be cited or resolved`,
+    note:
+      `merge.mjs made ${tally.entities} entit${tally.entities === 1 ? 'y' : 'ies'} (and merged ${tally.merged} into the explorers'), ` +
+      `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, and derived ` +
+      `${count.edges} edge(s), ${count.access} SQL access row(s) and ${count.relations} fk relation(s) from the prescan extracts; ` +
+      `${skipped.length} link(s) or statement(s) could not be cited or resolved`,
   };
   return { source, flows };
 }
@@ -1097,8 +1275,13 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     }
   }
 
-  // --- the cross-area layer, computed from the prescan slices and the declared keys
-  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo });
+  // --- entities, stores and queues the extracts declare (in update mode, those of the affected areas), then the
+  // cross-area layer, computed from the prescan slices and the declared keys
+  const gen = generateFromExtracts({
+    nodes, entities, placed, zoneId: resolveZone,
+    slices: updateMode ? slices.filter((s) => affected.has(s.area)) : slices,
+  });
+  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues: gen.queues, made: gen.made });
   if (extracts !== undefined) {
     for (let i = sources.length - 1; i >= 0; i--) if (isObj(sources[i]) && sources[i].type === 'derivation') sources.splice(i, 1);
     sources.push(derived.source);
@@ -1279,8 +1462,9 @@ function main(argv) {
       let isExtractDir = false;
       try { isExtractDir = statSync(o.extracts).isDirectory(); } catch { /* not a dir */ }
       if (!isExtractDir) throw new UsageError(`--extracts ${o.extracts} is not a directory`);
-      // a slice that cannot be read only costs its links: the derivation row says so
-      extracts = readdirSync(o.extracts).filter((f) => f.endsWith('.json')).sort(cmp).map((f) => {
+      // a slice that cannot be read only costs its links: the derivation row says so. <area>.summary.json is the
+      // explorer's capped view of the same slice, not a slice of its own
+      extracts = readdirSync(o.extracts).filter((f) => f.endsWith('.json') && !f.endsWith('.summary.json')).sort(cmp).map((f) => {
         try {
           const s = readJson(join(o.extracts, f), 'extract');
           return isObj(s) ? s : { area: f.replace(/\.json$/, ''), unreadable: `extract ${f} is not a JSON object` };

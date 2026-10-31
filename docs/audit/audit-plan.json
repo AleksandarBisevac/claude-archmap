@@ -5462,14 +5462,14 @@
           "dependsOn": [
             "P10.4-2xj"
           ],
-          "attempts": 2,
+          "attempts": 3,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-10-31T00:31:36Z",
+          "startedAt": "2026-10-31T00:40:08Z",
           "completedAt": null,
           "verifiedBy": [],
           "reviewPerTask": "phase",
@@ -5489,9 +5489,21 @@
             {
               "at": "2026-10-31T00:35:00Z",
               "text": "Round 2 eval 4 (Opus): 9 orchestrator turns, median ctx 61 K, max 66 K, 1.35 USD (baseline 1.82); explorers 42 turns, over 110 nodes merged; stopped at finish on four validate --repo findings of the same class (evidence lines past the file end in three files, one evidence path that is a directory). Covered by P10.9."
+            },
+            {
+              "at": "2026-10-31T00:41:52Z",
+              "text": "Round 2 eval 2 (Opus, --issues): 12 orchestrator turns, median ctx 58 K, max 82 K, 2.59 USD (baseline 2.29, ratio 1.13); 7/7 objective expectations passed, 15 issues in the overlay; recall NOT scored for this round: the run dir was reset for round 3 before the overlay was copied (orchestrator's mistake, not the skill's), and the pipeline's temp work dir (keyed on the repo path) was cleared by round 3's plan. Round 3 keeps artifacts before any reset."
+            },
+            {
+              "at": "2026-10-31T00:47:00Z",
+              "text": "Round 3 (after P10.9, Opus): eval 1 built and validated, 16 orchestrator turns, median ctx 59 K, max 70 K, 1.29 USD (baseline 1.55), 5/7 (missing: file-db introspection or its skip record; 2 key components); eval 4 built and validated, 11 turns, 61 K / 68 K, 1.62 USD (baseline 1.82), 5/8 (3 of 28 fk relations, queue edges not async, 1 key component) with 124 nodes / 72 edges / 4 entities against 170 / 313 / 153 in iteration 1. Root cause: the 5.5 K extract budget trimmed 138 of 142 Drizzle tables and 56 routes, Hono sub-apps with generics were not parsed, BullMQ sat in a ts-frontend-labelled area. Fix tasks P10.10 (full extracts, script-made entities/relations/queues) and P10.11 (file-db detection and skip record) added."
+            },
+            {
+              "at": "2026-10-31T00:51:01Z",
+              "text": "Round 3 eval 2 (Opus, --issues): 7/7 objective, recall 0.73 (11/15 high+med), 2.82 USD (baseline 2.29, ratio 1.23), but 20 orchestrator turns and 93 K peak: merge refused one synth step, a SendMessage re-ask followed, render failed three times on flags, the reviewer's JSON came back in the reply and the orchestrator wrote and merged it by hand. Fix task P10.12 (issues step by script, reviewer writes its file, synth slips normalised) added after P10.10 and P10.11."
             }
           ],
-          "blockedReason": "owner-run eval task; waits for P10.9 to land, then round 3 of evals 1, 2 and 4"
+          "blockedReason": "owner-run eval task; waits for P10.10, P10.11 and P10.12, then round 4"
         },
         {
           "id": "P10.6-6rm",
@@ -5692,7 +5704,7 @@
         {
           "id": "P10.9-6rm",
           "title": "Merge normalises evidence it can check against the repository instead of handing validate a slip",
-          "status": "in_progress",
+          "status": "done",
           "description": "Round 2 of eval 1 (2026-10-31, after P10.6 and P10.7): the explorers now produced 43 nodes and 32 edges, merge exited 0, and the build still stopped because validate --repo found `evidence-lines-out-of-range /edges/2/evidence/0/lines lines 1-20 but \"<file>\" has 16 lines`: one explorer cited a line range past the end of a 16-line file, and the skill rightly forbids patching the model by hand, so the whole build was lost over two citations. merge.mjs already has --repo (P10.3) and reads files for import lines; it must use it to normalise evidence before validation: clamp a range whose end is past the file's line count to the last line (start past the end becomes the last line too), drop an evidence entry whose path is not in the repository, drop an element left without evidence, and record one meta.sources row per change ({area, type:'clamped-evidence'|'dropped-evidence', id, path}). Then run validate --repo on the result and exit 1 only over findings that remain, listing them. Keep output deterministic and the golden tests green. Fixtures stay synthetic.",
           "files": [
             "scripts/merge.mjs",
@@ -5717,20 +5729,195 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "10170a9f9039",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "The brief file was not on disk (drive-phase brief exited 2: no executor brief written for P10.9-6rm's current start), so I worked from the task text in the manifest and the caller's message and explored the code myself. scripts/merge.mjs: added evidenceReader(repo, commit) (git at meta.commit, mirrors validate.mjs line count and directory semantics; null when no repo, not git, or commit unknown) and normaliseEvidence(). merge() now, right after fragments are placed and before the dangling-reference pass, clamps evidence ranges past EOF (end to last line; start past end to last line), drops entries whose path is not a file (or is an empty file) at the commit, drops a node or edge left without evidence (the existing dropped-ref pass then removes edges, entities and access rows pointing at a dropped node), and records one meta.sources row {area,type:'clamped-evidence'|'dropped-evidence',id,path,note} per change. Only elements from this run's fragments are touched; elements kept from --previous are left to validate. merge() returns evidenceChecked; the CLI validates with {repo} when evidence was checked (exit 1 only over remaining findings, listed as 'invalid:' lines), else validates as before and prints 'merge: evidence not checked: ...' on stderr when --repo was given. validate.mjs was not edited (its git helper is not exported; the line-count logic is mirrored in merge.mjs). tests/merge.test.mjs: m20-m20f against a throwaway git repo built at test time. Full suite node --test: 361 pass, 0 fail; node --test tests/denylist.test.mjs: 2 pass. Not done: sequences/views kept from --previous that name a dropped node are not pruned (validate would report a dangling-ref); the caller's design.md and README were not touched.",
+            "descriptive": "merge normalises evidence it can check against the repository (clamp, drop) and runs validate --repo itself, so one out-of-range citation no longer loses a build."
           },
           "startedAt": "2026-10-31T00:35:00Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T00:39:52Z",
+          "verifiedBy": [
+            "m20 clamp of ranges past EOF with clamped-evidence rows (nodes, edges, entity field, access)",
+            "m20b dropped entries (missing path, directory), dropped node and edge, dropped-ref cascade, validate --repo clean",
+            "m20c CLI exit 0 on the fixture validate --repo refused, validate.mjs --repo accepts the output",
+            "m20d lines checked at meta.commit not the working tree",
+            "m20e exit 1 only over un-normalised findings (kept --previous element), listed, nothing written",
+            "m20f byte-identical across runs and fragment order; unresolvable commit leaves evidence alone with a stderr note"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T00:39:51Z.9bd861",
             "status": "passed",
             "at": "2026-10-31T00:39:51Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "10170a9f9039",
+            "at": "2026-10-31T00:39:52Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T00:38:37Z",
+            "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P10.10-6rm",
+          "title": "Full extracts and script-made entities, relations and queues: the explorer gets a summary, the model gets every declared table",
+          "status": "in_progress",
+          "description": "Round 3 of the iteration-2 evals (2026-10-31, after P10.6-P10.9) builds now complete and cost 0.9-1.6 USD, but the model lost what the old free-form explorers used to find: eval 4 (a Hono, Drizzle, BullMQ monorepo) came out with 124 nodes, 72 edges, 4 entities, 3 relations and 1 queue against 170, 313, 153, 47 and 9 in iteration 1; eval 1 with 2 entities against 17. Cause, measured on the extracts: EXTRACT_BUDGET (5500 characters per area) trimmed 138 of 142 Drizzle tables, 56 routes and every import list, and the packages-db explorer, told to confirm the extract, wrote 4 entities and skipped 138; the api area extract had 0 of 710 Hono route calls because the sub-apps are declared as new Hono<Env>() with generics and mounted with app.route(prefix, sub); the 9 BullMQ Queue and Worker constructions sat in a package whose area was labelled ts-frontend, so the node-backend scanner never ran there. Fix, in the spirit of the phase (scripts, not agents): prescan writes the FULL extract per area (no budget; every table with fields and references, every route, every queue, imports and links) and a separate capped summary for the explorer (counts per kind plus the first rows, under the 12 K brief-plus-agent-file bound); merge generates from the extracts, deterministically and with evidence, one entity per declared table (fields with provenance declared), one relation per declared foreign key, one queue node per queue name and the queue edges with async true for each producer and consumer, merging an explorer's entity of the same table name into the generated one; the node scanners run on any area that holds .ts or .js files whatever its stack label; the Hono parser handles generics and route composition. The brief, agents/archmap-explorer.md and SKILL.md tell the explorer to read the summary and never transcribe tables. Keep output byte-identical across runs, goldens green, SKILL.md at or under 500 lines with line 3 byte-identical. Fixtures stay synthetic.",
+          "files": [
+            "scripts/prescan.mjs",
+            "scripts/lib/prescan/node-backend.mjs",
+            "scripts/lib/prescan/python.mjs",
+            "scripts/lib/prescan/generic.mjs",
+            "scripts/merge.mjs",
+            "scripts/pipeline.mjs",
+            "agents/archmap-explorer.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/prescan-core.test.mjs",
+            "tests/prescan-node-backend.test.mjs",
+            "tests/prescan-python.test.mjs",
+            "tests/merge.test.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/agents.test.mjs",
+            "tests/skill.test.mjs",
+            "tests/fixtures/repos/node-api",
+            "tests/fixtures/merge"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-node-backend.test.mjs: on the node fixture the FULL extract lists every Drizzle table with its fields and every .references() target, every Hono route including those on a sub-app declared as new Hono<Env>() and mounted with app.route(prefix, sub) (the prefix joined), and every BullMQ Queue and Worker by queue name, regardless of the area's stack label; the full extract has no truncated counts for tables, routes or queues",
+              "tests/prescan-core.test.mjs: prescan writes the full extract to extracts/<area>.json and a capped summary to extracts/<area>.summary.json whose size plus the agent file is under 12 K characters; the summary carries counts per kind and the first rows, and says that entities, relations and queue edges are made by script",
+              "tests/merge.test.mjs: merge generates one entity per declared table of the extracts with declared fields and evidence at the schema file and lines, one relation per declared foreign key, one queue node per queue name and queue edges with async true from each producer and consumer, all deterministic; an explorer entity with the same table name merges into the generated one rather than duplicating it; the digest stays under its cap with 150 generated entities",
+              "tests/pipeline.test.mjs: the brief points the explorer at the summary file, states that entities, relations and queue edges come from the script and that the explorer must not list tables; finish on a fixture with a schema of several tables produces those entities without any explorer entity",
+              "tests/agents.test.mjs: archmap-explorer.md says to read the summary, not the full extract, and not to transcribe tables",
+              "tests/skill.test.mjs: SKILL.md says entities, relations and queue edges are generated by merge from the extracts and stays at or under 500 lines"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T00:47:19Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T01:11:15Z.709bce",
+            "status": "passed",
+            "at": "2026-10-31T01:11:15Z"
+          }
+        },
+        {
+          "id": "P10.11-6rm",
+          "title": "File databases: detect them in code, introspect when a CLI exists, otherwise record the skip in meta.sources",
+          "status": "pending",
+          "description": "Round 3 of eval 1 (2026-10-31) failed the expectation \"entities carry observed fields from the file database, or meta.sources records the skipped introspection with a reason\": prescan found no database store because the DuckDB file is created at runtime and is not in the repository, the python scanner lists psycopg, asyncpg, sqlite3 and engines but not duckdb.connect, so finish had nothing to introspect and recorded nothing; on this machine neither the duckdb CLI nor the python module exists. Fix: the python scanner (and the generic one for JS) recognises duckdb.connect(<path>) and sqlite3.connect(<path>) and emits a store row with kind, the path literal and evidence whether or not the file exists; pipeline.mjs finish, for each file-database store, introspects when the file exists and a CLI or module is available (schema only, read-only, on a temp copy for duckdb) and otherwise writes one meta.sources row {type:'introspection-skipped', kind, path, reason} that names the missing file or the missing tool; merge carries the row into the model and validate accepts it. Runs after P10.10 (shared files). Fixtures stay synthetic.",
+          "files": [
+            "scripts/lib/prescan/generic.mjs",
+            "scripts/lib/prescan/python.mjs",
+            "scripts/lib/prescan/inventory.mjs",
+            "scripts/pipeline.mjs",
+            "scripts/merge.mjs",
+            "tests/prescan-core.test.mjs",
+            "tests/prescan-python.test.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/fixtures/repos/python-api"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-python.test.mjs: a duckdb.connect('<path>') or sqlite3.connect('<path>') call in the python fixture yields a store row with kind duckdb or sqlite, the path literal and evidence, even when the file does not exist in the repository",
+              "tests/pipeline.test.mjs: finish on a fixture whose store names a database file that is absent writes a meta.sources row {type:'introspection-skipped', kind, path, reason} naming the missing file; when the file exists but no CLI or module is on PATH the reason names the missing tool; when a CLI exists the observed fields are merged with provenance observed; the row survives validate"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P10.10-6rm"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P10.12-6rm",
+          "title": "Issues flow by script: a pipeline issues step, the reviewer writes its file, merge normalises a synth slip instead of refusing",
+          "status": "pending",
+          "description": "Round 3 of eval 2 (2026-10-31, --issues, Opus orchestrator): the build passed 7/7 objective expectations with issue recall 0.73, but took 20 orchestrator turns and a 93 K peak context instead of 12 and 80 K. Measured from the stream: merge --synth refused the model over one sequence step matching no step shape, the orchestrator re-asked the synthesizer with SendMessage (a re-ask the skill no longer allows for explorers but did not forbid here), then render failed three more times on flags (--issues is not a render option; a --usage label other than \"synthesizer\" refused; the same label twice refused); the reviewer returned its JSON in the reply and the orchestrator wrote <work>/reviewer.json itself, then hand-ran issues.mjs merge, validate --issues and render --mode internal in one long Bash and copied files around; the reviewer also reported it could not find issues-catalog.md because the brief gave no path. Fix, in the spirit of the phase: merge --synth drops a step it cannot place (and a sequence left under 2 steps) with a meta.sources row instead of refusing; render tolerates usage labels and prints, when plan ran with --issues, the reviewer brief (with the absolute catalogue path and the reviewer's output path <work>/reviewer.json) and the one Agent call; a new `pipeline.mjs issues` step does the overlay merge, validation, internal render and ledger row and prints one JSON object; agents/archmap-reviewer.md writes its file and replies in three lines like the other agents; SKILL.md's --issues flow becomes plan, explorers, finish, synthesizer, render, reviewer, issues, report, and forbids SendMessage to a finished agent and any re-ask. Runs after P10.11 (shared files). Keep SKILL.md at or under 500 lines with line 3 byte-identical; fixtures synthetic.",
+          "files": [
+            "scripts/pipeline.mjs",
+            "scripts/merge.mjs",
+            "agents/archmap-reviewer.md",
+            "agents/archmap-synthesizer.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/pipeline.test.mjs",
+            "tests/merge.test.mjs",
+            "tests/agents.test.mjs",
+            "tests/skill.test.mjs",
+            "tests/fixtures/merge"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: a synth sequence step that matches no step shape is dropped with a meta.sources row {type:'dropped-step', sequence, index, reason}; a sequence left with fewer than 2 steps is dropped the same way; merge --synth exits 0 and writes the model; it exits 1 only over findings it did not normalise",
+              "tests/pipeline.test.mjs: render --usage accepts the synthesizer row under any label and a repeated label adds a second row instead of exit 2; render prints the reviewer brief and the one Agent call when --issues was given to plan; a new step  reads <work>/reviewer.json, runs issues.mjs merge against the model, validate --issues, renders the internal HTML into the overlay dir outside the repository, records the reviewer ledger row and prints one JSON object; a missing reviewer.json exits 2 naming the path",
+              "tests/agents.test.mjs: archmap-reviewer.md tells the reviewer to write its result to the path in its brief and reply with three lines, has Write in its tools, and the brief printed by render carries the absolute path of references/issues-catalog.md; archmap-synthesizer.md says a step merge cannot place is dropped, never re-asked",
+              "tests/skill.test.mjs: SKILL.md's build flow with --issues names plan, explorers, finish, synthesizer, render, reviewer, issues and report, forbids SendMessage to a finished agent and any re-ask, and stays at or under 500 lines"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P10.11-6rm"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
         }
       ],
       "area": "cost",
@@ -5844,11 +6031,13 @@
     ],
     "scripts/prescan.mjs": [
       "P3.1",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.10-6rm"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.11-6rm"
     ],
     "scripts/lib/prescan/partition.mjs": [
       "P3.1",
@@ -5857,16 +6046,22 @@
     ],
     "scripts/lib/prescan/generic.mjs": [
       "P3.1",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.10-6rm",
+      "P10.11-6rm"
     ],
     "tests/prescan-core.test.mjs": [
       "P3.1",
       "P10.2-2xj",
-      "P10.6-6rm"
+      "P10.6-6rm",
+      "P10.10-6rm",
+      "P10.11-6rm"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.10-6rm",
+      "P10.11-6rm"
     ],
     "tests/fixtures/repos/python-api/README.md": [
       "P3.2",
@@ -5874,7 +6069,9 @@
     ],
     "tests/prescan-python.test.mjs": [
       "P3.2",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.10-6rm",
+      "P10.11-6rm"
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
@@ -5889,7 +6086,8 @@
     ],
     "scripts/lib/prescan/node-backend.mjs": [
       "P3.4",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.10-6rm"
     ],
     "tests/fixtures/repos/node-api/README.md": [
       "P3.4",
@@ -5897,7 +6095,8 @@
     ],
     "tests/prescan-node-backend.test.mjs": [
       "P3.4",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.10-6rm"
     ],
     "tests/fixtures/repos/python-api/pyproject.toml": [
       "P3.2"
@@ -6128,7 +6327,9 @@
       "P10.2-2xj",
       "P10.3-2xj",
       "P10.4-2xj",
-      "P10.7-6rm"
+      "P10.7-6rm",
+      "P10.10-6rm",
+      "P10.12-6rm"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -6139,7 +6340,9 @@
       "P7.6",
       "P10.2-2xj",
       "P10.4-2xj",
-      "P10.7-6rm"
+      "P10.7-6rm",
+      "P10.10-6rm",
+      "P10.12-6rm"
     ],
     "agents/archmap-explorer.md": [
       "P4.5",
@@ -6147,22 +6350,27 @@
       "P10.2-2xj",
       "P10.4-2xj",
       "P10.6-6rm",
-      "P10.7-6rm"
+      "P10.7-6rm",
+      "P10.10-6rm"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5",
       "P10.3-2xj",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P10.12-6rm"
     ],
     "agents/archmap-reviewer.md": [
-      "P4.5"
+      "P4.5",
+      "P10.12-6rm"
     ],
     "tests/agents.test.mjs": [
       "P4.5",
       "BF1.3",
       "P10.2-2xj",
       "P10.3-2xj",
-      "P10.7-6rm"
+      "P10.7-6rm",
+      "P10.10-6rm",
+      "P10.12-6rm"
     ],
     "scripts/merge.mjs": [
       "P5.1",
@@ -6172,7 +6380,10 @@
       "P10.2-2xj",
       "P10.3-2xj",
       "P10.6-6rm",
-      "P10.9-6rm"
+      "P10.9-6rm",
+      "P10.10-6rm",
+      "P10.11-6rm",
+      "P10.12-6rm"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -6183,7 +6394,9 @@
       "P10.3-2xj",
       "P10.4-2xj",
       "P10.6-6rm",
-      "P10.9-6rm"
+      "P10.9-6rm",
+      "P10.10-6rm",
+      "P10.12-6rm"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -6352,17 +6565,25 @@
     "tests/fixtures/merge": [
       "P10.3-2xj",
       "P10.6-6rm",
-      "P10.9-6rm"
+      "P10.9-6rm",
+      "P10.10-6rm",
+      "P10.12-6rm"
     ],
     "scripts/pipeline.mjs": [
       "P10.4-2xj",
       "P10.6-6rm",
-      "P10.7-6rm"
+      "P10.7-6rm",
+      "P10.10-6rm",
+      "P10.11-6rm",
+      "P10.12-6rm"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
       "P10.6-6rm",
-      "P10.7-6rm"
+      "P10.7-6rm",
+      "P10.10-6rm",
+      "P10.11-6rm",
+      "P10.12-6rm"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -6381,6 +6602,12 @@
     ],
     "tests/fixtures/repos/node-api/src/books/books.service.ts": [
       "P10.2-2xj"
+    ],
+    "tests/fixtures/repos/node-api": [
+      "P10.10-6rm"
+    ],
+    "tests/fixtures/repos/python-api": [
+      "P10.11-6rm"
     ]
   },
   "bugs": [

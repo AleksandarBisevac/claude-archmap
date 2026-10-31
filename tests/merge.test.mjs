@@ -550,11 +550,16 @@ test('m13 cross-area edges come from the prescan http, queue and import links, e
   assert.match(http[0].desc, /POST \/orders/);
   assert.equal(http[0].confidence, 'verified');
   assert.equal(http[0].foundBy, 'static');
-  const queue = edgeOf(model, 'orders-api', 'mailer-worker', 'queue');
-  assert.equal(queue.length, 1, JSON.stringify(model.edges));
-  assert.equal(queue[0].async, true);
-  assert.deepEqual(queue[0].evidence, [{ path: 'api/main.py', lines: '31' }, { path: 'worker/tasks.py', lines: '8' }]);
-  assert.match(queue[0].desc, /send_receipt/);
+  // P10.10: the queue is a node of its own; the producer and the consumer each get an async edge to it
+  assert.equal(edgeOf(model, 'orders-api', 'mailer-worker', 'queue').length, 0, 'no edge skips the queue node');
+  const put = edgeOf(model, 'orders-api', 'send-receipt-queue', 'queue');
+  const take = edgeOf(model, 'mailer-worker', 'send-receipt-queue', 'queue');
+  assert.equal(put.length, 1, JSON.stringify(model.edges));
+  assert.equal(take.length, 1, JSON.stringify(model.edges));
+  assert.deepEqual([put[0].async, take[0].async], [true, true]);
+  assert.deepEqual(put[0].evidence, [{ path: 'api/main.py', lines: '31' }]);
+  assert.deepEqual(take[0].evidence, [{ path: 'worker/tasks.py', lines: '8' }]);
+  assert.match(put[0].desc, /send_receipt/);
   // an import link carries no line: the merge finds the import statement in the file (read as text, never run)
   const imp = edgeOf(model, 'mailer-worker', 'orders-api', 'call');
   assert.equal(imp.length, 1, JSON.stringify(model.edges));
@@ -587,14 +592,15 @@ test('m13c in update mode a derived edge belongs to its caller area: re-running 
   const { model } = merge({ fragments: webFrag, extracts: fresh, repo: join(CROSS, 'repo'), previous: first, areas: ['web'], meta: {} });
   assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
   assert.equal(edgeOf(model, 'web-app', 'orders-api', 'api').length, 0, 'the call is gone, so is its edge');
-  assert.equal(edgeOf(model, 'orders-api', 'mailer-worker', 'queue').length, 1, 'edges of other areas are kept, once');
+  assert.equal(edgeOf(model, 'orders-api', 'send-receipt-queue', 'queue').length, 1, 'edges of other areas are kept, once');
+  assert.equal(edgeOf(model, 'mailer-worker', 'send-receipt-queue', 'queue').length, 1);
   assert.equal(edgeOf(model, 'mailer-worker', 'orders-api', 'call').length, 1);
   assert.equal(model.meta.sources.filter((s) => s.type === 'derivation').length, 1, 'one derivation row, the fresh one');
 });
 
 test('m14 nodes of different areas with the same paths collapse to one, every reference rewritten', () => {
   const { model, renames } = crossed();
-  assert.deepEqual(ids(model.nodes), ['mailer-worker', 'orders-api', 'orders-db', 'shared-utils', 'web-app']);
+  assert.deepEqual(ids(model.nodes), ['mailer-worker', 'orders-api', 'orders-db', 'send-receipt-queue', 'shared-utils', 'web-app']);
   const e = model.edges.find((x) => x.id === 'mailer-uses-shared');
   assert.equal(e.to, 'shared-utils', 'edge.to rewritten to the kept node');
   assert.ok(renames.some((r) => r.from === 'shared' && r.to === 'shared-utils' && r.area === 'worker'), JSON.stringify(renames));
@@ -930,4 +936,131 @@ test('m20f two runs with --repo are byte-identical, whatever order the fragments
   const model = JSON.parse(c.text);
   assert.deepEqual(model.nodes.find((x) => x.id === 'past-end').evidence, ev('src/short.js', '1-8'));
   assert.equal(rowsOf(model, 'clamped-evidence').length + rowsOf(model, 'dropped-evidence').length, 0);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.10: entities, relations and queues are made by the script from the full extracts, deterministically and
+// with evidence at the declaring file and lines; an explorer's entity of the same table name merges into them.
+
+const genExtracts = () => [
+  {
+    area: 'db', stacks: ['node-backend'], links: [], queues: [],
+    tables: [
+      { name: 'users', table: 'users', orm: 'drizzle', fields: ['id serial pk', 'email text'], file: 'db/schema.ts', line: 3, lines: '3-6' },
+      { name: 'posts', table: 'posts', orm: 'drizzle', fields: ['id serial pk', 'authorId integer fk=users.id', 'title text'], file: 'db/schema.ts', line: 8, lines: '8-12' },
+      { name: 'Comment', table: 'comments', orm: 'typeorm', fields: ['id number pk', 'postId number fk=posts'], file: 'db/comment.entity.ts', line: 4, lines: '4-12' },
+    ],
+  },
+  {
+    area: 'api', stacks: ['node-backend'], links: [], tables: [],
+    queues: [{ name: 'mail', file: 'api/queue.ts', line: 2, producers: [{ job: 'welcome', file: 'api/signup.ts', line: 9 }], consumers: [] }],
+  },
+  {
+    area: 'jobs', stacks: ['ts-frontend'], links: [], tables: [],
+    queues: [{ name: 'mail', producers: [], consumers: [{ handler: 'deliver', file: 'jobs/mail.worker.ts', line: 5 }] }],
+  },
+];
+const genFrags = () => [
+  frag('api', { nodes: [node('api-svc', { zone: 'svc', kind: 'service', paths: ['api/**'] })] }),
+  frag('jobs', { nodes: [node('mail-worker', { zone: 'svc', kind: 'job', paths: ['jobs/**'] })] }),
+  frag('db', {
+    nodes: [node('main-db', { zone: 'data', kind: 'store', paths: ['db/**'] })],
+    entities: [{
+      id: 'user', store: 'main-db', name: 'users', kind: 'table', desc: 'People who sign up.',
+      fields: [
+        { name: 'id', type: 'serial', pk: true, provenance: 'declared' },
+        { name: 'lastSeen', type: 'timestamp', provenance: 'observed' },
+      ],
+      evidence: ev('db/schema.ts', '3-6'),
+    }],
+  }),
+];
+const generated = (extra = {}) => merge({ fragments: genFrags(), extracts: genExtracts(), meta: META, ...extra });
+
+test('m21 merge makes one entity per declared table of the extracts, with declared fields and evidence at the schema file and lines, and one relation per declared foreign key', () => {
+  const { model } = generated();
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(model.entities.map((e) => e.name).sort(), ['comments', 'posts', 'users'], 'one entity per table, none twice');
+  const byName = Object.fromEntries(model.entities.map((e) => [e.name, e]));
+  const posts = byName.posts;
+  assert.equal(posts.store, 'main-db', 'the store whose paths cover the schema file');
+  assert.deepEqual(posts.evidence, ev('db/schema.ts', '8-12'));
+  assert.deepEqual(posts.fields.map((f) => [f.name, f.type, Boolean(f.pk), f.provenance]), [
+    ['id', 'serial', true, 'declared'], ['authorId', 'integer', false, 'declared'], ['title', 'text', false, 'declared'],
+  ]);
+  assert.deepEqual(byName.comments.evidence, ev('db/comment.entity.ts', '4-12'));
+  // the explorer's entity of the same table is merged into the generated one: its id, desc and observed field stay
+  const users = byName.users;
+  assert.equal(users.id, 'user');
+  assert.equal(users.desc, 'People who sign up.');
+  assert.deepEqual(users.fields.map((f) => `${f.name}:${f.provenance}`), ['id:declared', 'email:declared', 'lastSeen:observed']);
+  const rel = (r) => `${r.from.entity}.${r.from.field} > ${r.to.entity}.${r.to.field} ${r.kind} ${r.provenance}`;
+  assert.deepEqual(model.relations.map(rel).sort(), [
+    `${byName.comments.id}.postId > ${posts.id}.id fk declared`,
+    `${posts.id}.authorId > user.id fk declared`,
+  ]);
+});
+
+test('m21b merge makes one queue node per queue name and a queue edge with async true from each producer and each consumer, at their lines', () => {
+  const { model } = generated();
+  const queues = model.nodes.filter((n) => n.kind === 'queue');
+  assert.deepEqual(ids(queues), ['mail-queue'], 'one node for the name, though two areas list it');
+  assert.deepEqual(queues[0].evidence, ev('api/queue.ts', '2'), 'the node cites the declaration');
+  const qe = model.edges.filter((e) => e.type === 'queue').map((e) => `${e.from} > ${e.to} ${e.async} ${e.evidence.map((x) => `${x.path}:${x.lines}`).join(',')}`);
+  assert.deepEqual(qe.sort(), [
+    'api-svc > mail-queue true api/signup.ts:9',
+    'mail-worker > mail-queue true jobs/mail.worker.ts:5',
+  ]);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  // an explorer node of kind queue for the same name is the node, not a second one
+  const withNode = genFrags();
+  withNode[0].nodes.push(node('mail-queue', { zone: 'data', kind: 'queue', title: 'Mail queue', paths: ['api/queue.ts'], evidence: ev('api/queue.ts', '1-3') }));
+  const m2 = merge({ fragments: withNode, extracts: genExtracts(), meta: META }).model;
+  assert.deepEqual(ids(m2.nodes.filter((n) => n.kind === 'queue')), ['mail-queue']);
+  assert.equal(m2.nodes.find((n) => n.id === 'mail-queue').title, 'Mail queue', "the explorer's content is kept");
+});
+
+test('m21c generation is deterministic whatever order fragments and extracts arrive in, and a table no store node covers gets a generated store', () => {
+  const fwd = JSON.stringify(generated().model);
+  const rev = JSON.stringify(merge({ fragments: genFrags().reverse(), extracts: genExtracts().reverse(), meta: META }).model);
+  assert.equal(fwd, rev);
+  assert.equal(JSON.stringify(generated().model), fwd, 'two runs are identical');
+  const lone = [{ area: 'pkg', stacks: [], links: [], queues: [], tables: [{ name: 'events', table: 'events', orm: 'drizzle', fields: ['id serial pk'], file: 'pkg/db.ts', line: 1, lines: '1-3' }] }];
+  const { model } = merge({ fragments: [frag('pkg', { nodes: [node('pkg-svc', { zone: 'svc', paths: ['pkg/**'] })] })], extracts: lone, meta: META });
+  const events = model.entities.find((e) => e.name === 'events');
+  assert.ok(events, JSON.stringify(model.entities));
+  const store = model.nodes.find((n) => n.id === events.store);
+  assert.equal(store && store.kind, 'store', `entity store ${events.store} is a store node`);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  // through the CLI the explorer summaries beside the extracts are not read as extracts
+  const dir = tmp();
+  for (const [sub, items] of [['fragments', genFrags()], ['extracts', genExtracts()]]) {
+    mkdirSync(join(dir, sub));
+    for (const x of items) writeFileSync(join(dir, sub, `${x.area}.json`), JSON.stringify(x));
+  }
+  writeFileSync(join(dir, 'extracts', 'db.summary.json'), JSON.stringify({ area: 'db', tables: [{ name: 'ghost', table: 'ghost', fields: ['id serial pk'], file: 'db/schema.ts', line: 1 }] }));
+  const r = cli([join(dir, 'fragments'), '--out', join(dir, 'model.json'), '--extracts', join(dir, 'extracts'), '--commit', 'abc123', '--project', 'shop', '--generated-at', '2026-01-01T00:00:00Z']);
+  assert.equal(r.status, 0, r.stderr);
+  const viaCli = readJson(join(dir, 'model.json'));
+  assert.deepEqual(viaCli.entities.map((e) => e.name).sort(), ['comments', 'posts', 'users'], 'no table from a summary file');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('m21d 150 generated entities are not held to the fragment caps, and the digest stays under its cap and counts what it left out', async () => {
+  const { buildDigest, digestText, DIGEST_CAP } = await import('../scripts/merge.mjs');
+  const tables = Array.from({ length: 150 }, (_, i) => ({
+    name: `table_${pad(i, 3)}`, table: `table_${pad(i, 3)}`, orm: 'drizzle', file: 'db/schema.ts', line: i * 10 + 1, lines: `${i * 10 + 1}-${i * 10 + 8}`,
+    fields: ['id serial pk', 'name text', 'created_at timestamp', 'updated_at timestamp', ...(i ? [`parent_id integer fk=table_${pad(i - 1, 3)}.id`] : [])],
+  }));
+  const { model } = merge({
+    fragments: [frag('db', { nodes: [node('main-db', { zone: 'data', kind: 'store', paths: ['db/**'] })] })],
+    extracts: [{ area: 'db', stacks: [], links: [], queues: [], tables }], meta: META,
+  });
+  assert.equal(model.entities.length, 150);
+  assert.equal(model.relations.length, 149);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings).slice(0, 500));
+  const d = buildDigest(model, { drafts: [] });
+  const text = digestText(d);
+  assert.ok(text.length <= DIGEST_CAP, `${text.length} > ${DIGEST_CAP}`);
+  assert.equal((d.entities ?? []).length + ((d.truncated && d.truncated.entities) || 0), 150, 'every entity is in the digest or counted out');
 });

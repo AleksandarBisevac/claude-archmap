@@ -15,6 +15,7 @@ One realistic example of each pattern the Node backend extractor looks for:
 | NestJS bootstrap (global prefix) | `src/main.ts` |
 | Express app and router (mounted with `app.use`) | `src/express/` |
 | Hono app and sub-app (mounted with `app.route`) | `src/hono/app.ts` |
+| Hono sub-app with a generic (`new Hono<Env>()`) in another file, mounted with a prefix | `src/hono/reviews.ts`, `src/hono/server.ts` |
 | Prisma models | `prisma/schema.prisma` |
 | TypeORM entities | `src/entities/` |
 | Drizzle tables and relations | `src/db/schema.ts` |

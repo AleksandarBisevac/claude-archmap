@@ -162,7 +162,7 @@ test('py6 every item carries {path, lines} evidence inside the file, output sort
   assert.ok(!/\d{4}-\d{2}-\d{2}T/.test(JSON.stringify(frag)), 'no timestamps');
 });
 
-test('py7 unknown patterns are skipped and counted, never guessed; the fragment is size-capped', () => {
+test('py7 unknown patterns are skipped and counted, never guessed; a large repo keeps every route', () => {
   // Fixture tally: Django include(), a bulk_insert whose table is not a literal, an f-string table.
   assert.deepEqual(frag.skipped, { clients: 0, entities: 0, envKeys: 0, httpCalls: 0, migrations: 1, queues: 0, routes: 1, schemas: 0, sqlTables: 1 });
 
@@ -180,9 +180,10 @@ test('py7 unknown patterns are skipped and counted, never guessed; the fragment 
   const many = {};
   for (let i = 0; i < 400; i++) many[`m/r${String(i).padStart(3, '0')}.py`] = `from flask import Flask\napp = Flask(__name__)\n@app.get("/r${i}")\ndef h${i}():\n    pass\n`;
   const big = memFrag(many);
-  assert.ok(big.routes.length <= 300 && big.routes.length > 0, `routes capped (${big.routes.length})`);
-  assert.equal(big.truncated.routes, 400 - big.routes.length);
-  assert.equal(big.routes[0].url, '/r0', 'the cap keeps the first items in sort order');
+  // P10.10: the extract is the full record (the explorer reads a capped summary), so 400 routes are 400 rows
+  assert.equal(big.routes.length, 400, `every route is kept (${big.routes.length})`);
+  assert.equal(big.truncated.routes, 0);
+  assert.equal(big.routes[0].url, '/r0', 'rows stay in sort order');
   assert.ok(JSON.stringify(big).length < 200 * 1024, 'fragment stays small');
 });
 
@@ -256,14 +257,14 @@ test('py9 env keys, task queues (producers and consumers) and shared clients are
   assert.ok(!JSON.stringify(frag.envKeys).includes('localhost'), 'only names are kept, never defaults or values');
 });
 
-test('py10 prescan writes one extracts/<area>.json per area with routes, tables, env keys and queues in the area that owns them', () => {
+test('py10 prescan writes one extracts/<area>.json (and its summary) per area with routes, tables, env keys and queues in the area that owns them', () => {
   const work = mkdtempSync(join(tmpdir(), 'archmap-pywork-'));
   try {
     const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'prescan.mjs'), FIXTURE, '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     const pre = JSON.parse(readFileSync(join(work, 'prescan.json'), 'utf8'));
     const files = readdirSync(join(work, 'extracts')).sort();
-    assert.deepEqual(files, pre.areas.map((a) => `${a.id}.json`).sort(), 'exactly one extract per area');
+    assert.deepEqual(files, pre.areas.flatMap((a) => [`${a.id}.json`, `${a.id}.summary.json`]).sort(), 'one full extract and one summary per area');
     const slice = (id) => JSON.parse(readFileSync(join(work, 'extracts', `${id}.json`), 'utf8'));
 
     const app = slice('app');

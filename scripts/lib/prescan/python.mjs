@@ -7,8 +7,9 @@
 // schemas, Alembic migration ops, raw SQL table names, outbound HTTP calls, environment variables
 // read (names only), SDK clients and base URLs, and task queues (Celery, Dramatiq, RQ, pika) with
 // their producers and consumers. Every item carries
-// evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind is
-// capped, and what the cap drops is counted in `truncated`. A recognised shape whose arguments
+// evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
+// ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
+// counted in `truncated`. A recognised shape whose arguments
 // cannot be resolved statically is counted in `skipped`, never guessed.
 //
 // The scanned code is only ever read as text: no import, no eval, no process spawn. The default
@@ -19,7 +20,7 @@ import { byCodeUnit } from './inventory.mjs';
 import { scanClients, scanEnvKeys } from './generic.mjs';
 
 export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables'];
-export const MAX_ITEMS = 300; // per kind
+export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_FIELDS = 60; // per entity, schema or migration op
 const MAX_TEXT = 200; // longest type / path / url string kept
 

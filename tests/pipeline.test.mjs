@@ -89,13 +89,15 @@ test('p1 plan writes prescan, one extract and one brief per area (under the cap,
   assert.equal(j.agents.length, areas.length, 'one Agent call per area');
   for (const [i, id] of areas.entries()) {
     const extract = join(work, 'extracts', `${id}.json`);
+    const summary = join(work, 'extracts', `${id}.summary.json`);
     const fragment = join(work, 'fragments', `${id}.json`);
     const briefPath = join(work, 'briefs', `${id}.md`);
     assert.ok(existsSync(extract), `extract for ${id}`);
     assert.ok(existsSync(briefPath), `brief for ${id}`);
     const brief = readFileSync(briefPath, 'utf8');
     assert.ok(brief.length <= BRIEF_CAP, `${id}: brief is ${brief.length} characters`);
-    assert.ok(brief.includes(extract), `${id}: brief names the extract path`);
+    assert.ok(existsSync(summary), `summary for ${id}`);
+    assert.ok(brief.includes(summary), `${id}: brief names the summary path`);
     assert.ok(brief.includes(fragment), `${id}: brief names the fragment path`);
     for (const cap of ['40 nodes', '80 edges', '60 entities', '80 access rows', '20 tool calls']) {
       assert.ok(brief.includes(cap), `${id}: brief carries the cap ${cap}`);
@@ -608,4 +610,46 @@ test('p18 a backend with many router modules gets a floor that counts them, and 
     seen += parts['route groups'];
   }
   assert.ok(seen >= 30, `the 30 router modules are counted as route groups, saw ${seen}`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.10: the explorer reads a capped summary; entities, relations and queue edges come from the full extracts.
+
+test('p19 the brief points the explorer at the summary, says entities, relations and queue edges come from the script, and that the explorer lists no tables', () => {
+  const w = join(tmp, 'work-summary');
+  const r = planInto(w);
+  assert.equal(r.status, 0, r.stdout);
+  for (const a of r.json.areas) {
+    const brief = readFileSync(join(w, 'briefs', `${a.id}.md`), 'utf8');
+    assert.ok(brief.includes(join(w, 'extracts', `${a.id}.summary.json`)), `${a.id}: the summary path`);
+    assert.ok(!brief.includes(join(w, 'extracts', `${a.id}.json`)), `${a.id}: the full extract is not the explorer's to read`);
+    assert.match(brief, /entities, relations and queue edges[^\n]*\b(script|merge\.mjs)\b/i, `${a.id}: who makes them`);
+    assert.match(brief, /(do not|never) (list|transcribe)[^\n]*\btables\b/i, `${a.id}: no tables in the fragment`);
+    assert.ok(brief.length <= BRIEF_CAP, `${a.id}: ${brief.length} characters`);
+  }
+});
+
+test('p20 finish on the fixture with fragments that carry no entity produces an entity for every declared table, the declared foreign keys and the queue node, and validate --repo accepts it', () => {
+  const w = join(tmp, 'work-gen');
+  assert.equal(planInto(w).status, 0);
+  mkdirSync(join(w, 'fragments'), { recursive: true });
+  for (const f of readdirSync(CANNED)) {
+    const fr = readJson(join(CANNED, f));
+    writeFileSync(join(w, 'fragments', f), JSON.stringify({ ...fr, entities: [], access: [] }));
+  }
+  const r = step(['finish', '--work', w]);
+  assert.equal(r.status, 0, r.stdout);
+  const model = readJson(join(w, 'model.json'));
+  const names = model.entities.map((e) => e.name).sort();
+  for (const t of ['Customer', 'OrderLine', 'authors', 'books', 'editions', 'orders', 'publishers']) assert.ok(names.includes(t), `${t} in ${names}`);
+  const editions = model.entities.find((e) => e.name === 'editions');
+  assert.deepEqual(editions.evidence, [{ path: 'src/db/schema.ts', lines: '11-17' }]);
+  assert.ok(editions.fields.every((f) => f.provenance === 'declared'));
+  const publishers = model.entities.find((e) => e.name === 'publishers');
+  assert.ok(model.relations.some((x) => x.from.entity === editions.id && x.from.field === 'publisherId' && x.to.entity === publishers.id), JSON.stringify(model.relations));
+  // the explorer's email-queue node is the queue's node (its paths own the producer file); the worker's edge reaches it
+  assert.deepEqual(model.nodes.filter((n) => n.kind === 'queue').map((n) => n.id), ['email-queue'], 'the email queue is one node');
+  assert.ok(model.edges.some((e) => e.type === 'queue' && e.from === 'email-worker' && e.to === 'email-queue'), JSON.stringify(model.edges.map((e) => e.id)));
+  const v = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', repo], { encoding: 'utf8' });
+  assert.equal(v.status, 0, v.stdout + v.stderr);
 });

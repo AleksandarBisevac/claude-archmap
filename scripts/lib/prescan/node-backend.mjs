@@ -6,22 +6,25 @@
 // (Prisma models, TypeORM entities, Drizzle tables) with fields, PK/FK and relations, OpenAPI
 // documents (YAML or JSON), BullMQ queues with their producers and workers, environment variables read
 // (names only) and SDK clients / base URLs. Every item carries
-// evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind is
-// capped, and what the cap drops is counted in `truncated`. A recognised shape whose arguments
-// cannot be resolved statically (a computed path, a variable queue name) is counted in `skipped`,
-// never guessed. Only string literals and single-literal constants are resolved.
+// evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
+// ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
+// counted in `truncated`. A recognised shape whose arguments cannot be resolved statically (a computed
+// path, a variable queue name) is counted in `skipped`, never guessed. Only string literals and
+// single-literal constants are resolved. Hono sub-apps may carry type arguments (new Hono<Env>()) and
+// compose their routes as one chain (new Hono<Env>().get(...).post(...)); a mount takes the prefix.
 //
 // The scanned code is only ever read as text: no import, no eval, no process spawn. The default
-// export is the plug-in object ({ id, detect(inventory), extract(files, read) }) that
-// prescan.mjs loads. Node >= 18, ESM, zero dependencies.
+// export is the plug-in object ({ id, detect(inventory), scans(inventory), extract(files, read) })
+// that prescan.mjs loads; `scans` runs it on any repo with .ts or .js code, whatever its stack labels.
+// Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
 import { detectStacks, scanClients, scanEnvKeys } from './generic.mjs';
 
 export const KINDS = ['clients', 'entities', 'envKeys', 'openapi', 'queues', 'routes'];
-export const MAX_ITEMS = 300; // per kind
+export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_FIELDS = 60; // per entity
-const MAX_NESTED = 100; // producers / workers per queue, operations per OpenAPI document
+const MAX_NESTED = 2000; // producers / workers per queue, operations per OpenAPI document
 const MAX_TEXT = 200; // longest type / path / url string kept
 
 const CODE_RE = /\.(?:ts|tsx|js|jsx|mjs|cjs|mts|cts)$/;
@@ -257,58 +260,101 @@ function collectRouters(f) {
   for (const m of f.masked.matchAll(ROUTER_RE)) f.routers.set(m[1], m[3] ? 'hono' : 'express');
 }
 
+// `.get(...)` and friends chained onto a router call or onto `new Hono<Env>()` itself (route composition).
+const CHAIN_RE = /^\s*\.\s*(get|post|put|patch|delete|options|head|all|on|use|route)\s*\(/;
+const ROUTER_VERBS = `(?<![\\w$.])(${ID})\\s*\\.\\s*(get|post|put|patch|delete|options|head|all|on|use|route)\\s*\\(`;
+
+/** Offset of the `(` that opens the constructor call after `new Hono`, skipping a type argument list; -1 if none. */
+function ctorParen(masked, from) {
+  let i = from;
+  while (/\s/.test(masked[i] ?? '')) i++;
+  if (masked[i] === '<') {
+    let depth = 0;
+    for (; i < masked.length; i++) {
+      const c = masked[i];
+      if (c === '<') depth++;
+      else if (c === '>' && masked[i - 1] !== '=') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    i++;
+    while (/\s/.test(masked[i] ?? '')) i++;
+  }
+  return masked[i] === '(' ? i : -1;
+}
+
 function extractRouterRoutes(ctx, f, acc, found, mounts) {
   if (f.routers.size === 0) return;
-  const re = new RegExp(`(?<![\\w$.])(${ID})\\s*\\.\\s*(get|post|put|patch|delete|options|head|all|on|use|route)\\s*\\(`, 'g');
-  for (const d of f.masked.matchAll(re)) {
-    const framework = f.routers.get(d[1]);
-    if (!framework) continue; // an unknown receiver (cache.get(...)) is not a guess we make
-    const call = callAt(f, d.index + d[0].length - 1);
-    if (!call) continue;
+  const handle = (recv, framework, verb, at, call) => {
     const { args } = call;
-    const key = `${f.path}#${d[1]}`;
-    const ev = evidence(f, d.index, call.close + 1);
-    const verb = d[2];
+    const key = `${f.path}#${recv}`;
+    const ev = evidence(f, at, call.close + 1);
     const mountOf = (prefix, ident) => {
       const o = origin(ctx, f, ident);
       if (o && o.file.routers.has(o.name)) mounts.push({ parent: key, child: `${o.file.path}#${o.name}`, prefix });
     };
     if (verb === 'use' || (verb === 'route' && framework === 'hono')) {
-      if (verb === 'use' && framework !== 'express') continue;
+      if (verb === 'use' && framework !== 'express') return;
       const idArg = identText(f, args[args.length - 1]);
-      if (!idArg || idArg.includes('.')) continue;
+      if (!idArg || idArg.includes('.')) return;
       if (args.length === 1 && verb === 'use') mountOf('', idArg);
       else if (args.length === 2) {
         const prefix = strValue(ctx, f, args[0].a, args[0].b);
         if (prefix !== null && prefix.startsWith('/')) mountOf(prefix, idArg);
       }
-      continue;
+      return;
     }
     if (verb === 'route') {
       if (args.length === 1) acc.skipped.routes++; // express route(path).get(...) chains are not followed
-      continue;
+      return;
     }
     if (verb === 'on') {
-      if (framework !== 'hono' || args.length < 2) continue;
+      if (framework !== 'hono' || args.length < 2) return;
       const mArg = args[0];
       const methods = f.masked[mArg.a] === '[' ? splitTop(f.masked, mArg.a + 1, mArg.b - 1).map((p) => strValue(ctx, f, p.a, p.b)) : [strValue(ctx, f, mArg.a, mArg.b)];
       const url = strValue(ctx, f, args[1].a, args[1].b);
       if (url === null || methods.length === 0 || methods.some((x) => x === null)) {
         acc.skipped.routes++;
-        continue;
+        return;
       }
-      if (!/^[/*]/.test(url)) continue;
+      if (!/^[/*]/.test(url)) return;
       for (const method of methods) found.push({ f, key, framework, method: method.toUpperCase(), sub: url, handler: identText(f, args[args.length - 1]), ev });
-      continue;
+      return;
     }
-    if (args.length < 2) continue; // app.get('setting') is not a route
+    if (args.length < 2) return; // app.get('setting') is not a route
     const url = strValue(ctx, f, args[0].a, args[0].b);
     if (url === null) {
       acc.skipped.routes++;
-      continue;
+      return;
     }
-    if (!/^[/*]/.test(url)) continue;
+    if (!/^[/*]/.test(url)) return;
     found.push({ f, key, framework, method: verb === 'all' ? 'ANY' : verb.toUpperCase(), sub: url, handler: identText(f, args[args.length - 1]), ev });
+  };
+  // the calls chained after `close`, each on the same receiver: app.get(...).post(...), new Hono<E>().get(...)
+  const follow = (recv, framework, close) => {
+    for (let pos = close + 1; ;) {
+      const m = CHAIN_RE.exec(f.masked.slice(pos, pos + 400));
+      if (!m) return;
+      const call = callAt(f, pos + m[0].length - 1);
+      if (!call) return;
+      handle(recv, framework, m[1], pos + m[0].indexOf('.'), call);
+      pos = call.close + 1;
+    }
+  };
+  for (const d of f.masked.matchAll(new RegExp(ROUTER_VERBS, 'g'))) {
+    const framework = f.routers.get(d[1]);
+    if (!framework) continue; // an unknown receiver (cache.get(...)) is not a guess we make
+    const call = callAt(f, d.index + d[0].length - 1);
+    if (!call) continue;
+    handle(d[1], framework, d[2], d.index, call);
+    follow(d[1], framework, call.close);
+  }
+  for (const m of f.masked.matchAll(ROUTER_RE)) {
+    const framework = m[3] ? 'hono' : 'express';
+    const open = m[3] ? ctorParen(f.masked, m.index + m[0].length) : m.index + m[0].length - 1;
+    const call = open < 0 ? null : callAt(f, open);
+    if (call) follow(m[1], framework, call.close);
   }
 }
 
@@ -948,6 +994,9 @@ export function extractNodeBackend(files, read) {
 const plugin = {
   id: 'node-backend',
   detect: (inventory) => detectStacks(inventory.files, inventory.read ?? (() => null)).includes('node-backend'),
+  // runs on any repo holding .ts or .js code, whatever the stack labels say: a package.json naming only react
+  // can still hold the queues, tables and routes of a backend (the label stays what detect says)
+  scans: (inventory) => inventory.files.some((p) => CODE_RE.test(p) && !SKIP_CODE_RE.test(p)),
   extract: extractNodeBackend,
 };
 

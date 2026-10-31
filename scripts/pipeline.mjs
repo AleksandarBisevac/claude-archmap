@@ -10,10 +10,12 @@
 //
 // plan    starts a fresh build in <work> (it removes the files an earlier build left there; without --work that is
 //         <os tmpdir>/archmap/<short hash of the repo path>, a place a subagent may write, which Claude Code does not
-//         allow outside the project and the OS temp dir), runs prescan.mjs (the
-//         per-area extracts), takes its areas as the partition (at most 8), and writes one explorer brief per area,
-//         <work>/briefs/<area>.md, under BRIEF_CAP characters: the area, its globs, the extract and fragment paths,
-//         the caps, the fragment contract and the three-line reply, so the explorer needs no reference file. It
+//         allow outside the project and the OS temp dir), runs prescan.mjs (the per-area extracts and the explorers'
+//         capped summaries of them), takes its areas as the partition (at most 8), and writes one explorer brief per
+//         area, <work>/briefs/<area>.md, under BRIEF_CAP characters: the area, its globs, the summary and fragment
+//         paths (the full extract is merge.mjs's: it makes the entities, relations and queue edges from it, so the
+//         explorer lists no table), the caps, the fragment contract and the three-line reply, so the explorer needs
+//         no reference file. It
 //         prints the Agent calls to make, one per area. With --update it first runs diffmap.mjs against the model in
 //         --out and briefs only the affected areas (and the areas of new files no area owns), naming the previous
 //         model so ids stay stable; when nothing is affected it lists no call and the next step is render.
@@ -56,7 +58,7 @@ import { matchAny } from './lib/glob.mjs';
 import { CAPS } from './merge.mjs';
 import { makeRow, readLedger, renderTable, summarize } from './usage.mjs';
 
-export const BRIEF_CAP = 4000; // characters per brief; with the agent file and an extract it stays under 12 K
+export const BRIEF_CAP = 4000; // characters per brief; with the agent file and an area summary it stays under 12 K
 export const EXPLORER_TOOL_CALLS = 20;
 export const SYNTH_READS = 12;
 export const MAX_AREAS = 8;
@@ -320,7 +322,7 @@ function capGlobs(globs, room) {
   const out = [];
   for (const g of globs) {
     if (out.join(', ').length + g.length + 4 > room) {
-      out.push(`(+${globs.length - out.length} more, listed in the extract)`);
+      out.push(`(+${globs.length - out.length} more, listed in the summary)`);
       break;
     }
     out.push(code(g));
@@ -358,7 +360,7 @@ export function coverageFloor(extract) {
 const shortName = (n) => String(n).split('/').slice(-2).join('/');
 
 /** The two floor lines: the number with its parts, and what each kind must cover (compact, cut at FLOOR_ROOM). */
-function floorLines(cov) {
+function floorLines(cov, room = FLOOR_ROOM) {
   const parts = Object.entries(cov.counts).map(([k, n]) => `${k}=${n}`).join(', ');
   const head = `- Coverage floor: at least ${cov.floor} nodes (${parts}). A fragment with fewer nodes than this floor is incomplete.`;
   const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients']]
@@ -366,11 +368,11 @@ function floorLines(cov) {
     .filter(([, v]) => v.length)
     .map(([label, v]) => `${label} ${v.slice(0, FLOOR_NAMES).map(shortName).join(', ')}${v.length > FLOOR_NAMES ? ` (+${v.length - FLOOR_NAMES})` : ''}`);
   let cover = groups.join('; ');
-  if (cover.length > FLOOR_ROOM) cover = `${cover.slice(0, FLOOR_ROOM - 1)}…`;
+  if (cover.length > room) cover = `${cover.slice(0, room - 1)}…`;
   return cover ? [head, `- Each of these needs its own node: ${cover}.`] : [head];
 }
 
-export function explorerBrief({ area, extract, fragment, profile, previous, stackRef, coverage, short = false, globRoom = 600 }) {
+export function explorerBrief({ area, summary, fragment, profile, previous, stackRef, coverage, short = false, globRoom = 600, floorRoom = FLOOR_ROOM }) {
   const lines = [
     `# archmap explorer brief: ${area.id}`,
     '',
@@ -381,23 +383,23 @@ export function explorerBrief({ area, extract, fragment, profile, previous, stac
       ? `- Area: ${code(area.id)}, ${area.files} files.`
       : `- Area: ${code(area.id)} (${area.title}), ${area.files} files, stacks: ${list(area.stacks).join(', ') || 'none recognised'}.`,
     `- Globs, your boundary (map nothing outside them): ${capGlobs(list(area.globs), globRoom)}.`,
-    extract
-      ? `- Extract, read it first: ${extract}`
-      : '- Extract: none (this area is not in the current prescan partition); start from the globs.',
+    summary
+      ? `- Summary of prescan's extract, read it first: ${summary}`
+      : '- Summary: none (this area is not in the current prescan partition); start from the globs.',
     `- Fragment, the one file you write: ${fragment}`,
     `- Profile ${profile}. Budget: ${EXPLORER_TOOL_CALLS} tool calls, the final Write included.`,
-    ...floorLines(coverage ?? coverageFloor(null)),
+    ...floorLines(coverage ?? coverageFloor(null), floorRoom),
   ];
   if (previous) lines.push(`- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
-  if (stackRef) lines.push(`- Only if the extract leaves a framework question open: ${stackRef}`);
+  if (stackRef) lines.push(`- Only if the summary leaves a framework question open: ${stackRef}`);
   lines.push(
     '',
     '## Work',
     '',
-    '1. Read the extract, then make at least 6 and at most 20 tool calls in all, the Write included.',
+    '1. Read the summary, then make at least 6 and at most 20 tool calls in all, the Write included.',
     '   Grep for the next fact, then a line-range Read; never read a whole tree or walk it file by file.',
     '2. One node per feature directory of a frontend and per router or handler module of a backend, plus every store,',
-    '   queue, job and external client; then what the extract cannot see: what a handler does, which store a service uses.',
+    '   queue, job and external client; then what prescan cannot see: what a handler does, which store a service uses.',
     '3. Never execute the project\'s code. Bash only for read-only database introspection; Write only the fragment path.',
     '',
     '## Fragment contract',
@@ -411,16 +413,16 @@ export function explorerBrief({ area, extract, fragment, profile, previous, stac
     '  static, auth, pull, sql, cache, persist, call, link, deploy, event, queue. confidence: verified (you read both',
     '  ends), inferred, external (a third party). To reach another area\'s node write `to: "area:<id>"` unless you read',
     '  its node id: merge resolves it to that area\'s main node. Never invent a node id.',
-    '- entity: `id`, `store` (a node id), `name`, `kind` (table, view, collection, dataset), `fields`: `name`, `type`,',
-    '  `provenance` (declared, observed, inferred), optional `pk`, `nullable`, `fk` {`entity`, `field`}; `evidence`.',
+    '- entity, only for a store prescan cannot read: `id`, `store` (node id), `name`, `kind` (table, view, collection,',
+    '  dataset), `fields` [{`name`, `type`, `provenance`: declared|observed|inferred}], `evidence`.',
     '- access: `node`, `entity`, `ops` (letters of CRUD in that order, e.g. CR), `evidence`.',
-    '- evidence: [{"path":"<repo-relative>","lines":"12-30"}], the lines you read or the extract names. No citable',
+    '- evidence: [{"path":"<repo-relative>","lines":"12-30"}], the lines you read or the summary names. No citable',
     '  lines, no element: count it in `skipped`. Cite, never quote source.',
     '- coverage: the globs you actually read; a subtree is `dir/**` (a bare directory matches only itself).',
     `- Caps: ${CAPS.nodes} nodes, ${CAPS.edges} edges, ${CAPS.entities} entities, ${CAPS.access} access rows. List the most structural first:`,
     '  merge.mjs keeps the first and drops the rest, and fixes slips in field shapes itself.',
-    '- merge.mjs computes the cross-area edges, the zones, the SQL access rows and the foreign-key relations from the',
-    '  extracts: do not spend calls on them. Never emit meta, zones, sequences, views, locked or notes.',
+    '- Entities, relations and queue edges come from the script (merge.mjs), as do cross-area edges, zones and SQL',
+    '  access rows: never list tables or fields. Never emit meta, zones, sequences, views, locked or notes.',
     '',
     '## Reply',
     '',
@@ -490,12 +492,14 @@ function writeBrief(path, text) {
 }
 
 // What an explorer brief gives up, in order, when it would pass the cap: the optional lines (the stack reference),
-// then the extract summary (the area's title and stacks, the long glob list). The contract and the paths stay.
+// then the area line (the area's title and stacks, the long glob list), then the floor's list of names (its count
+// stays). The contract and the paths stay.
 const BRIEF_TRIMS = [
   { drop: 'stack reference line', opts: { stackRef: null } },
   { drop: 'area title and stacks', opts: { stackRef: null, short: true } },
   { drop: 'globs beyond 200 characters', opts: { stackRef: null, short: true, globRoom: 200 } },
   { drop: 'globs beyond 80 characters', opts: { stackRef: null, short: true, globRoom: 80 } },
+  { drop: 'floor names beyond 160 characters', opts: { stackRef: null, short: true, globRoom: 80, floorRoom: 160 } },
 ];
 
 /** The explorer brief under BRIEF_CAP, with the note of what was trimmed (null when nothing was). */
@@ -565,7 +569,8 @@ function plan(o, ctx) {
 
   const modelPath = join(out, 'architecture.model.json');
   const previous = existsSync(modelPath) ? modelPath : null;
-  let targets = areas.map((a) => ({ ...a, extractPath: join(work, 'extracts', `${a.id}.json`) }));
+  const paths = (id) => ({ extractPath: join(work, 'extracts', `${id}.json`), summaryPath: join(work, 'extracts', `${id}.summary.json`) });
+  let targets = areas.map((a) => ({ ...a, ...paths(a.id) }));
   let update = null;
   if (o.update) {
     if (!previous) throw new StepError(`--update needs a model at ${modelPath}: run a build first`);
@@ -582,10 +587,10 @@ function plan(o, ctx) {
     const nothing = !list(report.areas).length && !list(report.nodes).length && !list(report.entities).length && !list(report.uncovered).length;
     targets = nothing ? [] : [...affected].sort(cmp).map((id) => {
       const a = areas.find((x) => x.id === id);
-      if (a) return { ...a, extractPath: join(work, 'extracts', `${a.id}.json`) };
+      if (a) return { ...a, ...paths(a.id) };
       ctx.findings.push(`area ${id} of the previous model is not in the current prescan partition; its brief has no extract`);
       const globs = list(prevModel?.meta?.coverage?.[id]);
-      return { id, title: id, globs, files: 0, stacks: [], extractPath: null };
+      return { id, title: id, globs, files: 0, stacks: [], extractPath: null, summaryPath: null };
     });
     update = {
       base: report.base, head: report.head, files: list(report.files).length, nothing,
@@ -603,13 +608,13 @@ function plan(o, ctx) {
     const fragment = join(work, 'fragments', `${a.id}.json`);
     const stack = list(a.stacks).map((s) => STACK_REFS[s]).find(Boolean) ?? 'discovery-generic.md';
     const coverage = coverageFloor(a.extractPath && existsSync(a.extractPath) ? readJson(a.extractPath, 'extract') : null);
-    const input = { area: a, extract: a.extractPath, fragment, profile, previous: update ? previous : null, stackRef: join(REFS, stack), coverage };
+    const input = { area: a, summary: a.summaryPath, fragment, profile, previous: update ? previous : null, stackRef: join(REFS, stack), coverage };
     const fitted = fitExplorerBrief(input, a.id);
     if (fitted.note) trimmed.push(fitted.note);
     writeBrief(brief, fitted.text);
     planned.push({ id: a.id, title: a.title, files: a.files, brief });
     agents.push(agentCall('archmap-explorer', `archmap explorer: ${a.id}`.slice(0, 60),
-      `Your brief is ${brief}. Read it first and follow it: it names your extract and the one fragment file you write. Reply with the three lines it specifies.`,
+      `Your brief is ${brief}. Read it first and follow it: it names your summary and the one fragment file you write. Reply with the three lines it specifies.`,
       overrideFor(profile, 'explorer')));
   }
 

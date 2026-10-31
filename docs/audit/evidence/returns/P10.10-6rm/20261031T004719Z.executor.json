@@ -1,0 +1,60 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T01:10:18Z",
+    "basis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-core.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "No executor brief existed for this start (drive-phase.py brief exited 2: .claude/state/briefs/P10.10-6rm/20261031T004719Z.executor.md missing), so I worked from the manifest task and its tests.add, as the caller instructed. TDD: drafted the tests first and saw them fail on the current code (prescan-node-backend 4 failing, prescan-core 2, merge 7, pipeline 3, agents 1, skill 1). Probing showed generics and cross-file sub-apps already parsed, so nb12 was given a chained composition case (new Hono<Env>().get().post(), app.get().post()), which failed before the fix. Changes: scripts/prescan.mjs drops EXTRACT_BUDGET, TRIM_WEIGHT and ROW_CAP. extracts/<area>.json is now the full record: every table field, `lines` on tables, the queue's declaration file and line, import ceiling 20000. It also writes extracts/<area>.summary.json (SUMMARY_BUDGET 4200: area header, `extract` path, note, `counts` per kind, the first rows of each kind, trimmed by weight with tables first), and areas[] carries `summary`. A plug-in may define `scans(inventory)`, which runs it without naming a stack. node-backend.mjs: `scans` is true for any repo with .ts/.js code. Hono chains are followed after router calls and after `new Hono<...>()` (ctorParen skips type arguments). MAX_ITEMS goes 300 -> 20000 and MAX_NESTED 100 -> 2000 (ceilings, not budgets). python.mjs: MAX_ITEMS 300 -> 20000. merge.mjs: new generateFromExtracts runs before deriveLayer. It makes one entity per declared table with declared fields and evidence at the file and lines. An explorer entity with the same table or model name is merged into it (explorer id, desc and extra fields kept). The store is chosen in order: the store that owns the file, a store that covers it, the store of an entity in the same file, the area's only store, else a generated <area>-db store. It also makes one queue node per name (<name>-queue, or an existing explorer queue node of that name) with async queue edges from each producer's and consumer's owning node. Link-derived queue edges now go to the queue node, consumer edges get their own desc, the derivation row counts what was made, and the CLI skips *.summary.json in --extracts. In update mode only affected areas' slices are generated from. pipeline.mjs: the brief names the summary path, not the full extract, and says entities, relations and queue edges come from the script and never to list tables. The entity contract line is shorter, and a last trim step cuts the floor names to 160 chars (the count stays). agents/archmap-explorer.md and SKILL.md (327 lines, line 3 byte-identical to HEAD, checked with diff) say to read the summary and never transcribe tables. Tests updated or added: nb1, nb6, nb10, nb11, nb12, nb13, pc9 (agent file + SUMMARY < 12 K), pc11, py7, py10, m13, m13c, m14 (queue node in between), m21, m21b, m21c, m21d, p1, p19, p20, a7, a8, s14. a7's ban was narrowed from /transcrib/ to /transcribe (it|the extract)\\b|do not re-derive the rest/ because a8 requires 'never transcribe tables'. Fixture: tests/fixtures/repos/node-api/src/hono/reviews.ts and server.ts (synthetic, staged with git add) plus a README row. Runs: node --test from the project root exit 0, 373 tests, 373 pass, 0 fail. node --test tests/denylist.test.mjs exit 0 (2/2). docs/design.md not touched. Left for follow-up, outside this task's files: skills/architecture-map/references/model-schema.md line 108 still says merge derives 'a queue producer to its consumer' edge, and references/discovery-generic.md lines 5 and 9 still point the explorer at extracts/<area>.json and `truncated`. ts-frontend.mjs keeps its 300-per-kind cap (not in files).",
+    "descriptive": "prescan writes full per-area extracts plus a capped explorer summary, the node scanners run whatever the area's stack label and follow Hono route chains, and merge builds every declared table, foreign key, queue node and queue edge from the extracts instead of the explorer."
+  },
+  "testsAdded": [
+    "nb11: on the node fixture the full extracts hold every table, route and queue the scanner found, editions with fields and the publishers.id reference and lines 11-17, the /reviews routes of a Hono<Env> sub-app mounted from another file, the email queue with its declaration, and nothing truncated",
+    "nb12: Hono sub-apps with generics (nested type braces, imported or in the same file) take their mount prefix; chained composition new Hono<Env>().get().post().delete() and app.get().post() yield every route at its line",
+    "nb13: a workspace package whose stacks are ['ts-frontend'] still gets its BullMQ queue (producer and worker), Drizzle table and Hono route in its full extract",
+    "pc9: agent file plus the area SUMMARY is under 12 K for every area of every fixture repo; a 280-route area keeps all 280 in the full extract with nothing truncated while the summary counts 280 and shows only the first rows",
+    "pc11: every area has extracts/<id>.json and extracts/<id>.summary.json; the summary names its extract, carries counts equal to the full extract's arrays, first rows that are a prefix of the full rows, the script note, and is byte-identical across runs",
+    "m21: one entity per declared table with declared fields and evidence at the schema file and lines, the explorer's entity of the same table merged (id, desc, observed field kept), one fk relation per declared foreign key",
+    "m21b: one queue node per queue name across areas, evidence at the declaration, async queue edges from the producer's and the consumer's node at their lines; an explorer queue node of that name is used instead",
+    "m21c: generation is order-independent and repeatable, a table no store covers gets a generated store node, and through the CLI a .summary.json beside the extracts is not read",
+    "m21d: 150 generated entities and 149 relations bypass the fragment caps, validate, and the digest stays under DIGEST_CAP with every entity listed or counted in truncated",
+    "p19: every brief names the summary path and not the full extract, says entities, relations and queue edges come from the script, and says never to list tables",
+    "p20: finish with entity-free fragments yields an entity for each declared table (Customer, OrderLine, authors, books, editions, orders, publishers), the editions.publisherId fk, one email queue node with the worker's edge, and validate --repo exit 0",
+    "a8: archmap-explorer.md names extracts/<area>.summary.json, says not to read the full extract, never to transcribe tables, that merge.mjs makes entities, relations and queue edges, and its description says summary",
+    "s14: SKILL.md says entities, relations and queue edges are generated by merge.mjs from the extracts, names the summary, and stays at or under 500 lines"
+  ],
+  "casesAdded": [
+    [
+      "nb11",
+      "nb12",
+      "nb13"
+    ],
+    [
+      "pc11",
+      "pc9"
+    ],
+    [
+      "m21",
+      "m21b",
+      "m21c",
+      "m21d"
+    ],
+    [
+      "p19",
+      "p20"
+    ],
+    [
+      "a8"
+    ],
+    [
+      "s14"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:39771907d205ff97c88a704e922272a012abbd0db2a0f55379d8d7bac5228abd\",\"dirtyDigest\":\"sha256:725763760f9e4b3f4d6756365c16b9291b30693b2dc07b3a417a1610239c67a0\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"d53a79fd5c72328b\",\"docs/design.md\":\"b0d39ec0ed1b1a15\",\"scripts/lib/prescan/node-backend.mjs\":\"941b09a41fd2d68a\",\"scripts/lib/prescan/python.mjs\":\"d615fe0caf4aa480\",\"scripts/merge.mjs\":\"ad44b5490bb6b297\",\"scripts/pipeline.mjs\":\"dbdecbaa04ec933d\",\"scripts/prescan.mjs\":\"6ec7860eb5dc6dca\",\"skills/architecture-map/SKILL.md\":\"f86b576f88cdb842\",\"tests/agents.test.mjs\":\"3968db35389c8f93\",\"tests/fixtures/repos/node-api/README.md\":\"730e458b02911a80\",\"tests/merge.test.mjs\":\"4c946e392eda19f3\",\"tests/pipeline.test.mjs\":\"479b1a8684a451a8\",\"tests/prescan-core.test.mjs\":\"989cdac3f4f4e3f7\",\"tests/prescan-node-backend.test.mjs\":\"bf4d6f7cd4ca8f28\",\"tests/prescan-python.test.mjs\":\"423680dbdb708d50\",\"tests/skill.test.mjs\":\"c9678c8dde99c5b2\"},\"head\":\"10170a9\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"scripts/lib/prescan/generic.mjs\",\"scripts/lib/prescan/node-backend.mjs\",\"scripts/lib/prescan/python.mjs\",\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"scripts/prescan.mjs\",\"skills/architecture-map/SKILL.md\",\"tests/agents.test.mjs\",\"tests/fixtures/merge\",\"tests/fixtures/repos/node-api\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/prescan-core.test.mjs\",\"tests/prescan-node-backend.test.mjs\",\"tests/prescan-python.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:a90cbac56069d71879a8929c03bb34f53647b352c9db6b4c3019e290413d7beb\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

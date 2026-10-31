@@ -132,5 +132,14 @@ test('a7 the explorer runs at medium effort, states the coverage floor rule and 
   assert.match(body, /at most 20\b|\b20 tool calls/i, 'at most 20 tool calls');
   assert.match(body, /one node per[^\n]*(feature director|router|handler)/i, 'one node per feature directory or router module');
   assert.match(body, /Write[^\n]*(only|one)[^\n]*(path|file)|(only|one)[^\n]*(path|file)[^\n]*Write/i, 'Write is limited to the fragment path');
-  assert.doesNotMatch(body, /transcrib|do not re-derive the rest/i, 'it no longer tells the explorer to stop at the extract');
+  assert.doesNotMatch(body, /transcribe (it|the extract)\b|do not re-derive the rest/i, 'it no longer tells the explorer to stop at the extract');
+});
+
+test('a8 the explorer reads the summary, not the full extract, and never transcribes tables: entities, relations and queue edges are made by merge.mjs', () => {
+  const { fm, body } = load('archmap-explorer');
+  assert.match(body, /extracts\/<area>\.summary\.json/, 'the summary path is named');
+  assert.match(body, /(not|never)[^\n.]*\bfull extract\b/i, 'it does not read the full extract');
+  assert.match(body, /(never|do not|don't) transcribe[^\n.]*\btables\b/i, 'tables are not transcribed');
+  assert.match(body, /entities, relations and queue edges[^\n.]*\b(script|merge\.mjs)\b/i, 'who makes them is said');
+  assert.match(fm.description, /summary/i, 'the description says the explorer starts from the summary');
 });
