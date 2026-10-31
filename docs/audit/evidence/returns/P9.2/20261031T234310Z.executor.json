@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test tests/manifest.test.mjs": "fail"
+  },
+  "redFirst": {
+    "at": "2026-10-31T23:47:59Z",
+    "basis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "CHANGELOG.md: Unreleased heading kept empty; new `## [1.0.0] - 2026-11-01` entry in Keep a Changelog form, one `### Added` section grouped by area (commands and the skill's build/update/issues flows; scripts prescan with stack extractors and test-data skip, merge, validate, layout, render, diffmap, staleness hook, export, issues, usage, pipeline, cost-profile; model schema and viewer; agents and profiles; evals and tracked evidence with measured cost 1.16 USD eval 1 vs 13.78 USD before, 1.00 USD self-build; the committed map 30/18/1/4/5). The two former Unreleased bullets (export, scaffold) are folded into it. No client, dataset or repository name; denylist suite `node --test tests/denylist.test.mjs` d1/d2 pass. tests/manifest.test.mjs: versionHeadings() parser, mf3 (newest `## [x.y.z] - date` heading equals plugin.json version, is dated, empty Unreleased above it), mf4 (parser self-check: newest first, 1.0.0/1.0.0 matches, 0.9.0 does not, Unreleased-only has none). Current tree: `node --test tests/manifest.test.mjs` exit 1, 3 pass / 1 fail, mf3 `expected: '0.1.0' actual: '1.0.0'` - the plan's interim red: P9.3 owns .claude-plugin/plugin.json and its text says the P9.2 test must pass with both at 1.0.0. I did not edit plugin.json (out of scope). Scratch copy with plugin.json at 1.0.0 (scratchpad/p92pair): exit 0, 4/4 pass. Full `node --test` before the CHANGELOG write: 451 tests, 450 pass, 1 fail (mf3). Dependants: .claude/audit.config.json lists CHANGELOG.md in exemptGlobs - still correct, path unchanged; docs/design.md names CHANGELOG.md (Keep a Changelog) in its layout and scaffold step - still correct, the file keeps that form. Exploring outside the brief: read P9.3/P9.5 descriptions in the manifest to settle who sets plugin.json to 1.0.0.",
+    "descriptive": "CHANGELOG carries the full 1.0.0 entry and a test ties its newest version heading to plugin.json; red until P9.3 sets plugin.json to 1.0.0."
+  },
+  "testsAdded": [
+    "mf3: the newest CHANGELOG version heading equals plugin.json's version, carries a date and sits under an empty Unreleased heading",
+    "mf4: the heading parser reads newest first, matches 1.0.0/1.0.0, rejects 0.9.0 against 1.0.0, finds none in an Unreleased-only file"
+  ],
+  "casesAdded": [
+    "mf3"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:5d793d095719715a7a5f102b44f22641994e3f0d2d05ef7053e4e4701a458988\",\"dirtyDigest\":\"sha256:4375e827a738ef98e26bef9c865a189e47a44dd27bbb46e5e1fba576ec79502c\",\"dirtyPaths\":{\"CHANGELOG.md\":\"5a2bda0831ce428e\",\"tests/manifest.test.mjs\":\"bd8fce5d461d1333\"},\"head\":\"cbc448e\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"CHANGELOG.md\",\"tests/manifest.test.mjs\"],\"scopeDigest\":\"sha256:6b6fcb215e79785a6c00f686572a684b5653667b1ddbaefc7e48084d2a8a157c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

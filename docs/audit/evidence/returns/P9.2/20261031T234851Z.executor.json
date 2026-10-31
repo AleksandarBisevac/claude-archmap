@@ -1,0 +1,28 @@
+{
+  "gates": {
+    "node --test tests/manifest.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T23:49:46Z",
+    "basis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Retry under widened scope. Kept attempt 1's work in the tree unchanged: CHANGELOG.md (empty `## [Unreleased]`, then `## [1.0.0] - 2026-11-01` in Keep a Changelog form, grouped by area) and tests/manifest.test.mjs (versionHeadings() parser, mf3 newest dated version heading equals plugin.json version with empty Unreleased above it, mf4 parser self-check incl. 1.0.0/1.0.0 match and 0.9.0 mismatch). The one step left: .claude-plugin/plugin.json `\"version\": \"0.1.0\"` -> `\"1.0.0\"` via the Edit tool (plan gate allowed it; file is in P9.2's files). Before the edit: `node --test tests/manifest.test.mjs` exit 1, 3 pass / 1 fail (mf3). After: same command exit 0, 4/4 pass (ok 1 manifest semver, ok 2 mf3, ok 3 mf4, ok 4 dev marketplace). Also ran `node --test tests/readme.test.mjs` exit 0 and `node --test tests/denylist.test.mjs` exit 0. Full `node --test` not run (runsGate own-tests). Dependants: CHANGELOG.md - .claude/audit.config.json lists it in exemptGlobs, still correct (path unchanged); docs/design.md names it as Keep a Changelog, still correct (form kept); tests/manifest.test.mjs now reads it, that is this task's test. plugin.json - docs/architecture/architecture.model.json and docs/architecture/archmap.html cite it by path as evidence, still correct (path and the cited fields unchanged; grep found no `0.1.0` in the model); README.md and docs/design.md name it by path, grep found no `0.1.0` in either, still correct; tests/readme.test.mjs reads only its `name`, still correct (exit 0); tests/manifest.test.mjs asserts semver and now the CHANGELOG pair, passes. Exploring outside the brief: read the helper's _runner_output.py tally patterns to see whether node:test output is graded (it is not).",
+    "descriptive": "plugin.json is now at 1.0.0 and matches the CHANGELOG 1.0.0 entry; the new version-pair test passes."
+  },
+  "testsAdded": [
+    "mf3: the newest dated CHANGELOG version heading equals plugin.json's version and sits below an empty Unreleased heading",
+    "mf4: the heading parser self-check - newest first, 1.0.0/1.0.0 matches, 0.9.0 does not, Unreleased-only yields no version"
+  ],
+  "casesAdded": [
+    [
+      "mf3",
+      "mf4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:21b0d7d9168f47e046c400249e241ed751aed884c0c87f66fdcec19864cdc8e6\",\"dirtyDigest\":\"sha256:fee881744bcfa40bd8de4813f7739f2b87b52780cb9a31576204803ab5150d39\",\"dirtyPaths\":{\".claude-plugin/plugin.json\":\"b1d34306fcd33e05\",\"CHANGELOG.md\":\"5a2bda0831ce428e\",\"tests/manifest.test.mjs\":\"bd8fce5d461d1333\"},\"head\":\"cbc448e\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\".claude-plugin/plugin.json\",\"CHANGELOG.md\",\"tests/manifest.test.mjs\"],\"scopeDigest\":\"sha256:1cb18dd9f4a85827f1c3325e82ed00efb6ccf6ee8fd60dad215c183297a5c194\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

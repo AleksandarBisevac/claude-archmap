@@ -5102,6 +5102,253 @@
             "status": "could-not-prove",
             "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P9.2",
+          "title": "CHANGELOG 1.0.0: the full entry from the P1 to P11 history, and the version heading must match plugin.json",
+          "status": "in_progress",
+          "description": "CHANGELOG.md has only a thin Unreleased section (the export command and the scaffold) while the repository holds 128 commits over phases P1 to P11. Write the 1.0.0 entry in Keep a Changelog form, dated the day it is cut, from the git history and the tracked documentation, grouped by area: the six commands and the skill's build, update and issues flows; the scripts (prescan with its stack extractors and test-data skip, merge, validate with evidence checks, layout, render, diffmap, staleness hook, export, issues, usage ledger, pipeline driver, cost-profile); the model schema and the viewer (application graph, ER, sequences, CRUD and lineage, views, issues toggle, offline); the agents and profiles; the evals and the tracked evidence with the measured cost of a build; the committed map of this repository. Keep the Unreleased heading empty above it. No client, dataset or repository name. Extend tests/manifest.test.mjs so it fails when the newest CHANGELOG version heading differs from plugin.json's version (P9.3 sets both to 1.0.0; until then the test may compare against the heading that exists and the version that exists, and it must be written so the pair 1.0.0/1.0.0 passes).",
+          "files": [
+            "CHANGELOG.md",
+            "tests/manifest.test.mjs",
+            ".claude-plugin/plugin.json"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/manifest.test.mjs: the newest CHANGELOG version heading equals plugin.json's version"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 2,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T23:48:51Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-10-31T23:48:50Z",
+              "text": "Retry under a widened scope: the CHANGELOG 1.0.0 entry and tests mf3 and mf4 are already in the working tree from the first attempt and are right; the only thing left is to set version 1.0.0 in .claude-plugin/plugin.json (now in this task's files) so mf3 and the full node --test gate go green, then file the return. Do not rewrite the CHANGELOG. P9.3 keeps the README status change and r3."
+            }
+          ],
+          "testEvidence": {
+            "runId": "2026-10-31T23:50:53Z.554eaf",
+            "status": "passed",
+            "at": "2026-10-31T23:50:53Z"
+          }
+        },
+        {
+          "id": "P9.3",
+          "title": "Version 1.0.0 in plugin.json and the released status in README",
+          "status": "pending",
+          "description": "Set version 1.0.0 in .claude-plugin/plugin.json. In README.md replace the release-candidate status paragraph with the released status: version 1.0.0, what the version covers in one sentence, the CHANGELOG link, and keep the sentence about the six commands, the tests and the evals. Update test r3 in tests/readme.test.mjs so it requires the released wording and the version that plugin.json carries, and still forbids planned or pre-release wording and machine paths. The CHANGELOG version test from P9.2 must pass with both at 1.0.0.",
+          "files": [
+            ".claude-plugin/plugin.json",
+            "README.md",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/readme.test.mjs: r3 requires the released status with the version plugin.json carries and still forbids planned or pre-release wording and machine paths"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P9.2"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P9.4",
+          "title": "docs/roadmap.md: v1.1 data platforms and infrastructure, CI drift gate, overlays, entity state machines, architecture diff, the open bug and the post-1.0.0 benchmark",
+          "status": "pending",
+          "description": "Write docs/roadmap.md, the roadmap after 1.0.0, from docs/design.md section 9 step 11 and the open items of the audit plan: v1.1 adds data platform, pipeline and infrastructure extraction (dbt projects, data platform transforms and datasets described generically, Docker and compose, GitHub Actions and Azure Pipelines workflows, Terraform and Bicep) to the stack references and the prescan; then a CI drift gate on /archmap:check, ownership, churn and coverage overlays on the application graph, entity state machines, and an architecture diff between two commits; the open bug BUG-5-6o1 (an edge target resolved to the wrong script node); the reviewer recall tracked per release; and, after 1.0.0, the benchmark of the same build task against other architecture and codebase-mapping plugins for Claude Code (parked proposal PROP-2), with a repo-free report. Each item gets a sentence on what it delivers and what evidence closes it. docs/design.md is exempt from the denylist test and names a vendor data platform; docs/roadmap.md is not exempt, so name no vendor platform, product or client and describe data platforms generically. Link the roadmap from README.md (one line) and extend tests/readme.test.mjs so it fails when the roadmap file is missing, lacks a v1.1 heading or the benchmark item, or when the README does not link it.",
+          "files": [
+            "docs/roadmap.md",
+            "README.md",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/readme.test.mjs: docs/roadmap.md exists with a v1.1 heading and the benchmark item, names no vendor platform, and README links it"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P9.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P9.5",
+          "title": "Marketplace listing text for 1.0.0 prepared in this repository, aligned with the dev marketplace and plugin.json",
+          "status": "pending",
+          "description": "The published listing of this plugin in the quality-gates marketplace (repository AleksandarBisevac/claude-plugins, outside this plan) ends its description with a pre-release note and its tag list lacks crud-matrix. Prepare the exact replacement entry in this repository as docs/release/marketplace-entry.json: the same shape as the published entry (name, github source with the repo, description, category documentation, tags, homepage, strict), with a description that matches .claude-plugin/marketplace.json's description word for word and carries no pre-release note, and tags equal to plugin.json's keywords. Align the dev marketplace description if it needs the wording of README.md's first paragraph. Extend tests/manifest.test.mjs so it fails when the two descriptions differ, when the entry's tags differ from plugin.json's keywords, or when either carries the words pre-release. The owner copies the entry into the claude-plugins repository by hand; this task does not touch that repository.",
+          "files": [
+            "docs/release/marketplace-entry.json",
+            ".claude-plugin/marketplace.json",
+            "tests/manifest.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/manifest.test.mjs: the release entry's description equals the dev marketplace's, its tags equal plugin.json's keywords, and neither description says pre-release"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P9.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P9.6",
+          "title": "diffmap ignores docs/audit like docs/architecture, so audit-state commits do not make the map stale",
+          "status": "pending",
+          "description": "diffmap.mjs already ignores the map's own output directory (docs/architecture, P8.7) when it maps changed files to nodes, so a re-render does not make the map stale. The audit plugin's records under docs/audit (the plan, the journal, the evidence returns) are not architecture either, yet a commit that touches only them makes the staleness hook report the map behind HEAD: after P11 landed, the hook reports 6 commits behind with 5 nodes affected, most of them from docs-only and docs/audit-only commits. Make diffmap skip docs/audit/** the same way it skips docs/architecture/**, keep every other path mapped as before, state the rule in the diffmap header and in SKILL.md where the update flow names what diffmap ignores, and add the regression test: a change set made only of docs/audit files affects no node and the staleness line is not printed, while a change set with one source file still affects its node.",
+          "files": [
+            "scripts/diffmap.mjs",
+            "tests/diffmap.test.mjs",
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/diffmap.test.mjs: a change set of docs/audit files only affects no node and prints no staleness line, while a source file change still affects its node"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P9.7",
+          "title": "The committed map updated at the release head with /archmap:update, its profile tracked and both READMEs record the update's cost (owner-run)",
+          "status": "pending",
+          "description": "Owner-run, the last task of P9 before sign-off, after P9.2 to P9.6 are committed: run /archmap:update (balanced, no issues) through the private harness on a detached clone of this repository at the P9 branch head, so the committed map catches up with the release; the harness profiles the stream. Bring docs/architecture (model, layout, clean HTML) in unchanged, validate.mjs --repo exit 0, denylist test green; track the profile as skills/architecture-map/evals/evidence/iteration-2/self-with-skill-3.json and record in both READMEs' self-build sections the update's cost, turns and context beside the build's (the update of this repository after the P11 and P9 commits), with the counts of the updated model; the evidence tests e19 and r2 and r4 read these rows and must pass. If the update changes no node, say so and record the run anyway. No executor runs while this build runs.",
+          "files": [
+            "docs/architecture",
+            "skills/architecture-map/evals/evidence",
+            "README.md",
+            "skills/architecture-map/evals/README.md",
+            "tests/readme.test.mjs",
+            "tests/evals.test.mjs"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P9.2",
+            "P9.3",
+            "P9.4",
+            "P9.5",
+            "P9.6"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
         }
       ],
       "area": "release",
@@ -8678,7 +8925,8 @@
       "P10.20-6rm",
       "P8.9",
       "P11.1",
-      "P11.8-6o1"
+      "P11.8-6o1",
+      "P9.6"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -8781,14 +9029,16 @@
     ],
     "scripts/diffmap.mjs": [
       "P5.3",
-      "P8.7"
+      "P8.7",
+      "P9.6"
     ],
     "scripts/lib/glob.mjs": [
       "P5.3"
     ],
     "tests/diffmap.test.mjs": [
       "P5.3",
-      "P8.7"
+      "P8.7",
+      "P9.6"
     ],
     "tests/glob.test.mjs": [
       "P5.3"
@@ -8889,10 +9139,14 @@
     "README.md": [
       "P7.6",
       "P11.5",
-      "P11.6"
+      "P11.6",
+      "P9.3",
+      "P9.4",
+      "P9.7"
     ],
     "CHANGELOG.md": [
-      "P7.6"
+      "P7.6",
+      "P9.2"
     ],
     "skills/architecture-map/evals/evals.json": [
       "P8.1",
@@ -8911,7 +9165,8 @@
       "P11.4",
       "P11.7-6o1",
       "P11.6",
-      "P11.9-6o1"
+      "P11.9-6o1",
+      "P9.7"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -8922,7 +9177,8 @@
       "P11.3",
       "P11.4",
       "P11.7-6o1",
-      "P11.6"
+      "P11.6",
+      "P9.7"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"
@@ -9033,14 +9289,36 @@
     "skills/architecture-map/evals/evidence": [
       "P11.3",
       "P11.6",
-      "P11.4"
+      "P11.4",
+      "P9.7"
     ],
     "tests/readme.test.mjs": [
       "P11.5",
-      "P11.6"
+      "P11.6",
+      "P9.3",
+      "P9.4",
+      "P9.7"
     ],
     "docs/architecture": [
-      "P11.6"
+      "P11.6",
+      "P9.7"
+    ],
+    "tests/manifest.test.mjs": [
+      "P9.2",
+      "P9.5"
+    ],
+    ".claude-plugin/plugin.json": [
+      "P9.3",
+      "P9.2"
+    ],
+    "docs/roadmap.md": [
+      "P9.4"
+    ],
+    "docs/release/marketplace-entry.json": [
+      "P9.5"
+    ],
+    ".claude-plugin/marketplace.json": [
+      "P9.5"
     ]
   },
   "bugs": [
