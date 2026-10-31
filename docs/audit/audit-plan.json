@@ -5273,8 +5273,10 @@
             "severity": "med",
             "file": "scripts/lib/prescan/generic.mjs:315",
             "issue": "P10.13 (a871e37): SQL_TABLE_REF takes the identifier after every `from`/`join` as a table, and sqlStatements (line 498) never discards names that are not tables. A CTE name used later (`WITH recent AS (...) SELECT ... FROM recent`), `EXTRACT(year FROM created_at)`, `SUBSTRING(s FROM 2)`, `TRIM(BOTH FROM s)` and `IS DISTINCT FROM x` all yield a table ref. Before this task such a ref was only a skipped access row. Now generateFromExtracts in scripts/merge.mjs makes an inferred entity, a generated store and an access row for each one, so the architecture model fills with entities that are not tables. CTEs are common in the DuckDB/SQLite analytics code this task targets. The tests (py13, m23, pc13) only use plain table names.",
-            "resolution": "In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col).",
-            "fixTask": "P10.18-6rm"
+            "resolution": "fixed in P10.18-6rm (98f05918c517): In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col).",
+            "fixTask": "P10.18-6rm",
+            "commit": "98f05918c517",
+            "status": "fixed"
           },
           {
             "id": "P10-R19",
@@ -5301,11 +5303,13 @@
             "severity": "low",
             "file": "scripts/lib/prescan/node-backend.mjs:896-905",
             "issue": "queueNameOf names a queue after the file path for any unresolved lowercase bare identifier, and extractQueues applies it to `new Queue(x)` as well as `new Worker(x, ...)`. The task asked only for a Worker without a resolvable name to be named after its file. A Queue built from a parameter or an unresolved import now becomes a queue row named for a file. Two Queues or Workers with different unresolved parameters in one file collapse into one row, and a Worker's file-named row never pairs with the Queue it consumes. The file header still says nothing is guessed. nb14 covers only the Worker case, so the Queue behaviour is untested.",
-            "resolution": "Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue.",
-            "fixTask": "P10.18-6rm"
+            "resolution": "fixed in P10.18-6rm (98f05918c517): Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue.",
+            "fixTask": "P10.18-6rm",
+            "commit": "98f05918c517",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 10 with a recorded fix commit]"
+        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 12 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -6631,7 +6635,7 @@
         {
           "id": "P10.18-6rm",
           "title": "Prescan precision: SQL table refs skip CTE names and FROM inside EXTRACT, SUBSTRING, TRIM and OVERLAY; a file-named queue only for a Worker",
-          "status": "in_progress",
+          "status": "done",
           "description": "Phase review of P10, findings in the prescan extractors grouped into one task. Fix both; the finding texts and the resolutions the reviewer asked for follow.\n\nP10-R18 (med, scripts/lib/prescan/generic.mjs:315): P10.13 (a871e37): SQL_TABLE_REF takes the identifier after every `from`/`join` as a table, and sqlStatements (line 498) never discards names that are not tables. A CTE name used later (`WITH recent AS (...) SELECT ... FROM recent`), `EXTRACT(year FROM created_at)`, `SUBSTRING(s FROM 2)`, `TRIM(BOTH FROM s)` and `IS DISTINCT FROM x` all yield a table ref. Before this task such a ref was only a skipped access row. Now generateFromExtracts in scripts/merge.mjs makes an inferred entity, a generated store and an access row for each one, so the architecture model fills with entities that are not tables. CTEs are common in the DuckDB/SQLite analytics code this task targets. The tests (py13, m23, pc13) only use plain table names.\nResolution asked: In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col).\n\nP10-R21 (low, scripts/lib/prescan/node-backend.mjs:896-905): queueNameOf names a queue after the file path for any unresolved lowercase bare identifier, and extractQueues applies it to `new Queue(x)` as well as `new Worker(x, ...)`. The task asked only for a Worker without a resolvable name to be named after its file. A Queue built from a parameter or an unresolved import now becomes a queue row named for a file. Two Queues or Workers with different unresolved parameters in one file collapse into one row, and a Worker's file-named row never pairs with the Queue it consumes. The file header still says nothing is guessed. nb14 covers only the Worker case, so the Queue behaviour is untested.\nResolution asked: Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue.",
           "files": [
             "scripts/lib/prescan/generic.mjs",
@@ -6660,14 +6664,17 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "98f05918c517",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/lib/prescan/generic.mjs: sqlStatements now drops refs to the CTE names its statement defines (cteNames: WITH [RECURSIVE] name [(cols)] AS [[NOT] MATERIALIZED] ( and , name AS (, only when the statement holds WITH; ddl refs are kept), skips a FROM whose innermost open parenthesis is a call to EXTRACT, SUBSTRING, TRIM or OVERLAY (argumentFroms: one quote-aware pass with a paren stack, so a subquery inside such a call still counts), and skips IS [NOT] DISTINCT FROM; these checks run before the placeholder check, so they are not counted in skipped either. scripts/lib/prescan/node-backend.mjs: queueNameOf takes { worker } and returns the file-path name for a lowercase bare identifier only at the new Worker call site; new Queue(<lowercase ident>) returns null and is counted in skipped.queues; doc comment and file header say why. Tests: py15 in tests/prescan-python.test.mjs, nb15 in tests/prescan-node-backend.test.mjs. `node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs`: 30 tests, 30 pass, exit 0. Red first: both new cases failed on assertions before the fix. Only the own-tests command was run, not the full gate. Dependants: python.mjs, ts-frontend.mjs and prescan.mjs import generic.mjs, and sqlStatements keeps its signature and return shape; it only gives fewer refs, and py1-py14 still pass. stacks/node-backend.mjs, prescan-wiring.test.mjs and the node-api fixture README are still correct: grep finds no new Queue(<lowercase ident>) in tests/fixtures/repos, and no EXTRACT/SUBSTRING/TRIM/OVERLAY, DISTINCT FROM or WITH name AS either; nb1-nb14 pass. stack-node-backend.md line 17 describes queues in general terms and still holds. The pc13 case the reviewer named is not in this task's files, so the SQL cases went into py15 only (sqlStatements is shared by scanJsSql, so the js path gets the same fix).",
+            "descriptive": "Prescan no longer turns CTE names, SQL function arguments or IS DISTINCT FROM operands into table entities, and no longer names a Queue built from a parameter after its file."
           },
           "startedAt": "2026-10-31T15:39:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T15:44:23Z",
+          "verifiedBy": [
+            "py15: CTE names (WITH RECURSIVE, comma list, a column list, lowercase with), EXTRACT/SUBSTRING/TRIM/OVERLAY FROM and IS [NOT] DISTINCT FROM give no ref; the real FROM tables, subqueries inside EXTRACT and a CTE-named table in another statement still do; nothing counted as skipped",
+            "nb15: new Queue(param), new Queue(queueName) and new Queue(importedLowercase) are counted in skipped.queues with no row; new Worker(name, handler) in the same file is still the file-named row carrying its worker"
+          ],
           "notes": [
             {
               "at": "2026-10-31T15:04:37Z",
@@ -6691,12 +6698,24 @@
             "runId": "2026-10-31T15:44:22Z.de5c0f",
             "status": "passed",
             "at": "2026-10-31T15:44:22Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "98f05918c517",
+            "at": "2026-10-31T15:44:23Z",
+            "basis": "a fix task for P10-R18, P10-R21: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-31T15:43:35Z",
+            "basis": "`node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.19-6rm",
           "title": "Docs and tests after the review: synthesizer choice recorded, SKILL.md names the overlay location, the ledger command and the Write-tool check, README explains the 17 turns and the shares, rate table sourced, three tests made able to fail",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Phase review of P10, the documentation and test findings grouped into one task, to run after the three code fix tasks so the text describes the final code. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow.\n\nOwner decisions already taken, to record rather than reopen: (P10-R1) the balanced synthesizer stays on Sonnet; docs/design.md D11 gets one sentence saying the choice was confirmed by the round-6 eval results (eval 1 7/7, eval 2 7/7 with recall 0.67, eval 4 8/8) rather than by a fixture comparison. (P10-R14, P10-R16) skills/architecture-map/SKILL.md must state, in the build flow, where the --issues overlay is written when the caller asks for an output outside the repository and the exact command that prints the token ledger after render, so the orchestrator never reads script sources to find them (eval 2 spent five of its 17 turns on that); scripts/pipeline.mjs is not in this task, so the documentation route is the one to take, naming the existing command. The evals README gets one sentence under the table saying eval 2 exceeded the 12-turn target and why, and the shares sentence says they are shares of the per-agent stream cost (a lower bound) and names the residual or gives the shares for evals 2 and 4. (P10-R6) the residual risk of the Write tool on the explorer and synthesizer is documented beside hard rule 1 in SKILL.md together with the orchestrator check that the only new or changed file after a dispatch is the named fragment or synth path. (P10-R5) every row of the rate table in scripts/cost-profile.mjs names where and when it was read, and a row that does not match its source is corrected. (P10-R7, P10-R12, P10-R13) the tests named are made able to fail. Nothing in this task may name a client, a dataset or a repository: the denylist test runs in the gate.\n\nP10-R1 (med, agents/archmap-synthesizer.md:5): contradicts task clause: P10.3 says the balanced synthesizer model is an open choice, 'decide from the measured quality on the e2e fixtures and record the choice'. The diff sets `model: sonnet` / `effort: medium` (and the balanced row of the profile table) with no measurement. The executor's own claim says 'No LLM e2e quality run was possible here, so the choice rests on the reduced task, not on measured quality'. SKILL.md then records the choice as settled ('moved from Opus to Sonnet because the digest leaves it no structural reasoning') and never says it is unmeasured. This is the request's second open choice, made by the task without the evidence the task asked for.\nResolution asked: Either run the e2e fixture build with the synthesizer on Sonnet and on Opus and record the sequence quality (counts, cited lines valid, drafts kept or dropped) before keeping Sonnet, or keep `model: opus` for balanced until that is done. If Sonnet stays, state in the SKILL.md note and in the final report that the choice is unmeasured, so the owner can overrule it.\n\nP10-R5 (low, scripts/cost-profile.mjs:25-28): The embedded rate table gives no source for its prices, and its cache-read rates are inconsistent as a share of input (opus 0.05x, fable 0.025x, sonnet and haiku 0.1x). Phase success is stated in list-price USD per eval, so a wrong row silently moves the pass/fail of the 5 USD target. The test c7 only pins the table to itself.\nResolution asked: Add a comment naming where each row was read (the price page and date), and fix any row that does not match it. Keep the `unpriced` path for models not in the table.\n\nP10-R6 (low, agents/archmap-synthesizer.md:4): The synthesizer (and the explorer, agents/archmap-explorer.md:4) now has the Write tool while it reads text from a repository it does not control. 'Write is for that one path only' is a prompt rule; frontmatter cannot scope it, so an injected instruction in scanned content could make the agent write elsewhere. The synthesizer had no write tool and no Bash before this change. a2 and a6 test only that the word Write is listed.\nResolution asked: Document the residual risk beside hard rule 1 in SKILL.md, and have the orchestrator check after each dispatch that the only new or changed file is the named fragment or synth path (for example a `git status --porcelain` of the project and a listing of the work directory).\n\nP10-R7 (med, tests/skill.test.mjs:196): contradicts task clause: P10.4 asks that the turn and context targets be 'measured on the e2e fixture with canned fragments' with 'scripts/cost-profile.mjs on that transcript' showing max context under 80 K tokens. The executor's own claim says 'NOT measured: no live headless session was run'. The diff substitutes a character count (tests/pipeline.test.mjs p11) and an assertion that cannot fail, `1 + steps.length <= 12`, where s10 has just asserted steps.length === 6. The live figures (11 turns, 72 K) only arrive later in the P10.5 README, which this task does not cite.\nResolution asked: Drop the arithmetic assertion or replace it with a check against a cost-profile run of a recorded transcript fixture (turns from byAgent orchestrator, maxContext), and point the task's note at the P10.5 live measurement as the evidence for the 12-turn / 80 K targets.\n\nP10-R12 (low, tests/skill.test.mjs:200): s11 'the guard in s10 can fail' re-states the three regexes of s10 inline against a local string `bad`. It never calls s10's checks, so it keeps passing if s10's guard is weakened or deleted; it proves the regex literals match a string, not that the guard fails.\nResolution asked: Factor s10's checks into a function over the flow text, call it from both s10 and s11, and assert s11's `bad` flow makes it throw or return violations.\n\nP10-R13 (low, tests/pipeline.test.mjs:301): p8 ends with `if (sqlite.status !== 0) return;` after the skip half, so on a host without the sqlite3 CLI (CI images) the observed-entities half passes vacuously and the test reports green without any trace of the skip. The DuckDB branch (copy to a temp dir, `-readonly -list -separator -c`) has no case at all; the executor says it never ran.\nResolution asked: Use `t.skip()` (the node:test context) with the reason for the second half, and add a DuckDB case guarded the same visible way, or a stub CLI on PATH that prints the expected rows.\n\nP10-R14 (med, skills/architecture-map/evals/README.md:75): The table reports 17 orchestrator turns for eval 2 and says nothing else; the phase's desired outcome is a build in at most 12 turns through the driver and the README presents the result as meeting the cost targets. The filed outcome admits the ceiling was missed (five turns reading script sources for the overlay location and the ledger command) and left 'as a follow-up', but no task or note in the diff or README carries it. P10.5's own text says to file a missed target and stop for the owner; the README is the only artefact a reader sees.\nResolution asked: Add a sentence under the table that eval 2 exceeded the 12-turn target and why, and file the SKILL.md/issues-step gap as a task so the turn count is closed or explicitly accepted by the owner.\n\nP10-R15 (low, skills/architecture-map/evals/README.md:78-80): The shares for eval 1 (explorers 41, orchestrator 36, synthesizer 7 percent) sum to 84 percent and the remaining 16 are not named. They come from the per-agent table, whose output column and cost are the stream's lower bound after P10.8 (output is under-counted several times over and is the dominant price class), while the per-model total is the result event's figure. Shares are given for eval 1 only; the task asked for them per eval.\nResolution asked: Say that shares are of the per-agent stream cost (lower bound) or compute them against the result-event total and name the residual; give the shares for evals 2 and 4 or say why they are omitted.\n\nP10-R16 (low, skills/architecture-map/SKILL.md:87-88): P10.7 adds 'The ledger is copied to where the caller asked after render' to the build flow, but no step of pipeline.mjs does it and no command is given, so the orchestrator is left to improvise a copy (an extra turn, or a read of script sources, both of which the flow forbids). s13 only matches the sentence.\nResolution asked: Either make render copy usage.jsonl / the table to an --ledger-out path the caller names, or state the exact command and which step runs it, and test that.",
           "files": [
             "agents/archmap-synthesizer.md",
@@ -6710,13 +6729,7 @@
             "tests/cost-profile.test.mjs",
             "tests/agents.test.mjs",
             "tests/evals.test.mjs",
-            "agents/archmap-synthesizer.md",
-            "scripts/cost-profile.mjs",
-            "tests/skill.test.mjs",
-            "tests/pipeline.test.mjs",
-            "skills/architecture-map/evals/README.md",
-            "skills/architecture-map/SKILL.md",
-            "tests/cost-profile.test.mjs"
+            "tests/fixtures/cost/expected.json"
           ],
           "tests": {
             "mode": "tdd",
@@ -6743,14 +6756,14 @@
             "P10.17-6rm",
             "P10.18-6rm"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T15:44:23Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -6789,7 +6802,13 @@
             "P10-R14",
             "P10-R15",
             "P10-R16"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T15:58:46Z.de0892",
+            "status": "passed",
+            "at": "2026-10-31T15:58:46Z"
+          }
         }
       ],
       "area": "cost",
@@ -7484,7 +7503,8 @@
     ],
     "tests/fixtures/cost/expected.json": [
       "P10.1-2xj",
-      "P10.8-6rm"
+      "P10.8-6rm",
+      "P10.19-6rm"
     ],
     "tests/fixtures/merge": [
       "P10.3-2xj",

@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, readdirSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Case ids (s1, s2, ...) lead every title so the suite prints them first.
 // skills/architecture-map/SKILL.md is the entry point of the skill: it must stay small,
@@ -165,43 +168,60 @@ const section = (heading) => {
   return end < 0 ? rest : rest.slice(0, end);
 };
 
-test('s10 the build flow names only plan, the explorer dispatch, finish, the synthesizer dispatch, render and report; forbids polling and background dispatch; carries the caps and the three-line replies; names no file to read', () => {
-  const flow = section('Build flow');
+// s10's guard as a function over the flow text, so s11 can show that the guard itself fails on a bad flow: every
+// rule the build flow must keep, each broken rule one violation string.
+function flowViolations(flow) {
+  const v = [];
+  const lines = flow.split('\n');
   const steps = [...flow.matchAll(/^### (.+)$/gm)].map((m) => m[1]);
-  assert.equal(steps.length, 6, `six steps, got ${JSON.stringify(steps)}`);
+  if (steps.length !== 6) v.push(`six steps, got ${JSON.stringify(steps)}`);
   const want = [/\bplan\b/i, /dispatch[^\n]*explorers/i, /\bfinish\b/i, /dispatch[^\n]*synthesizer/i, /\brender\b/i, /\breport\b/i];
-  steps.forEach((s, i) => assert.match(s, want[i], `step ${i + 1} is "${s}"`));
+  steps.forEach((s, i) => { if (want[i] && !want[i].test(s)) v.push(`step ${i + 1} is "${s}"`); });
   // the only script the build flow runs is the driver, in its three steps
-  const scripts = [...flow.matchAll(/([a-z][a-z-]*)\.mjs\b/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(scripts)], ['pipeline'], 'the build flow names no script but pipeline.mjs');
+  const scripts = [...new Set([...flow.matchAll(/([a-z][a-z-]*)\.mjs\b/g)].map((m) => m[1]))];
+  if (JSON.stringify(scripts) !== JSON.stringify(['pipeline'])) v.push(`the build flow names a script but pipeline.mjs: ${scripts.join(', ')}`);
   for (const s of ['plan', 'finish', 'render']) {
-    assert.match(flow, new RegExp(`node "\\$\\{CLAUDE_PLUGIN_ROOT\\}/scripts/pipeline\\.mjs" ${s}\\b`), `pipeline.mjs ${s}`);
+    if (!new RegExp(`node "\\$\\{CLAUDE_PLUGIN_ROOT\\}/scripts/pipeline\\.mjs" ${s}\\b`).test(flow)) v.push(`pipeline.mjs ${s} is not run`);
   }
   // one message per dispatch, foreground, and no polling
-  assert.match(flow, /(one|a single) message/i, 'the explorers go out in one message');
+  if (!/(one|a single) message/i.test(flow)) v.push('the explorers do not go out in one message');
   for (const tool of ['ScheduleWakeup', 'Monitor']) {
-    assert.ok(flow.split('\n').some((l) => l.includes(tool) && /\b(never|no|not|do not)\b/i.test(l)), `${tool} is forbidden`);
+    if (!lines.some((l) => l.includes(tool) && /\b(never|no|not|do not)\b/i.test(l))) v.push(`${tool} is not forbidden`);
   }
-  assert.ok(flow.split('\n').some((l) => /background/i.test(l) && /\b(never|no|not|do not)\b/i.test(l)), 'background dispatch is forbidden');
-  assert.deepEqual(flow.split('\n').filter((l) => /re-?ask|re-?request|re-?dispatch|send (it|them) back/i.test(l)), [], 'no re-ask');
+  if (!lines.some((l) => /background/i.test(l) && /\b(never|no|not|do not)\b/i.test(l))) v.push('background dispatch is not forbidden');
+  const asks = lines.filter((l) => /re-?ask|re-?request|re-?dispatch|send (it|them) back/i.test(l));
+  if (asks.length) v.push(`a re-ask: ${asks.join(' / ')}`);
   // nothing to read during a build: no reference, script or agent file
-  assert.doesNotMatch(flow, /references\/|\]\([^)]*\.md\)|agents\/|\b[a-z-]+\.md\b/, 'the build flow names no file to read');
+  const read = flow.match(/references\/|\]\([^)]*\.md\)|agents\/|\b[a-z-]+\.md\b/);
+  if (read) v.push(`the build flow names a file to read: ${read[0]}`);
   // the cap table and the three-line reply contract travel in SKILL.md
   for (const [what, n] of [['nodes', 40], ['edges', 80], ['entities', 60], ['access rows', 80], ['tool calls', 20], ['source reads', 12], ['areas', 8]]) {
-    assert.ok(flow.split('\n').some((l) => /^\|/.test(l) && l.includes(what) && new RegExp(`\\b${n}\\b`).test(l)), `cap table row: ${n} ${what}`);
+    if (!lines.some((l) => /^\|/.test(l) && l.includes(what) && new RegExp(`\\b${n}\\b`).test(l))) v.push(`no cap table row: ${n} ${what}`);
   }
-  for (const line of ['fragment: ', 'synth: ', 'counts: ', 'tool calls: ']) assert.ok(flow.includes(line), `reply line ${line}`);
-  assert.match(flow, /three lines/i);
-  // the turn count the flow implies: the skill load, one turn per step, within the 12-turn target
-  assert.ok(1 + steps.length <= 12, `${1 + steps.length} orchestrator turns`);
+  for (const line of ['fragment: ', 'synth: ', 'counts: ', 'tool calls: ']) if (!flow.includes(line)) v.push(`no reply line ${line}`);
+  if (!/three lines/i.test(flow)) v.push('the three-line reply is not stated');
+  return v;
+}
+
+test('s10 the build flow names only plan, the explorer dispatch, finish, the synthesizer dispatch, render and report; forbids polling and background dispatch; carries the caps and the three-line replies; names no file to read', () => {
+  assert.deepEqual(flowViolations(section('Build flow')), []);
   assert.ok(skill.split('\n').length <= 500, 'SKILL.md stays within 500 lines');
 });
 
-test('s11 the guard in s10 can fail: a flow that greps a reference or polls is caught', () => {
+test('s11 the guard in s10 can fail: a flow that reads a reference, runs another script and polls makes flowViolations report each', () => {
+  const good = section('Build flow');
+  assert.deepEqual(flowViolations(good), [], 'the real flow is clean, so every violation below comes from the change');
   const bad = '### 1. Plan\nRead [x](references/model-schema.md) and grep merge.mjs for the caps.\nPoll with ScheduleWakeup.\n';
-  assert.match(bad, /references\/|\]\([^)]*\.md\)|agents\/|\b[a-z-]+\.md\b/);
-  assert.deepEqual([...new Set([...bad.matchAll(/([a-z][a-z-]*)\.mjs\b/g)].map((m) => m[1]))], ['merge']);
-  assert.ok(!bad.split('\n').some((l) => l.includes('ScheduleWakeup') && /\b(never|no|not|do not)\b/i.test(l)));
+  const v = flowViolations(bad);
+  for (const re of [/six steps/, /names a script but pipeline\.mjs: merge/, /ScheduleWakeup is not forbidden/, /Monitor is not forbidden/, /names a file to read/, /no cap table row/]) {
+    assert.ok(v.some((x) => re.test(x)), `${re} among ${JSON.stringify(v)}`);
+  }
+  // one broken rule in an otherwise good flow is caught on its own
+  const oneBad = good.replace(/Never set `run_in_background`, never use ScheduleWakeup or Monitor/, 'Use ScheduleWakeup or Monitor');
+  assert.notEqual(oneBad, good, 'the dispatch rule sentence is present to break');
+  assert.ok(flowViolations(oneBad).some((x) => /ScheduleWakeup is not forbidden/.test(x)), JSON.stringify(flowViolations(oneBad)));
+  const reask = `${good}\nIf a fragment is thin, re-dispatch the explorer.\n`;
+  assert.ok(flowViolations(reask).some((x) => /a re-ask/.test(x)));
 });
 
 // s12 (P10.7): the explorer runs at medium effort, and the build flow carries the work-dir rule.
@@ -260,4 +280,72 @@ test('s15 the --issues flow names plan, explorers, finish, synthesizer, render, 
   assert.equal(lines[2].startsWith('description: Use to map or refresh the architecture of a code repository'), true);
   const fm = skill.match(/^---\n([\s\S]*?)\n---\n/)[1];
   assert.ok(fm.includes('Also runs the commands /archmap:build, /archmap:update, /archmap:issues, /archmap:render and /archmap:check.'));
+});
+
+// P10.19 (P10-R14, P10-R16, P10-R6): eval 2 spent five of its 17 turns reading script sources to learn where the
+// --issues overlay goes when the caller wants it outside the repository and how to print and copy the ledger.
+// SKILL.md says both in the build flow, and says what the orchestrator checks after each dispatch, now that the
+// explorer and the synthesizer hold the Write tool.
+test('s16 the build flow names the --issues overlay location for an output outside the repository, the exact ledger command and the copy, and the check of what changed after a dispatch', () => {
+  const flow = section('Build flow').replace(/\s+/g, ' ');
+  // the overlay: where the issues step writes it, and the copy to the caller's directory
+  assert.match(flow, /`<home>\/\.claude\/archmap\/<repo-slug>\/issues\.json`/, 'the overlay path');
+  assert.match(flow, /`files\.issues`[^.]*`files\.html`/, 'the issues step prints both paths');
+  assert.match(flow, /outside the repository[^.]*\bcp\b|\bcp\b[^.]*outside the repository/i, 'an overlay asked for outside the repository is copied there');
+  assert.match(flow, /cp <home>\/\.claude\/archmap\/<repo-slug>\/issues\.json <home>\/\.claude\/archmap\/<repo-slug>\/archmap\.internal\.html <dir>\//, 'the exact overlay copy');
+  // the ledger: the exact command that prints it, its file, and the copy in the same call as the last driver step
+  assert.ok(flow.includes('node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" ledger --work <work>'), 'the ledger print command');
+  assert.match(flow, /cp <work>\/usage\.jsonl <path>/, 'the ledger copy command');
+  assert.match(flow, /same Bash call as the last driver step/i, 'which step runs the copy');
+  assert.match(flow, /--usage reviewer=[^.]*same pair/i, 'after --issues the ledger command takes the issues step\'s reviewer pair');
+  // the Write tool: the residual risk and the check after a dispatch
+  const rules = section('Hard rules').replace(/\s+/g, ' ');
+  assert.match(rules, /Write tool/, 'hard rule 1 names the Write tool');
+  assert.match(rules, /frontmatter cannot (scope|limit)/i, 'the residual risk: the frontmatter cannot scope Write to one path');
+  assert.match(flow, /git status --porcelain/, 'the project tree is checked after a dispatch');
+  assert.match(flow, /ls <work>\/fragments/, 'the work dir is listed after the explorers');
+  assert.match(flow, /only new or changed file[^.]*(fragment|synth)/i, 'the only new or changed file is the named path');
+  assert.deepEqual(flowViolations(section('Build flow')), [], 'the additions keep the build flow guard clean');
+  assert.ok(skill.split('\n').length <= 500, 'SKILL.md stays within 500 lines');
+});
+
+// P10-R7: the 12-turn and 80 K targets are measured, not implied by the number of steps. Each row is one orchestrator
+// assistant turn of a recorded round-6 eval session (claude -p, stream-json, Opus orchestrator), as [input, output,
+// cache read, cache write] tokens, the figures and nothing else; cost-profile.mjs reads them as it reads any stream.
+const RECORDED_ORCHESTRATOR = {
+  'eval 1 (build)': [[2, 16, 19452, 16800], [2, 16, 36252, 223], [4, 16, 36475, 247], [4, 16, 36722, 9191], [2, 58, 45913, 2602], [4, 6, 48515, 8147], [2, 16, 56662, 1232], [4, 16, 57894, 975], [2, 43, 58869, 2095], [2, 16, 60964, 480], [2, 3, 61444, 1456]],
+  'eval 4 (monorepo build)': [[2, 20, 11267, 20331], [2, 16, 31598, 9287], [4, 16, 40885, 247], [4, 16, 41132, 9191], [2, 5, 50323, 2950], [4, 8, 53273, 8181], [2, 16, 61454, 1153], [4, 16, 62607, 977], [2, 41, 63584, 2176], [2, 16, 65760, 465], [2, 4, 66225, 1519]],
+};
+const COST_PROFILE = fileURLToPath(new URL('../scripts/cost-profile.mjs', import.meta.url));
+
+/** cost-profile.mjs --json over a stream built from recorded orchestrator turns. */
+function profileOf(turns) {
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-skill-'));
+  try {
+    const f = join(dir, 'stream.jsonl');
+    writeFileSync(f, turns.map(([input, output, read, write], i) => JSON.stringify({
+      type: 'assistant', parent_tool_use_id: null,
+      message: { id: `t${i + 1}`, model: 'claude-opus-5-5', usage: { input_tokens: input, output_tokens: output, cache_read_input_tokens: read, cache_creation_input_tokens: write } },
+    })).join('\n') + '\n');
+    const r = spawnSync(process.execPath, [COST_PROFILE, f, '--json'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('s17 the 12-turn and 80 K targets read the orchestrator turns and max context from cost-profile.mjs over recorded sessions, and a 13-turn session fails the check', () => {
+  const within = (j) => {
+    const o = j.byAgent.find((a) => a.agent === 'orchestrator');
+    return { turns: o.turns, maxContext: o.maxContext, ok: o.turns <= 12 && o.maxContext < 80000 };
+  };
+  for (const [name, turns] of Object.entries(RECORDED_ORCHESTRATOR)) {
+    const got = within(profileOf(turns));
+    assert.ok(got.ok, `${name}: ${got.turns} orchestrator turns, max context ${got.maxContext}`);
+  }
+  assert.deepEqual(within(profileOf(RECORDED_ORCHESTRATOR['eval 1 (build)'])), { turns: 11, maxContext: 62902, ok: true });
+  // the same check on a session one turn over: it fails
+  const over = [...RECORDED_ORCHESTRATOR['eval 1 (build)'], [2, 16, 61444, 100], [2, 16, 61544, 100]];
+  assert.deepEqual(within(profileOf(over)), { turns: 13, maxContext: 62902, ok: false });
 });

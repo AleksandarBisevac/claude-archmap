@@ -23,14 +23,24 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// List prices in USD per million tokens, dated. Update the date when the numbers change.
+// List prices in USD per million tokens, dated. Update the date when the numbers change, and the source comment of
+// the row that changed. Source of every row: the Anthropic pricing page, platform.claude.com/docs/en/about-claude/
+// pricing, as cached in the Claude API reference of Claude Code (model table cached 2026-10-06), read 2026-10-31.
+// Cache writes are the 5-minute TTL write, 1.25x input (the 1-hour write is 2x and is not priced here). Cache reads
+// differ by model: 0.025x input on Fable 5.1, 0.05x on Opus 5.5, 0.1x on Sonnet 5.5 and Haiku 5.5.
 export const RATES = {
-  date: '2026-10-30',
+  date: '2026-10-31',
   perMillion: {
+    // pricing page, read 2026-10-31: 10 / 50, cache read 0.25 (0.025x input), cache write 12.5 (1.25x)
     'claude-fable-5-1': { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 },
+    // pricing page, read 2026-10-31: 4 / 20, cache read 0.20 (0.05x input), cache write 5 (1.25x)
     'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
+    // pricing page, read 2026-10-31: 2 / 10, cache read 0.20 (0.1x input), cache write 2.5 (1.25x)
     'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-    'claude-haiku-5-5': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+    // pricing page, read 2026-10-31: 0.10 / 0.50 for a prompt of at most 100K tokens (0.50 / 2.50 above it, not
+    // modelled: a larger Haiku prompt is under-priced), cache read 0.01 (0.1x input), cache write 0.125 (1.25x).
+    // Until 2026-10-31 this row held 1 / 5 / 0.1 / 1.25, the previous Haiku's prices.
+    'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
   },
 };
 

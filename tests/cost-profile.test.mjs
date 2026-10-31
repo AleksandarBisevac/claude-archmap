@@ -90,11 +90,11 @@ test('c7 --json validates: fixed top-level keys, the rate table with its date, i
   assert.equal(r.stdout.endsWith('\n'), true);
   const j = JSON.parse(r.stdout);
   assert.deepEqual(Object.keys(j), ['rates', 'basis', 'byModel', 'byAgent', 'total', 'reconciliation']);
-  assert.equal(j.rates.date, '2026-10-30');
+  assert.equal(j.rates.date, '2026-10-31');
   assert.deepEqual(j.rates.perMillion['claude-opus-5-5'], { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
   assert.deepEqual(j.rates.perMillion['claude-fable-5-1'], { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 });
   assert.deepEqual(j.rates.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 });
-  assert.deepEqual(j.rates.perMillion['claude-haiku-5-5'], { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 });
+  assert.deepEqual(j.rates.perMillion['claude-haiku-5-5'], { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 });
   for (const row of [...j.byModel, ...j.byAgent, j.total]) {
     for (const c of CLASSES) assert.ok(Number.isInteger(row[c]) && row[c] >= 0, c);
     assert.equal(typeof row.costUsd, 'number');
@@ -108,8 +108,8 @@ test('c8 the text table lists every agent and model, the cost column, and states
   for (const name of ['orchestrator', 'archmap-explorer', 'archmap-synthesizer', 'archmap-reviewer', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']) {
     assert.ok(r.stdout.includes(name), name);
   }
-  assert.match(r.stdout, /list prices.*2026-10-30/i);
-  assert.match(r.stdout, /0\.3964/);
+  assert.match(r.stdout, /list prices.*2026-10-31/i);
+  assert.match(r.stdout, /0\.3867/);
   assert.match(r.stdout, /total/);
 });
 
@@ -185,4 +185,30 @@ test('c14 a differing input or cache class is named with its difference; a strea
   assert.deepEqual(k.basis, { byModel: 'stream-lower-bound', byAgentOutput: 'stream-lower-bound' });
   assert.equal(k.total.output, 34 + 25 + 2 + 15);
   assert.match(run([g]).stdout, /lower bound/i);
+});
+
+// P10.19 (P10-R5): phase success is stated in list-price USD, so every rate row says where and when it was read, and
+// a row that disagrees with its source is a wrong pass or fail. The haiku row carried the previous Haiku's prices.
+test('c15 every rate row carries a source comment with a date; cache writes are 1.25x input (5-minute TTL); the haiku row is the Haiku 5.5 price, not the previous Haiku\'s', async () => {
+  const src = readFileSync(CLI, 'utf8');
+  const { RATES } = await import(new URL('../scripts/cost-profile.mjs', import.meta.url));
+  const models = Object.keys(RATES.perMillion);
+  assert.deepEqual(models.sort(), ['claude-fable-5-1', 'claude-haiku-5-5', 'claude-opus-5-5', 'claude-sonnet-5-5']);
+  const lines = src.split('\n');
+  for (const m of models) {
+    const at = lines.findIndex((l) => l.includes(`'${m}':`));
+    assert.ok(at > 0, `the ${m} row`);
+    // the source comment sits on the row or on the comment lines right above it
+    let comment = lines[at].includes('//') ? lines[at].slice(lines[at].indexOf('//')) : '';
+    for (let i = at - 1; i > 0 && /^\s*\/\//.test(lines[i]); i--) comment = `${lines[i]} ${comment}`;
+    assert.match(comment, /\bread \d{4}-\d{2}-\d{2}\b/, `${m}: a read date in ${comment}`);
+    assert.match(comment, /pricing|platform\.claude\.com/i, `${m}: where it was read`);
+    const r = RATES.perMillion[m];
+    assert.equal(r.cacheWrite, Number((r.input * 1.25).toFixed(6)), `${m}: cache write is 1.25x input`);
+  }
+  assert.match(src, /date: '2026-10-31'/, 'the table date moved with the corrected row');
+  assert.deepEqual(RATES.perMillion['claude-haiku-5-5'], { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 });
+  assert.deepEqual(RATES.perMillion['claude-opus-5-5'], { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
+  assert.deepEqual(RATES.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 });
+  assert.deepEqual(RATES.perMillion['claude-fable-5-1'], { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 });
 });

@@ -286,3 +286,40 @@ test('e16 SKILL.md frontmatter description is one line under 1024 characters and
   assert.ok(desc[1].length > 0 && desc[1].length < 1024, `description length ${desc[1].length} is under 1024`);
   assert.match(fm[1], /^name:\s*architecture-map\s*$/m);
 });
+
+// P10.19 (P10-R14, P10-R15): the cost section says where a turn count missed the 12-turn target and why, and its
+// shares say what they are shares of: the result-event total per run, with the output the per-agent stream
+// under-counts (its lower bound) named as the residual, for every eval in the table.
+test('e17 the evals README says eval 2 exceeded the 12-turn target and why, and gives per-agent shares of the result-event total for evals 1, 2 and 4 with the stream lower-bound residual, each row summing to 100', () => {
+  const readme = readFileSync(readmePath, 'utf8');
+  const start = readme.indexOf('## Cost of a build');
+  assert.ok(start >= 0, 'the cost section exists');
+  const rest = readme.slice(start + 3);
+  const cost = rest.slice(0, rest.indexOf('\n## ') < 0 ? rest.length : rest.indexOf('\n## '));
+  const flat = cost.replace(/\s+/g, ' ');
+  const rows = (re) => cost.split('\n').filter((l) => re.test(l)).map((l) => l.split('|').slice(1, -1).map((c) => c.trim()));
+
+  // the turn table: every row over 12 turns is named under the table with the reason
+  const head = rows(/^\| Eval \| Iteration 1/)[0];
+  assert.ok(head, 'the cost table header');
+  const turnsAt = head.indexOf('Orchestrator turns');
+  const evalRows = rows(/^\| \d \(/);
+  assert.deepEqual(evalRows.map((r) => r[0].split(' ')[0]), ['1', '2', '4']);
+  const over = evalRows.filter((r) => Number(r[turnsAt]) > 12).map((r) => r[0].split(' ')[0]);
+  assert.deepEqual(over, ['2'], 'eval 2 is the row over the target');
+  assert.match(flat, /Eval 2 exceeded the 12-turn target with 17 turns/, 'the miss is stated');
+  assert.match(flat, /exceeded the 12-turn target[^.]*\b(because|:)[^.]*(overlay|ledger)/i, 'and why');
+
+  // the shares: a table per eval, labelled, the residual named, every row summing to 100
+  assert.match(flat, /shares of the result-event total/i);
+  assert.match(flat, /per-agent[^.]*stream[^.]*lower bound/i, 'the per-agent stream is named as a lower bound');
+  const shareHead = rows(/^\| Eval \| Explorers/)[0];
+  assert.ok(shareHead, 'the shares table header');
+  assert.match(shareHead.at(-1), /not attributed/i, 'the residual column');
+  const shares = rows(/^\| \d \| [\d.]+ /);
+  assert.deepEqual(shares.map((r) => r[0]), ['1', '2', '4'], 'shares for evals 1, 2 and 4');
+  for (const r of shares) {
+    const sum = r.slice(1).map((c) => (c === '-' ? 0 : Number(c))).reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(sum - 100) < 0.15, `eval ${r[0]} shares sum to ${sum}`);
+  }
+});

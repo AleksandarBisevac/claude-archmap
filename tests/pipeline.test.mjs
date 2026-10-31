@@ -279,7 +279,7 @@ test('p7 usage errors exit 2 with the step named: no repo, an unknown step, a ma
   }
 });
 
-test('p8 introspection: a listed database file without its CLI is recorded as skipped; with sqlite3 present its new tables become observed entities', () => {
+test('p8 introspection: a listed database file without its CLI is recorded as skipped; with sqlite3 present its new tables become observed entities, and without it the test says it skipped that half', (t) => {
   const r8 = fixtureRepo('node-api-db');
   const db = join(r8, 'src/entities/reviews.sqlite');
   // a sqlite file is listed by prescan and owned by the store node whose paths cover src/entities/**
@@ -302,7 +302,11 @@ test('p8 introspection: a listed database file without its CLI is recorded as sk
   assert.deepEqual(skipped.json.introspection, [{ type: 'introspection-skipped', kind: 'sqlite', path: 'src/entities/reviews.sqlite', status: 'skipped', reason: 'sqlite3 CLI not found on PATH' }]);
   const m1 = readJson(join(w, 'model.json'));
   assert.ok(m1.meta.sources.some((s) => s.path === 'src/entities/reviews.sqlite' && s.status === 'skipped'), 'the skip is in meta.sources');
-  if (sqlite.status !== 0) return; // the observed half needs the sqlite3 CLI
+  if (sqlite.status !== 0) {
+    // the observed half needs the sqlite3 CLI: say so in the report instead of passing without it
+    t.skip('sqlite3 CLI not on PATH: the observed-entities half of p8 did not run');
+    return;
+  }
   const ran = step(['finish', '--work', w]);
   assert.equal(ran.status, 0, ran.stdout);
   assert.equal(ran.json.introspection[0].status, 'ok');
@@ -1226,4 +1230,45 @@ test('p33 a symlink inside the repo pointing at a database file outside it gets 
   assert.match(skip.reason, /outside the repository/);
   assert.ok(!existsSync(log), 'the database the link points at is never copied and queried');
   assert.ok(!m.entities.some((e) => e.name === 'events'));
+});
+
+// P10.19 (P10-R13): a DuckDB file prescan lists is read through a stand-in duckdb CLI on PATH, the way p8 reads a
+// SQLite file with the real sqlite3: through a copy in a temp dir, never the original, with -readonly -list
+// -separator and -c, and its tables become observed entities.
+test('p34 a listed .duckdb file is introspected by a duckdb CLI on PATH: one call on a copy outside the repo with -readonly -list -separator <sep> -c <sql>, and its table becomes an observed entity', () => {
+  const r34 = fixtureRepo('node-api-duckdb');
+  const db = join(r34, 'src/entities/warehouse.duckdb');
+  writeFileSync(db, 'DUCK not a database, only a file of that name\n');
+  git(r34, 'add', '-A');
+  git(r34, 'commit', '-q', '-m', 'duckdb file');
+  const w = join(tmp, 'work-duckdb-listed');
+  assert.equal(step(['plan', r34, '--work', w, '--out', join(tmp, 'out-duckdb-listed'), '--generated-at', GENERATED_AT]).status, 0);
+  assert.ok(readFileSync(join(w, 'prescan.json'), 'utf8').includes('src/entities/warehouse.duckdb'), 'prescan lists the file');
+  cannedInto(w);
+  // the stand-in logs each query call, one argument per line, and whether the database argument exists then
+  const log = join(tmp, 'duckdb-listed-args.log');
+  const stub = '#!/bin/sh\nif [ "$1" = "-version" ]; then echo v0.0.0; exit 0; fi\n' +
+    `for a in "$@"; do printf '%s\\n' "$a" >> "${log}"; case "$a" in *.duckdb) if [ -f "$a" ]; then echo "exists:$a" >> "${log}"; fi;; esac; done\n` +
+    `echo "--end--" >> "${log}"\n` +
+    "printf 'table\\tledger\\t1\\tid\\tBIGINT\\t0\\t1\\ntable\\tledger\\t2\\tamount\\tDOUBLE\\t0\\t0\\n'\n";
+  const ran = step(['finish', '--work', w], { ...process.env, PATH: binWith('duckdb-listed', stub) });
+  assert.equal(ran.status, 0, ran.stdout);
+  const calls = readFileSync(log, 'utf8').split('--end--\n').filter(Boolean).map((c) => c.split('\n').filter(Boolean));
+  assert.equal(calls.length, 1, `one query call: ${JSON.stringify(calls)}`);
+  const args = calls[0];
+  for (const flag of ['-readonly', '-list', '-separator', '-c']) assert.ok(args.includes(flag), `${flag} in ${JSON.stringify(args)}`);
+  assert.notEqual(args[args.indexOf('-separator') + 1], undefined, 'the separator has a value');
+  assert.match(args[args.indexOf('-c') + 1] ?? '', /\bselect\b/i, 'the -c argument is the schema query');
+  const file = args.find((a) => /\.duckdb$/.test(a));
+  assert.ok(file, 'a database file is passed');
+  assert.notEqual(file, db, 'the original file is never opened');
+  assert.ok(!file.startsWith(realpathSync(r34)) && !file.startsWith(r34), `the copy is outside the repo: ${file}`);
+  assert.ok(args.includes(`exists:${file}`), 'the copy exists when the CLI runs');
+  const m = readJson(join(w, 'model.json'));
+  const table = m.entities.find((e) => e.name === 'ledger');
+  assert.ok(table, 'the table becomes an entity');
+  assert.deepEqual(table.fields.map((f) => [f.name, f.provenance]), [['id', 'observed'], ['amount', 'observed']]);
+  assert.ok(!m.meta.sources.some((x) => x.type === 'introspection-skipped'), 'nothing was skipped');
+  const v = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', r34], { encoding: 'utf8' });
+  assert.equal(v.status, 0, v.stdout + v.stderr);
 });

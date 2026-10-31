@@ -75,7 +75,21 @@ cross-area edges and zones. The baseline is the same prompt without the skill, o
 | 2 (build, issues) | 9.79 USD | 2.09 USD | 2.29 USD | 17 | 7/7, issue recall 0.67 |
 | 4 (monorepo build) | 12.79 USD | 1.66 USD | 1.82 USD | 11 | 8/8 expectations |
 
-Where the money goes in iteration 2 (eval 1): explorers 41 percent, orchestrator 36 percent, synthesizer 7 percent;
-the orchestrator's context never exceeds 72 K tokens. Eval 2 adds a reviewer on the larger model (23 percent of its
-run). The ten rounds that led here are in the private results log; each round's root causes became a fix task of the
+Eval 2 exceeded the 12-turn target with 17 turns, against 11 for evals 1 and 4, because the `--issues` flow adds two
+steps (the reviewer dispatch and the issues step) and the session spent five turns reading script sources to learn where the overlay goes when the
+caller wants it outside the repository and how to print and copy the ledger. SKILL.md now names both in its build flow
+(audit task P10.19); the turn count stays open until the next eval round measures it or the owner accepts it. Evals 1
+and 4 stay within the target, and the orchestrator's context never exceeds 72 K tokens in any of the three.
+
+Where the money goes in iteration 2, in percent of each run's cost. The figures are shares of the result-event total
+(the per-model figure in the table above); the per-agent rows come from the stream, whose output counts are a lower
+bound, so the output the stream under-counts is not attributed to any agent and is its own column.
+
+| Eval | Explorers | Orchestrator | Synthesizer | Reviewer | Not attributed (stream output under-count) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 40.7 | 26.7 | 6.6 | - | 26.0 |
+| 2 | 19.0 | 19.8 | 4.1 | 22.7 | 34.4 |
+| 4 | 44.0 | 23.8 | 8.7 | - | 23.5 |
+
+Eval 2 adds the reviewer on the larger model (23 percent of its run). The ten rounds that led here are in the private results log; each round's root causes became a fix task of the
 audit plan (P10.6 to P10.15).
