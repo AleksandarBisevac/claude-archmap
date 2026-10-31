@@ -1,0 +1,19 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task on a document; tests.add is none and expectRedFirst is false",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Edited skills/architecture-map/evals/README.md only. (1) P11-R3: the Run 1 bullet now says the model is private and not tracked and gives the one-line node command (path as <model>, no machine path) that derives the 32/63 nodes and 15/16 entities citing only tests/fixtures/ via evidence[].path; I ran it on the private run-1 model (iteration-2 workspace real-1-build-self/with_skill/run-1) and it printed '32/63 15/16'. I chose the command over a tracked evidence file because the e19/e20 evidence check requires every json under evidence/ to be a named cost profile. (2) P11-R2 owner decision: added to the Run 2 bullet that the committed map is unchanged from the run and keeps one known build error, the SessionStart hook edge targeting the pipeline script node instead of the node holding scripts/staleness.mjs, tracked as BUG-5-6o1. README.md untouched. Gate: node --test, 449 tests, 449 pass, 0 fail (includes e17 to e20, r1 to r5 and the denylist test). Dependants (docs/architecture/architecture.model.json, archmap.html, tests/evals.test.mjs, tests/readme.test.mjs, README.md, audit config, diffmap test, issues.json): all still correct, since only prose in the evals README changed and no number, table, evidence file or path they read moved; the full suite is green.",
+    "descriptive": "The evals README now says how the run 1 fixture figures (32/63, 15/16) are derived and flags the committed map's known hook-edge error as BUG-5-6o1."
+  },
+  "testsAdded": [],
+  "claims": "none",
+  "stamp": "audit-stamp: {\"content\":\"sha256:4a89b2ca0f7338f87857e7d03c0fff1a1abc2ed7d00e425c0166a28c2aba4625\",\"dirtyDigest\":\"sha256:81af5715758b7b98e029947e916d25c7c7ebe0e8f984929832b98899053bf56c\",\"dirtyPaths\":{\"skills/architecture-map/evals/README.md\":\"bd41a6f81a69768f\"},\"head\":\"68f62f7\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/README.md\"],\"scopeDigest\":\"sha256:277705efd2b7575325d6c25112f852802a031989c93b7640d3c0a3e32fd3631b\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

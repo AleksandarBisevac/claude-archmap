@@ -142,12 +142,21 @@ from the evidence profile of each row (the model split is its `byModel` block: t
 explorers and synthesizer); the map counts are those of the `architecture.model.json` the run built, as its build
 report lists them, and each model passed `validate.mjs` with `--repo`, exit 0.
 
-- **Run 1** built commit `2faa6de`, before the P8.5 and P8.9 skip of fixture directories; its model is not tracked.
+- **Run 1** built commit `2faa6de`, before the P8.5 and P8.9 skip of fixture directories; its model is private and not
+  tracked, so the two fixture figures below cannot be re-run from this repository. They are the output of this one command
+  on that run's `architecture.model.json` (`<model>`), which printed `32/63 15/16` (nodes, then entities):
+
+  ```sh
+  node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")),f=(a)=>a.filter(x=>x.evidence?.length&&x.evidence.every(e=>e.path.startsWith("tests/fixtures/"))).length;console.log(f(m.nodes)+"/"+m.nodes.length,f(m.entities)+"/"+m.entities.length)' <model>
+  ```
+
 - **Run 2** built commit `8174e41`, the head of this branch after P11.5, and is the committed map: its model, layout and
   clean viewer are `docs/architecture/architecture.model.json`, `docs/architecture/architecture.layout.json` and
   `docs/architecture/archmap.html` at the repository root, unchanged from the run. The drop from 63 to 30 nodes is the
   P8.5 and P8.9 skip of fixture directories: in the run 1 model, 32 of the 63 nodes and 15 of the 16 entities cite
-  only files under `tests/fixtures/`, which prescan now skips as test data.
+  only files under `tests/fixtures/` (the command above), which prescan now skips as test data. The committed map is
+  unchanged from the run, so it keeps one known build error, tracked as BUG-5-6o1: the SessionStart hook edge targets the
+  pipeline script node instead of the node that holds `scripts/staleness.mjs`.
 
 | Build | Evidence | Cost | Orchestrator turns | Orchestrator max context | Opus | Sonnet | Nodes | Edges | Entities | Sequences | Views |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

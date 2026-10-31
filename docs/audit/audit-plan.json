@@ -7596,8 +7596,10 @@
             "severity": "low",
             "file": "skills/architecture-map/SKILL.md:356-357",
             "issue": "P11.1 rewrote the reviewer bullet at lines 356-357 (targeted reads per catalogue pattern, then at most 12 more) but left the agent table row at SKILL.md:61 saying the reviewer makes 'at most 12 targeted reads'. The skill now contradicts itself, and the row understates the reads the brief obliges (16 patterns' targeted reads plus 12). The executor's outcome says SKILL.md was brought in line, but only the one bullet was.",
-            "resolution": "Change the reviewer row at SKILL.md:61 to 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching line 357 and agents/archmap-reviewer.md.",
-            "fixTask": "P11.8-6o1"
+            "resolution": "fixed in P11.8-6o1 (68f62f717680): Change the reviewer row at SKILL.md:61 to 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching line 357 and agents/archmap-reviewer.md.",
+            "fixTask": "P11.8-6o1",
+            "commit": "68f62f717680",
+            "status": "fixed"
           },
           {
             "id": "P11-R2",
@@ -7615,7 +7617,7 @@
             "fixTask": "P11.9-6o1"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 0 med, 3 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 3 - 0 high, 0 med, 3 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -8040,7 +8042,7 @@
         {
           "id": "P11.8-6o1",
           "title": "fix P11-R1: P11.1 rewrote the reviewer bullet at lines 356-357 (targeted read...",
-          "status": "in_progress",
+          "status": "done",
           "description": "P11.1 rewrote the reviewer bullet at lines 356-357 (targeted reads per catalogue pattern, then at most 12 more) but left the agent table row at SKILL.md:61 saying the reviewer makes 'at most 12 targeted reads'. The skill now contradicts itself, and the row understates the reads the brief obliges (16 patterns' targeted reads plus 12). The executor's outcome says SKILL.md was brought in line, but only the one bullet was.\n\nResolution asked: Change the reviewer row at SKILL.md:61 to 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching line 357 and agents/archmap-reviewer.md.",
           "files": [
             "skills/architecture-map/SKILL.md"
@@ -8061,13 +8063,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "68f62f717680",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Edited the archmap-reviewer row of the agent table in skills/architecture-map/SKILL.md (line 61): 'at most 12 targeted reads' became 'the targeted reads its brief lists per catalogue pattern, then at most 12 more reads to confirm', matching the bullet at lines 356-357. git diff --stat shows 1 line changed in that file. The brief said there was nothing of its own to run, but I ran `node --test` once as a sanity check (more than the brief asked): 449 tests, 449 pass, 0 fail. I piped it through tail, so the shell exit code printed (0) is tail's, not node's; the tally is the evidence. Dependants (docs/architecture/architecture.model.json, docs/architecture/archmap.html, tests/commands.test.mjs, tests/evals.test.mjs, tests/pipeline.test.mjs, tests/skill.test.mjs, .agents/skills/node/tile.json, scripts/issues.mjs, 5 more not shown): the dependants I could check are still correct. The change is one sentence in a markdown table cell, with no change to any name, path, command or schema. The test files that read SKILL.md pass in the full run above. I did not open the architecture model, the HTML or the other unshown dependants; I judge them unaffected because they reference the file by path or basename, not by that cell's wording.",
+            "descriptive": "The skill's agent table no longer contradicts its own reviewer bullet or the reviewer agent about how many reads the reviewer makes."
           },
           "startedAt": "2026-10-31T22:56:50Z",
-          "completedAt": null,
+          "completedAt": "2026-10-31T22:59:29Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -8091,12 +8093,23 @@
             "runId": "2026-10-31T22:59:27Z.e8cea3",
             "status": "passed",
             "at": "2026-10-31T22:59:27Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "68f62f717680",
+            "at": "2026-10-31T22:59:29Z",
+            "basis": "a fix task for P11-R1, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task, tests.expectRedFirst false; a one-cell documentation wording change with no test to add",
+            "at": "n/a"
           }
         },
         {
           "id": "P11.9-6o1",
           "title": "fix P11-R3: The new run-1 paragraph states '32 of the 63 nodes and 15 of the ...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The new run-1 paragraph states '32 of the 63 nodes and 15 of the 16 entities cite only files under tests/fixtures/'. The run 1 model is not tracked (the same section says so), so the figure points at no script or log a reader can run; the phase outcome requires every number to point at its producing script or log. The executor measured it privately.\n\nResolution asked: Either track the run 1 model or a small derived evidence file (counts and the node ids) and name it, or add the one-line command that derives the 32/15 figures from the model and say the model is private.",
           "files": [
             "skills/architecture-map/evals/README.md"
@@ -8115,14 +8128,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T22:59:29Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -8145,7 +8158,13 @@
           ],
           "fixes": [
             "P11-R3"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T23:02:18Z.b73158",
+            "status": "passed",
+            "at": "2026-10-31T23:02:18Z"
+          }
         }
       ],
       "priority": 1,
