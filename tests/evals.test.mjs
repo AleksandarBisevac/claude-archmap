@@ -319,7 +319,44 @@ const checkCostSection = (readme) => {
   assert.match(flat, /first run/i, 'the eval 2 row says it shows the first run');
   assert.match(flat, /reruns[^.]*took 11 and 13 orchestrator turns/i, 'the reruns turn counts');
   assert.match(byEval[2][resultAt], /0\.67, 0\.53, 0\.53 \(mean 0\.58\)/, 'recall over three runs and its mean in the result cell');
-  assert.match(flat, /two medium reference issues[^.]*missed in all three runs/i);
+  assert.match(flat, /four medium reference issues, one each in performance, security, reliability and design, (were )?missed in all three runs/i, 'the four issues missed in all three runs, by category');
+  assert.doesNotMatch(flat, /two medium reference issues/i, 'the two-issue sentence is gone');
+
+  // P11.4: every eval 2 figure names the run it comes from (first run, rerun 1, rerun 2, then the three P11.2 runs on the P11.1 reviewer)
+  assert.match(flat, /recall cell[^.]*first run, rerun 1 and rerun 2/i, 'the eval 2 row says which run each recall value is');
+  const runHead = rows(/^\| Run \| Reviewer/)[0];
+  assert.ok(runHead, 'the eval 2 per-run table header');
+  const runCol = (name) => {
+    const at = runHead.findIndex((c) => c.startsWith(name));
+    assert.ok(at >= 0, `a per-run column ${name}`);
+    return at;
+  };
+  const runRows = rows(/^\| (first run|rerun [12]|P11\.2 run [123]) \|/);
+  assert.deepEqual(runRows.map((r) => r[0]), ['first run', 'rerun 1', 'rerun 2', 'P11.2 run 1', 'P11.2 run 2', 'P11.2 run 3'], 'the six eval 2 runs, each in its own row');
+  for (const r of runRows) assert.match(r[runCol('Evidence')], /^`evidence\/iteration-2\/2-with-skill-\d\.json`$/, `${r[0]} names its evidence file`);
+  const recallOf = (r) => r[runCol('Recall')];
+  const missedOf = (r) => r[runCol('Missed')];
+  assert.deepEqual(runRows.slice(0, 3).map(recallOf), ['0.67', '0.53', '0.53'], 'the recall of the first run and the two reruns');
+  assert.match(byEval[2][resultAt], /0\.67, 0\.53, 0\.53/, 'and the result cell has the same values in the same order');
+  for (const r of runRows.slice(0, 3)) for (const c of ['performance', 'security', 'reliability', 'design']) assert.match(missedOf(r), new RegExp(c), `${r[0]} misses a ${c} issue`);
+  assert.deepEqual(runRows.slice(3).map(recallOf), ['0.93', '0.93', '0.93'], 'the recall of the three P11.2 runs');
+  assert.deepEqual(runRows.slice(3).map(missedOf).map((c) => c.replace(/ \(.*$/, '')), ['reliability', 'reliability', 'security'], 'the one remaining miss of each P11.2 run, by category');
+  assert.match(flat, /all three P11\.2 runs reach a recall of 0\.93[^.]*above the 0\.60 threshold/i, 'the P11.2 result');
+  assert.match(flat, /none of the four[^.]*missed in all three[^.]*is missed in every P11\.2 run/i, 'no systematic miss remains');
+  assert.doesNotMatch(flat, /the mean fall below the 60 percent threshold/i, 'the below-threshold statement is replaced by the P11.2 result');
+
+  // P11.4: the self-build row, the one run whose whole output is public
+  const selfHead = rows(/^\| Build \| Evidence/)[0];
+  assert.ok(selfHead, 'the self-build table header');
+  const selfRows = rows(/^\| self-build /);
+  assert.equal(selfRows.length, 1, 'one self-build row');
+  assert.match(selfRows[0][0], /balanced/);
+  assert.match(selfRows[0][0], /no issues/);
+  for (const [name, value] of [['Nodes', '63'], ['Edges', '28'], ['Entities', '16'], ['Sequences', '4'], ['Views', '5']]) {
+    assert.equal(selfRows[0][selfHead.findIndex((c) => c.startsWith(name))], value, `self-build ${name}`);
+  }
+  for (const name of ['Cost', 'Orchestrator turns', 'Orchestrator max context', 'Opus', 'Sonnet']) assert.ok(selfHead.some((c) => c.startsWith(name)), `a self-build column ${name}`);
+  assert.match(flat, /the one run whose whole output is public/i, 'the self-build row says why it is there');
 
   // evals 3 and 5: their rows carry a baseline that scored 0 and the sentence that says the cost column is not like for like
   assert.match(byEval[3][baselineAt], /^1\.00 USD$/);
@@ -342,11 +379,11 @@ const checkCostSection = (readme) => {
   }
 };
 
-test('e17 the evals README cost section states the eval 2 turn miss and the three-run recall, carries the eval 3 and 5 rows with the baseline caveat, and gives per-agent shares with the stream lower-bound residual, each row summing to 100', () => {
+test('e17 the evals README cost section states the eval 2 turn miss, the three-run recall with the four issues missed in all three runs by category and the source run of each eval 2 figure, the P11.2 result, the self-build row, carries the eval 3 and 5 rows with the baseline caveat, and gives per-agent shares with the stream lower-bound residual, each row summing to 100', () => {
   checkCostSection(readFileSync(readmePath, 'utf8'));
 });
 
-test('e18 the cost-section check fails on a shares row that does not sum to 100, on a missing eval 5 row and on a dropped baseline caveat', () => {
+test('e18 the cost-section check fails on a shares row that does not sum to 100, on a missing eval 5 row, on a dropped baseline caveat, on the two-issue sentence, on a renamed run row, on a changed P11.2 recall and on a self-build row that is not the balanced build without issues and on a dropped self-build reason', () => {
   const readme = readFileSync(readmePath, 'utf8');
   checkCostSection(readme); // the unbroken text passes, so each failure below is the edit's
   const broken = (from, to) => {
@@ -356,6 +393,12 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
   assert.throws(() => checkCostSection(broken('| 1 | 38.4 | 28.2 | 5.9 | - | 27.4 |', '| 1 | 38.4 | 28.2 | 5.9 | - | 30.4 |')), /shares sum to/);
   assert.throws(() => checkCostSection(broken('| 5 (build) |', '| 6 (build) |')));
   assert.throws(() => checkCostSection(broken('is therefore not a like-for-like comparison', 'is comparable')));
+  // P11.4: the four-issue sentence, a run row, the P11.2 result and the self-build row
+  assert.throws(() => checkCostSection(broken('Four medium reference issues, one each in performance, security, reliability', 'Two medium reference issues, one each in performance, security')), /four issues missed/);
+  assert.throws(() => checkCostSection(broken('| rerun 2 | P8 |', '| rerun 3 | P8 |')), /six eval 2 runs|each in its own row/);
+  assert.throws(() => checkCostSection(broken('| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |', '| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.53 | security |')), /recall of the three P11\.2 runs/);
+  assert.throws(() => checkCostSection(broken('| self-build (balanced, no issues) |', '| self-build (max) |')));
+  assert.throws(() => checkCostSection(broken('It is the one run whose whole output is public', 'It is a run')), /says why/);
 });
 
 // P11.3: every cost, turn and context figure of the cost section is the figure of a tracked profile. The evidence files
@@ -434,6 +477,41 @@ const checkCostEvidence = (readme, read = readEvidence, onDisk = evidenceFiles) 
       named.add(f);
     }
   }
+  // P11.4: the eval 2 per-run table, cell by cell against the file each row names; the three first runs are the files of the
+  // iteration 2 column, in order, and the P11.2 runs follow them
+  const runHead = rows(/^\| Run \| Reviewer/)[0];
+  assert.ok(runHead, 'the eval 2 per-run table header');
+  const runAt = (name) => col(runHead, name);
+  const runRows = rows(/^\| (first run|rerun [12]|P11\.2 run [123]) \|/);
+  assert.equal(runRows.length, 6, 'six eval 2 runs');
+  const eval2Files = figures[2]['Iteration 2, with skill'].files;
+  runRows.forEach((r, i) => {
+    const [f] = filesOf(r[runAt('Evidence')]);
+    assert.equal(f, `evidence/iteration-2/2-with-skill-${i + 1}.json`, `${r[0]} is run ${i + 1} of eval 2`);
+    if (i < 3) assert.equal(f, eval2Files[i], `${r[0]} is the file the iteration 2 column names in position ${i + 1}`);
+    named.add(f);
+    const j = get(f);
+    assert.equal(Number(r[runAt('Orchestrator turns')]), orchestratorOf(j).turns, `${r[0]}: the turn count is the orchestrator row of ${f}`);
+    assert.equal(r[runAt('Cost')], usd2(j), `${r[0]}: the cost is total.costUsd of ${f}`);
+    assert.equal(r[runAt('Max context')], `${(orchestratorOf(j).maxContext / 1000).toFixed(1)} K`, `${r[0]}: the max context is the orchestrator maxContext of ${f}`);
+  });
+
+  // P11.4: the self-build row against its profile
+  const selfHead = rows(/^\| Build \| Evidence/)[0];
+  const selfRow = rows(/^\| self-build /)[0];
+  assert.ok(selfHead && selfRow, 'the self-build table');
+  const selfAt = (name) => col(selfHead, name);
+  const [selfFile] = filesOf(selfRow[selfAt('Evidence')]);
+  assert.equal(selfFile, 'evidence/iteration-2/self-with-skill-1.json', 'the self-build row names its profile');
+  const sj = get(selfFile);
+  assert.equal(selfRow[selfAt('Cost')], usd2(sj), `self-build: the cost is total.costUsd of ${selfFile}`);
+  assert.equal(Number(selfRow[selfAt('Orchestrator turns')]), orchestratorOf(sj).turns, `self-build: the turn count is the orchestrator row of ${selfFile}`);
+  assert.equal(selfRow[selfAt('Orchestrator max context')], `${(orchestratorOf(sj).maxContext / 1000).toFixed(1)} K`, `self-build: the max context is the orchestrator maxContext of ${selfFile}`);
+  for (const [name, key] of [['Opus', 'opus'], ['Sonnet', 'sonnet']]) {
+    const m = sj.byModel.find((x) => x.model.includes(key));
+    assert.equal(selfRow[selfAt(name)], `${m.turns} turns, ${(Math.round(m.costUsd * 100) / 100).toFixed(2)} USD`, `self-build: the ${name} model figure is the byModel row of ${selfFile}`);
+  }
+
   assert.deepEqual([...named].sort(), onDisk().filter((f) => !f.includes('/self-')).sort(), 'the table names every evidence file of the evals, and each exists');
   const self = onDisk().filter((f) => f.includes('/self-'));
   assert.ok(self.length >= 1, 'the self-build profile is tracked');
@@ -490,6 +568,14 @@ test('e20 the cost-evidence check fails on a tampered cost cell, turn count, rer
   assert.throws(() => checkCostEvidence(broken('at most 69.6 K tokens', 'at most 60.0 K tokens')), /largest context/);
   assert.throws(() => checkCostEvidence(broken('never exceeds 72 K tokens', 'never exceeds 70 K tokens')), /largest orchestrator max ctx/);
   assert.throws(() => checkCostEvidence(broken('`evidence/iteration-1/1-with-skill-1.json`', '`evidence/iteration-1/2-with-skill-1.json`')), /belongs to eval 1/);
+  const runRow = readme.match(/\| P11\.2 run 2 \| [^\n]*\n/)[0];
+  const selfRow = readme.match(/\| self-build [^\n]*\n/)[0];
+  assert.throws(() => checkCostEvidence(broken(runRow, runRow.replace(/\d\.\d\d USD/, '9.99 USD'))), /the cost is total\.costUsd/, 'a P11.2 run cost');
+  assert.throws(() => checkCostEvidence(broken(runRow, runRow.replace(/\| 13 \|/, '| 12 |'))), /turn count/, 'a P11.2 run turns');
+  assert.throws(() => checkCostEvidence(broken(runRow, runRow.replace('2-with-skill-5', '2-with-skill-6'))), /is run 5 of eval 2/, 'a P11.2 run file');
+  assert.throws(() => checkCostEvidence(broken(selfRow, selfRow.replace(/\d\.\d\d USD/, '9.99 USD'))), /self-build: the cost/, 'the self-build cost');
+  assert.throws(() => checkCostEvidence(broken(selfRow, selfRow.replace(/\| 12 \|/, '| 13 |'))), /self-build: the turn count/, 'the self-build turns');
+  assert.throws(() => checkCostEvidence(broken(selfRow, selfRow.replace(/\| 51 turns/, '| 50 turns'))), /Sonnet model figure/, 'the self-build Sonnet turns');
   // a profile that drifted from its transcript: the same README against a profile with one more orchestrator turn or one more dollar
   const bump = (mutate) => (rel) => {
     const j = JSON.parse(JSON.stringify(readEvidence(rel)));

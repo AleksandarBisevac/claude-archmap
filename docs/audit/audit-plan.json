@@ -7658,7 +7658,7 @@
         {
           "id": "P11.2",
           "title": "Eval 2 reruns on the P11.1 reviewer: recall at least 0.60 in each of three runs (owner-run)",
-          "status": "blocked",
+          "status": "done",
           "description": "Run eval 2 three times with the skill on the P11.1 code through the private harness, one run at a time and while nothing edits the scripts (the harness reads them live through --plugin-dir). Grade each run with the harness grader and score-recall.mjs and profile each stream with cost-profile.mjs --json. Done when recall is at least 0.60 in each run, the 12-turn target and the under-5-USD target still hold, and the three recall values, turn counts, costs and the remaining misses by category are recorded in the private results log, with the three profiles saved for P11.3. If a run stays below 0.60, record which categories still miss and reopen P11.1 with that evidence instead of closing this task. No repository, path or client name in any tracked file or task text.",
           "files": [
             "skills/architecture-map/evals/evals.json"
@@ -7684,18 +7684,26 @@
           "commit": null,
           "outcome": {
             "technical": null,
-            "descriptive": null
+            "descriptive": null,
+            "noChange": {
+              "reason": "Owner-run through the private harness on the P11.1 reviewer (branch head a18b73b, Opus orchestrator, one run at a time, no executor active): three eval 2 runs graded 7/7 each with issue recall 0.933 (14 of 15 high and medium reference issues) in every run; the one miss differs per run (a reliability, a reliability and a security medium issue), so none of the four issues missed before is missed systematically now. Orchestrator turns 12, 13 and 14 (the first meets the 12-turn target, the other two are one and two over it); cost 2.58, 2.40 and 2.61 USD at list prices, under the 5 USD target and under twice the 2.29 USD baseline; maximum context 68.9 K, 69.4 K and 69.4 K. The reviewer now returns 18 issues in 13 to 19 turns, against 12 to 14 issues before. Figures and the three profiles are in the private results log and the run directories; P11.4 tracks the profiles as evidence and writes the result into the README. evals.json unchanged.",
+              "examinedAt": "a18b73beb97e6c0cb1912900e7e78c48428980b4"
+            }
           },
           "startedAt": "2026-10-31T21:14:45Z",
-          "completedAt": null,
+          "completedAt": "2026-10-31T21:45:25Z",
           "verifiedBy": [],
           "reviewPerTask": "phase",
-          "blockedReason": "Owner-run: the three eval 2 reruns on the P11.1 reviewer are run by the owner through the private harness, one at a time and with no executor editing the scripts meanwhile; unblock when the private results log holds the three recall values and the three profiles."
+          "testEvidence": {
+            "runId": "2026-10-31T21:46:28Z.cafc50",
+            "status": "passed",
+            "at": "2026-10-31T21:46:28Z"
+          }
         },
         {
           "id": "P11.3",
           "title": "Evidence files: the profiler's JSON for every eval run is tracked and a test derives the cost table from them",
-          "status": "in_progress",
+          "status": "done",
           "description": "Every number in the evals README cost section reproduces today by re-running scripts/cost-profile.mjs on the run's stream transcript, but nothing tracked proves it: the transcripts are private and the text profiles saved beside them carry an older rate table. Save the output of `node scripts/cost-profile.mjs <stream.jsonl> --json` for every iteration-1 and iteration-2 run of evals 1 to 5 (with and without the skill, the three eval 2 runs) and for the self-build run, under skills/architecture-map/evals/evidence/<iteration>/<eval>-<configuration>-<run>.json, named by eval number and configuration only; the run directories are in the workspace the evals README names, under the home .claude directory. Add a test that reads the README's cost table and the reruns sentences and checks each cost cell against total.costUsd rounded to two decimals, each turn count against the orchestrator row's turns and the stated maximum context against the largest orchestrator max ctx of the runs it covers, failing on any drift; like e18 it must fail on a tampered README. The README gets a short 'How each number was produced' subsection: the command, the rate table date, the rule that the per-model figure is the last result event's and the per-agent output is the stream's lower bound, and the evidence file of each row. The profiler's --json writes the transcript's absolute path into reconciliation.files, so add a --basename switch to cost-profile.mjs that records each file by its base name, with a test in tests/cost-profile.test.mjs, and save the evidence with it. No evidence file may carry a machine path or a denylist term; the d1 test scans every tracked file once the files are staged.",
           "files": [
             "skills/architecture-map/evals/evidence",
@@ -7722,29 +7730,45 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "a18b73beb97e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/cost-profile.mjs: --basename switch (profile() takes { baseNames }, reconciliation.files[].file = path.basename), usage/header updated, default output unchanged. tests/cost-profile.test.mjs: c17. Saved 21 evidence profiles under skills/architecture-map/evals/evidence/iteration-{1,2}/ named <eval>-<with|without>-skill-<run>.json (iteration 1: evals 1-5 with and without; iteration 2: evals 1-5 with skill incl. three eval 2 runs [2-with-skill-1 = first run = with_skill/round-1, -2 = round-2, -3 = run-1], without skill for evals 1,3,5; self-with-skill-1.json = real-1-build-self), all via 'node scripts/cost-profile.mjs <stream> --json --basename'; no machine path in any (grep for /Users, /home, /tmp is empty). README: added 'How each number was produced' subsection (command, rate date 2026-10-31, last result event rule, stream lower bound rule, evidence table per row, baseline provenance, self-build file). README CORRECTION: three iteration-1 cells did not reproduce from the transcripts and were corrected to the profiler's figures: eval 1 13.84 -> 13.78, eval 2 9.79 -> 9.71, eval 4 12.79 -> 12.55 (all other cells, turns, 69.6 K and 72 K reproduced as stated). tests/evals.test.mjs: e19 (checkCostEvidence: every cost cell = total.costUsd to 2 decimals of the file the evidence table names, turns = orchestrator row turns, reruns sentence = turns/costs/max ctx of the two reruns and the first run, '72 K in evals 1, 2 and 4' = largest orchestrator maxContext of those runs, every evidence file named and basename-recorded, rate date matches) and e20 (fails on tampered iteration-1/iteration-2/baseline cost cells, turns, reruns costs/turns/context, 72 K, a wrong-eval file name, a drifted profile, an unnamed evidence file). Full node --test: 444 pass, 0 fail (evidence files staged with git add so d1 scans them). Not committed. Dependants: scripts/pipeline.mjs, usage.mjs, skill.test.mjs, SKILL.md, pipeline.test.mjs, design.md use cost-profile by name/path and its default output is byte-identical, so still correct; README dependants (tests/evals.test.mjs etc.) still correct, e17/e18 pass on the edited README.",
+            "descriptive": "The evals README cost figures are now backed by 21 tracked profiler JSON files and a test that fails on any drifted cell; three stale iteration-1 costs were corrected."
           },
           "startedAt": "2026-10-31T21:15:13Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T21:21:18Z",
+          "verifiedBy": [
+            "c17: --basename records transcripts by base name, changes nothing else, works first or last and on the text report",
+            "e19: README cost table, turn counts, reruns sentence and max-context sentence equal the tracked evidence profiles",
+            "e20: e19's check throws on tampered README cells/sentences/file names and on tampered or unnamed evidence"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T21:21:16Z.1dcd51",
             "status": "passed",
             "at": "2026-10-31T21:21:16Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "a18b73beb97e",
+            "at": "2026-10-31T21:21:18Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T21:19:35Z",
+            "basis": "`node --test tests/cost-profile.test.mjs tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P11.4",
           "title": "Evals README: the eval 2 record names the four issues missed in all three runs by category, the source run of each figure, the self-build row and the P11.2 result",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The README says two medium reference issues, one on performance and one on security, were missed in all three eval 2 runs, and test e17 pins that sentence; score-recall.mjs on the saved overlays shows four, one each in performance, security, reliability and design. Correct the sentence and e17. For every figure in the eval 2 row and the reruns paragraph, say which run it comes from (first run, rerun 1, rerun 2) and name the evidence file P11.3 tracked for it. Add the self-build row: a build of this repository itself with the balanced profile and without issues, its cost, turns, context and model counts, as the one run whose whole output is public. Record the P11.2 outcome: the three recall values on the P11.1 reviewer and the remaining misses by category, replacing the below-threshold statement if the reruns pass or keeping it with the new figures if they do not. Keep every sentence the e17 checks pin unless this task changes the check with it.",
           "files": [
             "skills/architecture-map/evals/README.md",
-            "tests/evals.test.mjs"
+            "tests/evals.test.mjs",
+            "skills/architecture-map/evals/evidence"
           ],
           "tests": {
             "mode": "tdd",
@@ -7765,16 +7789,32 @@
             "P11.2",
             "P11.3"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T21:46:28Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-10-31T21:21:33Z",
+              "text": "P11.3 re-derived three iteration-1 cells at the current rate table (eval 1 13.84 to 13.78, eval 2 9.79 to 9.71, eval 4 12.79 to 12.55 USD): the difference is the Sonnet cache-read rate halved in P8.8. The README does not yet say why those cells moved; add one sentence under the cost table that names the earlier figures and the rate change."
+            },
+            {
+              "at": "2026-10-31T21:45:24Z",
+              "text": "P11.2 result to record: three eval 2 reruns on the P11.1 reviewer, each 7/7 with recall 0.933 (14 of 15), one different medium miss per run (reliability, reliability, security); orchestrator turns 12, 13, 14; cost 2.58, 2.40, 2.61 USD; max context 68.9 K, 69.4 K, 69.4 K; the reviewer returns 18 issues. Track their profiles as evidence/iteration-2/2-with-skill-4.json, -5.json and -6.json: copy them from the eval 2 run directories round-3, round-4 and round-5 of the iteration-2 workspace (each holds cost-profile.json, already produced with --basename), and name them in the evidence table. The turn counts of 13 and 14 are over the 12-turn target and the README must say so, as it does for the earlier runs."
+            }
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T21:52:49Z.eee75a",
+            "status": "passed",
+            "at": "2026-10-31T21:52:49Z"
+          }
         },
         {
           "id": "P11.5",
@@ -8655,7 +8695,8 @@
     ],
     "skills/architecture-map/evals/evidence": [
       "P11.3",
-      "P11.6"
+      "P11.6",
+      "P11.4"
     ],
     "tests/readme.test.mjs": [
       "P11.5"

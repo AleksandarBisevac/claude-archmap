@@ -80,26 +80,65 @@ cross-area edges and zones. The baseline is the same prompt without the skill, o
 | 4 (monorepo build) | 12.55 USD | 1.57 USD | 1.82 USD | 11 | 8/8 expectations |
 | 5 (build) | 9.53 USD | 1.65 USD | 2.96 USD | 13 | 7/7 expectations; baseline 0/7 |
 
-The eval 2 row shows its first run: the cost, the turns and the first grade are that run's, and only the result cell
-carries all three runs. Eval 3 is an update: the session builds the map of repository A and then updates it after a
+The eval 2 row shows its first run: the cost, the turns and the first grade are that run's
+(`evidence/iteration-2/2-with-skill-1.json`), and only the result cell carries all three runs: the recall cell lists
+the values of the first run, rerun 1 and rerun 2, in that order, each from `score-recall.mjs` on that run's issues
+overlay (the table "Eval 2, run by run" below gives every figure with the run and the evidence file it comes from). Eval 3 is an update: the session builds the map of repository A and then updates it after a
 new route and a new column, so its 29 turns cover two flows and the 12-turn target of a single build does not apply
 to it, and eval 5 took 13 turns, one over the target. The iteration-1 figures of evals 3 and 5 come from their iteration-1 transcripts by the same script. The
 no-skill baselines of evals 3 and 5 score 0 because their expectations are archmap-shaped (the validate script, the
 model file, the viewer), so their cost column is therefore not a like-for-like comparison.
 
-Eval 2 was run three times: the first run (the row above) and two reruns on the final P8 code, after the P8.5 and P8.8
-changes. The first run exceeded the 12-turn target with 17 turns because the `--issues` flow adds two steps (the
+Eval 2 was run six times, on two versions of the reviewer. Three runs were on the final P8 code: the first run (the row
+above) and two reruns, after the P8.5 and P8.8 changes. The first run exceeded the 12-turn target with 17 turns because the `--issues` flow adds two steps (the
 reviewer dispatch and the issues step) and the session spent five turns reading script sources to learn where the
 overlay goes when the caller wants it outside the repository and how to print and copy the ledger. SKILL.md now names
 both in its build flow (audit task P10.19), and the reruns confirm the five source-reading turns are gone: they took
 11 and 13 orchestrator turns (11 meets the target, 13 is one over it), 2.05 and 1.80 USD, and a context of at most
 69.6 K tokens, against 17 turns and 2.02 USD. Evals 1 and 4 stay within the target, and the orchestrator's context
-never exceeds 72 K tokens in evals 1, 2 and 4.
+never exceeds 72 K tokens in evals 1, 2 and 4. Rerun 1 is the profile `evidence/iteration-2/2-with-skill-2.json` and
+rerun 2 is `evidence/iteration-2/2-with-skill-3.json`.
 
-Issue recall over the three eval 2 runs is 0.67 (10 matched), 0.53 (8 matched) and 0.53 (8 matched), a mean of 0.58,
-so two of the three runs and the mean fall below the 60 percent threshold; each rerun graded 6/7, and the
-expectation it failed is the recall one. Two medium reference issues, one on performance and one on security, were missed in all three runs. The
-reviewer returned 14 issues in the first run and 12 in each rerun.
+Issue recall over the three eval 2 runs on the P8 reviewer is 0.67 (10 matched), 0.53 (8 matched) and 0.53 (8 matched),
+a mean of 0.58, so two of the three runs and the mean were below the 60 percent threshold; each rerun graded 6/7, and the
+expectation it failed is the recall one. Four medium reference issues, one each in performance, security, reliability
+and design, were missed in all three runs. The reviewer returned 14 issues in the first run and 12 in each rerun.
+
+P11.1 changed the reviewer: every pattern of the issues catalogue now names the targeted reads the reviewer must make
+(the entry point's exception handlers, writes to the process environment, the loop around a bulk pull, the client's
+readiness call), and a readiness and loading-state pattern was added. P11.2 ran eval 2 three more times on that
+reviewer, one run at a time (P11.2 run 1 to 3 below). All three P11.2 runs reach a recall of 0.93 (14 of 15 high and
+medium reference issues matched), above the 0.60 threshold, and each graded 7/7. Each misses one issue, a different one
+in each run (by category reliability, reliability and security), so none of the four issues missed in all three first
+runs is missed in every P11.2 run. The orchestrator took 12, 13 and 14 turns (12 meets the 12-turn target, the other
+two are one and two over it) at 2.58, 2.40 and 2.61 USD, under the 5 USD target and under twice the 2.29 USD baseline.
+The reviewer returned 18 issues in each of these runs, in 13 to 19 reviewer turns, and the runs cost about 0.6 USD more
+on average than the P8 ones (mean 2.53 against 1.96 USD).
+
+Eval 2, run by run. The recall comes from `score-recall.mjs` on the issues overlay of the run against the reference
+issues (private, like the transcripts); the other figures are from the evidence profile in the row. The missed column
+counts the missed high and medium reference issues by category. The P11.2 runs sit under `iteration-2/` because the
+workspace they ran in is its `iteration-2`.
+
+| Run | Reviewer | Evidence | Orchestrator turns | Cost | Max context | Recall | Missed (by category) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| first run | P8 | `evidence/iteration-2/2-with-skill-1.json` | 17 | 2.02 USD | 71.7 K | 0.67 | security 2 (one high), performance 1, reliability 1, design 1 |
+| rerun 1 | P8 | `evidence/iteration-2/2-with-skill-2.json` | 11 | 2.05 USD | 68.5 K | 0.53 | security 3, reliability 2, performance 1, design 1 |
+| rerun 2 | P8 | `evidence/iteration-2/2-with-skill-3.json` | 13 | 1.80 USD | 69.6 K | 0.53 | security 2, reliability 2, performance 2, design 1 |
+| P11.2 run 1 | P11.1 | `evidence/iteration-2/2-with-skill-4.json` | 12 | 2.58 USD | 68.9 K | 0.93 | reliability |
+| P11.2 run 2 | P11.1 | `evidence/iteration-2/2-with-skill-5.json` | 13 | 2.40 USD | 69.4 K | 0.93 | reliability |
+| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |
+
+The self-build row is a build of this repository itself, with the balanced profile and without `--issues`, run the way
+eval 1 is run. It is the one run whose whole output is public: the repository, its model and the profile of its
+transcript can all be shared, which the repositories of the evals cannot. The cost, turns, context and model figures are
+from the evidence profile of the row (the model split is its `byModel` block: the Opus orchestrator, and the Sonnet
+explorers and synthesizer); the map counts are those of the `architecture.model.json` the run built, as its build
+report lists them (the model passed `validate.mjs` with `--repo`, exit 0; the model is not tracked).
+
+| Build | Evidence | Cost | Orchestrator turns | Orchestrator max context | Opus | Sonnet | Nodes | Edges | Entities | Sequences | Views |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| self-build (balanced, no issues) | `evidence/iteration-2/self-with-skill-1.json` | 1.11 USD | 12 | 58.4 K | 12 turns, 0.50 USD | 51 turns, 0.62 USD | 63 | 28 | 16 | 4 | 5 |
 
 Where the money goes in iteration 2, in percent of each run's cost. The figures are shares of the result-event total
 (the per-model figure in the table above); the per-agent rows come from the stream, whose output counts are a lower
@@ -146,4 +185,6 @@ stated maximum context differs from the file it names.
 
 The baseline column takes the iteration-2 baseline run where there is one (evals 1, 3 and 5) and the iteration-1
 baseline for evals 2 and 4, which were not rerun; the other baseline run of each eval is tracked beside it. The profile
-of the build of this repository by its own skill is `evidence/iteration-2/self-with-skill-1.json`.
+of the build of this repository by its own skill is `evidence/iteration-2/self-with-skill-1.json`. The three P11.2
+runs are `evidence/iteration-2/2-with-skill-4.json` to `evidence/iteration-2/2-with-skill-6.json`, named in the eval 2
+run-by-run table, and e19 reads that table and the self-build row against these files too.

@@ -1,0 +1,27 @@
+{
+  "gates": {
+    "node --test tests/evals.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T21:51:02Z",
+    "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Tests first: extended e17 (checkCostSection) to require the four-issue sentence by category (and the absence of the two-issue one), a six-row eval 2 per-run table (first run, rerun 1, rerun 2, P11.2 run 1-3) naming evidence file and recall/missed per run, the P11.2 result (0.93 each, above 0.60, no systematic miss, below-threshold statement gone) and the self-build row (balanced, no issues, nodes 63/edges 28/entities 16/sequences 4/views 5); e19 now checks the per-run table and self-build row cell by cell against the evidence profiles (turns, cost, max context, Opus/Sonnet byModel turns and cost); e18/e20 gained tamper cases. Saw e17-e20 red on the unchanged README (16 pass, 4 fail). Then: generated three profiles with node scripts/cost-profile.mjs <stream> --json --basename for the P11.2 runs (skills/architecture-map/evals/evidence/iteration-2/2-with-skill-4..6.json, no machine path), staged them, and edited skills/architecture-map/evals/README.md: four issues missed in all three runs (performance, security, reliability, design; confirmed with score-recall.mjs on the saved overlays, intersection of misses of the three runs), eval 2 run-by-run table with the source run and evidence file of each figure, P11.2 result paragraph replacing the below-threshold statement (recall 0.93 x3, misses reliability/reliability/security, turns 12/13/14, cost 2.58/2.40/2.61), self-build table (cost 1.11 USD at the profiler's rate table, 12 turns, 58.4 K, Opus 12 turns 0.50 USD, Sonnet 51 turns 0.62 USD, map counts from the run's build report). Kept all other e17-pinned sentences. node --test tests/evals.test.mjs: 20 pass 0 fail; node --test: 444 pass 0 fail. Dependants: tests/evals.test.mjs reads the README and still passes; tests/diffmap, glob, prescan-core, review-scan, staleness, fixtures/evals/issues.json, .claude/audit.config.json and the scripts/schemas/viewer listed under evidence are unaffected (only docs text and new JSON profiles were added, the full suite passes). Note: the self-build cost reads 1.11 USD (profiler rates dated 2026-10-31), not the 1.16 USD of the private log's earlier rate table. Map counts are not derivable from a tracked file (the model is private); the README says so.",
+    "descriptive": "The evals README now names the four issues missed in all three first eval 2 runs by category, sources every eval 2 figure to its run and evidence file, records the P11.2 result (0.93 recall in all three runs) and carries the public self-build row, all checked by tests."
+  },
+  "testsAdded": [
+    "e17 extended: four issues by category, per-run table with six runs, P11.2 result, self-build row",
+    "e19 extended: per-run table and self-build row against the evidence profiles",
+    "e18/e20 tamper cases for the new rows"
+  ],
+  "casesAdded": [
+    "e17"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:a018c64ac9f5206fcccbd5171c001ffef78e034f1f389084efe72fe7f7d1cf41\",\"dirtyDigest\":\"sha256:6878a8b58ae2fd29194f327dc258a6a09f913692a8dda086d4b741b484458841\",\"dirtyPaths\":{\"skills/architecture-map/evals/README.md\":\"fdfaaa79eeb9ae91\",\"tests/evals.test.mjs\":\"56fbb26155214def\"},\"head\":\"a18b73b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/README.md\",\"skills/architecture-map/evals/evidence\",\"tests/evals.test.mjs\"],\"scopeDigest\":\"sha256:48efec177d25374e20fb770e81f8cc40f01f4d7ac5c58d71e01eee05fce0470d\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
