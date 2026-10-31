@@ -4533,7 +4533,7 @@
         {
           "id": "P8.5",
           "title": "Iterate SKILL.md and references on eval feedback",
-          "status": "in_progress",
+          "status": "done",
           "description": "Apply the owner's eval feedback from P8.3 to skills/architecture-map/SKILL.md and skills/architecture-map/references/*.md (SKILL.md stays <= 500 lines; tests/skill*.test.mjs stay green), then re-run the evals that failed until they pass or the owner accepts the remainder. Generalise fixes; never add text specific to an eval repo or name one. The exact files depend on the feedback; scope this task's files when the feedback is known.",
           "files": [
             "skills/architecture-map/SKILL.md",
@@ -4565,14 +4565,17 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "846767ca89f3",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Scope: the brief (computed 18:30:41Z, before note 1 at 18:31:47Z) listed only SKILL.md and no tests.add; I followed the manifest's current P8.5 files (7) and tests.add (2), which I read from docs/audit/audit-plan.json because the brief did not carry the note. Last declarers before P8.5, from fileIndex: inventory.mjs P10.15-6rm, prescan-core.test.mjs P10.15-6rm, archmap-explorer.md P10.19-6rm, agents.test.mjs P10.19-6rm, pipeline.mjs and pipeline.test.mjs P8.7, SKILL.md P10.20-6rm. (1) scripts/lib/prescan/inventory.mjs: new exported TEST_DATA_DIR (/^(fixtures?|__fixtures__|testdata|examples?|samples?)$/, the fixtures/examples notion from generic.mjs TEST_SEGMENT without its tests/docs, plus the listed names) and testDataDirOf(path, scope), which judges each path relative to the scan root (the root, or the scope under it). buildInventory keeps such files out of `files` and returns them in a new `skipped` [{path, reason: 'inside test data directory <dir>: fixtures, examples and samples are not the product'}]; a database file there goes to `sources` with status skipped and that reason, as a vendored one does. Since stacks, areas and extracts are all built from inv.files in prescan.mjs, test data reaches none of them, with no change to prescan.mjs or generic.mjs (both outside scope). Fixture-repo tests scan tests/fixtures/repos/<name> as root; git ls-files lists paths relative to that root, so they are unaffected (pc1-pc16, pipeline p1-p37 green). (2) scripts/pipeline.mjs PROFILE_WORDS.balanced: 'explorer Sonnet low' -> 'explorer Sonnet medium'. (3) agents/archmap-explorer.md Coverage floor: one sentence saying data and log files (json, jsonl, csv, markdown records) are not modules and become a store node only when code read reads or writes them (file 7512 -> about 7650 chars; pc9's 12 K agent+summary budget still passes). (4) no change, as the note says. SKILL.md: the prescan.mjs row of the scripts table now says test data files are skipped with a reason and are in no stack or area (383 lines, unchanged). Tests: pc17 (prescan-core) and p38 (pipeline). Runs: node --test tests/prescan-core.test.mjs tests/pipeline.test.mjs tests/agents.test.mjs tests/skill*.test.mjs -> exit 0, 101/101 pass; node --test tests/commands.test.mjs tests/evals.test.mjs -> exit 0, 27/27. run-test-gate.py docs/audit/audit-plan.json P8 --task P8.5 --own --quiet -> exit 2, 'P8.5 declares no gate entry pointed at its own tests.add paths (tests.gateBasis=declared) - there is nothing of its own to run'; the two node --test runs above are my own verification, not that gate. Self-scan check: node scripts/prescan.mjs . -> exit 0, stacks ['python'] (ts-frontend gone), no area glob contains fixtures or examples. python remains from two real scripts outside test data (tests/visual/screenshots.py, .agents/skills/webapp-testing/scripts/with_server.py), which is correct under the rule as written. Dependants of SKILL.md: tests/skill.test.mjs, tests/commands.test.mjs, tests/evals.test.mjs, tests/pipeline.test.mjs still correct (ran green; the edit only adds words to one table cell). scripts/pipeline.mjs changed (the balanced string, which now matches the SKILL.md table). scripts/issues.mjs, .agents/skills/node/tile.json and skills-lock.json are basename matches on SKILL.md, not readers of this file's content: unaffected. I ran `git stash list` once (read-only, no stash created); nothing was committed.",
+            "descriptive": "Fixture, example and sample directories no longer drive stacks or areas (now listed as skipped test data), the balanced profile report names the explorer on Sonnet medium, and the explorer is told that data and log files are not modules."
           },
           "startedAt": "2026-10-31T18:30:41Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T18:41:17Z",
+          "verifiedBy": [
+            "pc17: in a temp repo, files under tests/fixtures, examples, __fixtures__, testdata, samples and fixture/ are in inventory.skipped with a test-data reason (a sqlite file there is a skipped source); they add no python or ts-frontend stack and appear in no area or extract; scanning the fixture app as its own root, or as a --scope, keeps its python stack and its 2 files",
+            "p38: plan/finish/render on a copy of the node-api fixture; the report's Profile line reads 'balanced (explorer Sonnet medium, ...', and the explorer agent's frontmatter declares sonnet/medium"
+          ],
           "reviewPerTask": "phase",
           "notes": [
             {
@@ -4584,6 +4587,17 @@
             "runId": "2026-10-31T18:41:16Z.bcd6c7",
             "status": "passed",
             "at": "2026-10-31T18:41:16Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "846767ca89f3",
+            "at": "2026-10-31T18:41:17Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T18:39:53Z",
+            "basis": "`node --test tests/prescan-core.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
@@ -4718,7 +4732,7 @@
         {
           "id": "P8.8",
           "title": "Sonnet 5.5 cache reads are priced at 0.05x base input; republish the cost table",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The pricing page (platform.claude.com/docs/en/about-claude/pricing, read 2026-10-31) prices cache hits on Claude Opus 5.5 and Claude Sonnet 5.5 at 0.05x the base input price, so Sonnet 5.5 cache reads cost 0.10 USD per million tokens, not the 0.20 the RATES table in scripts/cost-profile.mjs holds (its comment says 0.1x). Haiku 5.5 (0.10 / 0.50, cache read 0.01, cache write 0.125) and Opus 5.5 (4 / 20, 0.20, 5) match the page. Fix the Sonnet row and its comment, update tests/fixtures/cost/expected.json (the Sonnet byModel row and every byAgent and total figure that Sonnet cache reads feed), extend tests/cost-profile.test.mjs with the rate-row assertion, and recompute the with-skill column of the table in skills/architecture-map/evals/README.md from the stream transcripts with node scripts/cost-profile.mjs: eval 1 1.22 becomes 1.16, eval 2 2.09 becomes 2.02, eval 4 1.66 becomes 1.57 (the no-skill baselines run on Opus only and do not move). Do not change any other number; the per-eval shares paragraph below the table may shift by a point, recompute it from the same transcripts (paths in the private results log, never in a tracked file).",
           "files": [
             "scripts/cost-profile.mjs",
@@ -4742,16 +4756,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T18:41:17Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T18:44:56Z.e74e3c",
+            "status": "passed",
+            "at": "2026-10-31T18:44:56Z"
+          }
         }
       ],
       "area": "evals",

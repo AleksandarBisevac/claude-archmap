@@ -93,7 +93,7 @@ test('c7 --json validates: fixed top-level keys, the rate table with its date, i
   assert.equal(j.rates.date, '2026-10-31');
   assert.deepEqual(j.rates.perMillion['claude-opus-5-5'], { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
   assert.deepEqual(j.rates.perMillion['claude-fable-5-1'], { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 });
-  assert.deepEqual(j.rates.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 });
+  assert.deepEqual(j.rates.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 });
   assert.deepEqual(j.rates.perMillion['claude-haiku-5-5'], { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 });
   for (const row of [...j.byModel, ...j.byAgent, j.total]) {
     for (const c of CLASSES) assert.ok(Number.isInteger(row[c]) && row[c] >= 0, c);
@@ -109,7 +109,7 @@ test('c8 the text table lists every agent and model, the cost column, and states
     assert.ok(r.stdout.includes(name), name);
   }
   assert.match(r.stdout, /list prices.*2026-10-31/i);
-  assert.match(r.stdout, /0\.3867/);
+  assert.match(r.stdout, /0\.3853/);
   assert.match(r.stdout, /total/);
 });
 
@@ -209,6 +209,23 @@ test('c15 every rate row carries a source comment with a date; cache writes are 
   assert.match(src, /date: '2026-10-31'/, 'the table date moved with the corrected row');
   assert.deepEqual(RATES.perMillion['claude-haiku-5-5'], { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 });
   assert.deepEqual(RATES.perMillion['claude-opus-5-5'], { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
-  assert.deepEqual(RATES.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 });
+  assert.deepEqual(RATES.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 });
   assert.deepEqual(RATES.perMillion['claude-fable-5-1'], { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 });
+});
+
+// P8.8: the pricing page (platform.claude.com/docs/en/about-claude/pricing, read 2026-10-31) prices cache hits on
+// Opus 5.5 and Sonnet 5.5 at 0.05x base input, so a Sonnet 5.5 cache read is 0.10 USD per million, not 0.20.
+test('c16 the Sonnet 5.5 rate row is input 2, output 10, cacheRead 0.1, cacheWrite 2.5, and a Sonnet turn costs 0.1 per million cache-read tokens', async () => {
+  const { RATES } = await import(new URL('../scripts/cost-profile.mjs', import.meta.url));
+  assert.deepEqual(RATES.perMillion['claude-sonnet-5-5'], { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 });
+  assert.equal(RATES.perMillion['claude-sonnet-5-5'].cacheRead, RATES.perMillion['claude-sonnet-5-5'].input * 0.05, 'cache read is 0.05x input');
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-cost-'));
+  const f = join(dir, 'sonnet.jsonl');
+  const turn = { type: 'assistant', message: { id: 's1', model: 'claude-sonnet-5-5', usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 3000000, cache_creation_input_tokens: 0 } } };
+  writeFileSync(f, `${JSON.stringify(turn)}\n`);
+  const j = profile(f);
+  assert.equal(j.byModel[0].model, 'claude-sonnet-5-5');
+  assert.equal(j.byModel[0].cacheRead, 3000000);
+  assert.ok(Math.abs(j.byModel[0].costUsd - 0.3) < 1e-9, `3M Sonnet cache-read tokens cost 0.30 USD, got ${j.byModel[0].costUsd}`);
+  assert.ok(Math.abs(j.total.costUsd - 0.3) < 1e-9, `total ${j.total.costUsd}`);
 });

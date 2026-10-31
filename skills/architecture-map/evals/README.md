@@ -71,9 +71,9 @@ cross-area edges and zones. The baseline is the same prompt without the skill, o
 
 | Eval | Iteration 1, with skill | Iteration 2, with skill | Baseline, no skill | Orchestrator turns | Result |
 | --- | --- | --- | --- | --- | --- |
-| 1 (build) | 13.84 USD | 1.22 USD | 1.55 USD | 11 | 7/7 expectations |
-| 2 (build, issues) | 9.79 USD | 2.09 USD | 2.29 USD | 17 | 7/7, issue recall 0.67 |
-| 4 (monorepo build) | 12.79 USD | 1.66 USD | 1.82 USD | 11 | 8/8 expectations |
+| 1 (build) | 13.84 USD | 1.16 USD | 1.55 USD | 11 | 7/7 expectations |
+| 2 (build, issues) | 9.79 USD | 2.02 USD | 2.29 USD | 17 | 7/7, issue recall 0.67 |
+| 4 (monorepo build) | 12.79 USD | 1.57 USD | 1.82 USD | 11 | 8/8 expectations |
 
 Eval 2 exceeded the 12-turn target with 17 turns, against 11 for evals 1 and 4, because the `--issues` flow adds two
 steps (the reviewer dispatch and the issues step) and the session spent five turns reading script sources to learn where the overlay goes when the
@@ -87,9 +87,9 @@ bound, so the output the stream under-counts is not attributed to any agent and 
 
 | Eval | Explorers | Orchestrator | Synthesizer | Reviewer | Not attributed (stream output under-count) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 40.7 | 26.7 | 6.6 | - | 26.0 |
-| 2 | 19.0 | 19.8 | 4.1 | 22.7 | 34.4 |
-| 4 | 44.0 | 23.8 | 8.7 | - | 23.5 |
+| 1 | 38.4 | 28.2 | 5.9 | - | 27.4 |
+| 2 | 16.8 | 20.5 | 3.6 | 23.5 | 35.6 |
+| 4 | 41.8 | 25.1 | 8.2 | - | 24.8 |
 
 Eval 2 adds the reviewer on the larger model (23 percent of its run). The ten rounds that led here are in the private results log; each round's root causes became a fix task of the
 audit plan (P10.6 to P10.15).
