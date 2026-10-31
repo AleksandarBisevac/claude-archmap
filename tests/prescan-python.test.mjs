@@ -431,3 +431,36 @@ test('py14 FastAPI/Starlette middleware (@app.middleware("http") over a def, app
   assert.deepEqual(odd.modules, ['svc/api/orders.py', 'svc/api/widgets.py']);
   assert.deepEqual(memFrag({ 'lib/a.py': 'def a():\n    pass\n' }).modules, [], 'no entry point, no modules');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.18: a name after FROM is a table only where FROM opens a table position - not a CTE the statement defines,
+// not the FROM inside EXTRACT/SUBSTRING/TRIM/OVERLAY, not IS [NOT] DISTINCT FROM.
+
+test('py15 a CTE name (WITH name AS, , name AS, WITH RECURSIVE, a column list), a FROM inside EXTRACT, SUBSTRING, TRIM or OVERLAY and IS [NOT] DISTINCT FROM yield no table ref, while the real FROM in the same statement, a subquery inside those calls and a CTE-named table in another statement still do', () => {
+  const odd = memFrag({
+    'svc/report.py':
+      'def f(c):\n' +
+      '    c.execute("""\n' +
+      '        WITH RECURSIVE recent AS (SELECT * FROM orders), totals (id, n) AS (SELECT id, 1 FROM recent)\n' +
+      '        SELECT * FROM recent JOIN totals ON recent.id = totals.id\n' +
+      '    """)\n' +
+      '    c.execute("with latest as (select * from shipments) select * from latest")\n' +
+      '    c.execute("SELECT EXTRACT(year FROM created_at), extract(epoch from placed) FROM invoices")\n' +
+      '    c.execute("SELECT SUBSTRING(s FROM 2), TRIM(BOTH FROM s), trim(leading from s), OVERLAY(s PLACING \'x\' FROM 2 FOR 1) FROM notes")\n' +
+      '    c.execute("SELECT * FROM ledger WHERE a IS DISTINCT FROM b AND c is not distinct from d")\n' +
+      '    c.execute("SELECT EXTRACT(year FROM (SELECT max(d) FROM stamps)) FROM (SELECT * FROM batches) AS b")\n' +
+      '    c.execute("SELECT * FROM recent")\n',
+  });
+  const refs = odd.sqlTables.map((t) => `${t.table} ${t.op} ${t.evidence[0].lines.split('-')[0]}`).sort();
+  assert.deepEqual(refs, [
+    'batches select 10',
+    'invoices select 7',
+    'ledger select 9',
+    'notes select 8',
+    'orders select 3',
+    'recent select 11',
+    'shipments select 6',
+    'stamps select 10',
+  ], 'no row for recent, totals or latest inside their own statement, none for created_at, placed, s, 2, b or d');
+  assert.equal(odd.skipped.sqlTables ?? 0, 0, 'a function argument is not a table position, so nothing is skipped either');
+});

@@ -510,3 +510,19 @@ test('nb14 new Queue(NAME_CONST), new Queue(QUEUES.x), new Worker(name, ...) and
   assert.equal(jobs.producers.length, 1);
   assert.equal(jobs.workers.length, 1);
 });
+
+test('nb15 new Queue(param) with an unresolved lowercase identifier (a parameter, an unresolved import) is skipped and counted, never named after its file; new Worker(param, ...) still is', () => {
+  const f = memFrag({
+    'src/factory.ts':
+      "import { Queue, Worker } from 'bullmq';\n" +
+      "export function makeQueue(name: string) {\n  return new Queue(name, { connection });\n}\n" +
+      "export function makeOther(queueName: string) {\n  return new Queue(queueName);\n}\n" +
+      "export function startWorker(name: string) {\n  return new Worker(name, handler);\n}\n",
+    'src/imported.ts':
+      "import { Queue } from 'bullmq';\nimport { jobsName } from 'shared-config';\n" +
+      'export const jobs = new Queue(jobsName);\n',
+  });
+  assert.deepEqual(f.queues.map((q) => `${q.name} ${ev(q)}`), ['src/factory src/factory.ts:9'], 'only the Worker takes its file name');
+  assert.deepEqual(f.queues[0].workers.map((w) => `${w.handler} ${ev(w)}`), ['handler src/factory.ts:9']);
+  assert.equal(f.skipped.queues, 3, 'new Queue(name), new Queue(queueName) and new Queue(jobsName) are counted, never guessed');
+});

@@ -13,7 +13,8 @@
 // path, a call as a queue name) is counted in `skipped`, never guessed. Only string literals,
 // single-literal constants and OBJ.key members of an object literal or enum of literals are resolved. A queue (new Queue,
 // new Worker) takes its name from the literal, else the resolved constant, else the identifier text (NAME_CONST,
-// config.queues.audit), else, for a parameter, the file's path without its extension; a FlowProducer is a row named
+// config.queues.audit), else, for a Worker given a parameter, the file's path without its extension (a Queue given a
+// lowercase bare identifier is skipped: a file name would merge its queues and pair with no Worker); a FlowProducer is a row named
 // `flow:<file>`. Hono sub-apps may carry type arguments (new Hono<Env>()) and
 // compose their routes as one chain (new Hono<Env>().get(...).post(...)); a mount takes the prefix.
 //
@@ -890,16 +891,18 @@ function finishDoc(path, doc, lastLine, acc) {
 /**
  * The name of a queue from the first argument of `new Queue(...)` / `new Worker(...)`: the literal, else the constant it
  * names (same file, imported, or an OBJ.key member), else the identifier text of a constant-like name (NAME_CONST) or a
- * dotted one (config.queues.audit); a lowercase bare identifier is a parameter, so the queue is named after the file.
+ * dotted one (config.queues.audit). A lowercase bare identifier is a parameter or an unresolved import: for a Worker
+ * (`worker` set) the queue is named after the file - the one consumer its file defines; for a Queue it is null, since
+ * a file name would merge different queues of one file and pair with no Worker.
  * null when the argument is no identifier at all (a call, an expression): that is skipped, never guessed.
  */
-function queueNameOf(ctx, f, arg) {
+function queueNameOf(ctx, f, arg, { worker = false } = {}) {
   if (!arg) return null;
   const v = strValue(ctx, f, arg.a, arg.b);
   if (v !== null) return v;
   const text = textOf(f, arg).replace(/\s+/g, '');
   if (new RegExp(`^${ID}(?:\\.${ID})+$`).test(text) || /^[A-Z][A-Z0-9_]*$/.test(text)) return text;
-  if (new RegExp(`^${ID}$`).test(text)) return f.path.replace(/\.[^./]+$/, '');
+  if (worker && new RegExp(`^${ID}$`).test(text)) return f.path.replace(/\.[^./]+$/, '');
   return null;
 }
 
@@ -929,12 +932,12 @@ function extractQueues(ctx, acc) {
     for (const d of f.masked.matchAll(wre)) {
       const call = callAt(f, d.index + d[0].length);
       if (!call) continue;
-      const name = queueNameOf(ctx, f, call.args[0]);
+      const name = queueNameOf(ctx, f, call.args[0], { worker: true });
       if (name === null) {
         acc.skipped.queues++;
         continue;
       }
-      const cv = call.args[2] ? objProp(f, call.args[2], 'concurrency') : null;
+      const cv =call.args[2] ? objProp(f, call.args[2], 'concurrency') : null;
       const num = cv ? /^\d+$/.exec(textOf(f, cv)) : null;
       get(name).workers.push({ handler: identText(f, call.args[1]), concurrency: num ? Number(num[0]) : null, evidence: evidence(f, d.index, call.close + 1) });
     }

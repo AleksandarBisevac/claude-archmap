@@ -317,6 +317,37 @@ const SQL_NOT_TABLE = new Set(['select', 'lateral', 'only', 'if', 'not', 'exists
 // prose that starts like a statement ("Select an option from the menu"): a table is never one of these
 const PROSE_WORDS = new Set(['the', 'a', 'an', 'your', 'this', 'that', 'these', 'those', 'each', 'every', 'all', 'any', 'one', 'its', 'our', 'my']);
 const unquote = (s) => s.replace(/^["`[]|["`\]]$/g, '');
+// a name a statement defines for itself (WITH [RECURSIVE] name [(cols)] AS [[NOT] MATERIALIZED] (, ", name AS ("): not a table
+const CTE_NAME = /(?:\bwith\s+(?:recursive\s+)?|,\s*)("[^"]+"|`[^`]+`|[A-Za-z_][\w$]*)\s*(?:\([^()]*\)\s*)?as(?:\s+(?:not\s+)?materialized)?\s*\(/gi;
+// the calls whose FROM separates arguments (EXTRACT(year FROM d), SUBSTRING(s FROM 2), TRIM(BOTH FROM s), OVERLAY(...))
+const FROM_ARGUMENT_CALLS = new Set(['extract', 'substring', 'trim', 'overlay']);
+
+/** The CTE names `st` defines, lowercased. */
+function cteNames(st) {
+  if (!/\bwith\b/i.test(st)) return new Set();
+  return new Set([...st.matchAll(CTE_NAME)].map((m) => m[1].replace(/["`]/g, '').toLowerCase()));
+}
+
+/**
+ * Offsets of the `from` keywords of `st` whose innermost open parenthesis is a call to EXTRACT, SUBSTRING, TRIM or
+ * OVERLAY: there FROM separates arguments, it opens no table position. A subquery inside such a call opens a
+ * parenthesis of its own, so its FROM still counts.
+ */
+function argumentFroms(st) {
+  const out = new Set();
+  const stack = [];
+  let q = null;
+  for (let i = 0; i < st.length; i++) {
+    const c = st[i];
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === "'" || c === '"' || c === '`') q = c;
+    else if (c === '(') stack.push(FROM_ARGUMENT_CALLS.has(/([A-Za-z_]\w*)\s*$/.exec(st.slice(Math.max(0, i - 40), i))?.[1].toLowerCase()));
+    else if (c === ')') stack.pop();
+    else if (stack.at(-1) && (c === 'f' || c === 'F') && !/\w/.test(st[i - 1] ?? '') && /^from(?!\w)/i.test(st.slice(i, i + 5))) out.add(i);
+  }
+  return out;
+}
 
 /** `text` with SQL comments (-- to the end of the line, and block comments) blanked, same length, quotes respected. */
 function blankSqlComments(text) {
@@ -482,7 +513,8 @@ function readsAsSql(verb, st, strict) {
  * `a` and `b` are the statement's offsets in `body` (leading and trailing blanks and comments excluded); `op` is
  * select (FROM, JOIN), insert, update, delete or ddl (CREATE, ALTER, DROP, TRUNCATE TABLE); a CREATE TABLE ... (...)
  * carries its `columns`. A table position holding a placeholder ({name}, ${name}, audit_{name}) is counted in
- * `skipped`, never guessed. One row per table and op in a statement.
+ * `skipped`, never guessed. One row per table and op in a statement. A CTE the statement defines, the FROM inside
+ * EXTRACT/SUBSTRING/TRIM/OVERLAY and IS [NOT] DISTINCT FROM name no table and give no row.
  */
 export function sqlStatements(body, { strict = false } = {}) {
   const text = blankSqlComments(body);
@@ -494,6 +526,8 @@ export function sqlStatements(body, { strict = false } = {}) {
     if (!verb || !readsAsSql(verb, st, strict)) continue;
     const refs = [];
     const seen = new Set();
+    const ctes = cteNames(st);
+    const argFroms = argumentFroms(st);
     let firstFrom = true;
     for (const m of st.matchAll(SQL_TABLE_REF)) {
       const kw = m[1].toLowerCase();
@@ -501,6 +535,8 @@ export function sqlStatements(body, { strict = false } = {}) {
       if (kw === 'update' && verb !== 'update') continue;
       if (kw === 'table' && !['create', 'alter', 'drop', 'truncate'].includes(verb)) continue;
       if (kw === 'into' && verb !== 'insert') continue;
+      // FROM as an argument separator, or in IS [NOT] DISTINCT FROM: no table position at all
+      if (kw === 'from' && (argFroms.has(m.index) || /\bdistinct\s+$/i.test(st.slice(Math.max(0, m.index - 20), m.index)))) continue;
       const end = m.index + m[0].length;
       if (tableRaw === '{' || st[end] === '{') {
         skipped++;
@@ -508,6 +544,7 @@ export function sqlStatements(body, { strict = false } = {}) {
       }
       const table = tableRaw.replace(/["`]/g, '');
       if (SQL_NOT_TABLE.has(table.toLowerCase()) || (strict && PROSE_WORDS.has(table.toLowerCase()))) continue;
+      if (kw !== 'table' && ctes.has(table.toLowerCase())) continue; // the statement's own CTE, not a table
       let op;
       if (kw === 'join') op = 'select';
       else if (kw === 'from') {

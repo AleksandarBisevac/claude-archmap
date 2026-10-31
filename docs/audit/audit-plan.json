@@ -5129,24 +5129,30 @@
             "severity": "med",
             "file": "scripts/merge.mjs:158-165",
             "issue": "contradicts task clause: P10.3 asks for 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'. zoneFor() (158-165) derives a zone only from the node kind and the area's stack and never reads the slice's `containers` or directory layout; the zone work otherwise only unifies spellings (resolveZone). deriveLayer's access loop (about 455-475) reads `sqlTables` only: no ORM-call evidence and no queue-evidence access row is produced. The synthesizer can no longer add access rows, so any access the explorers did not emit is lost. The executor's claim says 'SQL access rows' and so describes the narrower diff accurately, but the scope is narrower than the clause.",
-            "resolution": "Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them.",
-            "fixTask": "P10.17-6rm"
+            "resolution": "fixed in P10.17-6rm (2c416577b97e): Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them.",
+            "fixTask": "P10.17-6rm",
+            "commit": "2c416577b97e",
+            "status": "fixed"
           },
           {
             "id": "P10-R3",
             "severity": "med",
             "file": "scripts/merge.mjs:607-620",
             "issue": "An unreadable fragment file becomes the stub `{area, skipped:{count:1,...}}` (line 618). In update mode (`--previous` with `--areas`) that stub counts as the area's fragment (it is in `present`, so the existing 'no fragment' conflict does not fire), and the area's previous nodes, edges, entities and access rows are removed with nothing replacing them; only locked/noted nodes survive. Before this change a broken file threw a UsageError (exit 2) and wrote nothing. The loss is visible only as a `skipped` row in meta.sources; with no --strict the run exits 0. A single explorer that writes a truncated JSON file therefore erases a good area on `/archmap:update`. m12d covers only the full-build case.",
-            "resolution": "In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive.",
-            "fixTask": "P10.17-6rm"
+            "resolution": "fixed in P10.17-6rm (2c416577b97e): In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive.",
+            "fixTask": "P10.17-6rm",
+            "commit": "2c416577b97e",
+            "status": "fixed"
           },
           {
             "id": "P10-R4",
             "severity": "med",
             "file": "scripts/merge.mjs:431",
             "issue": "Every derived edge is written `confidence: 'verified'`, but the http links behind them come from prescan's segment matcher, where a `*` (a template or `{param}` segment) on either side matches anything and `served.find` takes the first route of another area (scripts/prescan.mjs:284 at f39a917). A call such as `fetch(`${base}/x`)` or `/${id}` therefore links to any other-area route with the same segment count (for example `/health`) and the edge is stamped verified with citations on both sides. Import edges are cited by the first line that mentions the target's basename (importLine), which can pick a different module with the same file name. Inferred matches shown as verified conflict with the evidence-and-honesty rule.",
-            "resolution": "Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches.",
-            "fixTask": "P10.17-6rm"
+            "resolution": "fixed in P10.17-6rm (2c416577b97e): Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches.",
+            "fixTask": "P10.17-6rm",
+            "commit": "2c416577b97e",
+            "status": "fixed"
           },
           {
             "id": "P10-R5",
@@ -5177,8 +5183,10 @@
             "severity": "med",
             "file": "scripts/merge.mjs:884-887",
             "issue": "hubOf() resolves `to: \"area:<id>\"` only through `placed`, which holds only the areas whose fragments are in this run. In update mode (--areas) the explorers of the affected areas are told to name other areas as `area:<id>`; the targets are mostly unaffected areas whose nodes sit in `nodes` from --previous but not in `placed`. hubOf returns null, the edge is deleted and a dropped-ref row says the node 'does not exist' although it does. Every cross-area edge from a re-explored area to an untouched one is lost on update. The tests (m19, m19b, p13) all run a full build, so none reaches this.",
-            "resolution": "Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area.",
-            "fixTask": "P10.17-6rm"
+            "resolution": "fixed in P10.17-6rm (2c416577b97e): Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area.",
+            "fixTask": "P10.17-6rm",
+            "commit": "2c416577b97e",
+            "status": "fixed"
           },
           {
             "id": "P10-R9",
@@ -5297,7 +5305,7 @@
             "fixTask": "P10.18-6rm"
           }
         ],
-        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 6 with a recorded fix commit]"
+        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 10 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -6530,7 +6538,7 @@
         {
           "id": "P10.17-6rm",
           "title": "Merge correctness: zones and access rows from the slices, inferred confidence for wildcard http edges, update mode keeps an unreadable area and resolves hubs of unaffected areas",
-          "status": "in_progress",
+          "status": "done",
           "description": "Phase review of P10, findings in scripts/merge.mjs grouped into one task because they share the file. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow. Zones come from the slice containers and the owning directory with kind and stack as the fallback; access rows come from the ORM table rows and the queue producer and consumer rows the slices carry; http edges matched through a wildcard segment are inferred, not verified; update mode keeps the previous elements of an area whose fragment is unreadable and resolves area:<id> hubs of unaffected areas from the previous model.\n\nP10-R2 (med, scripts/merge.mjs:158-165): contradicts task clause: P10.3 asks for 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'. zoneFor() (158-165) derives a zone only from the node kind and the area's stack and never reads the slice's `containers` or directory layout; the zone work otherwise only unifies spellings (resolveZone). deriveLayer's access loop (about 455-475) reads `sqlTables` only: no ORM-call evidence and no queue-evidence access row is produced. The synthesizer can no longer add access rows, so any access the explorers did not emit is lost. The executor's claim says 'SQL access rows' and so describes the narrower diff accurately, but the scope is narrower than the clause.\nResolution asked: Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them.\n\nP10-R3 (med, scripts/merge.mjs:607-620): An unreadable fragment file becomes the stub `{area, skipped:{count:1,...}}` (line 618). In update mode (`--previous` with `--areas`) that stub counts as the area's fragment (it is in `present`, so the existing 'no fragment' conflict does not fire), and the area's previous nodes, edges, entities and access rows are removed with nothing replacing them; only locked/noted nodes survive. Before this change a broken file threw a UsageError (exit 2) and wrote nothing. The loss is visible only as a `skipped` row in meta.sources; with no --strict the run exits 0. A single explorer that writes a truncated JSON file therefore erases a good area on `/archmap:update`. m12d covers only the full-build case.\nResolution asked: In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive.\n\nP10-R4 (med, scripts/merge.mjs:431): Every derived edge is written `confidence: 'verified'`, but the http links behind them come from prescan's segment matcher, where a `*` (a template or `{param}` segment) on either side matches anything and `served.find` takes the first route of another area (scripts/prescan.mjs:284 at f39a917). A call such as `fetch(`${base}/x`)` or `/${id}` therefore links to any other-area route with the same segment count (for example `/health`) and the edge is stamped verified with citations on both sides. Import edges are cited by the first line that mentions the target's basename (importLine), which can pick a different module with the same file name. Inferred matches shown as verified conflict with the evidence-and-honesty rule.\nResolution asked: Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches.\n\nP10-R8 (med, scripts/merge.mjs:884-887): hubOf() resolves `to: \"area:<id>\"` only through `placed`, which holds only the areas whose fragments are in this run. In update mode (--areas) the explorers of the affected areas are told to name other areas as `area:<id>`; the targets are mostly unaffected areas whose nodes sit in `nodes` from --previous but not in `placed`. hubOf returns null, the edge is deleted and a dropped-ref row says the node 'does not exist' although it does. Every cross-area edge from a re-explored area to an untouched one is lost on update. The tests (m19, m19b, p13) all run a full build, so none reaches this.\nResolution asked: Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area.",
           "files": [
             "scripts/merge.mjs",
@@ -6561,14 +6569,22 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2c416577b97e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/merge.mjs: (R2) containerZones(slices) maps each slice container file (Dockerfile/compose, root excluded) to a zone per directory (id = dir basename, or the whole slugged path when two dirs share a name); normaliseFragment gives a zoneless node the deepest container zone holding all its paths, else zoneFor(kind, stacks); created container zones are labelled with the directory and take the kind most members would fall back to. deriveLayer adds access rows from slice ORM table rows (R, owner code node; orm 'sql' DDL and store owners skipped; unmatched counted in the derivation row) and from queue producer (C)/consumer (R) rows where an entity models the queue name. (R4) links keep match/call; a wildcard http link makes the edge confidence inferred with 'Inferred: ... wildcard segment' in desc, an all-wildcard call path is skipped and counted; importLine now returns {line, exact}, exact when a relative specifier resolves to the target, a dotted/aliased path of 2+ trailing segments names it, or a python relative import resolves; basename-only lines give an inferred edge; an exact line is preferred. A group of links between one node pair is verified if any link is exact. (R3) the CLI stub for an unreadable fragment carries unreadable:true; in update mode such an area is dropped from the replaced set (previous nodes/edges/entities/access/coverage kept, slices of it not regenerated), its previous explorer row replaced by a skipped row with a note, and a conflict 'unreadable; previous ... kept' is pushed. (R8) hubOf falls back, for an area not placed this run, to the previous model's kept nodes of that area (evidence in prev.meta.coverage[area], or a path equal to / under its globs), level-2 app/service first. Header comment updated. scripts/prescan.mjs: an http call with only wildcard segments makes no link; a literal route match is preferred over a wildcard one; a wildcard match carries match:'wildcard' and call:'<METHOD> /<segs>' (exact links unchanged, so existing slices and summaries are byte-identical). tests/merge.test.mjs: m25-m29 and m27b added; m16 expectation updated for the ORM rows (orders-api customers R api/main.py:22,api/models.py:14; orders-api orders CR api/main.py:25,api/models.py:5). tests/prescan-wiring.test.mjs: pw6 added. Outside files: skills/architecture-map/references/model-schema.md 'What the merge computes' updated to match (plan gate allowed the Edit). Runs: node --test tests/merge.test.mjs tests/prescan-wiring.test.mjs exit 0, 65/65; node --test exit 0, 415/415. Dependants: scripts/pipeline.mjs, tests/golden.test.mjs, tests/pipeline.test.mjs, tests/e2e.test.mjs, tests/agents.test.mjs, tests/skill.test.mjs still correct (merge() signature and CLI flags unchanged; full suite green); scripts/lib/prescan/*.mjs and discovery-generic.md still correct (link fields are optional additions only on wildcard matches); scripts/prescan.mjs is a dependant of merge.mjs by basename only. Not changed: agents/archmap-synthesizer.md line 10 still says access rows come 'from the SQL evidence', which is now incomplete but not wrong.",
+            "descriptive": "merge derives container zones and ORM/queue access rows, marks wildcard http and basename-only import edges inferred, and in update mode keeps an area whose fragment is unreadable and resolves area:<id> of untouched areas"
           },
           "startedAt": "2026-10-31T15:24:25Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T15:39:49Z",
+          "verifiedBy": [
+            "m25 container-directory zones, kind/stack fallback, root Dockerfile ignored, no duplicate zone ids, order-independent",
+            "m26 ORM table rows and queue producer/consumer rows become access rows with evidence",
+            "m27 wildcard http match inferred with desc, all-wildcard call path no edge plus derivation reason, literal stays verified",
+            "m27b import edge inferred when the line names the module by file name only; resolving relative specifier stays verified",
+            "m28 update-mode CLI run with an unreadable fragment keeps the area's nodes, edges, entities, access, coverage; skipped row and conflict",
+            "m29 update-mode area:<id> to an unaffected area resolves to its previous level-2 node, no dropped-ref",
+            "pw6 prescan prefers a literal route, marks wildcard matches with match and call, links no all-wildcard call path"
+          ],
           "notes": [
             {
               "at": "2026-10-31T15:04:37Z",
@@ -6598,12 +6614,24 @@
             "runId": "2026-10-31T15:39:41Z.f257d1",
             "status": "passed",
             "at": "2026-10-31T15:39:41Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "2c416577b97e",
+            "at": "2026-10-31T15:39:49Z",
+            "basis": "a fix task for P10-R2, P10-R3, P10-R4, P10-R8: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-31T15:37:44Z",
+            "basis": "`node --test tests/merge.test.mjs tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.18-6rm",
           "title": "Prescan precision: SQL table refs skip CTE names and FROM inside EXTRACT, SUBSTRING, TRIM and OVERLAY; a file-named queue only for a Worker",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Phase review of P10, findings in the prescan extractors grouped into one task. Fix both; the finding texts and the resolutions the reviewer asked for follow.\n\nP10-R18 (med, scripts/lib/prescan/generic.mjs:315): P10.13 (a871e37): SQL_TABLE_REF takes the identifier after every `from`/`join` as a table, and sqlStatements (line 498) never discards names that are not tables. A CTE name used later (`WITH recent AS (...) SELECT ... FROM recent`), `EXTRACT(year FROM created_at)`, `SUBSTRING(s FROM 2)`, `TRIM(BOTH FROM s)` and `IS DISTINCT FROM x` all yield a table ref. Before this task such a ref was only a skipped access row. Now generateFromExtracts in scripts/merge.mjs makes an inferred entity, a generated store and an access row for each one, so the architecture model fills with entities that are not tables. CTEs are common in the DuckDB/SQLite analytics code this task targets. The tests (py13, m23, pc13) only use plain table names.\nResolution asked: In sqlStatements, collect the names a statement defines with `WITH name AS (` / `, name AS (` and drop refs to them. Only accept `from <ident>` when the `from` is not inside a function-call parenthesis opened by EXTRACT, SUBSTRING, TRIM or OVERLAY, and ignore `distinct from`. Add py13/pc13 cases for a CTE and for EXTRACT(... FROM col).\n\nP10-R21 (low, scripts/lib/prescan/node-backend.mjs:896-905): queueNameOf names a queue after the file path for any unresolved lowercase bare identifier, and extractQueues applies it to `new Queue(x)` as well as `new Worker(x, ...)`. The task asked only for a Worker without a resolvable name to be named after its file. A Queue built from a parameter or an unresolved import now becomes a queue row named for a file. Two Queues or Workers with different unresolved parameters in one file collapse into one row, and a Worker's file-named row never pairs with the Queue it consumes. The file header still says nothing is guessed. nb14 covers only the Worker case, so the Queue behaviour is untested.\nResolution asked: Return the file-path name only from the Worker call site (pass a flag to queueNameOf) and keep a lowercase identifier given to `new Queue` in `skipped.queues`. Otherwise add a nb14 case for new Queue(param) that pins the chosen behaviour and say in the header why a file name is accepted for a Queue.",
           "files": [
             "scripts/lib/prescan/generic.mjs",
@@ -6630,14 +6658,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T15:39:49Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -6657,7 +6685,13 @@
           "fixes": [
             "P10-R18",
             "P10-R21"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T15:44:22Z.de5c0f",
+            "status": "passed",
+            "at": "2026-10-31T15:44:22Z"
+          }
         },
         {
           "id": "P10.19-6rm",

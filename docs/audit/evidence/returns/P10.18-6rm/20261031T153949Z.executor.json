@@ -1,0 +1,26 @@
+{
+  "gates": {
+    "node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T15:43:35Z",
+    "basis": "`node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/lib/prescan/generic.mjs: sqlStatements now drops refs to the CTE names its statement defines (cteNames: WITH [RECURSIVE] name [(cols)] AS [[NOT] MATERIALIZED] ( and , name AS (, only when the statement holds WITH; ddl refs are kept), skips a FROM whose innermost open parenthesis is a call to EXTRACT, SUBSTRING, TRIM or OVERLAY (argumentFroms: one quote-aware pass with a paren stack, so a subquery inside such a call still counts), and skips IS [NOT] DISTINCT FROM; these checks run before the placeholder check, so they are not counted in skipped either. scripts/lib/prescan/node-backend.mjs: queueNameOf takes { worker } and returns the file-path name for a lowercase bare identifier only at the new Worker call site; new Queue(<lowercase ident>) returns null and is counted in skipped.queues; doc comment and file header say why. Tests: py15 in tests/prescan-python.test.mjs, nb15 in tests/prescan-node-backend.test.mjs. `node --test tests/prescan-python.test.mjs tests/prescan-node-backend.test.mjs`: 30 tests, 30 pass, exit 0. Red first: both new cases failed on assertions before the fix. Only the own-tests command was run, not the full gate. Dependants: python.mjs, ts-frontend.mjs and prescan.mjs import generic.mjs, and sqlStatements keeps its signature and return shape; it only gives fewer refs, and py1-py14 still pass. stacks/node-backend.mjs, prescan-wiring.test.mjs and the node-api fixture README are still correct: grep finds no new Queue(<lowercase ident>) in tests/fixtures/repos, and no EXTRACT/SUBSTRING/TRIM/OVERLAY, DISTINCT FROM or WITH name AS either; nb1-nb14 pass. stack-node-backend.md line 17 describes queues in general terms and still holds. The pc13 case the reviewer named is not in this task's files, so the SQL cases went into py15 only (sqlStatements is shared by scanJsSql, so the js path gets the same fix).",
+    "descriptive": "Prescan no longer turns CTE names, SQL function arguments or IS DISTINCT FROM operands into table entities, and no longer names a Queue built from a parameter after its file."
+  },
+  "testsAdded": [
+    "py15: CTE names (WITH RECURSIVE, comma list, a column list, lowercase with), EXTRACT/SUBSTRING/TRIM/OVERLAY FROM and IS [NOT] DISTINCT FROM give no ref; the real FROM tables, subqueries inside EXTRACT and a CTE-named table in another statement still do; nothing counted as skipped",
+    "nb15: new Queue(param), new Queue(queueName) and new Queue(importedLowercase) are counted in skipped.queues with no row; new Worker(name, handler) in the same file is still the file-named row carrying its worker"
+  ],
+  "casesAdded": [
+    "py15",
+    "nb15"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:7224d0bea1a1c92acb3956ea4e84e9eafa095862087091b67505f9c58bd6e13f\",\"dirtyDigest\":\"sha256:cf063ee4e5900fe2577e5787b5e4f9aa229bb03ceb85f5a20d68b092cb02bded\",\"dirtyPaths\":{\"scripts/lib/prescan/generic.mjs\":\"d4e80a91a0722c08\",\"scripts/lib/prescan/node-backend.mjs\":\"4b03a5b193d177e8\",\"tests/prescan-node-backend.test.mjs\":\"992eabbe3bdd825a\",\"tests/prescan-python.test.mjs\":\"28084cc469d7397f\"},\"head\":\"2c41657\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/generic.mjs\",\"scripts/lib/prescan/node-backend.mjs\",\"tests/prescan-node-backend.test.mjs\",\"tests/prescan-python.test.mjs\"],\"scopeDigest\":\"sha256:a91d15796257dc78c00978360e1247204b6b246e8e6af4c23ed1a8238a0b98ca\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
