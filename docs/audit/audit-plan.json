@@ -4309,7 +4309,7 @@
     {
       "id": "P8",
       "title": "Skill evals and trigger description",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "skill-creator evals 1-5 run with and without the skill and are reviewed by the owner; issue recall is at least 60 percent of high and medium reference issues; balanced is cheaper than max; the trigger description is optimised with run_loop.",
       "testGate": [],
@@ -4319,7 +4319,7 @@
       ],
       "baseRef": "a8ee1776141ec0345693dfb8c1e0ed4f7a076694",
       "branch": "audit/p8-skill-evals-and-trigger-descri",
-      "mergedAt": null,
+      "mergedAt": "2026-10-31T19:24:15Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -5020,7 +5020,8 @@
         "runId": "2026-10-31T19:24:11Z.45a157",
         "status": "empty-gate",
         "at": "2026-10-31T19:24:11Z"
-      }
+      },
+      "mergedHead": "e891d7e1d881ba1e7497f56c7831b7a7f4c3170a"
     },
     {
       "id": "P9",
