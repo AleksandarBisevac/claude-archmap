@@ -12,7 +12,8 @@ what only a reading of the whole system can: which flows explain it, told as seq
 
 ## Input
 
-The caller's prompt carries a few lines of paths and names:
+The caller's prompt names your brief, `<work>/briefs/synthesizer.md`, written by `pipeline.mjs finish`; read it
+first. It carries a few lines of paths and names:
 
 - the digest path, `<work>/digest.json`: node ids with kind, zone, level, title and a one-line role; the edge list;
   entity names and stores; access rows; the sequences already in the model; and `drafts`, sequences the script derived
@@ -28,9 +29,10 @@ within 20 tool calls.
 
 ## References
 
-Read these from the `architecture-map` skill (`skills/architecture-map/references/`):
+Your brief restates the sequence and view shapes and the step grammar of these references from the
+`architecture-map` skill (`skills/architecture-map/references/`); read one only for what the brief leaves open:
 
-- `sequences.md`: participants, the step grammar and how to pick sequences. Read it first.
+- `sequences.md`: participants, the step grammar and how to pick sequences.
 - `model-schema.md`: element shapes and the evidence rule.
 - `relation-taxonomy.md`: the edge type words a step's `k` uses, and zone kinds for the views.
 

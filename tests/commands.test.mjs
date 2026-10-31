@@ -135,3 +135,28 @@ test('c9 export.md is script-only: frontmatter keys, runs export.mjs via the plu
     assert.ok(existsSync(join(ROOT, 'scripts', `${m[1]}.mjs`)), `export.md names scripts/${m[1]}.mjs which does not exist`);
   }
 });
+
+test('c10 build.md and update.md keep their frontmatter, point at the skill and name the driver, and do not restate the flow', () => {
+  const want = {
+    build: {
+      description: 'Build the evidence-backed architecture map of this repository - model, layout and a self-contained offline HTML viewer in docs/architecture/.',
+      'argument-hint': '"[--issues] [--profile max|balanced|economy] [--db dsn] [--scope path] [--publish]"',
+      'allowed-tools': 'Read, Grep, Glob, Bash, Agent, Write, Edit',
+    },
+    update: {
+      description: 'Refresh the architecture map after code changes - re-analyses only the areas git says changed, keeps locked nodes, notes and pinned positions.',
+      'argument-hint': '"[--issues] [--profile max|balanced|economy] [--since sha]"',
+      'allowed-tools': 'Read, Grep, Glob, Bash, Agent, Write, Edit',
+    },
+  };
+  for (const [name, fm] of Object.entries(want)) {
+    const c = load(name);
+    assert.deepEqual(c.fm, fm, `${name}.md frontmatter is unchanged`);
+    assert.ok(c.body.includes('`architecture-map` skill'), `${name}.md points at the skill`);
+    assert.ok(c.body.includes('$ARGUMENTS'), `${name}.md passes $ARGUMENTS`);
+    assert.ok(c.body.includes('${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs'), `${name}.md names the driver`);
+    assert.match(c.body, /ScheduleWakeup|poll/i, `${name}.md rules out polling`);
+    assert.doesNotMatch(c.body, /prescan\.mjs|merge\.mjs|usage\.mjs|synthesizer|explorer/i, `${name}.md does not restate the flow`);
+  }
+  assert.match(load('update').body, /--update/, 'update.md runs the driver in update mode');
+});

@@ -1,0 +1,222 @@
+{
+  "area": "src",
+  "nodes": [
+    {
+      "id": "books-api",
+      "zone": "service",
+      "kind": "route-group",
+      "title": "Books API",
+      "paths": [
+        "src/books/**"
+      ],
+      "level": 2,
+      "role": "Nest controller serving the books routes.",
+      "evidence": [
+        {
+          "path": "src/books/books.controller.ts",
+          "lines": "5-46"
+        }
+      ]
+    },
+    {
+      "id": "library-db",
+      "zone": "data",
+      "kind": "store",
+      "title": "Library database",
+      "paths": [
+        "src/entities/**"
+      ],
+      "level": 1,
+      "role": "TypeORM tables for books and authors.",
+      "evidence": [
+        {
+          "path": "src/entities/book.entity.ts",
+          "lines": "4-21"
+        }
+      ]
+    },
+    {
+      "id": "orders-api",
+      "zone": "service",
+      "kind": "route-group",
+      "title": "Orders API",
+      "paths": [
+        "src/express/**"
+      ],
+      "level": 2,
+      "role": "Express app and the orders router.",
+      "evidence": [
+        {
+          "path": "src/express/app.ts",
+          "lines": "1-10"
+        }
+      ]
+    },
+    {
+      "id": "email-queue",
+      "zone": "service",
+      "kind": "queue",
+      "title": "Email queue",
+      "paths": [
+        "src/queues/email.queue.ts",
+        "src/queues/email.producer.ts"
+      ],
+      "level": 2,
+      "role": "BullMQ queue and its producers.",
+      "evidence": [
+        {
+          "path": "src/queues/email.queue.ts",
+          "lines": "1-6"
+        }
+      ]
+    },
+    {
+      "id": "email-worker",
+      "zone": "service",
+      "kind": "job",
+      "title": "Email worker",
+      "paths": [
+        "src/queues/email.worker.ts"
+      ],
+      "level": 3,
+      "role": "Consumes the email queue.",
+      "evidence": [
+        {
+          "path": "src/queues/email.worker.ts",
+          "lines": "1-8"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "books-use-db",
+      "from": "books-api",
+      "to": "library-db",
+      "type": "sql",
+      "desc": "Books controller reads the books table",
+      "evidence": [
+        {
+          "path": "src/books/books.controller.ts",
+          "lines": "7-10"
+        }
+      ],
+      "confidence": "inferred"
+    },
+    {
+      "id": "orders-calls-books",
+      "from": "orders-api",
+      "to": "books-api",
+      "type": "api",
+      "desc": "Orders app is mounted next to the books API",
+      "evidence": [
+        {
+          "path": "src/express/app.ts",
+          "lines": "8"
+        }
+      ],
+      "confidence": "inferred"
+    },
+    {
+      "id": "worker-pulls-queue",
+      "from": "email-worker",
+      "to": "email-queue",
+      "type": "queue",
+      "desc": "Worker consumes jobs",
+      "evidence": [
+        {
+          "path": "src/queues/email.worker.ts",
+          "lines": "8"
+        }
+      ],
+      "confidence": "verified"
+    }
+  ],
+  "entities": [
+    {
+      "id": "books",
+      "store": "library-db",
+      "name": "books",
+      "kind": "table",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "provenance": "declared"
+        },
+        {
+          "name": "subtitle",
+          "type": "string",
+          "nullable": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "author_id",
+          "type": "number",
+          "provenance": "declared",
+          "fk": {
+            "entity": "authors",
+            "field": "id"
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "path": "src/entities/book.entity.ts",
+          "lines": "4-21"
+        }
+      ]
+    },
+    {
+      "id": "authors",
+      "store": "library-db",
+      "name": "authors",
+      "kind": "table",
+      "fields": [
+        {
+          "name": "id",
+          "type": "number",
+          "pk": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "provenance": "declared"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "src/entities/author.entity.ts",
+          "lines": "4-14"
+        }
+      ]
+    }
+  ],
+  "access": [
+    {
+      "node": "books-api",
+      "entity": "books",
+      "ops": "R",
+      "evidence": [
+        {
+          "path": "src/books/books.controller.ts",
+          "lines": "7-10"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    "src/**"
+  ],
+  "skipped": {
+    "count": 0,
+    "reasons": []
+  }
+}

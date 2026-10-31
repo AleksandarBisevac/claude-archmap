@@ -87,7 +87,7 @@ test('g8 the golden model passed through merge.mjs as the previous model still v
   const { layoutModel } = await import('../scripts/layout.mjs');
   const { renderHtml, checkInputs } = await import('../scripts/render.mjs');
   // merge writes canonical JSON (sorted keys, elements in id order), so compare element sets in canonical form
-  const canon = (x) => JSON.stringify(x, (k, v) => (v && typeof v === 'object' && !Array.isArray(v)
+  const canon = (x) => JSON.stringify(x, (_k, v) => (v && typeof v === 'object' && !Array.isArray(v)
     ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, v[key]])) : v));
   const set = (arr) => (arr ?? []).map(canon).sort();
   const r = merge({ fragments: [], previous: model, areas: [], meta: {} });

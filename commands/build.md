@@ -7,4 +7,6 @@ allowed-tools: Read, Grep, Glob, Bash, Agent, Write, Edit
 Use the `architecture-map` skill and follow its build flow for this repository, passing the arguments through
 unchanged: `$ARGUMENTS`
 
-The skill holds the whole procedure, the evidence rules and the token rules. Do not improvise a different flow here.
+The skill holds the whole procedure, the evidence rules and the token rules. Do not improvise a different flow here:
+the build is the driver `node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs"` (plan, finish, render) with one foreground
+dispatch message after plan and one after finish. Never poll, ScheduleWakeup or Monitor during the build.

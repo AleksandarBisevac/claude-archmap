@@ -11,7 +11,8 @@ architecture model. You read excerpts, not trees. You never change the project.
 
 ## Input
 
-The caller's prompt carries paths and a few names, never JSON:
+The caller's prompt names your brief, `<work>/briefs/<area>.md`, written by `pipeline.mjs plan`; read it first. It
+carries paths and a few names, never JSON:
 
 - the area name and its globs (your boundary: do not map files outside them);
 - the extract path, `<work>/extracts/<area>.json`: prescan's facts for this area (routes with method, path, handler, file
@@ -31,7 +32,8 @@ When the budget is nearly spent, write the fragment with what you have and count
 
 ## References
 
-Read these from the `architecture-map` skill (`skills/architecture-map/references/`) before you read any source:
+Your brief restates the fragment contract, the caps and the vocabulary of these references from the `architecture-map`
+skill (`skills/architecture-map/references/`); read one only for what the brief leaves open:
 
 - `model-schema.md`: every key, the evidence rule, provenance, and the **explorer fragment contract**.
 - `relation-taxonomy.md`: edge types, confidence values, `async`, zone kinds and node kinds.
@@ -91,7 +93,8 @@ you could not write the file, the first line is `fragment: none` and the third l
 - Caps per fragment: 40 nodes, 80 edges, 60 entities, 80 access rows. Put the most structural elements first: the merge
   keeps the first ones and drops the rest. Report what you left out in `skipped`.
 - `desc` and `role` are one sentence each. Excerpts of source never appear in the output: cite `{path, lines}` only.
-- Do not emit `meta`, `zones`, `sequences`, `views`, `locked` or `notes`. The synthesizer owns those.
+- Do not emit `meta`, `zones`, `sequences`, `views`, `locked` or `notes`. `merge.mjs` fills `meta` and the zones,
+  the synthesizer writes sequences and views, and `locked` and `notes` belong to the user.
 - Never silently omit: whatever you saw and left out is counted in `skipped`.
 - A slip in a field (a number where a string belongs, a missing `level`) is fixed by the merge, not by you; do not spend
   tool calls on it.

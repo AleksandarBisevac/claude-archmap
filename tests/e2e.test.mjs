@@ -203,3 +203,32 @@ test('e4 the usage ledger has a row per step and prints per-phase totals', () =>
   assert.equal(json.total.unknownTokens, 0);
   assert.equal(json.total.unknownDuration, 0);
 });
+
+test('e5 the driver chain (pipeline.mjs plan, finish, render) on the fixture passes validate --repo and writes a self-contained HTML', () => {
+  const repo5 = join(work, 'node-api-driver');
+  cpSync(REPO_SRC, repo5, { recursive: true });
+  git(repo5, 'init', '-q');
+  git(repo5, 'add', '-A');
+  git(repo5, 'commit', '-q', '-m', 'initial');
+  const w = join(work, 'driver-work');
+  const o = join(work, 'driver-out');
+  const drive = (...args) => JSON.parse(run('pipeline.mjs', args));
+  const plan = drive('plan', repo5, '--work', w, '--out', o, '--project', 'node-api', '--generated-at', GENERATED_AT);
+  assert.equal(plan.exit, 0);
+  assert.ok(plan.agents.length > 0, 'plan lists the explorer calls');
+  cpSync(join(E2E, 'pipeline/fragments'), join(w, 'fragments'), { recursive: true });
+  const finish = drive('finish', '--work', w);
+  assert.equal(finish.exit, 0);
+  assert.equal(finish.agents[0].subagent_type, 'archmap-synthesizer');
+  cpSync(join(E2E, 'synth.json'), join(w, 'synth.json'));
+  const render = drive('render', '--work', w);
+  assert.equal(render.exit, 0);
+  const v = run('validate.mjs', [render.files.model, '--repo', repo5]);
+  assert.match(v, /^OK: no findings$/m);
+  assert.match(v, /evidence: checked/);
+  const html = readFileSync(render.files.html, 'utf8');
+  assert.ok(html.includes('books-api'), 'the model is in the page');
+  assert.doesNotMatch(html, /\b(?:src|srcset|href)\s*=\s*['"]?\s*(?:https?:)?\/\//i, 'no remote src or href');
+  assert.doesNotMatch(html, /<script[^>]+src=|<link[^>]+stylesheet/i, 'scripts and styles are inline');
+  assert.doesNotMatch(html.replace(/<script type="application\/json"[\s\S]*?<\/script>/g, ''), /\bfetch\(\s*['"`]https?:/, 'no remote fetch');
+});

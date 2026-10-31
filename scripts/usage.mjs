@@ -6,9 +6,10 @@
 //   node scripts/usage.mjs print <ledger.jsonl> [--json]
 //   node scripts/usage.mjs estimate --turns <n> --context <n> [--json]
 //
-// phase: prescan | explorer | introspection | merge | synthesizer | reviewer | layout | render.
-// The orchestrator records one JSONL row per step, taking tokens and duration from the subagent completion
-// notifications; a script that costs no tokens is recorded with --tokens 0. A figure that was not given is left
+// phase: prescan | diffmap | explorer | introspection | merge | validate | synthesizer | reviewer | layout | render.
+// scripts/pipeline.mjs records the rows of a build (makeRow, writeLedger): one JSONL row per step, the agent rows
+// from the tokens and duration the orchestrator copies off the completion notifications into its --usage pairs; a
+// script that costs no tokens is recorded with tokens 0. `add` appends one row by hand. A figure that was not given is left
 // out of the row and printed as "unknown", never as 0; the total says how many rows were unknown.
 // A row may also carry the four token classes (--input, --output, --cache-read, --cache-write) beside --tokens;
 // print shows the classes a row has. With all four and no --tokens the total is their sum; with both, they must
@@ -22,7 +23,7 @@
 import { readFileSync, appendFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export const PHASES = ['prescan', 'explorer', 'introspection', 'merge', 'synthesizer', 'reviewer', 'layout', 'render'];
+export const PHASES = ['prescan', 'diffmap', 'explorer', 'introspection', 'merge', 'validate', 'synthesizer', 'reviewer', 'layout', 'render'];
 
 const USAGE = `usage:
   node scripts/usage.mjs add <ledger.jsonl> --phase <${PHASES.join('|')}>
@@ -87,13 +88,13 @@ function parseArgs(argv) {
 }
 
 // Fixed key order keeps the ledger file deterministic.
-function makeRow(r) {
+export function makeRow(r) {
   const out = { phase: r.phase };
   for (const k of ['label', 'agent', 'model', 'tokens', ...CLASS_KEYS, 'durationMs']) if (r[k] !== undefined) out[k] = r[k];
   return out;
 }
 
-function readLedger(path) {
+export function readLedger(path) {
   let text;
   try {
     text = readFileSync(path, 'utf8');

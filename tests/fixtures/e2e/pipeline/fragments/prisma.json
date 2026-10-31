@@ -1,0 +1,94 @@
+{
+  "area": "prisma",
+  "nodes": [
+    {
+      "id": "orders-db",
+      "zone": "data",
+      "kind": "store",
+      "title": "Orders database",
+      "paths": [
+        "prisma/**"
+      ],
+      "level": 1,
+      "role": "Prisma schema of the customers and orders tables.",
+      "evidence": [
+        {
+          "path": "prisma/schema.prisma",
+          "lines": "1-4"
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "entities": [
+    {
+      "id": "customer",
+      "store": "orders-db",
+      "name": "Customer",
+      "kind": "table",
+      "fields": [
+        {
+          "name": "id",
+          "type": "Int",
+          "pk": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "provenance": "declared"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "prisma/schema.prisma",
+          "lines": "15-19"
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "store": "orders-db",
+      "name": "orders",
+      "kind": "table",
+      "fields": [
+        {
+          "name": "id",
+          "type": "Int",
+          "pk": true,
+          "provenance": "declared"
+        },
+        {
+          "name": "placedAt",
+          "type": "DateTime",
+          "provenance": "declared"
+        },
+        {
+          "name": "customerId",
+          "type": "Int",
+          "provenance": "declared",
+          "fk": {
+            "entity": "customer",
+            "field": "id"
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "path": "prisma/schema.prisma",
+          "lines": "21-30"
+        }
+      ]
+    }
+  ],
+  "access": [],
+  "coverage": [
+    "prisma/**"
+  ],
+  "skipped": {
+    "count": 1,
+    "reasons": [
+      "OrderLine left out of the canned fixture"
+    ]
+  }
+}

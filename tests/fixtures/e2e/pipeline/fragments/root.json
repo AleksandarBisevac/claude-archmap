@@ -1,0 +1,16 @@
+{
+  "area": "root",
+  "nodes": [],
+  "edges": [],
+  "entities": [],
+  "access": [],
+  "coverage": [
+    "*"
+  ],
+  "skipped": {
+    "count": 1,
+    "reasons": [
+      "openapi.yaml describes routes the src area maps"
+    ]
+  }
+}

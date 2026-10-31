@@ -5275,7 +5275,7 @@
         {
           "id": "P10.3-2xj",
           "title": "Synthesizer by script: merge.mjs computes cross-area edges and zones, the agent writes only sequences and views",
-          "status": "in_progress",
+          "status": "done",
           "description": "The synthesizer is the largest cost (about 40 percent) because it loops for hundreds of tool calls over the whole model. Make merge.mjs compute deterministically what it now asks the agent for: cross-area edges from the prescan import, call, route and queue evidence (each with evidence), node dedup by path across areas, zones from the directory and container structure with no duplicates, access[] rows from the ORM, SQL and queue evidence, and relations[] from declared foreign keys; each computed element carries its evidence and is validated. merge.mjs also writes <work>/digest.json: a compact digest (node ids, kinds, one-line roles, edge list, entity names) capped at about 30 K characters. agents/archmap-synthesizer.md is rewritten to read the digest, not the model and fragments, to make at most a stated number of targeted source reads, to write its result to the synth path named in the brief (<work>/synth.json; its tool list gains Write for that one path) and to reply with three lines only (path, counts of sequences and views, tool calls spent); it returns only sequences[] (3-7, per references/sequences.md), views[], notes and conflicts and may not add nodes, edges, entities or access rows. SKILL.md step 5 and the profile table follow (the balanced synthesizer model is an open choice: keep Opus or drop to Sonnet, decide from the measured quality on the e2e fixtures and record the choice). Sequences the script can derive from an entry point through route, handler, access rows and queue hops are pre-drafted in the digest so the agent confirms rather than discovers.",
           "files": [
             "scripts/merge.mjs",
@@ -5310,25 +5310,49 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "ba55582c1b41",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/merge.mjs: new merge() options extracts (the per-area prescan slices) and repo; new CLI flags --extracts <dir>, --repo <dir>, --digest <file>. deriveLayer() turns slice links into cross-area edges (http->api, queue->queue async, or two edges to a queue node when one exists; import->call, with the import line found in the file read as text under --repo, otherwise skipped), each verified, foundBy static, caller's evidence first, deduped against edges the explorer already drew. It derives access rows from sqlTables (select R / insert C / update U / delete D) and fk relations from entity field fk and slice-table fk= (1-n, kind fk, the field's provenance). A node of another area with identical paths collapses into the first one; references in its own fragment and in other fragments are rewritten and the collapse is recorded in renames with a reason. Fragment zone ids are matched by spelling (case and separators), and a node with no zone gets one from its kind and area stacks (normalisation counted). Synth nodes/edges/entities/access/relations are refused, with one conflict per kind; sequences, views, notes and conflicts still merge. Anything the script cannot cite goes into one meta.sources row of type derivation (counts, reasons capped at 20); a previous derivation row is replaced. draftSequences() drafts a sequence per HTTP entry point: route call, then access rows cited in the handler file, then queue hops from that file with the consumer's access rows (max 7 participants, 12 drafts). buildDigest()/digestText() write digest.json (zones, nodes with role, edges, entities, access, sequence ids, drafts) trimmed by weight to DIGEST_CAP=29000 characters, with a truncated tally. agents/archmap-synthesizer.md rewritten: reads only the digest, at most 12 targeted reads within 20 tool calls, writes {sequences, views, notes, conflicts} to the synth path with Write limited to that path, replies in three lines (synth:, counts:, tool calls:), may not add nodes/edges/entities/access rows/relations. Frontmatter is now sonnet, medium, tools Read, Grep, Glob, Write. SKILL.md (346 lines, line 3 byte-identical, sha c5eeeab1 before and after) updates hard rule 1, the agents table, the dispatch paragraph, step 4 (merge with --extracts --repo . --digest), step 5, update steps 3-4, token rules and the profile table (balanced synthesizer Sonnet medium, with the reason). model-schema.md gains the derivation row and a 'What the merge computes' section; sequences.md gains 'Drafts from the merge'. Tests: merge m2/m2b fixtures given distinct paths (they model genuinely different components); m5/m5b rewritten for the new synth contract; new m5c, m13, m13b, m13c, m14, m15, m16, m17, m17b, m18; agents a1/a2 updated, new a6; golden new g8. Fixture synth.json is now in the new shape; new fixture dir tests/fixtures/merge/cross/{fragments,extracts,repo} (synthetic, staged). Runs: own tests 75/75 pass; full `node --test` exit 0, 325/325; `node --test tests/denylist.test.mjs` 2/2 pass. Manual check: prescan over a temp git copy of tests/fixtures/repos plus synthetic fragments, then merge --extracts --repo, then validate.mjs --repo exited 0 (evidence checked), with 1 http edge, 4 SQL access rows, 4 fk relations and 2 skipped statements recorded. Dependants: tests/e2e.test.mjs unchanged and passing (its synth.json was already sequences/views only and it passes no --extracts). docs/design.md (not in this task's files) is now stale: line 82 says synthesizer opus/high Read, Grep, Glob, and D11 and line 128 say the synthesizer adds cross-area edges and CRUD. agents/archmap-explorer.md:94 (not in files) still says 'the synthesizer owns' zones; zones are now merge.mjs's. archmap-reviewer.md, skill-references, skill, commands and evals tests are still correct (suite green). The tests/fixtures/merge dependants the brief lists (LICENSE, elk bundle, ...) are basename coincidences. Model choice: balanced synthesizer goes from Opus high to Sonnet medium. The digest leaves no structural reasoning to the agent, only confirming drafted, cited steps, picking 3-7 flows and naming views. Opus stays on max. No LLM e2e quality run was possible here, so the choice rests on the reduced task, not on measured quality.",
+            "descriptive": "merge.mjs now computes cross-area edges, path dedup, zones, SQL access rows, fk relations and a capped digest with drafted sequences. The synthesizer reads only that digest, writes only sequences and views to synth.json, replies in three lines, and runs on Sonnet in the balanced profile."
           },
           "startedAt": "2026-10-30T23:20:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-30T23:41:28Z",
+          "verifiedBy": [
+            "m13: cross-area http, queue and import edges from the prescan links, with evidence and no synth file; an unowned link is counted, not invented",
+            "m13b: with no repo the import link is skipped rather than given a guessed line; with no extracts nothing is derived",
+            "m13c: in update mode a derived edge belongs to its caller's area and is recomputed from fresh extracts",
+            "m14: nodes from two areas with the same paths collapse to one, edge references rewritten",
+            "m15: no duplicate zones; zone spellings unified; a zone-less node gets a zone from its kind and stack",
+            "m16: access rows from SQL evidence and relations from model and ORM foreign keys",
+            "m17: digest.json is written, under 30K, with ids, kinds, roles, edges, entities and a valid pre-drafted sequence",
+            "m17b: the digest stays under its cap on a large model and counts what it trimmed",
+            "m18: model and digest are byte-identical across two CLI runs and independent of input order",
+            "m5c: a synth object carrying nodes, edges, entities, access or relations has each refused and reported",
+            "a6: the synthesizer reads the digest, states a read budget, writes four keys to its synth path, replies in three lines and forbids structural additions",
+            "g8: the golden model passed through merge still validates, keeps its elements and renders"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-30T23:41:27Z.7df302",
             "status": "passed",
             "at": "2026-10-30T23:41:27Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "ba55582c1b41",
+            "at": "2026-10-30T23:41:28Z"
+          },
+          "redFirst": {
+            "at": "2026-10-30T23:40:45Z",
+            "basis": "`node --test tests/merge.test.mjs tests/agents.test.mjs tests/golden.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.4-2xj",
           "title": "Driver script: the orchestrator runs the build in a bounded number of turns",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add scripts/pipeline.mjs so the orchestrating session stops being the pipeline. `pipeline.mjs plan <repo> --work <dir> [--scope --profile --issues]` runs prescan, partitions the areas, writes the per-area extracts and one ready-to-send explorer brief per area (<work>/briefs/<area>.md, each under the character cap, carrying the caps, the fragment path and the merge contract so the explorer needs no reference file) and prints the list of Agent calls to make, as JSON. `pipeline.mjs finish --work <dir> [--usage <area>=<tokens> ...]` reads the fragments from <work>/fragments/, runs introspection when a file database is listed and a CLI is present, merge, validate with --repo, writes the digest and the synthesizer brief (with the synth path) and records the explorer ledger rows from the --usage pairs the orchestrator copies off the Agent completion lines, plus the script rows; `pipeline.mjs render --work <dir> [--usage synthesizer=<tokens>]` merges <work>/synth.json, validates, lays out, renders, records the remaining ledger rows and prints the final report skeleton with the ledger. The orchestrator never calls usage.mjs itself (eval 4 spent 12 turns on ledger rows). Every step is idempotent and prints exit codes and findings in one JSON object; nothing is hidden. SKILL.md's build flow becomes: run plan, dispatch the explorers it lists as foreground Agent calls in ONE message and wait for them in that turn (no ScheduleWakeup, Monitor or background dispatch for a build; eval 4 spent 11 polling turns re-reading a 250 K context), run finish, dispatch the synthesizer the same way, run render, report; the update flow and commands/build.md and commands/update.md use the same driver with diffmap. SKILL.md carries the cap table and the three-line reply contract, and the orchestrator reads SKILL.md once and no reference, script or agent file during a build (eval 4 grepped merge.mjs and model-schema.md to learn the caps); references move behind the briefs. Targets measured on the e2e fixture with canned fragments: the orchestrating session needs at most 12 assistant turns for a build without --issues, and scripts/cost-profile.mjs on that transcript shows the orchestrator's maximum context under 80 K tokens.",
           "files": [
             "scripts/pipeline.mjs",
@@ -5336,10 +5360,15 @@
             "skills/architecture-map/SKILL.md",
             "commands/build.md",
             "commands/update.md",
+            "agents/archmap-explorer.md",
+            "agents/archmap-synthesizer.md",
+            "docs/design.md",
             "tests/pipeline.test.mjs",
             "tests/e2e.test.mjs",
             "tests/skill.test.mjs",
             "tests/commands.test.mjs",
+            "tests/merge.test.mjs",
+            "tests/golden.test.mjs",
             "tests/fixtures/e2e"
           ],
           "tests": {
@@ -5363,16 +5392,22 @@
           "dependsOn": [
             "P10.3-2xj"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-30T23:41:29Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T00:08:20Z.0fc095",
+            "status": "passed",
+            "at": "2026-10-31T00:08:20Z"
+          }
         },
         {
           "id": "P10.5-2xj",
@@ -5458,7 +5493,8 @@
     ],
     "tests/golden.test.mjs": [
       "P1.3",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.4-2xj"
     ],
     "tests/denylist.test.mjs": [
       "P2.1"
@@ -5816,11 +5852,13 @@
     "agents/archmap-explorer.md": [
       "P4.5",
       "BF1.3",
-      "P10.2-2xj"
+      "P10.2-2xj",
+      "P10.4-2xj"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.4-2xj"
     ],
     "agents/archmap-reviewer.md": [
       "P4.5"
@@ -5845,7 +5883,8 @@
       "P5.10-2zy",
       "P5.11-2zy",
       "P10.2-2xj",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P10.4-2xj"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -5936,7 +5975,8 @@
       "P6.4"
     ],
     "docs/design.md": [
-      "BF1.1"
+      "BF1.1",
+      "P10.4-2xj"
     ],
     "scripts/export.mjs": [
       "P7.1",

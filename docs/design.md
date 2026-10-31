@@ -56,7 +56,7 @@ What archmap combines that nothing else does:
 | D8 | A Claude Code **plugin** named **`archmap`**, in its own repo **`AleksandarBisevac/claude-archmap`**. It is listed in the existing `quality-gates` marketplace (`AleksandarBisevac/claude-plugins`) through one entry with a github `source`. Install: `/plugin install archmap@quality-gates`. Do not put it inside the claude-plugins repo: that repo's tooling (`tools/verify.sh`, `release.py`, `sweep-selftests.py`, lints) hardcodes `plugins/audit` and enforces Python-3.8-stdlib scripts. The inner skill is `architecture-map`. |
 | D9 | Three private eval repos: a FastAPI + React + DuckDB app (ground truth = the reference artifact), a Hono + Drizzle/Postgres + Better Auth + BullMQ + Next monorepo, and a Next + Drizzle admin API + MCP demo. Paths and ground truth live outside this repository. |
 | D10 | Neutral theme (the reference artifact's look), with an optional `docs/architecture/archmap.theme.json` for fonts, chrome and accent. Relation, zone and severity colours are **fixed and semantic**, colour-blind-safe with dash patterns, in light and dark. |
-| D11 | **Token economy, balanced profile by default.** Deterministic pre-scan (0 tokens). `archmap-explorer` on Sonnet medium in parallel, reading excerpts and returning JSON fragments. `archmap-synthesizer` and `archmap-reviewer` on Opus high, fed fragments and the model only. Scripts do layout, render, validate, diffmap and export. `--profile max\|balanced\|economy`. A per-phase token/duration ledger is printed at the end. |
+| D11 | **Token economy, balanced profile by default; scripts instead of agents.** Deterministic pre-scan (0 tokens). The orchestrating session is a driver loop, not the pipeline: `pipeline.mjs` plan, finish and render run every scripted step and print one JSON line each; the session dispatches the Agent calls they list in one foreground message per stage, never polls, and reads no reference, script or agent file during a build (target: at most 12 turns and a context under 80 K tokens). `archmap-explorer` on Sonnet low, in parallel, reads its brief and a prescan extract, writes a capped fragment file and replies in three lines. `merge.mjs` computes the cross-area edges, zones, CRUD rows and relations and pre-drafts sequences into a digest; `archmap-synthesizer` on Sonnet medium writes only sequences and views from it. `archmap-reviewer` stays on Opus high, fed the model only. Scripts do layout, render, validate, diffmap and export. `--profile max\|balanced\|economy`. The driver records a per-phase token/duration ledger from the agents' completion lines and prints it at the end; the orchestrator's own context is measured from the transcript by `cost-profile.mjs`. |
 | D13 | **Build everything in-house, as planned.** The prior-art research (§2, §14) does not change scope: own exporters, own introspection recipes, no external tool dependencies, no exploratory spike. Borrow techniques only (§14.3). |
 | D12 | **Staleness:** a SessionStart hook (Node script, 0 tokens) is silent when the project has no model. Otherwise it compares `meta.commit` to HEAD through diffmap and prints one line, e.g. `Architecture map is 12 commits behind (3 nodes, 1 entity affected) — run /archmap:update`. `/archmap:check` returns an exit code (CI later). The LLM is never auto-run. |
 
@@ -78,13 +78,14 @@ skills/architecture-map/
     stack-python-backend.md  stack-ts-frontend.md  stack-node-backend.md
     schema-introspection.md  issues-catalog.md  sequences.md
 agents/
-  archmap-explorer.md      model: sonnet  effort: medium  tools: Read, Grep, Glob, Bash
-  archmap-synthesizer.md   model: opus    effort: high    tools: Read, Grep, Glob
+  archmap-explorer.md      model: sonnet  effort: low     tools: Read, Grep, Glob, Bash, Write (its fragment only)
+  archmap-synthesizer.md   model: sonnet  effort: medium  tools: Read, Grep, Glob, Write (its synth file only)
   archmap-reviewer.md      model: opus    effort: high    tools: Read, Grep, Glob
 hooks/hooks.json           SessionStart → node "${CLAUDE_PLUGIN_ROOT}/scripts/staleness.mjs"
 scripts/                   Node ≥ 18, ESM, zero npm deps (only the vendored elkjs)
+  pipeline.mjs (the build driver)
   prescan.mjs  validate.mjs  merge.mjs  diffmap.mjs  layout.mjs  render.mjs
-  export.mjs   issues.mjs    staleness.mjs  usage.mjs
+  export.mjs   issues.mjs    staleness.mjs  usage.mjs  cost-profile.mjs
 schema/  archmap-model.schema.json  archmap-issues.schema.json  archmap-theme.schema.json
 assets/viewer/  template.html  viewer.js  viewer.css  elk.bundled.js (+ EPL-2.0 notice)
 tests/   node:test suites per script + fixtures (incl. the golden model)
@@ -120,22 +121,25 @@ Conventions borrowed from the audit plugin: commands call scripts as
 - Compatibility: readers tolerate unknown keys. Removing or renaming a key needs a major version.
 
 ## 6. Command flows
-- **build**:
-  1. Run `prescan.mjs` and partition the repo into ≤ 8 areas.
-  2. Run parallel `archmap-explorer` agents, one per area: a prescan slice in, a JSON fragment out.
-  3. Run DB introspection (recipes, read-only).
-  4. `merge.mjs` + `validate.mjs`.
-  5. `archmap-synthesizer`: cross-area edges, 3–7 sequences, CRUD/lineage, views.
-  6. Validate, then `layout.mjs`, then `render.mjs` → clean `archmap.html`.
-  7. Optional `--issues`: `archmap-reviewer` (+ audit import) → `issues.json` + `archmap.internal.html` outside the repo.
-  8. Optional `--publish`: Artifact tool, when available. Clean by default; issues only on request, and calibrated.
-  9. Print the usage ledger.
-- **update**:
-  1. Run `diffmap.mjs`. If nothing is affected, re-render only and stop.
-  2. Run explorers on the affected areas and on uncovered new files.
-  3. Merge, preserving user fields.
-  4. Run the synthesizer only for touched edges and sequences.
-  5. Validate, run layout seeded from the previous positions, and render.
+- **build** (the orchestrating session runs three driver steps and two dispatch messages, and reads nothing else):
+  1. `pipeline.mjs plan`: `prescan.mjs`, the partition into ≤ 8 areas with one extract each, and one explorer brief per
+     area carrying the caps, the fragment path and the fragment contract. It prints the Agent calls.
+  2. One message dispatches the `archmap-explorer` calls in the foreground: a brief and a prescan slice in, a fragment
+     file and a three-line reply out. No polling and no background dispatch.
+  3. `pipeline.mjs finish`: read-only DB introspection when a file database and its CLI are present, `merge.mjs` (which
+     computes the cross-area edges, zones, CRUD rows and relations and writes the digest) and `validate.mjs --repo`, the
+     synthesizer brief, and the explorer rows of the usage ledger from the token figures the orchestrator passes on.
+  4. One message dispatches the `archmap-synthesizer`: the digest in, 3–7 sequences and the views in `synth.json` out.
+  5. `pipeline.mjs render`: the synthesizer merge, validate, `layout.mjs`, `render.mjs` → clean `archmap.html`, the
+     remaining ledger rows and the final report skeleton with the usage ledger.
+  6. Optional `--issues`: `archmap-reviewer` (+ audit import) → `issues.json` + `archmap.internal.html` outside the repo.
+  7. Optional `--publish`: Artifact tool, when available. Clean by default; issues only on request, and calibrated.
+- **update** (the same driver, `pipeline.mjs plan --update`):
+  1. `diffmap.mjs` inside plan. If nothing is affected, plan lists no agent and render re-renders only.
+  2. Explorers on the affected areas and on uncovered new files, each brief naming the previous model so ids stay stable.
+  3. finish merges with `--previous` and `--areas`, preserving user fields.
+  4. The synthesizer only for the touched nodes, entities and sequences.
+  5. render validates, lays out seeded from the previous positions, and renders.
   6. Re-review issues for affected anchors only, and only with `--issues`.
 - **check**: staleness report and exit code. **issues**: reviewer over the current model (+ `--import-audit`).
   **export / render**: scripts only.

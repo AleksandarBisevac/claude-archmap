@@ -37,8 +37,8 @@ test('s2 every file in references/ is linked from SKILL.md and every relative li
 });
 
 test('s3 scripts are invoked via ${CLAUDE_PLUGIN_ROOT}/scripts/ and never by a bare path', () => {
-  assert.match(skill, /node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/prescan\.mjs"/);
-  for (const s of ['validate', 'layout', 'render']) {
+  assert.match(skill, /node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/pipeline\.mjs"/);
+  for (const s of ['validate', 'render']) {
     assert.ok(skill.includes(`\${CLAUDE_PLUGIN_ROOT}/scripts/${s}.mjs`), `${s}.mjs invoked via plugin root`);
   }
   const bare = skill.split('\n').filter((l) => /\bnode\s+(?!"\$\{CLAUDE_PLUGIN_ROOT\})\S*scripts\//.test(l));
@@ -68,18 +68,17 @@ test('s5 SKILL.md does not let the synthesizer or reviewer write architecture.mo
   assert.match(skill, /only the orchestrat\w*[^\n]*(writes?|edits?)[^\n]*architecture\.model\.json/i, 'only the orchestrator writes the model');
 });
 
-test('s7 SKILL.md no longer marks merge, diffmap or usage as not yet built, invokes each, and export.mjs is invoked and no longer marked', () => {
+test('s7 SKILL.md names merge, diffmap and usage as what the driver runs (none marked not yet built), the update flow drives them, the orchestrator never calls usage.mjs, and export.mjs is invoked', () => {
   const lines = skill.split('\n');
   for (const s of ['merge', 'diffmap', 'usage']) {
-    assert.ok(skill.includes(`node "\${CLAUDE_PLUGIN_ROOT}/scripts/${s}.mjs"`), `${s}.mjs invoked via plugin root`);
+    assert.ok(skill.includes(`${s}.mjs`), `${s}.mjs is named`);
     const stale = lines.filter((l) => l.includes(`${s}.mjs`) && /not yet built/i.test(l));
     assert.deepEqual(stale, [], `${s}.mjs is still marked not yet built`);
   }
-  assert.match(skill, /merge\.mjs"[^\n]*--previous/, 'update merge uses --previous');
-  assert.match(skill, /--areas/, 'update merge passes --areas');
-  assert.match(skill, /diffmap\.mjs"[^\n]*--json/, 'update step 1 runs diffmap --json');
-  assert.match(skill, /usage\.mjs"\s+add\b/, 'usage add recorded per step');
-  assert.match(skill, /usage\.mjs"\s+print\b/, 'usage print for the ledger');
+  assert.match(skill, /pipeline\.mjs" plan [^\n]*--update/, 'the update flow runs the driver with --update');
+  assert.match(skill, /diffmap\.mjs[^\n]*--areas|--areas[^\n]*diffmap/i, 'the update merge is limited to the areas diffmap names');
+  assert.doesNotMatch(skill, /usage\.mjs"\s+add\b/, 'the orchestrator never records a ledger row itself');
+  assert.match(skill, /--usage <area>=<tokens>/, 'explorer tokens reach the ledger through finish --usage');
   assert.match(skill, /fragments/, 'merge reads the fragments dir');
   assert.ok(skill.includes('node "${CLAUDE_PLUGIN_ROOT}/scripts/export.mjs"'), 'export.mjs invoked via plugin root');
   assert.deepEqual(lines.filter((l) => l.includes('export.mjs') && /not yet built/i.test(l)), [], 'export.mjs is no longer marked not yet built');
@@ -153,4 +152,54 @@ test('s9 SKILL.md has no re-ask path, states the three-line explorer reply and t
   assert.match(skill, /<work>\/fragments\/<area>\.json/, 'the fragment the explorer writes');
   assert.match(skill, /truncat/i, 'merge truncates instead of bouncing a fragment');
   assert.equal(lines[2], 'description: Use to map or refresh the architecture of a code repository: which components or services exist, what calls what, what each reads or writes in databases, queues and external APIs, and how requests and background jobs flow. Trigger on requests for C4 or container diagrams, architecture or onboarding docs (including Confluence pages), mapping an inherited or multi-service monorepo, updating an existing architecture doc after code changes, and system-level checks such as auth boundaries, shared state or cross-service coupling. Output is evidence-cited with an offline HTML viewer. Do not use for explaining a single file, reviewing a PR, writing ADRs, API specs, slide decks or refactors. Also runs the commands /archmap:build, /archmap:update, /archmap:issues, /archmap:render and /archmap:check.', 'frontmatter description (line 3) is untouched');
+});
+
+// s10 (P10.4): the build flow is the driver. The orchestrating session reads SKILL.md once and then runs three
+// driver steps and two dispatch messages; everything else (prescan, merge, validate, layout, render, the ledger)
+// happens inside scripts/pipeline.mjs.
+const section = (heading) => {
+  const start = skill.indexOf(`\n## ${heading}\n`);
+  assert.ok(start >= 0, `SKILL.md has a "## ${heading}" section`);
+  const rest = skill.slice(start + 1);
+  const end = rest.indexOf('\n## ', 4);
+  return end < 0 ? rest : rest.slice(0, end);
+};
+
+test('s10 the build flow names only plan, the explorer dispatch, finish, the synthesizer dispatch, render and report; forbids polling and background dispatch; carries the caps and the three-line replies; names no file to read', () => {
+  const flow = section('Build flow');
+  const steps = [...flow.matchAll(/^### (.+)$/gm)].map((m) => m[1]);
+  assert.equal(steps.length, 6, `six steps, got ${JSON.stringify(steps)}`);
+  const want = [/\bplan\b/i, /dispatch[^\n]*explorers/i, /\bfinish\b/i, /dispatch[^\n]*synthesizer/i, /\brender\b/i, /\breport\b/i];
+  steps.forEach((s, i) => assert.match(s, want[i], `step ${i + 1} is "${s}"`));
+  // the only script the build flow runs is the driver, in its three steps
+  const scripts = [...flow.matchAll(/([a-z][a-z-]*)\.mjs\b/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(scripts)], ['pipeline'], 'the build flow names no script but pipeline.mjs');
+  for (const s of ['plan', 'finish', 'render']) {
+    assert.match(flow, new RegExp(`node "\\$\\{CLAUDE_PLUGIN_ROOT\\}/scripts/pipeline\\.mjs" ${s}\\b`), `pipeline.mjs ${s}`);
+  }
+  // one message per dispatch, foreground, and no polling
+  assert.match(flow, /(one|a single) message/i, 'the explorers go out in one message');
+  for (const tool of ['ScheduleWakeup', 'Monitor']) {
+    assert.ok(flow.split('\n').some((l) => l.includes(tool) && /\b(never|no|not|do not)\b/i.test(l)), `${tool} is forbidden`);
+  }
+  assert.ok(flow.split('\n').some((l) => /background/i.test(l) && /\b(never|no|not|do not)\b/i.test(l)), 'background dispatch is forbidden');
+  assert.deepEqual(flow.split('\n').filter((l) => /re-?ask|re-?request|re-?dispatch|send (it|them) back/i.test(l)), [], 'no re-ask');
+  // nothing to read during a build: no reference, script or agent file
+  assert.doesNotMatch(flow, /references\/|\]\([^)]*\.md\)|agents\/|\b[a-z-]+\.md\b/, 'the build flow names no file to read');
+  // the cap table and the three-line reply contract travel in SKILL.md
+  for (const [what, n] of [['nodes', 40], ['edges', 80], ['entities', 60], ['access rows', 80], ['tool calls', 20], ['source reads', 12], ['areas', 8]]) {
+    assert.ok(flow.split('\n').some((l) => /^\|/.test(l) && l.includes(what) && new RegExp(`\\b${n}\\b`).test(l)), `cap table row: ${n} ${what}`);
+  }
+  for (const line of ['fragment: ', 'synth: ', 'counts: ', 'tool calls: ']) assert.ok(flow.includes(line), `reply line ${line}`);
+  assert.match(flow, /three lines/i);
+  // the turn count the flow implies: the skill load, one turn per step, within the 12-turn target
+  assert.ok(1 + steps.length <= 12, `${1 + steps.length} orchestrator turns`);
+  assert.ok(skill.split('\n').length <= 500, 'SKILL.md stays within 500 lines');
+});
+
+test('s11 the guard in s10 can fail: a flow that greps a reference or polls is caught', () => {
+  const bad = '### 1. Plan\nRead [x](references/model-schema.md) and grep merge.mjs for the caps.\nPoll with ScheduleWakeup.\n';
+  assert.match(bad, /references\/|\]\([^)]*\.md\)|agents\/|\b[a-z-]+\.md\b/);
+  assert.deepEqual([...new Set([...bad.matchAll(/([a-z][a-z-]*)\.mjs\b/g)].map((m) => m[1]))], ['merge']);
+  assert.ok(!bad.split('\n').some((l) => l.includes('ScheduleWakeup') && /\b(never|no|not|do not)\b/i.test(l)));
 });
