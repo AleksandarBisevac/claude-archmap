@@ -7896,7 +7896,7 @@
         {
           "id": "P11.6",
           "title": "The plugin's own architecture map, built on HEAD and committed as the public example (owner-run)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Run /archmap:build with the balanced profile and without --issues on a detached clone of this repository at the P11 branch head after P11.5, through the private harness so the stream is profiled, and copy docs/architecture (model, layout, clean HTML) into this repository to be committed through the plugin. Before the commit: validate.mjs --repo exits 0; the denylist test d1 passes (the model may quote docs/design.md, which d1 exempts but the model is not, so strip any such fact); the clean HTML carries no issue; the README links the viewer and states the build's cost, turns and counts from its evidence file in the P11.3 layout. From then on the SessionStart staleness hook reports in this repository whenever the map falls behind HEAD, which is the intended demonstration.",
           "files": [
             "docs/architecture",
@@ -7924,13 +7924,13 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "6b5f702d4a9e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Brought in the owner-run build named by the task's 2026-10-31T22:03:46Z note, unchanged (cmp identical): <home>/.claude/archmap/evals/iteration-2/real-1-build-self/with_skill/run-2/repo/docs/architecture/{architecture.model.json, architecture.layout.json, archmap.html} -> docs/architecture/, and run-2/cost-profile.json -> skills/architecture-map/evals/evidence/iteration-2/self-with-skill-2.json; the four new files are staged (git add, not committed) so the tracked-file denylist d1 scans them. Checks: `node scripts/validate.mjs docs/architecture/architecture.model.json --repo .` exit 0 'OK: no findings'; committed archmap.html has no id=\"archmap-issues\" block, no issues-switch, 0 sequence steps with an issue ref (the 3 'archmap-issues' hits are evidence paths to schema/archmap-issues.schema.json); model counts 30 nodes, 18 edges, 1 entity, 4 sequences, 5 views, 4 zones, meta.commit 8174e41; profile 1.00 USD (Opus 10 turns 0.44, Sonnet 49 turns 0.56), orchestrator 10 turns, maxContext 57587. README.md: 'What a build delivers' now states the repo carries its own map built at 8174e41, links [docs/architecture/archmap.html](docs/architecture/archmap.html), counts row 30|18|1|4|5, and the staleness-hook demonstration; cost table self-build row switched to run 2 (1.00 USD, 10 turns, 57.6 K, `iteration-2/self-with-skill-2.json`), labelled 'the committed map'. skills/architecture-map/evals/README.md: self-build table keeps run 1 (2faa6de, 63 nodes, model not tracked) and adds run 2 as the committed map; states the 63->30 drop is the P8.5/P8.9 fixture-directory skip, with evidence I measured on the run-1 model: 32 of 63 nodes and 15 of 16 entities cite only tests/fixtures/ files; `git merge-base --is-ancestor` shows neither 846767c (P8.5) nor 61f4917 (P8.9) is in 2faa6de. The how-measured subsection names both self profiles. Tests: r4 now picks the committed-map row, checks the viewer link and file exist, checks each count against docs/architecture/architecture.model.json, and checks the cost table's self row cites the committed row's profile; r5 gained three throw cases (dropped link, grown model, wrong profile). e17 checks two rows (run 1 hard-coded counts, run 2 counts from the committed model) and the drop sentence; e18 gained two throw cases; e19 checks every self row against self-with-skill-N.json and that the table names every tracked self profile. Gate: `node --test` from the project dir, exit 0, 449 tests, 449 pass, 0 fail (d1, r2, r4, r5, e17-e20 ok). `node scripts/staleness.mjs --check --project .` exit 0 'Architecture map is current' (map at 8174e41 = HEAD; it reports behind once this task commits). Dependants: docs/architecture's dependants (schema/*.schema.json, scripts/diffmap|export|pipeline|staleness.mjs, evals.json, trigger-evals.json) only name the output path; unchanged and still correct, and the committed model validates against the schema. evidence dependants: tests/readme.test.mjs and README.md changed as above; the others (viewer, schema, scripts) match by basename 'evidence' only and are unaffected. README.md dependants: tests/readme.test.mjs changed as above; .claude/audit.config.json and the other tests name a README by basename and are unaffected. Note: the brief's Files list showed 3 entries while the task record declares 6 (adds skills/architecture-map/evals/README.md, tests/readme.test.mjs, tests/evals.test.mjs); I read the task record for its notes and edited only files in its declared list.",
+            "descriptive": "The plugin's own architecture map (run 2, 8174e41) is in docs/architecture, with its profile tracked, and both READMEs and their tests now point to it."
           },
           "startedAt": "2026-10-31T21:59:00Z",
-          "completedAt": null,
+          "completedAt": "2026-10-31T22:11:34Z",
           "verifiedBy": [],
           "reviewPerTask": "phase",
           "notes": [
@@ -7943,12 +7943,22 @@
             "runId": "2026-10-31T22:11:32Z.7d908b",
             "status": "passed",
             "at": "2026-10-31T22:11:32Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "6b5f702d4a9e",
+            "at": "2026-10-31T22:11:34Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task with tests.expectRedFirst false and tests.add empty: no red was owed. Existing cases r4/r5 (tests/readme.test.mjs) and e17/e18/e19 (tests/evals.test.mjs) were adjusted to the two-row self-build table and the committed map; their new mutation checks (assert.throws in r5, e18) pass, which shows the tightened assertions fail on the tampered text.",
+            "at": "n/a"
           }
         },
         {
           "id": "P11.7-6o1",
           "title": "Evals README says why the three iteration-1 cells moved: the Sonnet cache-read rate halved in P8.8",
-          "status": "pending",
+          "status": "in_progress",
           "description": "P11.3 re-derived the iteration-1 cells of evals 1, 2 and 4 at the current rate table: 13.84 became 13.78, 9.79 became 9.71 and 12.79 became 12.55 USD. The whole difference is the Sonnet 5.5 cache-read price, halved in P8.8 (0.20 to 0.10 USD per million, the pricing page's 0.05x input), applied to the Sonnet explorers' cache reads of those runs; the Opus-only baselines did not move. The evals README states the new figures but not why they differ from the figures quoted earlier (the private log, the P10 phase description and the first version of the table), and P11.4 did not add it. Add one or two sentences under the cost table that name the earlier three figures, the rate change and the task that made it, and extend the cost-section test so that it fails when those sentences are dropped. Nothing else changes.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -7972,16 +7982,22 @@
           "dependsOn": [
             "P11.4"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T22:11:34Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T22:14:20Z.936481",
+            "status": "passed",
+            "at": "2026-10-31T22:14:20Z"
+          }
         }
       ],
       "priority": 1,

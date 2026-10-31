@@ -366,6 +366,13 @@ const checkCostSection = (readme) => {
   for (const name of ['Cost', 'Orchestrator turns', 'Orchestrator max context', 'Opus', 'Sonnet']) assert.ok(selfHead.some((c) => c.startsWith(name)), `a self-build column ${name}`);
   assert.match(flat, /the one run whose whole output is public/i, 'the self-build row says why it is there');
 
+  // P11.7: the iteration 1 cells of evals 1, 2 and 4 differ from the figures quoted earlier; the sentences name the earlier
+  // three, the re-derived three, the rate change and the task that made it
+  assert.match(flat, /13\.84.{0,12}9\.79.{0,12}12\.79/, 'the earlier iteration 1 figures 13.84, 9.79 and 12.79 are named');
+  assert.match(flat, /13\.78.{0,12}9\.71.{0,12}12\.55/, 'and the re-derived 13.78, 9.71 and 12.55');
+  assert.match(flat, /Sonnet 5\.5 cache-read (price|rate) was halved in P8\.8 \(0\.20 to 0\.10 USD per million/, 'the cause: the Sonnet cache-read rate change and the task that made it');
+  assert.match(flat, /Opus-only baselines did not move/, 'the baselines did not move');
+
   // evals 3 and 5: their rows carry a baseline that scored 0 and the sentence that says the cost column is not like for like
   assert.match(byEval[3][baselineAt], /^1\.00 USD$/);
   assert.match(byEval[3][resultAt], /8\/8[^|]*baseline 0\/8/);
@@ -409,6 +416,9 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
   assert.throws(() => checkCostSection(broken('| self-build run 2 (balanced, no issues), the committed map |', '| self-build run 2 (balanced, no issues) |')), /committed map/);
   assert.throws(() => checkCostSection(broken('| 49 turns, 0.56 USD | 30 |', '| 49 turns, 0.56 USD | 31 |')), /committed model's/);
   assert.throws(() => checkCostSection(broken('It is the one run whose whole output is public', 'It is a run')), /says why/);
+  // P11.7: the earlier figures and the rate change
+  assert.throws(() => checkCostSection(broken('13.84, 9.79 and 12.79', '13.8, 9.8 and 12.8')), /earlier iteration 1 figures/);
+  assert.throws(() => checkCostSection(broken('was halved in P8.8', 'changed')), /Sonnet cache-read rate change/);
 });
 
 // P11.3: every cost, turn and context figure of the cost section is the figure of a tracked profile. The evidence files

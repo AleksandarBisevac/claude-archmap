@@ -1,0 +1,28 @@
+{
+  "gates": {
+    "node --test tests/evals.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T22:13:18Z",
+    "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote the test first: checkCostSection in tests/evals.test.mjs gained a P11.7 block (earlier figures 13.84, 9.79, 12.79 named; re-derived 13.78, 9.71, 12.55 named; 'Sonnet 5.5 cache-read price was halved in P8.8 (0.20 to 0.10 USD per million'; 'Opus-only baselines did not move'), and e18 gained two throws cases (earlier figures altered, rate sentence altered). Ran node --test tests/evals.test.mjs on current README: e17 and e18 failed (18 pass, 2 fail). Then added one paragraph under the cost table in skills/architecture-map/evals/README.md naming the earlier three figures, the three re-derived cells, the P8.8 halving of the Sonnet 5.5 cache-read price (0.20 to 0.10 USD per million, 0.05x input) applied to the Sonnet explorers' cache reads, and that the Opus-only baselines did not move. node --test tests/evals.test.mjs then green; full node --test: 449 pass, 0 fail. Dependants: tests/readme.test.mjs, README.md, docs/architecture/*, .claude/audit.config.json, tests/diffmap.test.mjs, tests/fixtures/evals/issues.json - still correct: only one prose paragraph was added to the evals README and two test assertions to evals.test.mjs; no table cell, filename, count or structure changed, and the full suite (including readme.test.mjs and the denylist scan) is green.",
+    "descriptive": "The evals README now says why the three iteration-1 cost cells moved (Sonnet cache-read rate halved in P8.8), and the cost-section test fails if that is dropped."
+  },
+  "testsAdded": [
+    "checkCostSection asserts the earlier figures 13.84/9.79/12.79, the re-derived 13.78/9.71/12.55, the P8.8 Sonnet cache-read halving and the unmoved Opus baselines; e18 asserts it throws when the earlier figures or the rate sentence are altered"
+  ],
+  "casesAdded": [
+    [
+      "e17",
+      "e18"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:18520a48020f83bf0c4a09c2453d461722ff1ef76c9d094c4e2fe01bd7b59f38\",\"dirtyDigest\":\"sha256:defffa7f2fdd0cbd952b0327618a2cb6bfc7dc20a7c640fecb492aec21e0e100\",\"dirtyPaths\":{\"skills/architecture-map/evals/README.md\":\"b202e09de672cd05\",\"tests/evals.test.mjs\":\"45e5cde09c609cbb\"},\"head\":\"6b5f702\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/README.md\",\"tests/evals.test.mjs\"],\"scopeDigest\":\"sha256:c39021d656bad8413c4103d7fb1ad8fc88f223287923e927762ce04877f11294\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

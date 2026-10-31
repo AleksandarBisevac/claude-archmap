@@ -80,6 +80,12 @@ cross-area edges and zones. The baseline is the same prompt without the skill, o
 | 4 (monorepo build) | 12.55 USD | 1.57 USD | 1.82 USD | 11 | 8/8 expectations |
 | 5 (build) | 9.53 USD | 1.65 USD | 2.96 USD | 13 | 7/7 expectations; baseline 0/7 |
 
+The iteration-1 cells of evals 1, 2 and 4 are 13.78, 9.71 and 12.55 USD, where the private log, the P10 phase
+description and the first version of this table quote 13.84, 9.79 and 12.79 USD. The cells are re-derived from the
+tracked profiles at the current rate table, in which the Sonnet 5.5 cache-read price was halved in P8.8 (0.20 to 0.10
+USD per million tokens, the pricing page's 0.05x input), applied to the Sonnet explorers' cache reads of those runs;
+the Opus-only baselines did not move.
+
 The eval 2 row shows its first run: the cost, the turns and the first grade are that run's
 (`evidence/iteration-2/2-with-skill-1.json`), and only the result cell carries all three runs: the recall cell lists
 the values of the first run, rerun 1 and rerun 2, in that order, each from `score-recall.mjs` on that run's issues
