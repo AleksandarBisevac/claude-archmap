@@ -86,7 +86,7 @@ a build you read no reference, script or agent file and run nothing but the driv
 prescan, the partition, the briefs, introspection, merge, validate, layout, render, the issues overlay and the usage
 ledger, and prints one JSON line per step with every script's exit code and findings. A build without `--issues` is
 seven assistant turns: loading the skill, then one turn per step below. `<work>` is the scratch directory plan prints. Leave `--work` off (plan
-picks `<OS temp dir>/archmap/<hash of the repo path>` and prints it): subagents must be able to write their fragments
+picks `<OS temp dir>/archmap-<uid>/<hash of the repo path>` and prints it): subagents must be able to write their fragments
 under the work dir, and Claude Code denies a subagent a Write outside the project and the OS temp dir, so never point
 `--work` at another directory, a symlink or a non-ignored directory in the repo.
 
@@ -105,8 +105,10 @@ the overlay or the internal HTML in a directory outside the repository, run the 
 in the same Bash call. Never hand-run the scripts the step wraps to write there instead.
 
 **After each dispatch.** An agent with the Write tool may only have written its named path (hard rule 1), so check
-what changed, in the Bash call of the next driver step and before it. Run `git status --porcelain` with plan, and again
-after every dispatch: it must not change. After the explorers, `ls <work>/fragments` must list the planned
+what changed, in the Bash call of the next driver step and before it. Run `git status --porcelain` with each driver step
+that precedes a dispatch, after the step, and again before the next one: the status after a dispatch must equal its
+baseline, the status printed by the driver step run immediately before the dispatch (explorers: plan's; synthesizer:
+finish's; reviewer: render's), since finish and render write into `<out>`, inside the repository by default. After the explorers, `ls <work>/fragments` must list the planned
 `<area>.json` files and nothing else; with finish, append `; ls -A <work>`, and after the synthesizer (or the reviewer)
 `ls -A <work>` must show that listing plus `synth.json` (or `reviewer.json`). The only new or changed file after a
 dispatch is the named fragment or synth path (or the reviewer file). Anything else is a write outside the agent's

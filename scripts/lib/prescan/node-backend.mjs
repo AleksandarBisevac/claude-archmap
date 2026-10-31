@@ -937,7 +937,7 @@ function extractQueues(ctx, acc) {
         acc.skipped.queues++;
         continue;
       }
-      const cv =call.args[2] ? objProp(f, call.args[2], 'concurrency') : null;
+      const cv = call.args[2] ? objProp(f, call.args[2], 'concurrency') : null;
       const num = cv ? /^\d+$/.exec(textOf(f, cv)) : null;
       get(name).workers.push({ handler: identText(f, call.args[1]), concurrency: num ? Number(num[0]) : null, evidence: evidence(f, d.index, call.close + 1) });
     }

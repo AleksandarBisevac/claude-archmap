@@ -464,3 +464,26 @@ test('py15 a CTE name (WITH name AS, , name AS, WITH RECURSIVE, a column list), 
   ], 'no row for recent, totals or latest inside their own statement, none for created_at, placed, s, 2, b or d');
   assert.equal(odd.skipped.sqlTables ?? 0, 0, 'a function argument is not a table position, so nothing is skipped either');
 });
+
+// P10.20 (P10-R22): a CTE that shadows a real table reads that table inside its own body. Only a ref after a
+// definition of the name has ended (or, under WITH RECURSIVE, the CTE's self-reference) names the CTE.
+test('py16 WITH orders AS (SELECT * FROM orders WHERE open) SELECT ... FROM orders keeps one ref to the real table orders from inside the CTE body and drops the outer ref; a ref before the definition is the real table; a recursive self-reference is not', () => {
+  const odd = memFrag({
+    'svc/shadow.py':
+      'def f(c):\n' +
+      '    c.execute("WITH orders AS (SELECT * FROM orders WHERE open) SELECT id FROM orders")\n' +
+      '    c.execute("WITH stock AS (SELECT * FROM stock WHERE sku IN (SELECT sku FROM picks)) SELECT * FROM stock")\n' +
+      '    c.execute("WITH a AS (SELECT * FROM b), b AS (SELECT * FROM parcels) SELECT * FROM a JOIN b ON a.id = b.id")\n' +
+      '    c.execute("WITH RECURSIVE tree AS (SELECT id FROM nodes UNION ALL SELECT t.id FROM tree t) SELECT * FROM tree")\n',
+  });
+  const refs = odd.sqlTables.map((t) => `${t.table} ${t.op} ${t.evidence[0].lines.split('-')[0]}`).sort();
+  assert.deepEqual(refs, [
+    'b select 4',
+    'nodes select 5',
+    'orders select 2',
+    'parcels select 4',
+    'picks select 3',
+    'stock select 3',
+  ], 'the shadowed table keeps its row from inside the CTE body; a, tree and the outer orders, stock and b name a CTE');
+  assert.equal(odd.skipped.sqlTables ?? 0, 0);
+});

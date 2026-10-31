@@ -5,7 +5,7 @@ import {
   chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,6 +23,8 @@ const SYNTH = join(ROOT, 'tests/fixtures/e2e/synth.json');
 const GENERATED_AT = '2026-10-29T00:00:00Z';
 const BRIEF_CAP = 4000;
 const NODE_CAP = 40; // CAPS.nodes in scripts/merge.mjs: the merge keeps at most this many nodes of a fragment
+// the first level of the default work dir: one per user, so no directory under the OS temp dir is shared (P10-R23)
+const USER_DIR = `archmap-${typeof process.getuid === 'function' ? process.getuid() : userInfo().username}`;
 
 const tmp = mkdtempSync(join(tmpdir(), 'archmap-pipeline-'));
 after(() => rmSync(tmp, { recursive: true, force: true }));
@@ -519,7 +521,7 @@ test('p16 plan without --work uses a directory under the OS temp dir named from 
   assert.equal(typeof wd, 'string');
   assert.equal(join(wd, '..', '..'), home, wd);
   assert.match(wd.split('/').pop(), /^[0-9a-f]{8,16}$/);
-  assert.equal(wd.split('/').slice(-2)[0], 'archmap');
+  assert.equal(wd.split('/').slice(-2)[0], USER_DIR, 'the first level is per user');
   assert.ok(existsSync(join(wd, 'prescan.json')));
   assert.match(a.json.workNote, /subagents? must be able to write/i);
   const again = step(['plan', repo, '--out', join(tmp, 'out-default'), '--generated-at', GENERATED_AT], env);
@@ -1166,11 +1168,11 @@ test('p32 plan refuses (exit 2) a pre-existing default work dir that is a symlin
 
   // the work dir itself is a symlink somebody planted: refused, nothing removed or written through it
   const linked = join(tmp, 'os-tmp-linked');
-  mkdirSync(join(linked, 'archmap'), { recursive: true, mode: 0o700 });
+  mkdirSync(join(linked, USER_DIR), { recursive: true, mode: 0o700 });
   const target = join(tmp, 'planted-target');
   mkdirSync(join(target, 'briefs'), { recursive: true });
   writeFileSync(join(target, 'prescan.json'), 'somebody else\'s file\n');
-  symlinkSync(target, join(linked, 'archmap', hash));
+  symlinkSync(target, join(linked, USER_DIR, hash));
   const b = planDefault(linked);
   assert.equal(b.status, 2, b.stdout);
   assert.match(b.json.error ?? b.stdout, /symlink/i);
@@ -1183,7 +1185,7 @@ test('p32 plan refuses (exit 2) a pre-existing default work dir that is a symlin
   mkdirSync(parent);
   const target2 = join(tmp, 'planted-parent');
   mkdirSync(target2);
-  symlinkSync(target2, join(parent, 'archmap'));
+  symlinkSync(target2, join(parent, USER_DIR));
   const c = planDefault(parent);
   assert.equal(c.status, 2, c.stdout);
   assert.match(c.json.error ?? c.stdout, /symlink/i);
@@ -1271,4 +1273,62 @@ test('p34 a listed .duckdb file is introspected by a duckdb CLI on PATH: one cal
   assert.ok(!m.meta.sources.some((x) => x.type === 'introspection-skipped'), 'nothing was skipped');
   const v = spawnSync(process.execPath, [VALIDATE, join(w, 'model.json'), '--repo', r34], { encoding: 'utf8' });
   assert.equal(v.status, 0, v.stdout + v.stderr);
+});
+
+// P10.20 (P10-R23): with a shared <tmpdir>/archmap, the first user to run plan owned it at 0o700 and every other
+// user's plan exited 2. The first level is per user now; the lstat and owner checks hold on that name.
+test('p35 the default work dir sits under a per-user <tmpdir>/archmap-<uid>, so a <tmpdir>/archmap somebody else holds (a symlink, a plain file) never blocks plan; the symlink and owner checks still refuse a foreign per-user dir', async () => {
+  const { privateDir } = await import('../scripts/pipeline.mjs');
+  const envFor = (home) => ({ PATH: process.env.PATH, TMPDIR: home, TEMP: home, TMP: home });
+  const planDefault = (home) => step(['plan', repo, '--out', join(tmp, 'out-p35'), '--generated-at', GENERATED_AT], envFor(home));
+
+  // another user's <tmpdir>/archmap, which this user cannot enter: stood in for by a symlink to a directory of theirs
+  const shared = join(tmp, 'os-tmp-shared');
+  mkdirSync(shared);
+  const theirs = join(tmp, 'their-archmap');
+  mkdirSync(theirs, { mode: 0o700 });
+  symlinkSync(theirs, join(shared, 'archmap'));
+  const a = planDefault(shared);
+  assert.equal(a.status, 0, a.stdout);
+  assert.equal(join(a.json.work, '..'), join(shared, USER_DIR), 'the work dir sits under the per-user directory');
+  assert.equal(statSync(join(shared, USER_DIR)).mode & 0o777, 0o700, 'which is private');
+  assert.deepEqual(readdirSync(theirs), [], 'nothing is written into the shared name');
+  // a plain file of that name does not block it either
+  const filed = join(tmp, 'os-tmp-file');
+  mkdirSync(filed);
+  writeFileSync(join(filed, 'archmap'), 'not a directory\n');
+  assert.equal(planDefault(filed).status, 0);
+
+  // the per-user directory planted as a symlink: refused, nothing made through it
+  const planted = join(tmp, 'os-tmp-planted');
+  mkdirSync(planted);
+  const target = join(tmp, 'planted-user-dir');
+  mkdirSync(target);
+  symlinkSync(target, join(planted, USER_DIR));
+  const b = planDefault(planted);
+  assert.equal(b.status, 2, b.stdout);
+  assert.match(b.json.error ?? b.stdout, /symlink/i);
+  assert.deepEqual(readdirSync(target), []);
+
+  // a per-user directory another uid owns: refused (one user here, so driven with another uid)
+  if (typeof process.getuid === 'function') {
+    const owned = join(tmp, 'os-tmp-owner', USER_DIR);
+    mkdirSync(owned, { recursive: true, mode: 0o700 });
+    assert.match(String(privateDir(owned, process.getuid() + 1)), /not owned/i);
+  }
+});
+
+// P10.20 (P10-R24): python3 -I drops the per-user site directory too, so a `pip install --user` duckdb is not seen.
+// The skip reason says so instead of claiming the module is not installed anywhere.
+test('p36 when the isolated python probe cannot import duckdb the skip reason says the module must be importable from the interpreter\'s own or a virtualenv\'s site-packages because python3 runs in isolated mode', () => {
+  const code = 'import duckdb\n\nWAREHOUSE = duckdb.connect("src/entities/warehouse.duckdb")\n';
+  const { w } = dbRepo('db-isolated-reason', { present: ['src/entities/warehouse.duckdb'], code });
+  const noModule = `#!/bin/sh\n${PY_CODE_ARG}if [ "$code" = "import duckdb" ]; then echo "ModuleNotFoundError: No module named duckdb" >&2; exit 1; fi\nexit 0\n`;
+  const f = step(['finish', '--work', w], { ...process.env, PATH: binWith('py-isolated-reason', null, noModule) });
+  assert.equal(f.status, 0, f.stdout);
+  const skip = readJson(join(w, 'model.json')).meta.sources.find((x) => x.type === 'introspection-skipped');
+  assert.ok(skip, 'the file is skipped');
+  assert.match(skip.reason, /isolated mode/i, 'the reason names the isolated-mode limit');
+  assert.match(skip.reason, /interpreter's own or a virtualenv's site-packages/, 'and where duckdb must be importable from');
+  assert.match(skip.reason, /--user/, 'a per-user install is named as not seen');
 });

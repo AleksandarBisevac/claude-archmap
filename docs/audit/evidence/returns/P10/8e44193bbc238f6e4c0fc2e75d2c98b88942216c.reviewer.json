@@ -1,0 +1,69 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "scripts/lib/prescan/generic.mjs:547",
+      "issue": "A CTE that shadows a real table drops that table's access row. The filter `kw !== 'table' && ctes.has(table.toLowerCase())` applies to every FROM/JOIN in the statement, including the one inside the CTE's own body. In `WITH orders AS (SELECT * FROM orders WHERE open) SELECT ... FROM orders` the inner FROM orders reads the real table, but both refs are dropped, so merge.mjs makes no entity or access row for it. Shadowing a table with a filtered CTE of the same name is a common pattern in the analytics SQL this task targets. py15 only covers a CTE-named table in another statement. Judged from reading; I did not run it.",
+      "resolution": "Keep a ref to a CTE name when it sits inside that CTE's own definition parentheses (or when the name has no earlier CTE definition ending before the ref). At minimum record the shadowing case in the sqlStatements comment and add a py15 case for it."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "scripts/pipeline.mjs:674-677",
+      "issue": "privateDir is applied to the shared parent <tmpdir>/archmap as well as the per-repo directory. On a multi-user host where tmpdir is /tmp, the first user to run plan owns /tmp/archmap at 0o700, and every other user's plan then exits 2 with 'not owned by the current user'. The remedy the message offers, `--work <dir>`, is the one SKILL.md forbids (subagents can only write under the project or the OS temp dir). R11 asked to refuse a foreign-owned directory, but not to lock the other users out of the default.",
+      "resolution": "Give the first level a per-user name (<tmpdir>/archmap-<uid>/<hash>, or fall back to fs.mkdtempSync under the tmpdir) so the parent is never shared. Keep the lstat/owner checks on that name."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "scripts/pipeline.mjs:833",
+      "issue": "`python3 -I` also drops the per-user site directory (it implies -s), not only the cwd and PYTHON* variables. A duckdb installed with `pip install --user` was importable by the old call and now is not, and readerFor reports 'the python duckdb module is not installed', which is wrong. The isolation is right for rule 7; the false reason is the cost. Judged from reading.",
+      "resolution": "Make the skip reason name the isolated-mode limit (duckdb must be in the interpreter's own or a virtualenv's site-packages), or keep -I and also check `python3 -c 'import sys; print(sys.flags.isolated)'` is not needed. Add the sentence to the reason string."
+    },
+    {
+      "id": 4,
+      "severity": "low",
+      "file": "skills/architecture-map/SKILL.md:107-114",
+      "issue": "The post-dispatch check says to run `git status --porcelain` with plan and again after every dispatch, and that it 'must not change'. finish and render write architecture.model.json, the layout and the HTML into <out>, which is docs/architecture inside the repository by default. After the synthesizer or reviewer dispatch the status therefore differs from plan's, and read literally the orchestrator is told to stop and report a write outside the agent's path on a normal build. The baseline for 'must not change' is not named.",
+      "resolution": "Name the baseline: compare with the status printed by the driver step that ran immediately before the dispatch (explorers: plan's; synthesizer: finish's; reviewer: render's). Extend s16 to pin that sentence."
+    },
+    {
+      "id": 5,
+      "severity": "low",
+      "file": "scripts/lib/prescan/node-backend.mjs:940",
+      "issue": "The diff changes `const cv = call.args[2]` to `const cv =call.args[2]` (space lost) on a line the task did not need to touch. It is harmless but a stray edit in a file the task owns.",
+      "resolution": "Restore the space."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome against the four tasks shown (P10.16 to P10.19, the fixes for the earlier review's findings). P10.16 does what its clauses ask: DuckDB probe and query run python3 -I with cwd outside the repo (pipeline.mjs:833, 840-848, 869), the floor is clamped to CAPS.nodes with the cap note in the brief, matchUsage books unmatched labels under their own names, privateDir (lstat, 0o700, refuses a symlink or another uid) guards the default work dir, realpath compares a symlinked database against the repo root, and the terse rung now cuts the previous-model line. P10.17 does what its clause asks: container-directory zones with the kind/stack fallback, ORM and queue access rows, wildcard http and basename-only import edges marked inferred (prescan.mjs and merge.mjs agree on match/call), an unreadable fragment keeps its area in update mode, and area:<id> resolves from the previous model. P10.18 drops CTE names, EXTRACT/SUBSTRING/TRIM/OVERLAY FROM and IS DISTINCT FROM refs, and restricts the file-named queue to a Worker. P10.19 records the owner-confirmed Sonnet choice, documents the overlay path, ledger command and Write check, sources the rate table (and fixes the Haiku row, with expected.json updated), and makes the three tests able to fail; the README share rows sum to 100. The executors' outcomes describe the diffs. Where the phase's desired outcome is still short, the diff says so honestly: eval 2 took 17 turns against the 12-turn target and the README leaves that open for the owner or the next eval round. Evals 1 and 4 (11 turns), cost under 5 USD (1.22, 2.09, 1.66) and at most twice the baseline hold. The Haiku rate fix is a correction to a row, not a choice the request left open. No task made a choice the request left open: the Sonnet synthesizer was the owner's, recorded by P10.19, and P9's wait is not touched. The scan.mjs lead (a `require('models')` string in tests/merge.test.mjs) is a fixture string, not an import.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "mode phase: the intent question is asked against desiredOutcome, so the phase has no red-first of its own. Per task, each filed redFirst is could-not-prove: the helper ran the own-tests command at HEAD in a throwaway tree, exit 1, but 'its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected'. P10.18 and P10.19 narrate that new cases failed on assertions, and P10.19 admits p34 passed on HEAD code, but nothing handed shows a red, so none of the four is proved.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "All four tasks' tests.gate is the literal command `node --test`, which runs the whole project, so the bound does not narrow below the full suite. P10.18's recorded run also says NO OVERLAP: the gate named none of that task's files."
+  },
+  "verdict": "findings",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P10.16-6rm",
+      "commit": "f068b93c4cb0"
+    },
+    {
+      "id": "P10.17-6rm",
+      "commit": "2c416577b97e"
+    },
+    {
+      "id": "P10.18-6rm",
+      "commit": "98f05918c517"
+    },
+    {
+      "id": "P10.19-6rm",
+      "commit": "8e44193bbc23"
+    }
+  ]
+}

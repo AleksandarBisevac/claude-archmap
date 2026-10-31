@@ -242,7 +242,7 @@ test('s12 the agents table and the profile table say the explorer runs at medium
 test('s13 the build flow tells the caller to leave --work off, why subagents must be able to write there, and that the ledger is copied to where the caller asked after render', () => {
   const flow = section('Build flow').replace(/\s+/g, ' ');
   assert.match(flow, /Leave `--work` off/, 'leave --work off');
-  assert.match(flow, /<OS temp dir>\/archmap\/<hash of the repo path>/, 'the default work dir');
+  assert.match(flow, /<OS temp dir>\/archmap-<uid>\/<hash of the repo path>/, 'the default work dir, its first level one per user');
   assert.match(flow, /subagents must be able to write their fragments under the work dir/i);
   assert.match(flow, /denies a subagent a Write outside the project and the OS temp dir/i);
   assert.match(flow, /never point `--work` at another directory, a symlink or a non-ignored directory in the repo/i);
@@ -305,6 +305,13 @@ test('s16 the build flow names the --issues overlay location for an output outsi
   assert.match(flow, /git status --porcelain/, 'the project tree is checked after a dispatch');
   assert.match(flow, /ls <work>\/fragments/, 'the work dir is listed after the explorers');
   assert.match(flow, /only new or changed file[^.]*(fragment|synth)/i, 'the only new or changed file is the named path');
+  // P10.20 (P10-R25): finish and render write into <out>, so the baseline is the step run just before the dispatch
+  const baseline = /baseline[^.]*driver step[^.]*(immediately|just) before the dispatch[^.]*\./i.exec(flow);
+  assert.ok(baseline, 'the status check names its baseline: the driver step run just before the dispatch');
+  assert.match(baseline[0], /explorers[^;.]*\bplan\b/i, 'explorers: plan\'s status');
+  assert.match(baseline[0], /synthesizer[^;.]*\bfinish\b/i, 'synthesizer: finish\'s status');
+  assert.match(baseline[0], /reviewer[^;.]*\brender\b/i, 'reviewer: render\'s status');
+  assert.doesNotMatch(flow, /git status --porcelain[^.]*with plan and again after every dispatch/i, 'no longer compared with plan\'s status after every dispatch');
   assert.deepEqual(flowViolations(section('Build flow')), [], 'the additions keep the build flow guard clean');
   assert.ok(skill.split('\n').length <= 500, 'SKILL.md stays within 500 lines');
 });

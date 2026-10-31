@@ -1,0 +1,33 @@
+{
+  "gates": {
+    "node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs tests/skill.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T16:11:24Z",
+    "basis": "`node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs tests/skill.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "P10-R22 scripts/lib/prescan/generic.mjs: cteNames replaced by cteEnds (name -> offsets where each CTE definition's body closes, via a new quote-aware closingParen) and readsCte: a ref names the CTE only when a definition of that name ended before the ref, or always under WITH RECURSIVE (self and forward refs are in scope there). WITH orders AS (SELECT * FROM orders WHERE open) ... FROM orders now keeps the inner ref to the real table and drops the outer one; a ref in an earlier sibling's body to a later CTE name is the table. sqlStatements doc comment records the shadowing case. P10-R23 scripts/pipeline.mjs: the default work dir is <tmpdir>/archmap-<uid>/<hash> (userWorkRoot(); Windows falls back to the user name reduced to [\\w.-]); privateDir (lstat symlink, directory, owner, 0o700) still runs on both levels. Header comment and SKILL.md build flow name archmap-<uid>. P10-R24: python3 -I kept; the skip reason now reads '... the python duckdb module is not installed: python3 runs in isolated mode (-I), so duckdb must be importable from the interpreter's own or a virtualenv's site-packages; a pip install --user copy is not seen'; the python() docblock says -I implies -s. P10-R25 SKILL.md 'After each dispatch': git status --porcelain runs with each driver step that precedes a dispatch, after it, and again before the next one; the baseline is the status printed by the driver step run immediately before the dispatch (explorers: plan's; synthesizer: finish's; reviewer: render's), since finish and render write into <out>. P10-R26 scripts/lib/prescan/node-backend.mjs:940 space restored ('const cv = call.args[2]'). Tests: py16 added; p35, p36 added; s16 extended; p16 and p32 updated from the shared 'archmap' parent to USER_DIR = archmap-<uid>; s13 updated to the new default path in SKILL.md. Runs: node --test tests/prescan-python.test.mjs tests/pipeline.test.mjs tests/skill.test.mjs exit 0, 69/69 pass; full node --test 425/425 pass (I ran it as a wider check, not as an owed gate). Edits to tests/pipeline.test.mjs for p16/p32 and the import were made with a python3 replace in Bash (auto-mode tool guidance), all other edits with Edit; no plan-gate refusal at any point. Dependants: generic.mjs importers (node-backend, python, ts-frontend, prescan.mjs) still correct - sqlStatements' signature and output shape are unchanged, only which CTE-named refs are kept, and the full suite is green; pipeline.mjs dependants (usage.mjs, commands/build.md, commands/update.md, tests/commands.test.mjs, evals README) still correct - git grep finds the old <tmpdir>/archmap/ path only in pipeline.mjs's header and SKILL.md, both updated; tests/pipeline.test.mjs changed as listed; SKILL.md dependants (commands, evals, pipeline, skill tests) still correct - all green, SKILL.md is 383 lines; skills-lock.json and .agents/skills/node/tile.json match by basename only and are unaffected; node-backend.mjs dependants unaffected (whitespace only); tests/prescan-python.test.mjs and tests/skill.test.mjs have no dependants.",
+    "descriptive": "A CTE shadowing a table keeps the real table's ref, the default work dir parent is per user, the duckdb skip reason names the isolated-mode limit, SKILL.md names the status baseline per dispatch, and the stray space is restored."
+  },
+  "testsAdded": [
+    "py16: a CTE shadowing a real table keeps the ref from inside its own body (also a nested subquery), drops the outer ref, a forward ref to a later CTE name is the table, and a WITH RECURSIVE self-reference is not a table",
+    "p35: a <tmpdir>/archmap held by somebody else (a symlink, a plain file) never blocks plan; the work dir sits under a private <tmpdir>/archmap-<uid>; a planted symlink at the per-user name is refused and a per-user dir of another uid is refused by privateDir",
+    "p36: the duckdb skip reason, when the isolated probe cannot import duckdb, names isolated mode, the interpreter's own or a virtualenv's site-packages, and the unseen --user install",
+    "s16 extended: the post-dispatch status check names its baseline as the driver step run immediately before the dispatch (plan, finish, render) and no longer compares with plan's after every dispatch"
+  ],
+  "casesAdded": [
+    "py16",
+    [
+      "p35",
+      "p32"
+    ],
+    "p36",
+    "s16"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ecacd36bc4272768cb36e8cd04dced1994db27ea2c3c63c8e1adbc11c3ffe759\",\"dirtyDigest\":\"sha256:0b07a69ebbb5202ff788000e03a2225aae6e73d9ad2badc5efdb64f8a95e52a9\",\"dirtyPaths\":{\"scripts/lib/prescan/generic.mjs\":\"3ee487d59ccc359a\",\"scripts/lib/prescan/node-backend.mjs\":\"ee2642a3f402c7aa\",\"scripts/pipeline.mjs\":\"7b12a032c13500d7\",\"skills/architecture-map/SKILL.md\":\"67e164d96985a413\",\"tests/pipeline.test.mjs\":\"ea0fdef9ef5f661e\",\"tests/prescan-python.test.mjs\":\"7d2f56963dd38b27\",\"tests/skill.test.mjs\":\"240f78d52c304890\"},\"head\":\"8e44193\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/generic.mjs\",\"scripts/lib/prescan/node-backend.mjs\",\"scripts/pipeline.mjs\",\"skills/architecture-map/SKILL.md\",\"tests/pipeline.test.mjs\",\"tests/prescan-python.test.mjs\",\"tests/skill.test.mjs\"],\"scopeDigest\":\"sha256:375f292102676b5cfc409c56c6ca27cf216cccb704d292886aa1b0f26c3a11a4\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

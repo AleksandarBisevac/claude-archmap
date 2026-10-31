@@ -10,7 +10,7 @@
 //   node scripts/pipeline.mjs ledger --work <dir> [--usage reviewer=<tokens>[@<duration>]]
 //
 // plan    starts a fresh build in <work> (it removes the files an earlier build left there; without --work that is
-//         <os tmpdir>/archmap/<short hash of the repo path>, a place a subagent may write, which Claude Code does not
+//         <os tmpdir>/archmap-<uid>/<short hash of the repo path>, a place a subagent may write, which Claude Code does not
 //         allow outside the project and the OS temp dir; both levels are made mode 0o700, and one that is a symlink or
 //         another user's exits 2), runs prescan.mjs (the per-area extracts and the explorers'
 //         capped summaries of them), takes its areas as the partition (at most 8), and writes one explorer brief per
@@ -60,7 +60,7 @@ import {
   chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync,
   statSync, writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { matchAny } from './lib/glob.mjs';
@@ -290,6 +290,22 @@ export function privateDir(dir, uid = process.getuid?.()) {
   if (uid !== undefined && st.uid !== uid) return `${dir} is not owned by the current user (uid ${uid}, owner ${st.uid})`;
   if ((st.mode & 0o777) !== 0o700) chmodSync(dir, 0o700);
   return null;
+}
+
+/**
+ * The first level of the default work dir under the OS temp dir: archmap-<uid>, one per user, so no directory there
+ * is shared between users. Where the platform has no uids (Windows) the user name stands in, reduced to [\w.-].
+ */
+function userWorkRoot() {
+  const uid = process.getuid?.();
+  if (uid !== undefined) return `archmap-${uid}`;
+  let name = '';
+  try {
+    name = userInfo().username;
+  } catch {
+    // no user record: the temp dir is per user on Windows anyway
+  }
+  return `archmap-${name.replace(/[^\w.-]/g, '_') || 'user'}`;
 }
 
 function git(repo, args) {
@@ -668,8 +684,10 @@ function plan(o, ctx) {
   if (!isDir(repo)) throw new StepError(`repo ${repoArg} is not a directory`);
   // subagents write their fragments here, and Claude Code denies a subagent a Write outside the project and the OS
   // temp dir when nobody can approve it: the default is a directory under the OS temp dir, one per repo path. Its
-  // name is predictable and the temp dir may be shared (/tmp), so both levels must be the user's own and private
-  const work = resolve(o.work ?? join(tmpdir(), 'archmap', createHash('sha256').update(repo).digest('hex').slice(0, 12)));
+  // name is predictable and the temp dir may be shared (/tmp), so both levels must be the user's own and private,
+  // and the first level is one per user (archmap-<uid>): a parent shared by every user would belong to whoever ran
+  // plan first and lock the others out of the default
+  const work = resolve(o.work ?? join(tmpdir(), userWorkRoot(), createHash('sha256').update(repo).digest('hex').slice(0, 12)));
   if (o.work === undefined) {
     for (const dir of [dirname(work), work]) {
       const refused = privateDir(dir);
@@ -828,7 +846,8 @@ const DUCKDB_PY =
 /**
  * python3 for the duckdb module, never able to load the scanned repo's code (scanner safety): isolated mode (-I), so
  * neither the working directory nor PYTHON* variables reach sys.path, run from `cwd`, a temp directory of ours, never
- * the analysed repo's root the driver is run from. A duckdb.py there is never imported.
+ * the analysed repo's root the driver is run from. A duckdb.py there is never imported. -I implies -s, so the per-user
+ * site directory is dropped too: duckdb must be in the interpreter's own or a virtualenv's site-packages.
  */
 const python = (args, cwd) => spawnSync('python3', ['-I', ...args], { encoding: 'utf8', cwd });
 
@@ -847,7 +866,12 @@ function readerFor(kind) {
     rmSync(probeDir, { recursive: true, force: true });
   }
   if (py.error) return { reason: `${missing} and python3 is not on PATH` };
-  if (py.status !== 0) return { reason: `${missing} and the python duckdb module is not installed` };
+  // -I also drops the per-user site directory, so a `pip install --user` duckdb is not seen: the reason says so
+  if (py.status !== 0) {
+    return {
+      reason: `${missing} and the python duckdb module is not installed: python3 runs in isolated mode (-I), so duckdb must be importable from the interpreter's own or a virtualenv's site-packages; a pip install --user copy is not seen`,
+    };
+  }
   return { tool: 'python3 duckdb module' };
 }
 

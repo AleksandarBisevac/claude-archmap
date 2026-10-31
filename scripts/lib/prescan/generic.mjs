@@ -322,10 +322,42 @@ const CTE_NAME = /(?:\bwith\s+(?:recursive\s+)?|,\s*)("[^"]+"|`[^`]+`|[A-Za-z_][
 // the calls whose FROM separates arguments (EXTRACT(year FROM d), SUBSTRING(s FROM 2), TRIM(BOTH FROM s), OVERLAY(...))
 const FROM_ARGUMENT_CALLS = new Set(['extract', 'substring', 'trim', 'overlay']);
 
-/** The CTE names `st` defines, lowercased. */
-function cteNames(st) {
-  if (!/\bwith\b/i.test(st)) return new Set();
-  return new Set([...st.matchAll(CTE_NAME)].map((m) => m[1].replace(/["`]/g, '').toLowerCase()));
+/** The offset of the `)` closing the `(` at `open` in `st`, quotes respected; `st.length` when it never closes. */
+function closingParen(st, open) {
+  let depth = 0;
+  let q = null;
+  for (let j = open; j < st.length; j++) {
+    const c = st[j];
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === "'" || c === '"' || c === '`') q = c;
+    else if (c === '(') depth++;
+    else if (c === ')' && --depth === 0) return j;
+  }
+  return st.length;
+}
+
+/** The CTEs `st` defines: lowercased name -> the offset where each definition of it ends (its body's `)`). */
+function cteEnds(st) {
+  const ends = new Map();
+  if (!/\bwith\b/i.test(st)) return ends;
+  for (const m of st.matchAll(CTE_NAME)) {
+    const name = m[1].replace(/["`]/g, '').toLowerCase();
+    if (!ends.has(name)) ends.set(name, []);
+    ends.get(name).push(closingParen(st, m.index + m[0].length - 1));
+  }
+  return ends;
+}
+
+/**
+ * Does the name at offset `at` of a statement read the CTE rather than the table of that name? Only once a
+ * definition of it has ended before `at`: inside the CTE's own body (WITH orders AS (SELECT * FROM orders ...)) and
+ * in an earlier sibling's body the name is still the table. Under WITH RECURSIVE every CTE of the list is in scope
+ * from the start (a self-reference, a forward one), so there the name is always the CTE.
+ */
+function readsCte(ends, recursive, name, at) {
+  const list = ends.get(name);
+  return Boolean(list) && (recursive || list.some((close) => close < at));
 }
 
 /**
@@ -514,7 +546,9 @@ function readsAsSql(verb, st, strict) {
  * select (FROM, JOIN), insert, update, delete or ddl (CREATE, ALTER, DROP, TRUNCATE TABLE); a CREATE TABLE ... (...)
  * carries its `columns`. A table position holding a placeholder ({name}, ${name}, audit_{name}) is counted in
  * `skipped`, never guessed. One row per table and op in a statement. A CTE the statement defines, the FROM inside
- * EXTRACT/SUBSTRING/TRIM/OVERLAY and IS [NOT] DISTINCT FROM name no table and give no row.
+ * EXTRACT/SUBSTRING/TRIM/OVERLAY and IS [NOT] DISTINCT FROM name no table and give no row. A CTE that shadows a
+ * table (WITH orders AS (SELECT * FROM orders WHERE open) ... FROM orders) keeps the ref inside its own body, which
+ * reads the real table, and drops the refs after its definition ends (see readsCte).
  */
 export function sqlStatements(body, { strict = false } = {}) {
   const text = blankSqlComments(body);
@@ -526,7 +560,8 @@ export function sqlStatements(body, { strict = false } = {}) {
     if (!verb || !readsAsSql(verb, st, strict)) continue;
     const refs = [];
     const seen = new Set();
-    const ctes = cteNames(st);
+    const ctes = cteEnds(st);
+    const recursive = /\bwith\s+recursive\b/i.test(st);
     const argFroms = argumentFroms(st);
     let firstFrom = true;
     for (const m of st.matchAll(SQL_TABLE_REF)) {
@@ -544,7 +579,7 @@ export function sqlStatements(body, { strict = false } = {}) {
       }
       const table = tableRaw.replace(/["`]/g, '');
       if (SQL_NOT_TABLE.has(table.toLowerCase()) || (strict && PROSE_WORDS.has(table.toLowerCase()))) continue;
-      if (kw !== 'table' && ctes.has(table.toLowerCase())) continue; // the statement's own CTE, not a table
+      if (kw !== 'table' && readsCte(ctes, recursive, table.toLowerCase(), m.index)) continue; // the statement's own CTE, not a table
       let op;
       if (kw === 'join') op = 'select';
       else if (kw === 'from') {
