@@ -9,6 +9,9 @@
 // entities (evidence paths, fields included). Dependents are the nodes one edge away from an affected node (either
 // direction) that are not affected themselves; sequences are listed when a participant or a step reference is an
 // affected node. `uncovered` lists new files that no area owns.
+// The directory holding <model.json> (the --out directory of the build, docs/architecture by default) is the map's
+// own output: a file under it is never a changed file, so committing the map's artifacts affects no area. A model
+// outside the repository, or at its root, excludes nothing.
 //
 // Report: {base, head, behind, files, areas, nodes, dependents, entities, sequences, uncovered}, all sorted.
 // Exit 0 ok (also when nothing is affected), 2 usage error, unreadable model, unknown base commit or not a git
@@ -16,6 +19,7 @@
 
 import { readFileSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { dirname, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { matchAny } from './lib/glob.mjs';
 
@@ -32,9 +36,13 @@ const arr = (v) => (Array.isArray(v) ? v : []);
  * @param {object} model a parsed architecture model (unknown keys tolerated)
  * @param {{base?: string|null, head?: string|null, behind?: number, files?: {status: string, path: string}[]}} changes
  *   status "A" marks a new file (an untracked file is "A" too); "D", "M" and the rest count as existing
+ * @param {{outDir?: string|null}} [options] outDir: the repo-relative directory of the map's own output; no file
+ *   under it counts as changed
  */
-export function diffmap(model, changes = {}) {
-  const files = arr(changes.files).filter((f) => f && typeof f.path === 'string');
+export function diffmap(model, changes = {}, options = {}) {
+  const out = typeof options.outDir === 'string' && options.outDir !== '' ? options.outDir.replace(/\/+$/, '') : null;
+  const own = (p) => out !== null && (p === out || p.startsWith(`${out}/`));
+  const files = arr(changes.files).filter((f) => f && typeof f.path === 'string' && !own(f.path));
   const paths = new Set(files.map((f) => f.path));
   const added = new Set(files.filter((f) => f.status === 'A').map((f) => f.path));
 
@@ -130,6 +138,21 @@ export function readGitChanges(repo, base) {
   return { base: baseSha, head, behind, files };
 }
 
+/**
+ * The repo-relative directory holding `modelPath`, in / form, or null when it is outside `repo` or is its root (a
+ * model at the root would exclude the whole repository).
+ */
+export function outputDirOf(repo, modelPath) {
+  let rel;
+  try {
+    rel = relative(realpathSync(repo), realpathSync(dirname(modelPath)));
+  } catch {
+    return null;
+  }
+  if (rel === '' || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) return null;
+  return rel.split(sep).join('/');
+}
+
 function parseArgs(argv) {
   const o = { model: undefined, repo: process.cwd(), since: undefined, json: false, help: false };
   const pos = [];
@@ -181,7 +204,7 @@ function main(argv) {
     }
     const base = o.since ?? model?.meta?.commit;
     if (!base) throw new UsageError('the model has no meta.commit; pass --since <sha>');
-    const result = diffmap(model, readGitChanges(o.repo, base));
+    const result = diffmap(model, readGitChanges(o.repo, base), { outDir: outputDirOf(o.repo, o.model) });
     process.stdout.write(o.json ? JSON.stringify(result, null, 2) + '\n' : renderSummary(result));
     return 0;
   } catch (e) {

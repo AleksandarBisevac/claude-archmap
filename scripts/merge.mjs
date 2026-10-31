@@ -3,8 +3,8 @@
 //
 //   node scripts/merge.mjs <fragmentsDir> --out <model.json> [--previous <model.json>] [--synth <synth.json>]
 //        [--extracts <dir>] [--repo <dir>] [--digest <digest.json>]
-//        [--areas a,b] [--commit sha] [--project name] [--profile p] [--generated-at iso] [--repo-url url]
-//        [--strict] [--json]
+//        [--areas a,b [--changed <diffmap.json>]] [--commit sha] [--project name] [--profile p] [--generated-at iso]
+//        [--repo-url url] [--strict] [--json]
 //
 // Fragments (<work>/fragments/*.json, written by the explorers; one object per area, contract in
 // skills/architecture-map/references/model-schema.md): nodes, edges, entities, access (and, tolerated,
@@ -76,6 +76,15 @@
 // access rows whose evidence sits in an affected area are replaced too, and --extracts recomputes them.
 // Globs are matched by lib/glob.mjs, the matcher diffmap.mjs uses, so both scripts agree on who owns a path
 // (a bare directory glob is literal; write `dir/**` to own a subtree).
+// With --changed <diffmap.json> (the diffmap.mjs --json report of the commit, whose `files` are the changed paths; a
+// plain JSON array of paths is read too) an affected area is not replaced wholesale: a node, edge or entity of the
+// area whose id is in --previous and whose evidence files (an entity's field evidence included) are all unchanged is
+// carried over byte-identical from --previous, whether the fragment spells it differently or leaves it out; one with
+// evidence in a changed file takes the fragment's version; an id --previous lacks is added; one the fragment leaves out
+// whose evidence did change is removed, one meta.sources row {area, type: "dropped-changed", id, note} each. Entities on
+// a carried store keep its id, the extracts merge nothing into a carried entity, and a store made for the area is the
+// carried one of that id, never a -2 sibling. The derivation row counts what was carried (`derived.carried`). Access
+// rows and relations carry no id and are recomputed as before. Without --changed update mode is as described above.
 // --previous without --areas treats every area as affected (full rebuild that still carries user fields).
 // --areas and the fragment directory must name the same areas: an --areas entry with no fragment, and a fragment
 // whose area is not in --areas, are each reported as a conflict (exit 1 under --strict). An area whose fragment file
@@ -581,7 +590,7 @@ function entityResolver(entities) {
  * explorer's queue node of the same name is the queue's node. Returns the queues, for deriveLayer to draw the
  * producer and consumer edges, and the counts.
  */
-function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
+function generateFromExtracts({ nodes, entities, slices, placed, zoneId, carried = { nodes: new Set(), entities: new Set() } }) {
   const made = { entities: 0, merged: 0, inferred: 0, stores: 0, queues: 0 };
   const owner = nodeResolver(nodes);
   const storeOwner = nodeResolver(new Map([...nodes].filter(([, n]) => STORE_KINDS.has(kindOf(n)))));
@@ -607,6 +616,9 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
     if (twin) return twin.store;
     const own = [...new Set(list(placed.get(area)).filter((id) => STORE_KINDS.has(kindOf(nodes.get(id)))))];
     if (own.length === 1) return own[0];
+    // the store an earlier run made for the area, carried from --previous: the same node, never a -2 sibling of it
+    const kept = slug(`${area}-db`) || 'db';
+    if (!madeStores.has(area) && carried.nodes.has(kept) && STORE_KINDS.has(kindOf(nodes.get(kept)))) madeStores.set(area, kept);
     if (!madeStores.has(area)) {
       const id = uniq(nodes, slug(`${area}-db`) || 'db');
       nodes.set(id, {
@@ -631,6 +643,12 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
       }
       const evidence = declaredAt(t);
       const id = byName.get(table.toLowerCase()) ?? (typeof t.name === 'string' ? byName.get(t.name.toLowerCase()) : undefined);
+      if (id !== undefined && entities.has(id) && carried.entities.has(id)) {
+        // carried from --previous byte-identical: its declaring file did not change, so nothing is merged into it
+        nameIt(t.name, id);
+        nameIt(table, id);
+        continue;
+      }
       if (id !== undefined && entities.has(id)) {
         const e = entities.get(id);
         const theirs = list(e.fields).filter(isObj);
@@ -724,7 +742,7 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId }) {
  * Add the derived edges, access rows and relations to the maps in place. Returns the meta.sources row and the
  * flows (http and queue hops with their node ends) the sequence drafts are built from.
  */
-function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues = [], made = null }) {
+function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues = [], made = null, carried = null }) {
   const owner = nodeResolver(nodes);
   const skipped = [];
   const count = { edges: 0, access: 0, relations: 0 };
@@ -962,6 +980,7 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     derived: {
       ...count, entities: tally.entities, entitiesMerged: tally.merged, entitiesInferred: tally.inferred, stores: tally.stores, queues: tally.queues,
       ...(tally.apps ? { apps: tally.apps } : {}),
+      ...(carried !== null ? { carried: carried.total } : {}),
     },
     skipped: { count: skipped.length, reasons: reasons.slice(0, MAX_REASONS) },
     note:
@@ -969,9 +988,16 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, ` +
       `${tally.apps ? `${tally.apps} app node(s) from the workspace declaration, ` : ''}and derived ` +
       `${count.edges} edge(s), ${count.access} access row(s) from the SQL, ORM models and queues and ${count.relations} fk relation(s) from the prescan extracts; ` +
-      `${skipped.length} link(s) or statement(s) could not be cited or resolved`,
+      `${skipped.length} link(s) or statement(s) could not be cited or resolved` +
+      (carried !== null ? `; ${carriedText(carried)}` : ''),
   };
   return { source, flows };
+}
+
+/** The update-mode carry-over, said in the derivation row's note. */
+function carriedText(c) {
+  return `update: ${c.total} carried from the previous model unchanged (${c.nodes} node(s), ${c.edges} edge(s), ${c.entities} entit${c.entities === 1 ? 'y' : 'ies'}): ` +
+    `their evidence files are not among the ${c.changed} changed file(s)`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1196,19 +1222,22 @@ function normaliseEvidence(el, { id, area, required, reader, rows }) {
 
 /**
  * Pure merge (it reads files only under `repo`, as text, to cite an import line, and with git at meta.commit to check evidence).
- * @param {{fragments?: object[], previous?: object, synth?: object, areas?: string[], extracts?: object[], repo?: string,
+ * @param {{fragments?: object[], previous?: object, synth?: object, areas?: string[], extracts?: object[], repo?: string, changed?: string[],
  *   meta?: {project?: string, commit?: string, profile?: string, generatedAt?: string, repoUrl?: string, schemaVersion?: string}}} input
- *   `extracts` are the per-area prescan slices (<work>/extracts/*.json); `repo` is the analysed tree.
+ *   `extracts` are the per-area prescan slices (<work>/extracts/*.json); `repo` is the analysed tree. `changed`
+ *   (update mode only) lists the files the commit changed: an affected area's unchanged elements are carried over.
  * @returns {{model: object, digest: object, conflicts: {ids: string[], reason: string}[], renames: object[], notes: string[], zonesCreated: string[], evidenceChecked: boolean}}
  *   `evidenceChecked`: evidence was read at meta.commit in `repo` (so the caller validates with --repo)
  */
-export function merge({ fragments = [], previous, synth, areas, meta = {}, extracts, repo } = {}) {
+export function merge({ fragments = [], previous, synth, areas, meta = {}, extracts, repo, changed } = {}) {
   const conflicts = [];
   const renames = [];
   const notes = [];
   const prev = isObj(previous) ? clone(previous) : null;
   const affected = prev && Array.isArray(areas) ? new Set(areas) : null; // null with prev = all areas
   const updateMode = prev !== null && affected !== null;
+  // update with the commit's changed files: inside an affected area only what the change touched is the fragment's
+  const changedFiles = updateMode && Array.isArray(changed) ? new Set(changed.filter((p) => typeof p === 'string')) : null;
   const slices = list(extracts)
     .filter(isObj)
     .map(clone)
@@ -1496,12 +1525,53 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   };
   const areaOf = (map, key) => map.get(key) ?? 'previous';
 
+  // --- update with --changed: an element of an affected area whose evidence files are all unchanged is the previous
+  // model's, byte for byte, whatever the fragment made of it; one whose files changed and that the fragment left out
+  // is removed, and said. Before the app nodes and the references, so both see the carried nodes.
+  const carried = { nodes: new Set(), edges: new Set(), entities: new Set() };
+  const leftOut = []; // touched by the change and not in the fragment: removed unless the extracts make it again
+  if (changedFiles !== null) {
+    const globsOf = new Map([...replaced].sort(cmp).map((a) => [a, list(prev.meta?.coverage?.[a]).filter((g) => typeof g === 'string')]));
+    const areaOwning = (el) => {
+      const p = list(el?.evidence)[0]?.path;
+      for (const [a, g] of globsOf) if (typeof p === 'string' && matchAny(g, p)) return a;
+      return 'previous';
+    };
+    const files = (el) => [
+      ...list(el.evidence), ...list(el.fields).flatMap((f) => (isObj(f) ? list(f.evidence) : [])),
+    ].filter(isObj).map((e) => e.path);
+    const touched = (el) => files(el).some((p) => changedFiles.has(p));
+    const what = { nodes: 'node', edges: 'edge', entities: 'entity' };
+    for (const [kind, part, map] of [['nodes', nodePart.gone, nodes], ['edges', edgePart.gone, edges], ['entities', entityPart.gone, entities]]) {
+      for (const p of part) {
+        if (!isObj(p) || typeof p.id !== 'string') continue;
+        if (!touched(p)) {
+          map.set(p.id, clone(p));
+          carried[kind].add(p.id);
+        } else if (!map.has(p.id)) {
+          leftOut.push({ map, id: p.id, area: areaOwning(p), what: what[kind] });
+        }
+      }
+    }
+  }
+
   // a level-2 app node per workspace app the explorers made none for, before the references are resolved so that an
   // area name in an edge ("area:api") finds the app node first
   const appsMade = makeAppNodes({
     nodes, placed, zoneId: resolveZone, stacksOf,
     slices: updateMode ? slices.filter((s) => replaced.has(s.area)) : slices,
   });
+  // the carried nodes are their area's, after the fragment's own, for `area:<id>` and the area's one store node
+  if (carried.nodes.size) {
+    const globsOf = [...replaced].sort(cmp).map((a) => [a, list(prev.meta?.coverage?.[a]).filter((g) => typeof g === 'string')]);
+    for (const id of [...carried.nodes].sort(cmp)) {
+      const p = list(nodes.get(id)?.evidence)[0]?.path;
+      const area = globsOf.find(([, g]) => typeof p === 'string' && matchAny(g, p))?.[0];
+      if (area === undefined) continue;
+      if (!placed.has(area)) placed.set(area, []);
+      if (!placed.get(area).includes(id)) placed.get(area).push(id);
+    }
+  }
 
   // a reference from another fragment to a node that collapsed into its same-paths twin follows it
   const follow = (id) => (collapsed.has(id) && !nodes.has(id) ? collapsed.get(id) : id);
@@ -1615,7 +1685,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   // --- entities, stores and queues the extracts declare (in update mode, those of the affected areas), then the
   // cross-area layer, computed from the prescan slices and the declared keys
   const gen = generateFromExtracts({
-    nodes, entities, placed, zoneId: resolveZone,
+    nodes, entities, placed, zoneId: resolveZone, carried,
     slices: updateMode ? slices.filter((s) => replaced.has(s.area)) : slices,
   });
   gen.made.apps = appsMade;
@@ -1628,7 +1698,11 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       }
     }
   }
-  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues: gen.queues, made: gen.made });
+  const carriedCount = changedFiles === null ? null : {
+    nodes: carried.nodes.size, edges: carried.edges.size, entities: carried.entities.size,
+    total: carried.nodes.size + carried.edges.size + carried.entities.size, changed: changedFiles.size,
+  };
+  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues: gen.queues, made: gen.made, carried: carriedCount });
   // what pointed at an entity that does not exist, or at a field it does not have, goes with it (one dropped-ref row
   // each). The entities are final only now, so a relation kept from --previous or written by an explorer is resolved
   // here: its entity by id, else by table name; two spellings of one relation are emitted once.
@@ -1659,9 +1733,16 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       }
     }
   }
-  if (extracts !== undefined) {
+  for (const x of leftOut) {
+    if (x.map.has(x.id)) continue;
+    sources.push({ area: x.area, type: 'dropped-changed', id: x.id, note: `area ${x.area}: ${x.what} ${x.id} removed: its evidence changed and the explorer no longer reports it` });
+  }
+  if (extracts !== undefined || carriedCount !== null) {
     for (let i = sources.length - 1; i >= 0; i--) if (isObj(sources[i]) && sources[i].type === 'derivation') sources.splice(i, 1);
-    sources.push(derived.source);
+    // without extracts nothing was derived: the row counts the carry-over only
+    sources.push(extracts !== undefined ? derived.source : {
+      type: 'derivation', derived: { carried: carriedCount.total }, skipped: { count: 0, reasons: [] }, note: carriedText(carriedCount),
+    });
   }
 
   // --- synthesizer: sequences and views only; the structure is the script's
@@ -1774,13 +1855,13 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
 const USAGE =
   'usage: node scripts/merge.mjs <fragmentsDir> --out <model.json> [--previous <model.json>] [--synth <synth.json>] ' +
   '[--extracts <dir>] [--repo <dir>] [--digest <digest.json>] ' +
-  '[--areas a,b] [--commit sha] [--project name] [--profile p] [--generated-at iso] [--repo-url url] [--strict] [--json]';
+  '[--areas a,b [--changed <diffmap.json>]] [--commit sha] [--project name] [--profile p] [--generated-at iso] [--repo-url url] [--strict] [--json]';
 
 class UsageError extends Error {}
 
 const VALUE_FLAGS = new Set([
   '--out', '--previous', '--synth', '--areas', '--commit', '--project', '--profile', '--generated-at', '--repo-url',
-  '--extracts', '--repo', '--digest',
+  '--extracts', '--repo', '--digest', '--changed',
 ]);
 
 function parseArgs(argv) {
@@ -1802,6 +1883,7 @@ function parseArgs(argv) {
   if (o.dir === undefined) throw new UsageError('missing <fragmentsDir>');
   if (o.out === undefined) throw new UsageError('missing --out <model.json>');
   if (o.areas !== undefined && o.previous === undefined) throw new UsageError('--areas needs --previous');
+  if (o.changed !== undefined && o.areas === undefined) throw new UsageError('--changed needs --previous and --areas');
   if (o.profile !== undefined && !['max', 'balanced', 'economy'].includes(o.profile)) {
     throw new UsageError('--profile must be max, balanced or economy');
   }
@@ -1858,6 +1940,14 @@ function main(argv) {
     const synth = o.synth === undefined ? undefined : readJson(o.synth, 'synthesizer output');
     if (synth !== undefined && !isObj(synth)) throw new UsageError('synthesizer output is not a JSON object');
     const areas = o.areas === undefined ? undefined : o.areas.split(',').map((s) => s.trim()).filter(Boolean);
+    let changed;
+    if (o.changed !== undefined) {
+      const report = readJson(o.changed, '--changed report');
+      changed = Array.isArray(report) ? report : isObj(report) && Array.isArray(report.files) ? report.files : null;
+      if (changed === null || !changed.every((p) => typeof p === 'string')) {
+        throw new UsageError(`--changed ${o.changed} holds no list of changed files (a diffmap.mjs --json report, or an array of paths)`);
+      }
+    }
     let extracts;
     if (o.extracts !== undefined) {
       let isExtractDir = false;
@@ -1885,6 +1975,7 @@ function main(argv) {
       previous,
       synth,
       areas,
+      changed,
       extracts,
       repo: o.repo,
       meta: {

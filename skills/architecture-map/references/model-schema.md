@@ -122,6 +122,15 @@ From the per-area prescan slices (`merge.mjs --extracts <work>/extracts --repo .
 
 In update mode an area whose fragment file is unreadable keeps its previous elements (a conflict says so), and an
 `area:<id>` reference to an area with no fragment in the run resolves among the previous model's nodes of that area.
+The files under the directory holding the previous model (`--out`, `docs/architecture` by default) are the map's own
+output: `diffmap.mjs` never counts them as changed, so committing the artifacts makes no area affected. The update
+passes the diffmap report to `merge.mjs --changed`, and inside an affected area only what the change touched differs:
+a node, edge or entity whose id is in the previous model and whose evidence files (an entity's field evidence too) are
+all unchanged is carried over byte-identical, whether the fragment spells it differently or leaves it out; one with
+evidence in a changed file takes the fragment's version; a new id is added; one the fragment leaves out whose evidence
+changed is removed with a `dropped-changed` row. Entities on a carried store keep its id and no sibling store is made;
+the `derivation` row counts the carried elements (`derived.carried`). Without `--changed` an affected area is
+replaced by its fragment wholesale.
 
 What it cannot cite (a file no node owns, a table no entity models, an import line it cannot find) is counted in the
 `derivation` row of `meta.sources`. It also writes `<work>/digest.json`, under 30 K characters: node ids with kind,

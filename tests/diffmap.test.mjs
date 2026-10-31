@@ -226,3 +226,39 @@ test('d12 the pure diffmap(model, changes) sorts and dedupes, and output is dete
     uncovered: ['aaa/new.txt', 'zzz/new.txt'],
   });
 });
+
+test('d13 files under the directory holding the previous model are the map\'s own output: committed or untracked, they are no affected file and make no area affected', () => {
+  for (const outRel of ['docs/architecture', 'maps/arch']) {
+    const dir = mkdtempSync(join(tmpdir(), 'archmap-diffmap-out-'));
+    git(dir, 'init', '-q');
+    for (const f of ['api/a.js', 'web/w.js', 'db/schema.sql', 'queue/q.js', 'queue/job.js', 'config/app.yml', 'README.md', 'docs/guide.md']) put(dir, f);
+    const base = commit(dir, 'base');
+    const model = modelFor(base);
+    // an area that owns the docs tree, as a repo with a docs area has: the map's output must still not make it affected
+    model.meta.coverage.docs = ['docs/**', 'maps/**'];
+    model.nodes.push({ id: 'n-docs', zone: 'z', kind: 'module', title: 'Docs', paths: ['docs/**', 'maps/**'], level: 2, evidence: ev('docs/guide.md') });
+    const modelPath = join(dir, outRel, 'architecture.model.json');
+    // the first build's artifacts, committed after the commit the model was built on
+    put(dir, `${outRel}/architecture.model.json`, JSON.stringify(model));
+    put(dir, `${outRel}/architecture.layout.json`, '{}\n');
+    put(dir, `${outRel}/archmap.html`, '<html></html>\n');
+    commit(dir, 'map artifacts');
+    put(dir, `${outRel}/notes/untracked.md`, 'x\n');
+    const run = (...a) => spawnSync(process.execPath, [CLI, modelPath, '--repo', dir, '--json', ...a], { encoding: 'utf8' });
+    const r = run();
+    assert.equal(r.status, 0, r.stderr);
+    const j = JSON.parse(r.stdout);
+    assert.deepEqual(j.files, [], `${outRel}: ${JSON.stringify(j)}`);
+    assert.deepEqual(j.areas, []);
+    assert.deepEqual(j.nodes, []);
+    assert.deepEqual(j.uncovered, []);
+    // a real change beside the output still counts, and only it
+    put(dir, 'docs/guide.md', 'changed\n');
+    put(dir, 'api/a.js', 'changed\n');
+    commit(dir, 'edit');
+    const k = JSON.parse(run().stdout);
+    assert.deepEqual(k.files, ['api/a.js', 'docs/guide.md']);
+    assert.deepEqual(k.areas, ['api', 'docs']);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

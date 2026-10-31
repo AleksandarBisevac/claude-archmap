@@ -20,12 +20,16 @@
 //         no reference file. It
 //         prints the Agent calls to make, one per area. With --update it first runs diffmap.mjs against the model in
 //         --out and briefs only the affected areas (and the areas of new files no area owns), naming the previous
-//         model so ids stay stable; when nothing is affected it lists no call and the next step is render.
+//         model so ids stay stable; when nothing is affected it lists no call and the next step is render. The
+//         diffmap report is kept as <work>/diffmap.json; files under --out (the map's own output, committed or
+//         not) are never changed files, so they make no area affected.
 // finish  checks that every planned fragment is in <work>/fragments/ (a missing one exits 2 and names the file;
 //         --allow-missing merges without it and names the area as not mapped), introspects each database file
 //         prescan listed when its CLI (sqlite3, duckdb) is on PATH, read-only and schema only, else records the
-//         skip; runs merge.mjs (--extracts --repo --digest, --previous when a model exists in --out, --areas on
-//         update) into <work>/model.json, runs validate.mjs --repo, and writes the synthesizer brief
+//         skip; runs merge.mjs (--extracts --repo --digest, --previous when a model exists in --out, --areas and
+//         --changed <work>/diffmap.json on update, so an affected area's elements whose evidence files the commit did
+//         not touch are carried over byte-identical) into <work>/model.json, runs validate.mjs --repo, and writes the
+//         synthesizer brief
 //         <work>/briefs/synthesizer.md with the digest and synth paths. It prints the one synthesizer Agent call.
 // render  merges <work>/synth.json into the model (merge.mjs --synth --previous <work>/model.json), writes it to
 //         --out, validates it with --repo, lays it out (seeded from the layout file in --out) and renders the clean
@@ -93,7 +97,7 @@ const LEDGER_PARTS = ['plan', 'finish', 'render', 'ledger'];
 // what plan removes from <work> before a fresh build: only these names, never the directory itself
 const BUILD_FILES = [
   'pipeline.json', 'prescan.json', 'extracts', 'briefs', 'fragments', 'synth.json', 'model.json', 'premerge.json',
-  'digest.json', 'finish.json', 'reviewer.json', 'ledger', 'usage.jsonl',
+  'digest.json', 'finish.json', 'reviewer.json', 'ledger', 'usage.jsonl', 'diffmap.json',
 ];
 
 const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
@@ -733,6 +737,8 @@ function plan(o, ctx) {
     const dm = runScript(ctx, 'diffmap.mjs', [previous, '--repo', repo, '--json', ...(o.since ? ['--since', o.since] : [])], { quietStdout: true });
     if (dm.exit !== 0) throw new StepError('diffmap.mjs failed', {}, 2);
     const report = JSON.parse(dm.stdout);
+    // finish and render hand it to merge.mjs as --changed: only what the commit touched is re-described
+    writeJson(join(work, 'diffmap.json'), report);
     const prevModel = readJson(previous, 'previous model');
     const affected = new Set(list(report.areas));
     for (const f of list(report.uncovered)) {
@@ -1004,6 +1010,9 @@ function introspect(ctx, state, fragmentsDir) {
 
 function mergeArgs(state, { out, previous, synth, digest, areas }) {
   const w = state.work;
+  // update mode: the diffmap report plan kept, so merge carries what the commit did not touch (absent from a work dir
+  // an older plan made: merge then replaces the affected areas wholesale, as before)
+  const changed = areas && state.mode === 'update' && existsSync(join(w, 'diffmap.json')) ? join(w, 'diffmap.json') : null;
   return [
     join(w, 'fragments'), '--out', out,
     ...(previous ? ['--previous', previous] : []),
@@ -1011,6 +1020,7 @@ function mergeArgs(state, { out, previous, synth, digest, areas }) {
     '--extracts', join(w, 'extracts'), '--repo', state.repo,
     ...(digest ? ['--digest', digest] : []),
     ...(areas ? ['--areas', areas.join(',')] : []),
+    ...(changed ? ['--changed', changed] : []),
     '--commit', state.commit ?? 'unknown', '--project', state.project, '--profile', state.profile,
     '--generated-at', state.generatedAt, '--json',
   ];

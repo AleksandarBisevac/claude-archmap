@@ -4624,7 +4624,7 @@
         {
           "id": "P8.7",
           "title": "Update mode keeps unchanged elements byte-identical and diffmap ignores the map's own output directory",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Feedback from eval 3 (P8.3, first run on the final P10 code, 6 of 8 expectations): the update pass of the architecture map rewrote elements of the re-explored area that the commit did not touch, and it treated the map's own committed output as a code change.\n\n1. diffmap.mjs and the update step of pipeline.mjs: files under the directory that holds the previous model (the --out directory, docs/architecture by default) are the map's own output and must never count as affected files or make an area affected. In the eval the orchestrator committed the first build's artifacts, so the next diffmap listed a second, unrelated area as affected and the update spent an explorer on it.\n\n2. merge.mjs update mode (--previous with --areas): today the elements owned by an affected area are replaced wholesale by the area's new fragment. A re-explored area therefore comes back with a different evidence range on a node whose file did not change, a different role text on the merge-made store node, and two level-3 fixture-store nodes missing, after which merge made a new store node with a -2 suffix and re-homed three entities onto it. The expectation of the update is that only the elements touched by the change differ. Give merge the list of files the commit changed (a --changed flag or the diffmap report path, passed by pipeline finish in update mode) and, inside an affected area: an element whose id exists in the previous model and whose evidence files are all unchanged is carried over byte-identical from the previous model, whether the fragment spells it differently or leaves it out; an element with evidence in a changed file takes the fragment's version; an id the previous model lacks is added; an element the fragment drops whose evidence files did change is removed with a dropped-ref style row. Entities whose store is a carried node keep that store id; merge must not invent a sibling store when the previous store node is carried. The derivation row counts the carried elements. Without --changed the behaviour stays as it is today (documented).\n\n3. skills/architecture-map/references/model-schema.md: document the update-mode carry-over and the output-directory exclusion in the update paragraph.\n\nDo not name any client, dataset or repository in code, tests, fixtures or notes; the denylist test runs in the gate. Fixtures for the tests are synthetic.",
           "files": [
             "scripts/merge.mjs",
@@ -4653,16 +4653,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T17:57:51Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T18:12:12Z.630756",
+            "status": "passed",
+            "at": "2026-10-31T18:12:12Z"
+          }
         }
       ],
       "area": "evals",

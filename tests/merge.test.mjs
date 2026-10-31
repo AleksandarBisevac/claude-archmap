@@ -1516,3 +1516,131 @@ test('m27b an import edge whose line names the module only by its file name is i
   assert.deepEqual(one('util-mod').evidence, [{ path: 'worker/c.py', lines: '2' }]);
   rmSync(repo, { recursive: true, force: true });
 });
+
+// P8.7: update mode with the files the commit changed. Inside an affected area an element whose evidence files are all
+// unchanged is the previous model's, byte for byte; only what the change touched takes the fragment's version.
+const carryPrev = () => merge({
+  fragments: [
+    frag('web', { nodes: [node('web-app', { zone: 'z', kind: 'app', paths: ['web/**'], evidence: ev('web/app.js') })] }),
+    frag('api', {
+      nodes: [
+        node('api-svc', { zone: 'z', paths: ['api/**'], role: 'serves orders', desc: 'the orders api', evidence: ev('api/svc.js', '1-20') }),
+        node('api-db', { zone: 'z', kind: 'store', paths: ['api/db/**'], evidence: ev('api/db/schema.sql', '1-9') }),
+        node('api-fixture-store', { zone: 'z', kind: 'store', level: 3, paths: ['api/fixtures/**'], evidence: ev('api/fixtures/seed.sql', '1-4') }),
+        node('api-handler', { zone: 'z', level: 3, paths: ['api/h/**'], title: 'Handler', evidence: ev('api/h/handler.js', '1-5') }),
+        node('api-old', { zone: 'z', level: 3, paths: ['api/old/**'], evidence: ev('api/old/legacy.js', '1-3') }),
+      ],
+      edges: [
+        { id: 'svc-reads-db', from: 'api-svc', to: 'api-db', type: 'sql', desc: 'reads orders', evidence: ev('api/svc.js', '4-6'), confidence: 'verified' },
+        { id: 'handler-calls-svc', from: 'api-handler', to: 'api-svc', type: 'call', desc: 'calls', evidence: ev('api/h/handler.js', '2-3'), confidence: 'verified' },
+      ],
+      entities: [
+        { id: 'orders', store: 'api-db', name: 'orders', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }], evidence: ev('api/db/schema.sql', '2-5') },
+        { id: 'seed-rows', store: 'api-fixture-store', name: 'seed_rows', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }], evidence: ev('api/fixtures/seed.sql', '1-4') },
+      ],
+    }),
+  ],
+  meta: META,
+}).model;
+// the re-explored api area: api-svc spelled differently, the two stores and both entities left out, the changed handler
+// re-described, a new node in a new file, and api-old (whose file changed) not emitted again
+const carryFrag = () => frag('api', {
+  nodes: [
+    node('api-svc', { zone: 'z', paths: ['api/**'], role: 'handles orders and more', desc: 'reworded', evidence: ev('api/svc.js', '1-31') }),
+    node('api-handler', { zone: 'z', level: 3, paths: ['api/h/**'], title: 'Handler v2', evidence: ev('api/h/handler.js', '1-8') }),
+    node('api-extra', { zone: 'z', level: 3, paths: ['api/h/extra/**'], evidence: ev('api/h/extra.js', '1-2') }),
+  ],
+  edges: [
+    { id: 'svc-reads-db', from: 'api-svc', to: 'api-db', type: 'sql', desc: 'reads the orders table', evidence: ev('api/svc.js', '4-9'), confidence: 'verified' },
+    { id: 'handler-calls-svc', from: 'api-handler', to: 'api-svc', type: 'call', desc: 'calls the service', evidence: ev('api/h/handler.js', '2-7'), confidence: 'verified' },
+  ],
+});
+const CHANGED = ['api/h/handler.js', 'api/h/extra.js', 'api/old/legacy.js'];
+const json = (x) => JSON.stringify(x);
+
+test('m30 update with --changed: an element of the affected area whose evidence files are all unchanged is carried over byte-identical, spelt differently or left out; a changed one takes the fragment; a new id is added; a dropped changed one is removed with a row', () => {
+  const first = carryPrev();
+  const { model } = merge({ fragments: [carryFrag()], previous: first, areas: ['api'], changed: CHANGED, meta: { commit: 'c2' } });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const n = (m, id) => m.nodes.find((x) => x.id === id);
+  const e = (m, id) => m.edges.find((x) => x.id === id);
+  const en = (m, id) => m.entities.find((x) => x.id === id);
+  // carried: spelt differently by the fragment (evidence lines, role, desc) and left out by it
+  for (const id of ['api-svc', 'api-db', 'api-fixture-store']) assert.equal(json(n(model, id)), json(n(first, id)), `node ${id} carried byte-identical`);
+  assert.equal(json(e(model, 'svc-reads-db')), json(e(first, 'svc-reads-db')), 'edge carried byte-identical');
+  for (const id of ['orders', 'seed-rows']) assert.equal(json(en(model, id)), json(en(first, id)), `entity ${id} carried byte-identical`);
+  // entities homed on a carried store keep its id, and no sibling store is invented
+  assert.equal(en(model, 'seed-rows').store, 'api-fixture-store');
+  assert.equal(en(model, 'orders').store, 'api-db');
+  assert.equal(model.nodes.some((x) => /-2$/.test(x.id)), false, JSON.stringify(ids(model.nodes)));
+  // evidence in a changed file: the fragment's version
+  assert.equal(n(model, 'api-handler').title, 'Handler v2');
+  assert.deepEqual(n(model, 'api-handler').evidence, ev('api/h/handler.js', '1-8'));
+  assert.equal(e(model, 'handler-calls-svc').desc, 'calls the service');
+  // a new id is added
+  assert.ok(n(model, 'api-extra'), JSON.stringify(ids(model.nodes)));
+  // dropped by the fragment, its file changed: removed, with a row naming it
+  assert.equal(n(model, 'api-old'), undefined);
+  assert.ok(model.meta.sources.some((s) => s.id === 'api-old' && /dropped/.test(s.type)), JSON.stringify(model.meta.sources));
+  // the unaffected area is untouched, as before
+  assert.equal(json(n(model, 'web-app')), json(n(first, 'web-app')));
+  // the derivation row counts the carried elements: 3 nodes, 1 edge, 2 entities
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.ok(row, JSON.stringify(model.meta.sources));
+  assert.equal(row.derived.carried, 6, JSON.stringify(row));
+  assert.match(row.note, /6 carried/);
+  // deterministic
+  assert.equal(json(merge({ fragments: [carryFrag()], previous: first, areas: ['api'], changed: [...CHANGED].reverse(), meta: { commit: 'c2' } }).model), json(model));
+});
+
+test('m30b without --changed update mode stays as it was: the affected area is the fragment\'s, wholesale', () => {
+  const first = carryPrev();
+  const { model } = merge({ fragments: [carryFrag()], previous: first, areas: ['api'], meta: { commit: 'c2' } });
+  const svc = model.nodes.find((x) => x.id === 'api-svc');
+  assert.deepEqual(svc.evidence, ev('api/svc.js', '1-31'), 'the fragment\'s spelling');
+  assert.equal(model.nodes.some((x) => x.id === 'api-fixture-store'), false, 'left out by the fragment, gone');
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.equal(row ? row.derived.carried ?? 0 : 0, 0);
+});
+
+test('m30c stores the re-explored fragment leaves out are carried when their files did not change: the extract-made entities keep their store ids and no store is made in their place', () => {
+  const tables = [{ area: 'pkg', stacks: [], links: [], queues: [], tables: [
+    { name: 'events', table: 'events', orm: 'sql', fields: ['id serial pk'], file: 'pkg/fixtures/a.sql', line: 1, lines: '1-3' },
+    { name: 'audits', table: 'audits', orm: 'sql', fields: ['id serial pk'], file: 'pkg/fixtures/b.sql', line: 1, lines: '1-3' },
+    { name: 'jobs', table: 'jobs', orm: 'drizzle', fields: ['id serial pk'], file: 'pkg/db.ts', line: 1, lines: '1-3' },
+  ] }];
+  const store = (id, file) => node(id, { zone: 'data', kind: 'store', level: 3, paths: [file], evidence: ev(file, '1-3') });
+  const svc = (title) => node('pkg-svc', { zone: 'svc', paths: ['pkg/**'], title, evidence: ev('pkg/svc.ts') });
+  const first = merge({ fragments: [frag('pkg', { nodes: [svc('Pkg'), store('fixture-a', 'pkg/fixtures/a.sql'), store('fixture-b', 'pkg/fixtures/b.sql')] })], extracts: tables, meta: META }).model;
+  const storeOf = (m, name) => m.entities.find((x) => x.name === name).store;
+  assert.deepEqual([storeOf(first, 'events'), storeOf(first, 'audits')], ['fixture-a', 'fixture-b']);
+  // the re-explored fragment describes the changed service only and leaves both fixture stores out
+  const { model } = merge({ fragments: [frag('pkg', { nodes: [svc('Pkg v2')] })], extracts: tables, previous: first, areas: ['pkg'], changed: ['pkg/svc.ts'], meta: { commit: 'c2' } });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  for (const id of ['fixture-a', 'fixture-b']) {
+    assert.equal(json(model.nodes.find((x) => x.id === id)), json(first.nodes.find((x) => x.id === id)), `store ${id} carried byte-identical`);
+  }
+  assert.deepEqual([storeOf(model, 'events'), storeOf(model, 'audits')], ['fixture-a', 'fixture-b'], 'the entities keep their store ids');
+  assert.equal(json(model.entities), json(first.entities));
+  assert.deepEqual(ids(model.nodes), ids(first.nodes), 'no store made in place of a carried one');
+  assert.equal(model.nodes.find((x) => x.id === 'pkg-svc').title, 'Pkg v2');
+});
+
+test('m30d through the CLI --changed takes the diffmap report: its files list is the changed set', () => {
+  const dir = tmp();
+  const prevPath = join(dir, 'prev.json');
+  writeFileSync(prevPath, JSON.stringify(carryPrev()));
+  mkdirSync(join(dir, 'fragments'));
+  writeFileSync(join(dir, 'fragments', 'api.json'), JSON.stringify(carryFrag()));
+  const report = join(dir, 'diffmap.json');
+  writeFileSync(report, JSON.stringify({ base: 'a', head: 'b', behind: 1, files: CHANGED, areas: ['api'], nodes: [], dependents: [], entities: [], sequences: [], uncovered: [] }));
+  const out = join(dir, 'model.json');
+  const r = cli([join(dir, 'fragments'), '--out', out, '--previous', prevPath, '--areas', 'api', '--changed', report, '--commit', 'c2']);
+  assert.equal(r.status, 0, r.stderr);
+  const m = readJson(out);
+  const first = readJson(prevPath);
+  assert.equal(json(m.nodes.find((x) => x.id === 'api-svc')), json(first.nodes.find((x) => x.id === 'api-svc')));
+  assert.equal(m.meta.sources.find((s) => s.type === 'derivation').derived.carried, 6);
+  assert.equal(cli([join(dir, 'fragments'), '--out', out, '--previous', prevPath, '--areas', 'api', '--changed', join(dir, 'nope.json')]).status, 2, 'an unreadable report is a usage error');
+  rmSync(dir, { recursive: true, force: true });
+});

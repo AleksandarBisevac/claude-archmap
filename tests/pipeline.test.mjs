@@ -1332,3 +1332,52 @@ test('p36 when the isolated python probe cannot import duckdb the skip reason sa
   assert.match(skip.reason, /interpreter's own or a virtualenv's site-packages/, 'and where duckdb must be importable from');
   assert.match(skip.reason, /--user/, 'a per-user install is named as not seen');
 });
+
+// P8.7: the update of a map whose artifacts were committed inside the repository. The output directory is the map's
+// own output, never a code change; finish hands merge the changed files, so the untouched elements are carried.
+test('p37 finish in update mode passes the diffmap report\'s changed files to merge as --changed (the committed map output not among them), and the derivation row counts the carried elements', () => {
+  const r0 = fixtureRepo('node-api-carry');
+  const outIn = join(r0, 'docs', 'architecture');
+  const w1 = join(tmp, 'work-carry-1');
+  assert.equal(step(['plan', r0, '--work', w1, '--out', outIn, '--project', 'node-api', '--generated-at', GENERATED_AT]).status, 0);
+  cannedInto(w1);
+  assert.equal(step(['finish', '--work', w1]).status, 0);
+  cpSync(SYNTH, join(w1, 'synth.json'));
+  assert.equal(step(['render', '--work', w1]).status, 0);
+  const first = readJson(join(outIn, 'architecture.model.json'));
+  // the orchestrator commits the first build's artifacts, then a code change lands
+  git(r0, 'add', '-A');
+  git(r0, 'commit', '-q', '-m', 'map artifacts');
+  writeFileSync(join(r0, 'src/books/reviews.controller.ts'), "import { Controller, Get } from '@nestjs/common';\n\n@Controller('reviews')\nexport class ReviewsController {\n  @Get()\n  list() {\n    return [];\n  }\n}\n");
+  git(r0, 'add', '-A');
+  git(r0, 'commit', '-q', '-m', 'reviews');
+  const w2 = join(tmp, 'work-carry-2');
+  const plan = step(['plan', r0, '--work', w2, '--out', outIn, '--update', '--generated-at', GENERATED_AT]);
+  assert.equal(plan.status, 0, plan.stdout);
+  assert.deepEqual(plan.json.areas.map((a) => a.id), ['src'], 'the committed map output makes no area affected');
+  cpSync(join(CANNED, 'src.json'), join(w2, 'fragments', 'src.json'));
+  const f = step(['finish', '--work', w2]);
+  assert.equal(f.status, 0, f.stdout);
+  const args = f.json.runs.find((x) => x.script === 'merge.mjs').args;
+  const at = args.indexOf('--changed');
+  assert.ok(at > 0, `merge runs with --changed: ${JSON.stringify(args)}`);
+  const report = readJson(args[at + 1].replace('<work>', w2)); // runs[].args name the work dir <work>
+  assert.deepEqual(report.files, ['src/books/reviews.controller.ts'], 'the changed files, the map output not among them');
+  const model = readJson(join(w2, 'model.json'));
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.ok(row && row.derived.carried > 0, JSON.stringify(row));
+  // every carried element is the previous model's byte for byte
+  const prev = new Map([...first.nodes, ...first.edges, ...first.entities].map((x) => [x.id, JSON.stringify(x)]));
+  const same = [...model.nodes, ...model.edges, ...model.entities].filter((x) => prev.get(x.id) === JSON.stringify(x));
+  assert.ok(same.length >= row.derived.carried, `${same.length} identical, ${row.derived.carried} carried`);
+  // render merges the synthesizer object over the same fragments: it carries the same elements, so they survive to --out
+  cpSync(SYNTH, join(w2, 'synth.json'));
+  const rr = step(['render', '--work', w2]);
+  assert.equal(rr.status, 0, rr.stdout);
+  assert.ok(rr.json.runs.find((x) => x.script === 'merge.mjs').args.includes('--changed'), 'render merges with --changed too');
+  const final = readJson(join(outIn, 'architecture.model.json'));
+  for (const x of same) {
+    const kind = model.nodes.includes(x) ? 'nodes' : model.edges.includes(x) ? 'edges' : 'entities';
+    assert.equal(JSON.stringify(final[kind].find((y) => y.id === x.id)), prev.get(x.id), `${x.id} still the previous model's after render`);
+  }
+});
