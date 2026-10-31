@@ -1,16 +1,15 @@
 # archmap
 
-> **Status: pre-release (0.x).** The plugin is being built; commands are not usable yet. See [docs/design.md](docs/design.md).
-
 archmap is a Claude Code plugin that maps a repository's architecture into one evidence-backed model
-(`docs/architecture/architecture.model.json`) and renders it as a self-contained, offline HTML viewer:
+(`docs/architecture/architecture.model.json`) and renders it as a self-contained, offline HTML viewer
+(`docs/architecture/archmap.html`). Agents read the code and write the model; tested scripts merge, validate, lay out
+and draw it. The design is in [docs/design.md](docs/design.md).
 
-- application graph (C4 levels 1–3) with typed, colour-coded relations and responsibility zones;
-- ER diagram with fields, keys, cardinality and per-field provenance (declared / observed / inferred);
-- sequence diagrams, CRUD matrix and data lineage, deployment and trust-boundary views;
-- `file:line` evidence on every element;
-- an optional, architecture-level issues overlay that can be switched off, and is never in the committed build;
-- cheap incremental updates from git diffs, with a layout that stays stable.
+## Status
+
+Release candidate for 1.0.0. All six commands below work and are covered by the test suite and by five evals on three
+private repositories plus a build of this repository (see [What a build costs](#what-a-build-costs)). The version
+number in `.claude-plugin/plugin.json` is set when the release is cut.
 
 ## Install
 
@@ -19,27 +18,127 @@ archmap is a Claude Code plugin that maps a repository's architecture into one e
 /plugin install archmap@quality-gates
 ```
 
-For local development:
+For local development, from a clone of this repository:
 
 ```
-/plugin marketplace add /path/to/claude-archmap
+/plugin marketplace add <path to your clone>
 /plugin install archmap@archmap-dev
 ```
 
-## Planned commands
+## Commands
 
-| Command | Purpose |
-|---|---|
-| `/archmap:build` | Analyse the repo and write the model and `archmap.html` |
-| `/archmap:update` | Re-analyse only what changed since the model's commit |
-| `/archmap:check` | Report staleness (exit code for CI) |
-| `/archmap:issues` | Run the issues pass, optionally importing audit findings |
-| `/archmap:export` | Export Mermaid, PlantUML, SVG/PNG or Markdown (clean, no issues; PNG needs headless Chromium) |
-| `/archmap:render` | Re-render HTML from the model (no LLM) |
+Each row is the `description` and `argument-hint` of the command's file in `commands/`.
+
+| Command | Arguments | What it does |
+| --- | --- | --- |
+| `/archmap:build` | `[--issues] [--profile max\|balanced\|economy] [--db dsn] [--scope path] [--publish]` | Build the evidence-backed architecture map of this repository - model, layout and a self-contained offline HTML viewer in docs/architecture/. |
+| `/archmap:check` | none | Check whether the architecture map is behind HEAD. Script only, no analysis and no model run; exit 0 when fresh, 1 when stale. |
+| `/archmap:export` | `mermaid\|plantuml\|svg\|png\|md [--view v]` | Export the architecture model as Mermaid, PlantUML, SVG, PNG or Markdown files, with no analysis and no model run. Exports are clean, with no issues. |
+| `/archmap:issues` | `[--import-audit] [--profile max\|balanced\|economy]` | Review the architecture map for architecture-level issues, optionally importing open audit findings; the overlay is written outside the repository. |
+| `/archmap:render` | `[--internal\|--shared]` | Re-render the architecture map HTML from the existing model, with no analysis and no model run. Default is the clean build in docs/architecture/. |
+| `/archmap:update` | `[--issues] [--profile max\|balanced\|economy] [--since sha]` | Refresh the architecture map after code changes - re-analyses only the areas git says changed, keeps locked nodes, notes and pinned positions. |
+
+`build`, `update` and `issues` run agents; `check`, `export` and `render` are scripts only and spend no tokens. The
+profile sets the models of the agents: `balanced` (the default) runs the explorers and the synthesizer on Sonnet and
+the issues reviewer on Opus; `max` runs all of them on Opus; `economy` runs the explorers on Haiku and the other
+two on Sonnet.
+
+## What a build delivers
+
+One model, `docs/architecture/architecture.model.json`, checked against `schema/archmap-model.schema.json`:
+
+- **nodes**: the components (browser apps, services, data stores, external systems, platforms) at C4 levels 1 to 3,
+  each with `file:line` evidence;
+- **edges**: typed calls, reads, writes and messages between them, each with evidence and a confidence of
+  `verified`, `inferred` or `external`, so what was read in code is kept apart from what was inferred;
+- **entities**: tables, views, collections and datasets with their fields, keys and per-field provenance
+  (`declared` from ORM models, migrations or DDL, `observed` from read-only introspection of a file database,
+  `inferred` from queries in code);
+- **relations** between entities with cardinality, and **access**: which component creates, reads, updates or
+  deletes which entity, the CRUD matrix and the data lineage;
+- **sequences**: step-through request and job flows;
+- **views**: the application graph and the deployment and trust-boundary views.
+
+The viewer, `docs/architecture/archmap.html`, is one self-contained file that works offline: the application graph
+with responsibility zones, the ER diagram, the sequence diagrams, the CRUD matrix and lineage, search and a path
+finder, every element linked to its evidence. The layout is computed at build time and stored in
+`docs/architecture/architecture.layout.json`, so nodes keep their place from one build to the next and can be pinned.
+
+The issues overlay is opt-in (`--issues`, or `/archmap:issues` later): a reviewer agent looks for architecture-level
+issues anchored to nodes, edges, entities or sequence steps. The overlay and the HTML that shows it are written to
+`<home>/.claude/archmap/<repo-slug>/`, outside the repository, so they never enter the committed build; the committed
+`archmap.html` carries no issue.
+
+After code changes, `/archmap:update` re-analyses only the areas whose files git says changed and keeps locked nodes,
+notes and pinned positions. A SessionStart staleness hook prints one line when the model is behind HEAD (and nothing
+otherwise), and `/archmap:check` gives the same answer as an exit code for CI.
+
+The build of this repository by its own skill (balanced profile, without `--issues`) produced a model with these
+counts, as its build report lists them; the model passed `validate.mjs --repo`. The figures are those of the
+self-build row in [the evals README](skills/architecture-map/evals/README.md).
+
+| Nodes | Edges | Entities | Sequences | Views |
+| --- | --- | --- | --- | --- |
+| 63 | 28 | 16 | 4 | 5 |
+
+## What a build costs
+
+Cost at list prices of a headless run of each eval, with the skill and without it (the baseline: the same prompt on
+the same orchestrator model with no skill). "Before" is the same eval in iteration 1, when the orchestrating session
+held every fragment and the whole model in its own context; the other columns are iteration 2, the script-driven
+flow, where `scripts/pipeline.mjs` runs every scripted step and the explorers write their fragments to files. The
+turns and the context are those of the orchestrating session. Each file in the Evidence column is under
+`skills/architecture-map/evals/evidence/`. Evals 1 to 5 ran on three private repositories; the self-build row is the
+build of this repository, the one run whose whole output can be shared.
+
+| Eval | With skill | Baseline, no skill | Orchestrator turns | Orchestrator max context | Before: iteration 1, with skill | Result | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 (build) | 1.16 USD | 1.55 USD | 11 | 62.9 K | 13.78 USD, 38 turns, 278.9 K | 7/7 expectations | with skill `iteration-2/1-with-skill-1.json`; baseline `iteration-2/1-without-skill-1.json`; before `iteration-1/1-with-skill-1.json` |
+| 2 (build with `--issues`), current reviewer, three runs | 2.40 to 2.61 USD | 2.29 USD | 12 to 14 | 68.9 to 69.4 K | 9.71 USD, 45 turns, 262.9 K | 7/7 in each run; issue recall 0.93 in each run | with skill `iteration-2/2-with-skill-4.json`, `iteration-2/2-with-skill-5.json`, `iteration-2/2-with-skill-6.json`; baseline `iteration-1/2-without-skill-1.json`; before `iteration-1/2-with-skill-1.json` |
+| 3 (build, then update) | 1.89 USD | 1.00 USD | 29 | 94.5 K | 6.40 USD, 46 turns, 193.6 K | 8/8 expectations; baseline 0/8 | with skill `iteration-2/3-with-skill-1.json`; baseline `iteration-2/3-without-skill-1.json`; before `iteration-1/3-with-skill-1.json` |
+| 4 (monorepo build) | 1.57 USD | 1.82 USD | 11 | 67.7 K | 12.55 USD, 67 turns, 267.4 K | 8/8 expectations | with skill `iteration-2/4-with-skill-1.json`; baseline `iteration-1/4-without-skill-1.json`; before `iteration-1/4-with-skill-1.json` |
+| 5 (build) | 1.65 USD | 2.96 USD | 13 | 75.7 K | 9.53 USD, 47 turns, 271.4 K | 7/7 expectations; baseline 0/7 | with skill `iteration-2/5-with-skill-1.json`; baseline `iteration-2/5-without-skill-1.json`; before `iteration-1/5-with-skill-1.json` |
+| self-build (balanced, no issues) | 1.11 USD | - | 12 | 58.4 K | - | model validates | with skill `iteration-2/self-with-skill-1.json` |
+
+Read the table with these caveats, which [the evals README](skills/architecture-map/evals/README.md) states in full:
+
+- **Eval 3 is two flows.** The session builds the map and then updates it after a new route and a new column, so its
+  29 turns cover a build and an update, and the 12-turn target of a single build does not apply to it.
+- **The baselines of evals 3 and 5 are not like for like.** Their expectations are archmap-shaped (the validate
+  script, the model file, the viewer), so the no-skill runs score 0 and their cost buys a different, ungraded output.
+- **Eval 2 recall depends on the reviewer.** The row is the three runs on the current reviewer, each matching 14 of
+  15 high and medium reference issues. The three earlier runs, on the reviewer before its catalogue named the reads
+  it must make, reached 0.67, 0.53 and 0.53 (mean 0.58, below the 0.60 threshold) at 1.80 to 2.05 USD; their figures
+  are in the evals README's run-by-run table.
+- **The baselines of evals 2 and 4 are iteration-1 runs**, as they were not rerun; the iteration-1 baselines of the
+  other evals are tracked beside the iteration-2 ones.
+- Eval 5 took 13 turns and eval 2 up to 14, one and two over the 12-turn target of a build.
+
+## How these numbers were measured
+
+- **Cost, turns and context.** Every run was a headless `claude -p` session whose `stream-json` transcript was
+  profiled with `node scripts/cost-profile.mjs <stream.jsonl> --json --basename`. The cost is the profile's
+  `total.costUsd` at the list prices of the rate table dated 2026-10-31 (the `rates` block of each file), taken
+  from the session's last `result` event; the turns and the context are the orchestrator row of `byAgent`, the
+  context being the largest turn's cache read + cache write + input. The profiles are tracked under
+  `skills/architecture-map/evals/evidence/`, one file per run; the transcripts themselves stay private.
+- **Results.** Each run was graded against the `expectations` of its eval in
+  `skills/architecture-map/evals/evals.json`, by script where the expectation is objective (`validate.mjs`, a search
+  of the clean HTML for issue ids, `diffmap.mjs`, `meta.commit` against `git rev-parse HEAD`).
+- **Issue recall.** `skills/architecture-map/evals/score-recall.mjs` scores the run's issues overlay against the
+  private reference issues: a reference issue of high or medium severity counts as recalled when a produced issue
+  has its category and its anchor or one of its keywords.
+- **Tests.** `node --test`, from the repository root, runs more than 400 test cases over the scripts, the schema, the
+  viewer, the commands and the skill, with no npm dependency.
+- **The checks behind this page.** `tests/readme.test.mjs` fails when a row of the command table differs from its
+  file in `commands/`, or when a figure of the cost table differs from the profile its row cites;
+  `tests/evals.test.mjs` does the same for every figure of
+  [the evals README](skills/architecture-map/evals/README.md), which gives the method, the run-by-run figures and
+  where the money goes in each run.
 
 ## Requirements
 
-Node.js ≥ 18. No npm dependencies (elkjs is vendored).
+Node.js 18 or later. No npm dependencies (elkjs is vendored). PNG export needs a headless Chromium.
 
 ## License
 

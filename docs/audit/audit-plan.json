@@ -7763,7 +7763,7 @@
         {
           "id": "P11.4",
           "title": "Evals README: the eval 2 record names the four issues missed in all three runs by category, the source run of each figure, the self-build row and the P11.2 result",
-          "status": "in_progress",
+          "status": "done",
           "description": "The README says two medium reference issues, one on performance and one on security, were missed in all three eval 2 runs, and test e17 pins that sentence; score-recall.mjs on the saved overlays shows four, one each in performance, security, reliability and design. Correct the sentence and e17. For every figure in the eval 2 row and the reruns paragraph, say which run it comes from (first run, rerun 1, rerun 2) and name the evidence file P11.3 tracked for it. Add the self-build row: a build of this repository itself with the balanced profile and without issues, its cost, turns, context and model counts, as the one run whose whole output is public. Record the P11.2 outcome: the three recall values on the P11.1 reviewer and the remaining misses by category, replacing the below-threshold statement if the reruns pass or keeping it with the new figures if they do not. Keep every sentence the e17 checks pin unless this task changes the check with it.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -7791,14 +7791,18 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "8620f77fe63c",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Tests first: extended e17 (checkCostSection) to require the four-issue sentence by category (and the absence of the two-issue one), a six-row eval 2 per-run table (first run, rerun 1, rerun 2, P11.2 run 1-3) naming evidence file and recall/missed per run, the P11.2 result (0.93 each, above 0.60, no systematic miss, below-threshold statement gone) and the self-build row (balanced, no issues, nodes 63/edges 28/entities 16/sequences 4/views 5); e19 now checks the per-run table and self-build row cell by cell against the evidence profiles (turns, cost, max context, Opus/Sonnet byModel turns and cost); e18/e20 gained tamper cases. Saw e17-e20 red on the unchanged README (16 pass, 4 fail). Then: generated three profiles with node scripts/cost-profile.mjs <stream> --json --basename for the P11.2 runs (skills/architecture-map/evals/evidence/iteration-2/2-with-skill-4..6.json, no machine path), staged them, and edited skills/architecture-map/evals/README.md: four issues missed in all three runs (performance, security, reliability, design; confirmed with score-recall.mjs on the saved overlays, intersection of misses of the three runs), eval 2 run-by-run table with the source run and evidence file of each figure, P11.2 result paragraph replacing the below-threshold statement (recall 0.93 x3, misses reliability/reliability/security, turns 12/13/14, cost 2.58/2.40/2.61), self-build table (cost 1.11 USD at the profiler's rate table, 12 turns, 58.4 K, Opus 12 turns 0.50 USD, Sonnet 51 turns 0.62 USD, map counts from the run's build report). Kept all other e17-pinned sentences. node --test tests/evals.test.mjs: 20 pass 0 fail; node --test: 444 pass 0 fail. Dependants: tests/evals.test.mjs reads the README and still passes; tests/diffmap, glob, prescan-core, review-scan, staleness, fixtures/evals/issues.json, .claude/audit.config.json and the scripts/schemas/viewer listed under evidence are unaffected (only docs text and new JSON profiles were added, the full suite passes). Note: the self-build cost reads 1.11 USD (profiler rates dated 2026-10-31), not the 1.16 USD of the private log's earlier rate table. Map counts are not derivable from a tracked file (the model is private); the README says so.",
+            "descriptive": "The evals README now names the four issues missed in all three first eval 2 runs by category, sources every eval 2 figure to its run and evidence file, records the P11.2 result (0.93 recall in all three runs) and carries the public self-build row, all checked by tests."
           },
           "startedAt": "2026-10-31T21:46:28Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T21:52:50Z",
+          "verifiedBy": [
+            "e17 extended: four issues by category, per-run table with six runs, P11.2 result, self-build row",
+            "e19 extended: per-run table and self-build row against the evidence profiles",
+            "e18/e20 tamper cases for the new rows"
+          ],
           "notes": [
             {
               "at": "2026-10-31T21:21:33Z",
@@ -7814,12 +7818,23 @@
             "runId": "2026-10-31T21:52:49Z.eee75a",
             "status": "passed",
             "at": "2026-10-31T21:52:49Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "8620f77fe63c",
+            "at": "2026-10-31T21:52:50Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T21:51:02Z",
+            "basis": "`node --test tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P11.5",
           "title": "Top-level README: status, the real command table, what a build delivers and what it costs, with the method behind every number",
-          "status": "pending",
+          "status": "in_progress",
           "description": "README.md still says the plugin is pre-release with commands not usable yet, lists planned commands and says nothing about cost. Rewrite it for a prospective user: status (release candidate for 1.0.0; P9 sets the version); a command table that matches the frontmatter of commands/*.md (description and argument hint); 'What a build delivers': the model's contents (nodes with file:line evidence, typed edges with confidence, entities with per-field provenance, relations, CRUD access, sequences, views), the offline viewer, the opt-in issues overlay that never enters the committed build, incremental update and the staleness hook, illustrated with the self-build counts; 'What a build costs': one table over the five evals with the with-skill cost, the no-skill baseline, orchestrator turns and maximum context, the iteration-1 figure as the before, the self-build line as the public example, and the caveats the evals README states (eval 3 is two flows, the evals 3 and 5 baselines are not like for like, the eval 2 recall); 'How these numbers were measured': cost-profile.mjs on the stream-json transcript at list prices with the rate table date, grading against the evals.json expectations, score-recall.mjs, the node --test count, each pointing at the evals README and the evidence files. Add tests/readme.test.mjs: the command table matches the commands directory, every cost figure equals the evidence file it cites, and no machine path and no 'planned' or 'pre-release' wording remain. No client, dataset or repository name.",
           "files": [
             "README.md",
@@ -7844,16 +7859,22 @@
             "P11.3",
             "P11.4"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T21:52:50Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T21:58:58Z.720827",
+            "status": "passed",
+            "at": "2026-10-31T21:58:58Z"
+          }
         },
         {
           "id": "P11.6",
@@ -7880,6 +7901,44 @@
           "blockedBy": [],
           "dependsOn": [
             "P11.5"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P11.7-6o1",
+          "title": "Evals README says why the three iteration-1 cells moved: the Sonnet cache-read rate halved in P8.8",
+          "status": "pending",
+          "description": "P11.3 re-derived the iteration-1 cells of evals 1, 2 and 4 at the current rate table: 13.84 became 13.78, 9.79 became 9.71 and 12.79 became 12.55 USD. The whole difference is the Sonnet 5.5 cache-read price, halved in P8.8 (0.20 to 0.10 USD per million, the pricing page's 0.05x input), applied to the Sonnet explorers' cache reads of those runs; the Opus-only baselines did not move. The evals README states the new figures but not why they differ from the figures quoted earlier (the private log, the P10 phase description and the first version of the table), and P11.4 did not add it. Add one or two sentences under the cost table that name the earlier three figures, the rate change and the task that made it, and extend the cost-section test so that it fails when those sentences are dropped. Nothing else changes.",
+          "files": [
+            "skills/architecture-map/evals/README.md",
+            "tests/evals.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/evals.test.mjs: the cost section names the earlier iteration-1 figures 13.84, 9.79 and 12.79 and the Sonnet cache-read rate change behind the re-derived cells, and the check fails when the sentence is dropped"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P11.4"
           ],
           "attempts": 0,
           "maxAttempts": 3,
@@ -8576,7 +8635,8 @@
       "P8.9",
       "P8.10",
       "P11.3",
-      "P11.4"
+      "P11.4",
+      "P11.7-6o1"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -8585,7 +8645,8 @@
       "P10.19-6rm",
       "P8.10",
       "P11.3",
-      "P11.4"
+      "P11.4",
+      "P11.7-6o1"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"
