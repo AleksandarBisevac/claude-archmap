@@ -1,0 +1,26 @@
+{
+  "gates": {
+    "node --test tests/evals.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task with tests.expectRedFirst false: the README text was corrected first, then e17 was extended and e18 added to lock it",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "No executor brief file existed for P8.10 (drive-phase brief exited 2: no brief written for this start), so I worked from the task text in the manifest and the orchestrator's dispatch message; no skills were listed, tests.add is empty. skills/architecture-map/evals/README.md: cost table now has rows for eval 3 (iteration-1 6.40 USD, 46 orchestrator turns; iteration 2 1.89 USD, 29 turns; baseline 1.00 USD; 8/8, baseline 0/8) and eval 5 (iteration-1 9.53 USD; iteration 2 1.65 USD, 13 turns; baseline 2.96 USD; 7/7, baseline 0/7), figures from scripts/cost-profile.mjs result-event totals on the iteration-1 and iteration-2 with-skill transcripts. Eval 2 row keeps the first run (2.02 USD, 17 turns) and its result cell states recall 0.67, 0.53, 0.53 (mean 0.58); reruns from cost-profile: round-2 2.05 USD with 11 orchestrator turns, run-1 1.80 USD with 13 turns, max orchestrator context 69,553 tokens; both reruns graded 6/7 and the failed expectation is the recall one (checked in grading.json). Rewrote the 'exceeded the 12-turn target' paragraph. Deviation from the task text: it says the target now holds at 11 and 13 turns, but 13 is above 12, so the README says 11 meets it and 13 is one over; likewise eval 5 (13 turns) is stated as one over, eval 3 (29 turns, build plus update) is stated as outside a single-build target, and the README says recall falls below the 60 percent threshold in two of three runs and in the mean. The old '72 K never exceeded' claim is narrowed to evals 1, 2 and 4 because the eval 3 orchestrator reached 94.5 K and eval 5 75.7 K. One sentence says the evals 3 and 5 baselines score 0 because expectations are archmap-shaped so the cost column is not like for like. Repositories are A, B, C only. tests/evals.test.mjs: e17's checks moved into checkCostSection(readme) and extended (rows 1 to 5, rows over 12 turns are 2, 3 and 5 each with a stated reason, eval 2 recall cell and reruns, eval 3 and 5 baselines and 0/N, caveat sentence, shares still 1, 2, 4 summing to 100); new e18 runs the same check on the real README, then on copies with a share changed (27.4 to 30.4), the eval 5 row renamed, and the caveat reworded, and asserts each throws. Commands: node --test tests/evals.test.mjs exit 0, 18 pass; node --test exit 0, 437 pass 0 fail.",
+    "descriptive": "The evals README now records eval 2 over three runs (turn target and recall stated honestly) and carries eval 3 and 5 rows with the baseline caveat, and e17/e18 lock it, including failing on a share row not summing to 100."
+  },
+  "testsAdded": [
+    "e17 extended to cover the five-row table, the eval 2 three-run recall and rerun turns, the eval 3 and 5 baseline rows and caveat",
+    "e18: the same check fails on a shares row not summing to 100, a missing eval 5 row, and a dropped caveat"
+  ],
+  "casesAdded": [
+    "e17",
+    "e18"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:c2123d12a20463c1d7c34682e89ce0fcac07b6ad8b0dce5fd09d8d1750785c48\",\"dirtyDigest\":\"sha256:defffa7f2fdd0cbd952b0327618a2cb6bfc7dc20a7c640fecb492aec21e0e100\",\"dirtyPaths\":{\"skills/architecture-map/evals/README.md\":\"3f5c37cc666ee60d\",\"tests/evals.test.mjs\":\"7db0c3f897c5abcb\"},\"head\":\"61f4917\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/README.md\",\"tests/evals.test.mjs\"],\"scopeDigest\":\"sha256:91eadfe084f82d641795ec41d6277ff39a38f5c9ec15d65f212ee118bf9d0ffa\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

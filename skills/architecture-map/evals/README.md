@@ -75,14 +75,31 @@ cross-area edges and zones. The baseline is the same prompt without the skill, o
 | Eval | Iteration 1, with skill | Iteration 2, with skill | Baseline, no skill | Orchestrator turns | Result |
 | --- | --- | --- | --- | --- | --- |
 | 1 (build) | 13.84 USD | 1.16 USD | 1.55 USD | 11 | 7/7 expectations |
-| 2 (build, issues) | 9.79 USD | 2.02 USD | 2.29 USD | 17 | 7/7, issue recall 0.67 |
+| 2 (build, issues) | 9.79 USD | 2.02 USD | 2.29 USD | 17 | first run 7/7; reruns 6/7; issue recall over three runs 0.67, 0.53, 0.53 (mean 0.58) |
+| 3 (update) | 6.40 USD | 1.89 USD | 1.00 USD | 29 | 8/8 expectations; baseline 0/8 |
 | 4 (monorepo build) | 12.79 USD | 1.57 USD | 1.82 USD | 11 | 8/8 expectations |
+| 5 (build) | 9.53 USD | 1.65 USD | 2.96 USD | 13 | 7/7 expectations; baseline 0/7 |
 
-Eval 2 exceeded the 12-turn target with 17 turns, against 11 for evals 1 and 4, because the `--issues` flow adds two
-steps (the reviewer dispatch and the issues step) and the session spent five turns reading script sources to learn where the overlay goes when the
-caller wants it outside the repository and how to print and copy the ledger. SKILL.md now names both in its build flow
-(audit task P10.19); the turn count stays open until the next eval round measures it or the owner accepts it. Evals 1
-and 4 stay within the target, and the orchestrator's context never exceeds 72 K tokens in any of the three.
+The eval 2 row shows its first run: the cost, the turns and the first grade are that run's, and only the result cell
+carries all three runs. Eval 3 is an update: the session builds the map of repository A and then updates it after a
+new route and a new column, so its 29 turns cover two flows and the 12-turn target of a single build does not apply
+to it, and eval 5 took 13 turns, one over the target. The iteration-1 figures of evals 3 and 5 come from their iteration-1 transcripts by the same script. The
+no-skill baselines of evals 3 and 5 score 0 because their expectations are archmap-shaped (the validate script, the
+model file, the viewer), so their cost column is therefore not a like-for-like comparison.
+
+Eval 2 was run three times: the first run (the row above) and two reruns on the final P8 code, after the P8.5 and P8.8
+changes. The first run exceeded the 12-turn target with 17 turns because the `--issues` flow adds two steps (the
+reviewer dispatch and the issues step) and the session spent five turns reading script sources to learn where the
+overlay goes when the caller wants it outside the repository and how to print and copy the ledger. SKILL.md now names
+both in its build flow (audit task P10.19), and the reruns confirm the five source-reading turns are gone: they took
+11 and 13 orchestrator turns (11 meets the target, 13 is one over it), 2.05 and 1.80 USD, and a context of at most
+69.6 K tokens, against 17 turns and 2.02 USD. Evals 1 and 4 stay within the target, and the orchestrator's context
+never exceeds 72 K tokens in evals 1, 2 and 4.
+
+Issue recall over the three eval 2 runs is 0.67 (10 matched), 0.53 (8 matched) and 0.53 (8 matched), a mean of 0.58,
+so two of the three runs and the mean fall below the 60 percent threshold; each rerun graded 6/7, and the
+expectation it failed is the recall one. Two medium reference issues, one on performance and one on security, were missed in all three runs. The
+reviewer returned 14 issues in the first run and 12 in each rerun.
 
 Where the money goes in iteration 2, in percent of each run's cost. The figures are shares of the result-event total
 (the per-model figure in the table above); the per-agent rows come from the stream, whose output counts are a lower

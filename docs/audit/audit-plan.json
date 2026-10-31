@@ -4330,27 +4330,33 @@
             "severity": "med",
             "file": "scripts/lib/prescan/inventory.mjs:58-69,112",
             "issue": "P8.5 makes the test-data skip silent and broad. buildInventory returns `skipped` [{path, reason}] (line 112) but its only caller, scripts/prescan.mjs (line 71, return object at lines 119-128), never reads inv.skipped, so the reason reaches neither the prescan output, the explorer briefs nor the build report. SKILL.md:305 and the inventory.mjs header both say these files are 'skipped with a reason', which holds only for database files, which go to `sources`. TEST_DATA_DIR (line 58) also matches `example(s)` and `sample(s)` at any depth below the scan root. A product module or app directory with that name (a domain app called samples, a monorepo whose examples/ are the runnable apps) loses all its files from stacks, areas and extracts, with no line anywhere saying so and no switch to bring it back (rule 6: a check that cannot run, or here a skip, must report itself).",
-            "resolution": "Emit inv.skipped from prescan() (a capped list or per-directory counts with the reason) and carry it into the plan report or `findings` so the orchestrator can see what was left out. Narrow the names to fixtures/__fixtures__/testdata, or add an explicit include flag for example/sample directories. Add a pc17 assertion that the skipped reason appears in the prescan output.",
-            "fixTask": "P8.9"
+            "resolution": "fixed in P8.9 (61f4917f5f7b): Emit inv.skipped from prescan() (a capped list or per-directory counts with the reason) and carry it into the plan report or `findings` so the orchestrator can see what was left out. Narrow the names to fixtures/__fixtures__/testdata, or add an explicit include flag for example/sample directories. Add a pc17 assertion that the skipped reason appears in the prescan output.",
+            "fixTask": "P8.9",
+            "commit": "61f4917f5f7b",
+            "status": "fixed"
           },
           {
             "id": "P8-R2",
             "severity": "low",
             "file": "scripts/merge.mjs:1540-1548",
             "issue": "In the P8.7 carry-over, `touched(el)` is `files(el).some(changed)`. For an element with no evidence file at all (entity evidence is optional, `required: false` elsewhere in this file) the list is empty, so the element is never touched and is carried byte-identical forever, overriding the re-explored fragment's version. The task's rule is about elements 'whose evidence files are all unchanged'. That is vacuously true here, and nothing can ever show the element changed.",
-            "resolution": "Carry only when `files(el).length > 0 && !touched(el)`; an element with no evidence follows the fragment, as before. Add a case to m30 with an evidence-less entity.",
-            "fixTask": "P8.9"
+            "resolution": "fixed in P8.9 (61f4917f5f7b): Carry only when `files(el).length > 0 && !touched(el)`; an element with no evidence follows the fragment, as before. Add a case to m30 with an evidence-less entity.",
+            "fixTask": "P8.9",
+            "commit": "61f4917f5f7b",
+            "status": "fixed"
           },
           {
             "id": "P8-R3",
             "severity": "low",
             "file": "skills/architecture-map/evals/README.md:58-62",
             "issue": "Step 6 says the balanced profile 'must be cheaper' than max on eval 1, and the closing line says the phase is done when that and the other criteria hold. The phase record shows the comparison was never completed: P8.4 was cancelled after the max run was killed unfinished (the private results log calls it inconclusive and says it was superseded by comparing against the no-skill baseline). The tracked README still states it as an open requirement with no result, so a reader cannot tell it was not met.",
-            "resolution": "Reword step 6 and the done-criterion to say balanced-vs-max was not measured and the cost claim rests on the with-skill vs no-skill table, or run the max profile on eval 1 and record the figure.",
-            "fixTask": "P8.9"
+            "resolution": "fixed in P8.9 (61f4917f5f7b): Reword step 6 and the done-criterion to say balanced-vs-max was not measured and the cost claim rests on the with-skill vs no-skill table, or run the max profile on eval 1 and record the figure.",
+            "fixTask": "P8.9",
+            "commit": "61f4917f5f7b",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 3 - 0 high, 1 med, 2 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 3 - 0 high, 1 med, 2 low; 3 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -4815,7 +4821,7 @@
         {
           "id": "P8.9",
           "title": "Phase review fixes: prescan reports what it skipped as test data and skips only fixture directories by default, carry-over needs evidence, README states the max comparison was not run",
-          "status": "in_progress",
+          "status": "done",
           "description": "Three findings of the P8 phase review at 2d2f9f8. (R1, med) buildInventory in scripts/lib/prescan/inventory.mjs returns a skipped list [{path, reason}] that scripts/prescan.mjs never reads, so the test-data skip of P8.5 is silent, and TEST_DATA_DIR also matches examples and samples at any depth, which can drop a product directory of that name from stacks, areas and extracts without a line saying so. Fix: prescan() emits the skipped entries (capped, or per-directory counts with the reason) and the plan report carries them so the orchestrator and the build report see what was left out; narrow the default to fixtures, __fixtures__ and testdata, and treat examples or samples as test data only below a tests, test, __tests__ or fixtures directory; say so in the SKILL.md prescan row. (R2, low) In scripts/merge.mjs the P8.7 carry-over treats an element with no evidence files as untouched, so it is carried byte-identical forever and the re-explored fragment's version never wins. Fix: carry only when the element has at least one evidence file and none changed; an element without evidence follows the fragment. (R3, low) skills/architecture-map/evals/README.md step 6 and the done criterion still state balanced must be cheaper than max as an open requirement; that comparison was not completed (the max run was stopped unfinished). Reword both to say the balanced-versus-max run was not measured and the cost claim rests on the with-skill versus no-skill table. No repository, client or dataset name in any file.",
           "files": [
             "scripts/lib/prescan/inventory.mjs",
@@ -4846,14 +4852,17 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "61f4917f5f7b",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "R1: scripts/lib/prescan/inventory.mjs narrows test data: TEST_DATA_DIR is now fixtures?, __fixtures__ and testdata at any depth; examples?/samples? (TEST_ONLY_DATA_DIR) count only below a tests, test, __tests__ or fixtures directory (TESTS_DIR). Still judged relative to the scan root or scope. New testDataOf(p, scope) returns {dir, name, under} for the outermost test-data directory; testDataDirOf is kept as a wrapper that returns the name; testDataReason is exported, and inventory skipped entries now carry dir. scripts/prescan.mjs exports SKIPPED_CAP=50 and skippedBlock(); prescan() output gains skipped {count, files (first 50 in path order, {path, reason}), dirs [{dir, reason, files}]}, and the header comment documents it. ADJACENT FILE scripts/pipeline.mjs (not in the task's files; the description says 'the plan report carries them'). The plan gate allowed the Edit-tool writes. Changes: testDataOf(pre) is stored in pipeline.json state as testData and returned by plan as testData {count, dirs}; render's skipped list leads with one line from testDataLine ('test data: N files left out of the map under dir (n), ... and K more', at most 8 directories named), then cuts to MAX_MESSAGES as before. R2: scripts/merge.mjs carry-over now has carriable(el) = files(el).length > 0 && !touched(el). An element with no evidence files follows the fragment; if the fragment leaves it out, it is removed with a dropped-changed row whose note now says it 'cites no evidence that could show it unchanged' rather than 'its evidence changed'. The header comment is updated. R3: skills/architecture-map/evals/README.md step 6 now says the balanced-versus-max run was not measured (the max run was stopped), that the README makes no balanced-cheaper claim, and that the cost claim rests on the with-skill versus no-skill table. The done paragraph adds that the comparison was not measured and stays open. The README's done paragraph never contained the cheaper clause; only step 6 and the phase's desiredOutcome did. SKILL.md prescan row describes the narrowed rule, the skipped block, plan testData and the report line. Tests: pc17 updated to the narrowed rule (its examples demo moved to tests/examples, docs/samples to test/samples, new TEST_DATA_RE, retitled); pc18 and m30e added. Red: on unchanged code pc18 failed at its first assertion ('SKIPPED_CAP is exported: undefined') and m30e failed on deepStrictEqual (orders fields ['id'], expected ['id','total']; the evidence-less entity was carried). pc17 passed even before the change, because the broad rule also covers tests/examples. After the fix: node --test tests/prescan-core.test.mjs tests/merge.test.mjs gave 82/82 pass, exit 0. I also ran the full node --test once, 436/436 pass, exit 0, which is more than own-tests asks. Manual check: pipeline plan on a scratch repo with tests/fixtures/a/x.json and samples/s.ts returned testData {count:1, dirs:[{dir:'tests/fixtures',...,files:1}]} and kept samples/s.ts in an area. Not covered by a test: the pipeline.mjs plan testData field and the render report line (tests/pipeline.test.mjs is outside the task's files). Edits to tests/prescan-core.test.mjs, inventory.mjs, prescan.mjs and merge.mjs were made through python3/heredoc in Bash (auto-mode guidance), all on files in scope. The pipeline.mjs, SKILL.md and README edits and the merge test went through the Edit tool. Dependants: inventory.mjs importers (generic, node-backend, partition, python, ts-frontend, prescan) are still correct. They import byCodeUnit and helpers, not TEST_DATA_DIR or testDataDirOf; no other importer uses those, the signature is kept, and prescan-wiring stays green. prescan.mjs dependants: the output gained one key. pipeline.mjs reads it (changed, above); merge, e2e and pipeline tests stay green, and discovery-generic.md is unaffected. merge.mjs dependants (pipeline, golden, merge, agents, e2e, skill tests) are still correct: the only behaviour change is for elements with no evidence, which schema-valid nodes and edges always have. SKILL.md and README dependants (skill, evals, commands, pipeline tests) stay green in the full run.",
+            "descriptive": "Prescan now reports the test data it leaves out (in its output, the plan return and the final report) and keeps product directories named examples or samples. Merge no longer carries evidence-less elements forever. The evals README no longer claims a balanced-versus-max result that was never measured."
           },
           "startedAt": "2026-10-31T18:52:26Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T19:05:23Z",
+          "verifiedBy": [
+            "pc18: prescan output carries skipped {count, files capped at SKIPPED_CAP, dirs with counts and reason}; examples/samples are kept unless below tests/test/__tests__/fixtures; an empty block when nothing is skipped; byte-identical runs (pc17 also updated to the narrowed rule)",
+            "m30e: in update mode with --changed an entity with no evidence takes the re-explored fragment's version, one left out is gone, an evidenced unchanged store is still carried, derived.carried counts only it"
+          ],
           "notes": [
             {
               "at": "2026-10-31T18:52:20Z",
@@ -4882,6 +4891,58 @@
             "runId": "2026-10-31T19:05:22Z.94c876",
             "status": "passed",
             "at": "2026-10-31T19:05:22Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "61f4917f5f7b",
+            "at": "2026-10-31T19:05:23Z",
+            "basis": "a fix task for P8-R1, P8-R2, P8-R3: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-31T19:04:07Z",
+            "basis": "`node --test tests/prescan-core.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
+          }
+        },
+        {
+          "id": "P8.10",
+          "title": "Evals README records the eval 2 reruns (turn target met, recall over three runs) and the eval 3 and 5 rows",
+          "status": "in_progress",
+          "description": "Documentation only, evidence for prospective users; every number comes from scripts/cost-profile.mjs on the run transcripts (paths are handed to the executor, never written into a tracked file). (1) Eval 2 was rerun twice on the final P8 code (after audit tasks P8.5 and P8.8): 11 and 13 orchestrator turns, context at most 69.6 K, 2.05 and 1.80 USD, grade 6/7 with issue recall 0.533 both times (8 matched), against 0.667 (10 matched) on the first run; two medium reference issues (one performance, one security) were missed in all three runs, and the reviewer returned 12 issues in the reruns against 14 in the first. Rewrite the paragraph that says eval 2 exceeded the 12-turn target: the target now holds (11 and 13 turns), the five source-reading turns are gone since SKILL.md names the overlay location and the ledger command. Change the eval 2 row's result cell to state recall over three runs (0.67, 0.53, 0.53; mean 0.58) and keep the row's cost and turns as the first run's or state which run the row shows. (2) Add rows for eval 3 (update mode on repository A: build plus update in one session, 8/8, with skill 1.89 USD and 29 turns, baseline without skill 1.00 USD and 0/8) and eval 5 (build of repository C, 7/7, with skill 1.65 USD and 13 turns, baseline 2.96 USD and 0/7), with their iteration-1 with-skill cost computed from the iteration-1 transcripts by the same script; say in one sentence that the no-skill baselines of evals 3 and 5 score 0 because the expectations are archmap-shaped (validate script, model file, viewer) and that their cost column is therefore not a like-for-like comparison. (3) tests/evals.test.mjs case e17 checks this section: extend or adjust it so it still holds for the new rows and still fails on a row whose shares do not sum to 100. Keep the section free of any repository, client or dataset name; repositories are A, B, C.",
+          "files": [
+            "skills/architecture-map/evals/README.md",
+            "tests/evals.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "declared"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T19:06:10Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T19:10:09Z.c0b3a7",
+            "status": "passed",
+            "at": "2026-10-31T19:10:09Z"
           }
         }
       ],
@@ -8049,13 +8110,15 @@
       "P10.5-2xj",
       "P10.19-6rm",
       "P8.8",
-      "P8.9"
+      "P8.9",
+      "P8.10"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
       "P8.2",
       "P8.6",
-      "P10.19-6rm"
+      "P10.19-6rm",
+      "P8.10"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"

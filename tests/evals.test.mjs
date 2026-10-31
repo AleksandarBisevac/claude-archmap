@@ -287,11 +287,11 @@ test('e16 SKILL.md frontmatter description is one line under 1024 characters and
   assert.match(fm[1], /^name:\s*architecture-map\s*$/m);
 });
 
-// P10.19 (P10-R14, P10-R15): the cost section says where a turn count missed the 12-turn target and why, and its
-// shares say what they are shares of: the result-event total per run, with the output the per-agent stream
-// under-counts (its lower bound) named as the residual, for every eval in the table.
-test('e17 the evals README says eval 2 exceeded the 12-turn target and why, and gives per-agent shares of the result-event total for evals 1, 2 and 4 with the stream lower-bound residual, each row summing to 100', () => {
-  const readme = readFileSync(readmePath, 'utf8');
+// P10.19 (P10-R14, P10-R15), P8.10: the cost section says where a turn count missed the 12-turn target and why, records
+// eval 2 over its three runs, gives evals 3 and 5 their rows with the baseline caveat, and its shares say what they are
+// shares of: the result-event total per run, with the output the per-agent stream under-counts (its lower bound) named as
+// the residual, for every eval in the shares table. The checks read a README text, so e18 can feed them a broken one.
+const checkCostSection = (readme) => {
   const start = readme.indexOf('## Cost of a build');
   assert.ok(start >= 0, 'the cost section exists');
   const rest = readme.slice(start + 3);
@@ -303,12 +303,30 @@ test('e17 the evals README says eval 2 exceeded the 12-turn target and why, and 
   const head = rows(/^\| Eval \| Iteration 1/)[0];
   assert.ok(head, 'the cost table header');
   const turnsAt = head.indexOf('Orchestrator turns');
+  const baselineAt = head.indexOf('Baseline, no skill');
+  const resultAt = head.indexOf('Result');
   const evalRows = rows(/^\| \d \(/);
-  assert.deepEqual(evalRows.map((r) => r[0].split(' ')[0]), ['1', '2', '4']);
+  assert.deepEqual(evalRows.map((r) => r[0].split(' ')[0]), ['1', '2', '3', '4', '5']);
+  const byEval = Object.fromEntries(evalRows.map((r) => [r[0].split(' ')[0], r]));
   const over = evalRows.filter((r) => Number(r[turnsAt]) > 12).map((r) => r[0].split(' ')[0]);
-  assert.deepEqual(over, ['2'], 'eval 2 is the row over the target');
-  assert.match(flat, /Eval 2 exceeded the 12-turn target with 17 turns/, 'the miss is stated');
+  assert.deepEqual(over, ['2', '3', '5'], 'eval 2 (first run), eval 3 (two flows) and eval 5 (13 turns) are the rows over 12 turns');
+  assert.match(flat, /exceeded the 12-turn target with 17 turns/, 'the miss is stated');
   assert.match(flat, /exceeded the 12-turn target[^.]*\b(because|:)[^.]*(overlay|ledger)/i, 'and why');
+  assert.match(flat, /Eval 3 is an update[^.]*two flows[^.]*12-turn target[^.]*does not apply/i, 'eval 3 is over 12 turns for a stated reason');
+  assert.match(flat, /eval 5 took 13 turns, one over the target/i, 'eval 5 is over by one and says so');
+
+  // eval 2: the first run is the row, the reruns and the recall over three runs are stated
+  assert.match(flat, /first run/i, 'the eval 2 row says it shows the first run');
+  assert.match(flat, /reruns[^.]*took 11 and 13 orchestrator turns/i, 'the reruns turn counts');
+  assert.match(byEval[2][resultAt], /0\.67, 0\.53, 0\.53 \(mean 0\.58\)/, 'recall over three runs and its mean in the result cell');
+  assert.match(flat, /two medium reference issues[^.]*missed in all three runs/i);
+
+  // evals 3 and 5: their rows carry a baseline that scored 0 and the sentence that says the cost column is not like for like
+  assert.match(byEval[3][baselineAt], /^1\.00 USD$/);
+  assert.match(byEval[3][resultAt], /8\/8[^|]*baseline 0\/8/);
+  assert.match(byEval[5][baselineAt], /^2\.96 USD$/);
+  assert.match(byEval[5][resultAt], /7\/7[^|]*baseline 0\/7/);
+  assert.match(flat, /baselines of evals 3 and 5 score 0 because[^.]*archmap-shaped[^.]*not a like-for-like comparison/i);
 
   // the shares: a table per eval, labelled, the residual named, every row summing to 100
   assert.match(flat, /shares of the result-event total/i);
@@ -322,4 +340,20 @@ test('e17 the evals README says eval 2 exceeded the 12-turn target and why, and 
     const sum = r.slice(1).map((c) => (c === '-' ? 0 : Number(c))).reduce((a, b) => a + b, 0);
     assert.ok(Math.abs(sum - 100) < 0.15, `eval ${r[0]} shares sum to ${sum}`);
   }
+};
+
+test('e17 the evals README cost section states the eval 2 turn miss and the three-run recall, carries the eval 3 and 5 rows with the baseline caveat, and gives per-agent shares with the stream lower-bound residual, each row summing to 100', () => {
+  checkCostSection(readFileSync(readmePath, 'utf8'));
+});
+
+test('e18 the cost-section check fails on a shares row that does not sum to 100, on a missing eval 5 row and on a dropped baseline caveat', () => {
+  const readme = readFileSync(readmePath, 'utf8');
+  checkCostSection(readme); // the unbroken text passes, so each failure below is the edit's
+  const broken = (from, to) => {
+    assert.ok(readme.includes(from), `the README carries ${from}`);
+    return readme.replace(from, to);
+  };
+  assert.throws(() => checkCostSection(broken('| 1 | 38.4 | 28.2 | 5.9 | - | 27.4 |', '| 1 | 38.4 | 28.2 | 5.9 | - | 30.4 |')), /shares sum to/);
+  assert.throws(() => checkCostSection(broken('| 5 (build) |', '| 6 (build) |')));
+  assert.throws(() => checkCostSection(broken('is therefore not a like-for-like comparison', 'is comparable')));
 });
