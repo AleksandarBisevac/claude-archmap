@@ -36,3 +36,13 @@ def get_book(book_id: int):
 @router.delete(ITEMS_PREFIX + "/{item_id}")
 def delete_item(item_id: int):
     return None
+
+
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
+
+
+@app.middleware("http")
+async def check_db_ready(request, call_next):
+    return await call_next(request)

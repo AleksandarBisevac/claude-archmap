@@ -356,7 +356,9 @@ const distinctOf = (xs) => [...new Set(xs.filter((x) => x !== undefined && x !==
 
 /**
  * The coverage floor of one area, counted from its extract: entry-point groups (by directory), route groups (by
- * file), stores (by schema file), queues, jobs and external clients. `names` is what each kind holds, for the brief.
+ * file), stores (by schema file), queues, jobs and external clients, plus, where the area has any, middleware modules
+ * (a module path, or `<file>:<name>` for a middleware python code names) and modules (the sibling modules of a python
+ * entry point). `names` is what each kind holds, for the brief.
  */
 export function coverageFloor(extract) {
   const x = extract ?? {};
@@ -367,9 +369,12 @@ export function coverageFloor(extract) {
   const jobs = list(x.jobs).map((j) => (typeof j === 'string' ? j : j?.name ?? j?.file));
   const clients = list(x.clients).map((c) => c?.client);
   const middleware = distinctOf(list(x.middleware).filter((m) => typeof m === 'string'));
+  const modules = distinctOf(list(x.modules).filter((m) => typeof m === 'string'));
   const parts = {
     'entry-point groups': entry, 'route groups': routes, stores, queues, jobs, 'external clients': clients,
-    ...(middleware.length ? { 'middleware modules': middleware } : {}), // listed only where there is one: the brief is capped
+    // listed only where there is one: the brief is capped
+    ...(middleware.length ? { 'middleware modules': middleware } : {}),
+    ...(modules.length ? { modules } : {}),
   };
   const counts = Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, v.length]));
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -380,34 +385,43 @@ export function coverageFloor(extract) {
 
 const shortName = (n) => String(n).split('/').slice(-2).join('/');
 
-/** The two floor lines: the number with its parts, and what each kind must cover (compact, cut at FLOOR_ROOM). */
+/**
+ * The two floor lines: the number with its parts, and what each kind must cover (compact, cut at `room`; a room of 0
+ * leaves the second line out, the count stays).
+ */
 function floorLines(cov, room = FLOOR_ROOM) {
   const parts = Object.entries(cov.counts).map(([k, n]) => `${k}=${n}`).join(', ');
   const head = `- Coverage floor: at least ${cov.floor} nodes (${parts}). A fragment with fewer nodes than this floor is incomplete.`;
-  const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients'], ['middleware', 'middleware modules']]
+  const groups = [['entry points', 'entry-point groups'], ['routers', 'route groups'], ['stores', 'stores'], ['queues', 'queues'], ['jobs', 'jobs'], ['clients', 'external clients'], ['middleware', 'middleware modules'], ['modules', 'modules']]
     .map(([label, key]) => [label, cov.names[key] ?? []])
     .filter(([, v]) => v.length)
     .map(([label, v]) => `${label} ${v.slice(0, FLOOR_NAMES).map(shortName).join(', ')}${v.length > FLOOR_NAMES ? ` (+${v.length - FLOOR_NAMES})` : ''}`);
-  let cover = groups.join('; ');
+  let cover = room > 0 ? groups.join('; ') : '';
   if (cover.length > room) cover = `${cover.slice(0, room - 1)}…`;
   return cover ? [head, `- Each of these needs its own node: ${cover}.`] : [head];
 }
 
-/** The line naming the workspace apps of an area, or nothing: their app nodes are made by script. */
-function appLines(apps, short) {
+/**
+ * The line naming the workspace apps of an area, or nothing: their app nodes are made by script. `short` is the
+ * shorter tail; `appShort`, a terminal rung of the trims, names only how many apps there are (the summary lists them).
+ */
+function appLines(apps, short, appShort = false) {
   const all = list(apps);
   if (!all.length) return [];
+  if (appShort) return [`- Workspace apps: ${all.length}, listed in the summary; their app nodes are made by script, write none.`];
   const names = all.map((a) => `${code(a.name ?? a.dir)} (${a.dir})`).join(', ');
   const tail = short ? 'made by script, write none.' : 'made by script (merge.mjs), so write none; its parts are your nodes, level 3.';
   return [`- Workspace app${all.length > 1 ? 's' : ''}: ${names}. The level-2 app node of each is ${tail}`];
 }
 
-export function explorerBrief({ area, summary, fragment, profile, previous, stackRef, coverage, short = false, globRoom = 600, floorRoom = FLOOR_ROOM }) {
+export function explorerBrief({ area, summary, fragment, profile, previous, stackRef, coverage, short = false, globRoom = 600, floorRoom = FLOOR_ROOM, appShort = false, terse = false }) {
   const lines = [
     `# archmap explorer brief: ${area.id}`,
     '',
-    'You map one area into one JSON fragment. This brief carries the contract, the caps and the vocabulary; you need no',
-    'reference file.',
+    ...(terse
+      ? ['You map one area into one JSON fragment; this brief is all you need.']
+      : ['You map one area into one JSON fragment. This brief carries the contract, the caps and the vocabulary; you need no',
+        'reference file.']),
     '',
     short
       ? `- Area: ${code(area.id)}, ${area.files} files.`
@@ -419,7 +433,7 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
     `- Fragment, the one file you write: ${fragment}`,
     `- Profile ${profile}.`,
     ...floorLines(coverage ?? coverageFloor(null), floorRoom),
-    ...appLines(coverage?.apps, short),
+    ...appLines(coverage?.apps, short, appShort),
   ];
   if (previous) lines.push(`- Previous model: ${previous}. Reuse the node ids this area already has there (Grep it for your globs) so ids stay stable.`);
   if (stackRef) lines.push(`- Only if the summary leaves a framework question open: ${stackRef}`);
@@ -429,8 +443,10 @@ export function explorerBrief({ area, summary, fragment, profile, previous, stac
     '',
     `1. Read the summary, then make at least 6 and at most ${EXPLORER_TOOL_CALLS} tool calls in all, the Write included.`,
     '   Grep for the next fact, then a line-range Read; never read a whole tree or walk it file by file.',
-    '2. One node per feature directory of a frontend and per router or handler module of a backend, plus every store,',
-    '   queue, job and external client; then what prescan cannot see: what a handler does, which store a service uses.',
+    '2. One node per feature directory of a frontend, per router, handler or listed module of a backend, plus every',
+    terse
+      ? '   store, queue, job and external client.'
+      : '   store, queue, job and external client; then what prescan cannot see: what a handler does, which store it uses.',
     '3. Never execute the project\'s code. Bash only for read-only database introspection; Write only the fragment path.',
     '',
     '## Fragment contract',
@@ -564,18 +580,26 @@ function writeBrief(path, text) {
 }
 
 // What an explorer brief gives up, in order, when it would pass the cap: the optional lines (the stack reference),
-// then the area line (the area's title and stacks, the long glob list), then the floor's list of names (its count
-// stays). The contract and the paths stay.
-const BRIEF_TRIMS = [
+// then the area line (the area's title and stacks, the long glob list), then the floor's list of names, then the
+// whole names line (the floor keeps its count and parts), the globs down to 40 characters, the app line down to a
+// count, and the intro and the last clause of the work step down to their gist. The last four rungs are terminal:
+// what is left is the contract, the paths, the floor's count and fixed text, so a brief ends under BRIEF_CAP even
+// with a 200-character work path (tests/pipeline.test.mjs p29); writeBrief's throw is only a guard against a change
+// that breaks that. The contract and the paths are never cut.
+export const BRIEF_TRIMS = [
   { drop: 'stack reference line', opts: { stackRef: null } },
   { drop: 'area title and stacks', opts: { stackRef: null, short: true } },
   { drop: 'globs beyond 200 characters', opts: { stackRef: null, short: true, globRoom: 200 } },
   { drop: 'globs beyond 80 characters', opts: { stackRef: null, short: true, globRoom: 80 } },
   { drop: 'floor names beyond 160 characters', opts: { stackRef: null, short: true, globRoom: 80, floorRoom: 160 } },
+  { drop: 'floor names (the count stays)', opts: { stackRef: null, short: true, globRoom: 80, floorRoom: 0 } },
+  { drop: 'globs beyond 40 characters', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0 } },
+  { drop: 'app names (their count stays)', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0, appShort: true } },
+  { drop: 'intro and the work step\'s last clause', opts: { stackRef: null, short: true, globRoom: 40, floorRoom: 0, appShort: true, terse: true } },
 ];
 
 /** The explorer brief under BRIEF_CAP, with the note of what was trimmed (null when nothing was). */
-function fitExplorerBrief(input, id) {
+export function fitExplorerBrief(input, id) {
   let text = explorerBrief(input);
   if (text.length <= BRIEF_CAP) return { text, note: null };
   const before = text.length;

@@ -30,7 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { buildInventory, byCodeUnit, middlewareModules, workspaceApps } from './lib/prescan/inventory.mjs';
+import { buildInventory, byCodeUnit, joinMiddleware, middlewareModules, workspaceApps } from './lib/prescan/inventory.mjs';
 import { detectStacks, genericRecipe, importEdges, workspaceContainers } from './lib/prescan/generic.mjs';
 import { matchAny } from './lib/glob.mjs';
 import { partition } from './lib/prescan/partition.mjs';
@@ -148,7 +148,7 @@ const sameMethod = (a, b) => !a || !b || a === 'ANY' || b === 'ANY' || a === b;
 
 const KEY_ORDER = [
   'area', 'title', 'globs', 'stacks', 'files', 'workspaceApps', 'entryPoints', 'manifests', 'containers', 'ci', 'sources', 'routes',
-  'middleware', 'tables', 'schemas', 'migrations', 'sqlTables', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
+  'middleware', 'modules', 'tables', 'schemas', 'migrations', 'sqlTables', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
   'imports', 'links', 'truncated',
 ];
 const ALWAYS = new Set(['area', 'title', 'globs', 'stacks', 'files', 'routes', 'tables', 'envKeys', 'queues', 'imports', 'links', 'truncated']);
@@ -319,9 +319,18 @@ export function areaExtracts(out) {
 
   // generic hints, per area
   const owned = (list) => (list ?? []).map((p) => [areaOf(p), p]).filter(([a]) => slices.has(a));
-  for (const [key, list] of [['entryPoints', gen.entryPoints], ['manifests', gen.manifests], ['containers', gen.containers], ['ci', gen.ci], ['middleware', gen.middleware]]) {
+  for (const [key, list] of [['entryPoints', gen.entryPoints], ['manifests', gen.manifests], ['containers', gen.containers], ['ci', gen.ci], ['middleware', gen.middleware], ['modules', py.modules]]) {
     for (const [a, p] of owned(list)) (slices.get(a)[key] ??= []).push(p);
   }
+  // the middleware python code names (@app.middleware("http"), app.add_middleware) join the list as <file>:<name>
+  const namedBy = new Map();
+  for (const m of py.middleware ?? []) {
+    const a = areaOf(m.file);
+    if (!slices.has(a)) continue;
+    if (!namedBy.has(a)) namedBy.set(a, []);
+    namedBy.get(a).push(m);
+  }
+  for (const [a, named] of namedBy) slices.get(a).middleware = joinMiddleware(slices.get(a).middleware, named);
   for (const app of out.workspaceApps ?? []) {
     const a = areaOf(app.manifest);
     if (slices.has(a)) (slices.get(a).workspaceApps ??= []).push(app);
@@ -355,7 +364,7 @@ const SUMMARY_ROWS = 12; // rows of one kind before the budget loop starts
 // script's, so they go first.
 const SUMMARY_WEIGHT = {
   tables: 1, imports: 1, sqlTables: 1, migrations: 1, schemas: 1, stores: 2, httpCalls: 2, envKeys: 2, openapi: 2,
-  sources: 2, manifests: 2, containers: 2, ci: 2, entryPoints: 3, clients: 3, links: 3, queues: 3, middleware: 3, routes: 4,
+  sources: 2, manifests: 2, containers: 2, ci: 2, entryPoints: 3, clients: 3, links: 3, queues: 3, middleware: 3, modules: 3, routes: 4,
   workspaceApps: 6,
 };
 const SUMMARY_KEYS = ['area', 'title', 'globs', 'stacks', 'files', 'extract', 'note', 'counts'];

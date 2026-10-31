@@ -494,7 +494,10 @@ test('pc14 prescan lists the workspace apps of a pnpm-workspace.yaml, package.js
     assert.equal(hit[0].id, `apps-${n}`, `apps/${n} is the head of its area`);
     assert.equal(owner(`apps/${n}/package.json`)[0].id, hit[0].id);
   }
-  assert.ok(out.areas.length <= 8, `${out.areas.length} areas`);
+  // P10.15: the cap (8) yields by what the apps need; the leftovers keep at most LEFTOVER_AREAS (3) areas of their own
+  assert.ok(out.areas.length <= APP_NAMES.length + 3, `${out.areas.length} areas`);
+  assert.ok(out.areas.filter((a) => !APP_NAMES.some((n) => a.id === `apps-${n}`)).length <= 3, out.areas.map((a) => a.id).join());
+  for (const n of APP_NAMES) assert.deepEqual(out.areas.find((a) => a.id === `apps-${n}`).globs, [`apps/${n}/**`], `apps/${n} has nothing folded into it`);
   assert.ok(!out.areas.some((a) => a.id.startsWith('misc') && a.globs.some((g) => g.startsWith('apps/') && !g.startsWith('apps/notes'))), 'no misc bucket holds an app');
   const appsIn = (a) => APP_NAMES.filter((n) => a.globs.some((g) => g === `apps/${n}/**`));
   for (const a of out.areas) assert.ok(appsIn(a).length <= 1, `${a.id} holds ${appsIn(a)}`);
@@ -543,4 +546,49 @@ test('pc15 the full extract of an area holding a workspace app lists it under wo
   const b = run(repo);
   assert.equal(a.status, 0);
   assert.equal(a.stdout, b.stdout);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.15: leftovers keep areas of their own; they are never glued to one app to hold the cap.
+
+test('pc16 partition with 8 workspace apps and 20 leftover units over maxAreas 8 keeps every app its own area and at least LEFTOVER_AREAS leftover areas; a leftover is folded into an app only when it is the single one left and smaller than SMALL; every path is owned once; two runs are byte-identical', async () => {
+  const { partition, LEFTOVER_AREAS, SMALL } = await import(pathToFileURL(join(ROOT, 'scripts', 'lib', 'prescan', 'partition.mjs')).href);
+  assert.equal(LEFTOVER_AREAS, 3);
+  assert.equal(SMALL, 3);
+  const apps = APP_NAMES.map((n) => `apps/${n}`);
+  const paths = [];
+  for (const d of apps) paths.push(`${d}/package.json`, `${d}/src/main.ts`);
+  // 20 leftover units, none small, so the small-leftover merge leaves them alone and the cap loop has to act
+  for (let i = 0; i < 20; i++) {
+    const dir = i < 12 ? `packages/widgets-${String(i).padStart(2, '0')}` : `tools-${String(i).padStart(2, '0')}`;
+    for (let k = 0; k <= i % 4 + SMALL; k++) paths.push(`${dir}/src/f${k}.ts`);
+  }
+  const opts = { containers: ['apps', 'packages'], apps, maxAreas: 8 };
+  const areas = partition(paths, opts);
+  const appArea = (d) => areas.filter((a) => a.globs.includes(`${d}/**`));
+  for (const d of apps) {
+    const hit = appArea(d);
+    assert.equal(hit.length, 1, d);
+    assert.deepEqual(hit[0].globs, [`${d}/**`], `${d} is an area of its own, nothing folded into it`);
+  }
+  const leftovers = areas.filter((a) => !apps.some((d) => a.globs.includes(`${d}/**`)));
+  assert.equal(leftovers.length, LEFTOVER_AREAS, `leftover areas: ${leftovers.map((a) => a.id)}`);
+  assert.equal(areas.length, apps.length + LEFTOVER_AREAS, 'the cap yields by what the apps need');
+  for (const f of paths) assert.equal(areas.filter((a) => a.paths.includes(f)).length, 1, f);
+  assert.equal(JSON.stringify(partition(paths, opts)), JSON.stringify(areas), 'two runs are byte-identical');
+  assert.equal(JSON.stringify(partition([...paths].reverse(), opts)), JSON.stringify(areas), 'input order does not matter');
+
+  // the fold: the single leftover left over the cap, smaller than SMALL, joins the smallest app's area
+  const three = ['apps/a/package.json', 'apps/b/package.json', 'apps/b/x.ts', 'apps/c/package.json', 'apps/c/x.ts'];
+  const folded = partition([...three, 'lib/x.ts'], { containers: ['apps'], apps: ['apps/a', 'apps/b', 'apps/c'], maxAreas: 2 });
+  assert.deepEqual(folded.map((a) => a.id), ['apps-a', 'apps-b', 'apps-c']);
+  assert.deepEqual(folded[0].globs, ['apps/a/**', 'lib/**'], 'folded into the smallest app');
+  // not smaller than SMALL: it keeps its own area
+  const big = Array.from({ length: SMALL }, (_, i) => `lib/x${i}.ts`);
+  const kept = partition([...three, ...big], { containers: ['apps'], apps: ['apps/a', 'apps/b', 'apps/c'], maxAreas: 2 });
+  assert.deepEqual(kept.map((a) => a.id), ['apps-a', 'apps-b', 'apps-c', 'lib']);
+  // two leftovers over the cap, fewer than LEFTOVER_AREAS: neither merged nor folded
+  const two = partition([...three, ...big, 'docs/a.md', 'docs/b.md', 'docs/c.md'], { containers: ['apps'], apps: ['apps/a', 'apps/b', 'apps/c'], maxAreas: 2 });
+  assert.deepEqual(two.map((a) => a.id), ['apps-a', 'apps-b', 'apps-c', 'docs', 'lib']);
+  for (const a of two.filter((x) => x.id.startsWith('apps-'))) assert.equal(a.globs.length, 1, `${a.id} holds only its app`);
 });

@@ -188,3 +188,17 @@ export function middlewareModules(files) {
   }
   return [...out].sort(byCodeUnit);
 }
+
+/**
+ * The middleware list of an area: the modules of the file list joined with the middleware a stack plug-in names in
+ * code (`named`, {name, file}), each as `<file>:<name>`. A named middleware stands in for the bare file entry of its
+ * own file (one node per middleware, not one more for the file that holds them); a directory entry stays. Sorted,
+ * without repeats.
+ */
+export function joinMiddleware(modules, named) {
+  const rows = (named ?? []).filter((m) => m && typeof m.file === 'string' && typeof m.name === 'string');
+  const files = new Set(rows.map((m) => m.file));
+  const out = new Set((modules ?? []).filter((m) => !files.has(m)));
+  for (const m of rows) out.add(`${m.file}:${m.name}`);
+  return [...out].sort(byCodeUnit);
+}

@@ -5462,14 +5462,14 @@
           "dependsOn": [
             "P10.4-2xj"
           ],
-          "attempts": 1,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-10-31T01:30:58Z",
+          "startedAt": "2026-10-31T14:19:48Z",
           "completedAt": null,
           "verifiedBy": [],
           "reviewPerTask": "phase",
@@ -5513,9 +5513,13 @@
             {
               "at": "2026-10-31T01:38:06Z",
               "text": "Round 4 eval 2 (Opus, --issues): 7/7, recall 0.73 (11/15), 2.01 USD (baseline 2.29, ratio 0.88), 15 orchestrator turns, median 61 K, max 71 K; no re-ask, one render. Round 4 total: eval 1 6/7 at 1.22, eval 2 7/7 at 2.01, eval 4 5/8 at 1.70; all under 5 USD and under the no-skill baseline on the same model. Remaining quality gaps go to P10.13 and P10.14, then round 5."
+            },
+            {
+              "at": "2026-10-31T14:19:49Z",
+              "text": "Round 5 (b7dfb73, Opus orchestrator): eval 1 6/7 at 1.19 USD, 11 turns, 13 entities (9 inferred) but check_db_ready, cache_utils, auth.py and the external identity service missing; eval 2 7/7 at 2.07 USD, 17 turns, recall 0.60 (9/15, round 4 had 0.73); eval 4 0/8: plan exit 2, brief of the area holding apps/tenant-router plus every leftover (1205 files) is 4034 characters after the whole trim ladder. Filed P10.15-6rm (terminal trim rungs, leftovers keep their own areas, Python modules and FastAPI middleware in the floor). Round 6 after it."
             }
           ],
-          "blockedReason": "owner-run eval task; waits for P10.13 and P10.14, then round 5"
+          "blockedReason": "P10.15-6rm must land before round 6 of evals 1, 2 and 4"
         },
         {
           "id": "P10.6-6rm",
@@ -6084,7 +6088,7 @@
         {
           "id": "P10.14-6rm",
           "title": "Monorepo containers and queues by script: one app node per workspace app, queue names from identifiers, relations resolved by table name",
-          "status": "in_progress",
+          "status": "done",
           "description": "Round 4 of eval 4 (2026-10-31, a workspace monorepo, after P10.10-P10.12): 196 nodes, 290 edges, 142 entities and 28 relations at 1.70 USD and 10 orchestrator turns, but 5/8. Measured causes: (1) the extracts carry 0 queues although the code constructs 6 Workers, 3 Queues and a FlowProducer, because the queue names are a parameter, a constant member (QUEUES.x) or a literal in only one case, and the scanner wants a literal; (2) the partition folded three apps (hub, atlas, tenant-router) into one misc area and the explorer named them as a service or a module, so one app had no level-2 app node; (3) 28 meta.sources dropped-ref rows read \"previous relation:<table>.<col>-><table>.<col> -> <table>\": the relation pass looks the target up by bare table name while the generated entities carry other ids; (4) a key component (the middleware layer of the api) was not mapped because the floor has no middleware kind. Fix, by script: prescan lists workspace apps from pnpm-workspace.yaml, package.json workspaces or turbo.json; partition keeps every apps/* directory as its own area or the head of its area; the node scanner names queues from the literal, a same-file constant or the identifier text; merge generates a level-2 app node per workspace app the explorers did not produce (evidence at its package.json) and reparents the area's nodes under it, resolves relation targets by table name to the entity ids it generated, and emits each relation once; the brief names the app and the floor counts middleware modules. Runs after P10.13 (shared files). Keep merge deterministic, goldens green; fixtures synthetic with no client or repository name.",
           "files": [
             "scripts/lib/prescan/partition.mjs",
@@ -6122,19 +6126,92 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b7dfb737b45b",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "prescan: scripts/lib/prescan/inventory.mjs gains workspaceApps(files, read) (pnpm-workspace.yaml packages, package.json workspaces incl. negations, or a turbo.json defaulting to apps/* and packages/*; members directly under apps/ with a package.json -> {name, dir, manifest}) and middlewareModules(files) (a directory named middleware/middlewares/guards/interceptors is one module, a code file named *.middleware/*.guard/*.interceptor outside one is one; tests and .d.ts excluded). scripts/prescan.mjs puts workspaceApps in the output, middleware in extracts.generic, and both into the area slices (workspaceApps, middleware keys, only when non-empty; summary counts and weights). scripts/lib/prescan/partition.mjs takes opts.apps: an app is never a leftover, the small-leftover and cap merges touch non-apps only, a last leftover folds into the smallest app as its head (id stays apps-<name>), more apps than the cap keeps them all. scripts/lib/prescan/node-backend.mjs: new Queue/new Worker names are the literal, else the resolved constant (same file, imported, or OBJ.key member of an object literal or enum of literals), else the identifier text (NAME_CONST, a.b.c), else for a lowercase parameter the file path without extension; a call as the name is still skipped; new FlowProducer yields a row flow:<file path>. scripts/merge.mjs: makeAppNodes makes a level-2 kind app node (id <name>-app, paths dir/**, evidence at package.json line 1, zone via zoneFor) for each slice workspace app that no level-2 app node covers, demotes the area's level-2 non-data nodes inside the dir to level 3 and lists their titles in sub, puts the node first in the area's placed list; the relation and foreign-key resolution moved from before generation to after it (entityResolver: id, else table or entity name), so relations kept from --previous or written with table names resolve to the generated or explorer id, only truly dangling ones are dropped (one dropped-ref row each), and spellings of one relation collapse to one (the id-spelled one wins); the derivation row counts apps only when non-zero. scripts/pipeline.mjs: coverageFloor counts middleware modules (listed in the floor only when there is one, so existing briefs keep their size) and carries the area's apps; the explorer brief gets one Workspace app line (shortened by the existing trims), still under BRIEF_CAP (p9 briefs unchanged). Tests: pc14, pc15, nb14, m24, m24b, p28 added; nb6 updated (a Worker named NAME is now a row; skipped queues 2 -> 1). Measured: node --test full suite 400 pass 0 fail (exit 0); tests/denylist.test.mjs 2 pass; the four files 28+15+14+53 pass. No new files, nothing committed; docs/design.md untouched. Dependants: generic.mjs, python.mjs, ts-frontend.mjs, partition.mjs, prescan.mjs import inventory.mjs - still correct, only exports were added (and a glob.mjs import); stacks/node-backend.mjs and prescan-wiring/nb tests - still correct, same extractor entry, node-api fixture queue rows unchanged (nb4 green); tests/fixtures/repos/node-api untouched so e2e, golden and pipeline p1-p27 are unchanged; merge.mjs dependants (pipeline, golden, merge tests, e2e) - still correct, output for a model with no workspaceApps and no previous relations is byte-identical (goldens green); pipeline.mjs dependants (usage, commands, skill tests) - still correct. One deviation worth a look: the spec's 28 dropped-ref rows were traced to relations kept from --previous being checked against entities before the entities were regenerated; fixed by settling them after generation, not by a lookup change.",
+            "descriptive": "A workspace monorepo keeps every apps/* app as its own area, gets one level-2 app node per app by script, gets queue rows from constants, members and identifiers, resolves relations by table name once, and briefs the explorer with the app and the middleware floor."
           },
           "startedAt": "2026-10-31T01:57:01Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T14:19:47Z",
+          "verifiedBy": [
+            "pc14: workspace apps from pnpm-workspace.yaml, package.json workspaces with a negation and turbo.json, no app without a declared workspace, 8 small apps stay 8 separate areas headed by apps-<name>, partition never merges two apps, leftovers merge first, more apps than the cap are kept",
+            "pc15: area slice carries workspaceApps and middleware (dir or file), summary counts them, two runs byte-identical",
+            "nb14: Queue(CONST), Queue(OBJ.key), enum member, Worker(parameter), Worker(NAME), FlowProducer, unresolved dotted name, call still skipped, producer pairing intact",
+            "m24: generated app node, demoted parts listed in sub, store and outside nodes stay, explorer app untouched, area name resolves to the app node, order independent",
+            "m24b: relation and field fk by table name resolve to ids, no dropped-ref, duplicate spelling emitted once, missing entity still drops with one row",
+            "p28: coverageFloor counts middleware modules, explorer brief names the app and says the node is made by script, plan on a workspace repo stays under the cap and each brief names only its own app"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T02:11:20Z.cf7a41",
             "status": "passed",
             "at": "2026-10-31T02:11:20Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "b7dfb737b45b",
+            "at": "2026-10-31T14:19:47Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T02:09:48Z",
+            "basis": "`node --test tests/prescan-core.test.mjs tests/prescan-node-backend.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
+          }
+        },
+        {
+          "id": "P10.15-6rm",
+          "title": "Brief always fits, leftovers never glued to one app, Python modules and FastAPI middleware in the coverage floor",
+          "status": "in_progress",
+          "description": "Round 5 of P10.5 (commit b7dfb73) stopped eval 4 at the plan step and left eval 1 at 6/7. Three causes, three fixes.\n\n1. The brief trim ladder has no terminal rung. The partition of the Hono monorepo put 1205 files into one area whose floor names 37 entry-point groups and 52 clients; after every rung of BRIEF_TRIMS the brief was still 4034 characters (4132 with a longer work path) and writeBrief threw \"over the 4000 cap\", so the whole build died with exit 2. Add rungs that always end under BRIEF_CAP: floorRoom 0 (the floor line keeps its count, the \"Each of these needs its own node\" line goes), globRoom 40, and the short app line; keep the throw only as a last guard, with a test that a pathological area (30 globs, 37 groups, 200-character work path) fits. The contract section and the summary and fragment paths are never cut.\n\n2. partition() with a workspace of 8 apps and maxAreas 8: the small-leftover merge makes one misc bucket, then the cap loop finds a single free area and folds every package, docs, infra and script directory (1205 files) into the smallest app (apps/tenant-router), so one Sonnet explorer with a 20-call budget was asked for 96 nodes, and packages/db lost the explorer it had in round 4. New rule: leftovers keep at least LEFTOVER_AREAS = 3 areas of their own (merge the two smallest leftovers only while more than that remain); the fold into an app happens only for a single remaining leftover smaller than SMALL. The area count may then exceed maxAreas by what the apps need (it already does when apps alone exceed the cap). Update the header comment and the pc14 assertions.\n\n3. Eval 1's backend area (FastAPI, 22 files) has a floor of 6 and the explorer wrote 8 nodes: no node for cache_utils.py, auth.py or the check_db_ready middleware, so the key-components check fails (the external identity service client lives in auth.py and surfaces once that module is read). The prescan python plugin must emit (a) middleware rows: `@<app>.middleware(\"http\")` over the next `def <name>` and `<app>.add_middleware(<Class>, ...)` -> {name, file, line}; (b) modules: for each entry point, the sibling .py files of its directory that define a top-level def or class, excluding __init__.py, test files and the entry point itself, as paths. prescan.mjs copies both into the area slice and summary (the python middleware names join the inventory's middleware list as `<file>:<name>` strings); coverageFloor in pipeline.mjs counts modules as a 'modules' group (names shown like the others, key 'modules', label 'modules') and the brief's Work step says one node per listed module. Keep the summary under SUMMARY_BUDGET and the brief under BRIEF_CAP (the ladder of fix 1 guarantees the latter).\n\nConstraints: zero dependencies, Node 18, deterministic output (sorted by code unit), scanner never executes the scanned code, model schema unchanged. Never a client dataset or product name in tests or fixtures: use the fixture repos under tests/fixtures/repos (extend tests/fixtures/repos/python-api with a middleware and two sibling modules) and synthetic names. Run the whole suite with `node --test` after staging new files (git add -N or git add), since the denylist test scans tracked files only. Do not run anything against the owner's eval repositories; do not commit.",
+          "files": [
+            "scripts/pipeline.mjs",
+            "scripts/lib/prescan/partition.mjs",
+            "scripts/lib/prescan/python.mjs",
+            "scripts/lib/prescan/inventory.mjs",
+            "scripts/prescan.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/prescan-core.test.mjs",
+            "tests/prescan-python.test.mjs",
+            "tests/prescan-wiring.test.mjs",
+            "tests/fixtures/repos/python-api"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/pipeline.test.mjs: fitExplorerBrief never throws: an area with 30 globs, a 37-group floor and a 200-character work path yields a brief at or under BRIEF_CAP, with the trim note naming the last rung; the contract section and both file paths stay intact",
+              "tests/prescan-core.test.mjs: partition with 8 workspace apps and 20 leftover units over maxAreas 8 keeps every app its own area and keeps at least LEFTOVER_AREAS leftover areas instead of folding them into an app; a leftover is folded into an app only when it is the single one left and smaller than SMALL; every path is owned once; two runs are byte-identical",
+              "tests/prescan-python.test.mjs: a FastAPI/Starlette file with @app.middleware(\"http\") over def check_db_ready and app.add_middleware(CORSMiddleware, ...) yields middleware rows {name, file, line}; the sibling .py modules of an entry point's package that define a top-level def or class (not __init__, not tests, not the entry point) are listed under modules as paths",
+              "tests/prescan-wiring.test.mjs: the area extract and its summary carry the python middleware names and the modules, and coverageFloor counts a 'modules' group per module and a 'middleware modules' entry per python middleware name so the explorer brief names them"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "node --test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P10.14-6rm"
+          ],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T14:19:49Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T14:20:46Z.0e3b6e",
+            "status": "passed",
+            "at": "2026-10-31T14:20:46Z"
           }
         }
       ],
@@ -6254,19 +6331,22 @@
       "P10.10-6rm",
       "P10.11-6rm",
       "P10.14-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.15-6rm"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
       "P10.2-2xj",
       "P10.11-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.15-6rm"
     ],
     "scripts/lib/prescan/partition.mjs": [
       "P3.1",
       "P10.2-2xj",
       "P10.6-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.15-6rm"
     ],
     "scripts/lib/prescan/generic.mjs": [
       "P3.1",
@@ -6282,14 +6362,16 @@
       "P10.10-6rm",
       "P10.11-6rm",
       "P10.13-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.15-6rm"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",
       "P10.2-2xj",
       "P10.10-6rm",
       "P10.11-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.15-6rm"
     ],
     "tests/fixtures/repos/python-api/README.md": [
       "P3.2",
@@ -6300,7 +6382,8 @@
       "P10.2-2xj",
       "P10.10-6rm",
       "P10.11-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.15-6rm"
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
@@ -6499,7 +6582,8 @@
       "P3.5-cdj"
     ],
     "tests/prescan-wiring.test.mjs": [
-      "P3.5-cdj"
+      "P3.5-cdj",
+      "P10.15-6rm"
     ],
     "skills/architecture-map/references/model-schema.md": [
       "P4.1",
@@ -6821,7 +6905,8 @@
       "P10.11-6rm",
       "P10.12-6rm",
       "P10.13-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.15-6rm"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -6831,7 +6916,8 @@
       "P10.11-6rm",
       "P10.12-6rm",
       "P10.13-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P10.15-6rm"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -6857,7 +6943,8 @@
     ],
     "tests/fixtures/repos/python-api": [
       "P10.11-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.15-6rm"
     ]
   },
   "bugs": [

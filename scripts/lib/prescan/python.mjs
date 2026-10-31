@@ -2,12 +2,16 @@
 //
 // extractPython(files, read) -> fragment
 //   { scanned, routes[], entities[], schemas[], migrations[], sqlTables[], httpCalls[], envKeys[],
-//     clients[], queues[], stores[], skipped{<kind>: n}, truncated{<kind>: n} }
+//     clients[], queues[], stores[], middleware[], modules[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (FastAPI/Flask decorators, Django urls), SQLAlchemy/Django entities with fields, Pydantic
 // schemas, Alembic migration ops, raw SQL table names, outbound HTTP calls, environment variables
 // read (names only), SDK clients and base URLs, and task queues (Celery, Dramatiq, RQ, pika) with
 // their producers and consumers, and file databases opened by path (duckdb.connect, sqlite3.connect: a store
-// row with kind, path and evidence whether or not the file is in the repository). Every item carries
+// row with kind, path and evidence whether or not the file is in the repository). Two lists feed the coverage
+// floor rather than the model: `middleware`, {name, file, line} rows for `@<app>.middleware("http")` over a def and
+// `<app>.add_middleware(<Class>, ...)`; and `modules`, the paths of the sibling .py files of each entry point (the
+// entry points genericRecipe names) that define a top-level def or class, without __init__.py, test files and the
+// entry point itself. Neither is in KINDS (no skipped or truncated tally). Every item of a KINDS list carries
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
 // ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
 // counted in `truncated`. A recognised shape whose arguments
@@ -18,7 +22,7 @@
 // prescan.mjs loads. Node >= 18, ESM, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
-import { scanClients, scanDatabases, scanEnvKeys, sqlStatements } from './generic.mjs';
+import { genericRecipe, scanClients, scanDatabases, scanEnvKeys, sqlStatements } from './generic.mjs';
 
 export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables', 'stores'];
 export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
@@ -747,6 +751,55 @@ function extractQueues(parsed, acc) {
 }
 
 
+// ---------------------------------------------------------------------------------------------
+// Middleware and modules: what an explorer must give a node of its own, counted into the coverage floor.
+
+/** The def a decorator ending at `from` sits on: the next line neither blank nor a decorator, or null. */
+function nextDef(masked, from) {
+  for (let at = masked.indexOf('\n', from); at !== -1;) {
+    const end = masked.indexOf('\n', at + 1);
+    const line = masked.slice(at + 1, end === -1 ? masked.length : end).trim();
+    if (line && !line.startsWith('@')) return /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)/.exec(line)?.[1] ?? null;
+    at = end;
+  }
+  return null;
+}
+
+/** FastAPI / Starlette middleware: `@<app>.middleware("http")` over a def, and `<app>.add_middleware(<Class>, ...)`. */
+function extractMiddleware(f, out) {
+  const m = f.masked;
+  for (const d of m.matchAll(/^[ \t]*@[A-Za-z_]\w*\.middleware[ \t]*\(/gm)) {
+    const call = callArgs(f, d.index + d[0].length - 1);
+    if (!call || resolveArg(f, call.args[0]) !== 'http') continue;
+    const name = nextDef(m, call.close);
+    if (name) out.push({ name, file: f.path, line: f.lineOf(d.index + d[0].indexOf('@')) });
+  }
+  for (const c of m.matchAll(/(?<![\w.])[A-Za-z_]\w*\.add_middleware[ \t]*\(/g)) {
+    const call = callArgs(f, c.index + c[0].length - 1);
+    const first = call?.args.find((p) => isPositional(f, p));
+    const cls = first ? f.src.slice(first.a, first.b).trim() : '';
+    if (/^[A-Za-z_][\w.]*$/.test(cls)) out.push({ name: lastSeg(cls), file: f.path, line: f.lineOf(c.index) });
+  }
+}
+
+const TEST_FILE = /^(?:test_.*|.*_test|conftest)\.py$/;
+const TOP_LEVEL_DEF = /^(?:(?:async[ \t]+)?def|class)[ \t]+[A-Za-z_]/m;
+const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+
+/** The sibling modules of every python entry point: same directory, a top-level def or class, not a test. */
+function entryModules(parsed, files, read) {
+  const out = new Set();
+  for (const entry of genericRecipe(files, read).entryPoints.filter((p) => /\.py$/.test(p))) {
+    const dir = dirOf(entry);
+    for (const f of parsed) {
+      const base = f.path.slice(f.path.lastIndexOf('/') + 1);
+      if (f.path === entry || dirOf(f.path) !== dir || base === '__init__.py' || TEST_FILE.test(base)) continue;
+      if (TOP_LEVEL_DEF.test(f.masked)) out.add(f.path);
+    }
+  }
+  return [...out].sort(byCodeUnit);
+}
+
 /** Extract the python fragment from `files` (repo-relative paths), reading them through `read`. */
 export function extractPython(files, read) {
   const acc = { skipped: Object.fromEntries(KINDS.map((k) => [k, 0])) };
@@ -780,6 +833,11 @@ export function extractPython(files, read) {
     truncated[k] = Math.max(0, items.length - MAX_ITEMS);
     out[k] = items.slice(0, MAX_ITEMS);
   }
+  const middleware = [];
+  for (const f of parsed) extractMiddleware(f, middleware);
+  middleware.sort((a, b) => byCodeUnit(a.file, b.file) || a.line - b.line || byCodeUnit(a.name, b.name));
+  out.middleware = middleware.slice(0, MAX_ITEMS);
+  out.modules = entryModules(parsed, pyFiles, read).slice(0, MAX_ITEMS);
   out.skipped = acc.skipped;
   out.truncated = truncated;
   return Object.fromEntries(Object.keys(out).sort(byCodeUnit).map((k) => [k, out[k]]));

@@ -980,3 +980,49 @@ test('p28 the explorer brief of an area holding a workspace app names the app an
   assert.match(atlas, /workspace app[^\n]*@fict\/atlas/i);
   assert.doesNotMatch(atlas, /@fict\/hub/, 'each brief names its own app');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.15: the trim ladder has a terminal rung, so a brief always fits; the throw is only a last guard.
+
+test('p29 fitExplorerBrief never throws: an area with 30 globs, a 37-group floor and a 200-character work path fits under BRIEF_CAP, the note names the last rung, and the contract and both file paths stay intact', async () => {
+  const { BRIEF_TRIMS, coverageFloor, explorerBrief, fitExplorerBrief } = await import('../scripts/pipeline.mjs');
+  const work = `/${'nested-work-directory/'.repeat(10)}`.slice(0, 200);
+  assert.equal(work.length, 200);
+  const pad = (i) => String(i).padStart(2, '0');
+  const globs = Array.from({ length: 30 }, (_, i) => `packages/widget-${pad(i)}-${'component'.repeat(3)}/**`);
+  const extract = {
+    entryPoints: Array.from({ length: 37 }, (_, i) => `packages/widget-${pad(i)}-${'component'.repeat(3)}/src/main.ts`),
+    routes: Array.from({ length: 12 }, (_, i) => ({ file: `packages/widget-${pad(i)}/src/routes/orders-${pad(i)}.ts` })),
+    clients: Array.from({ length: 52 }, (_, i) => ({ client: `tenants-client-${pad(i)}-${'x'.repeat(24)}` })),
+    middleware: Array.from({ length: 9 }, (_, i) => `packages/widget-${pad(i)}/src/middleware`),
+    modules: Array.from({ length: 14 }, (_, i) => `packages/widget-${pad(i)}/service/orders_${pad(i)}.py`),
+    workspaceApps: Array.from({ length: 6 }, (_, i) => ({ name: `@fict/tenant-router-${pad(i)}-${'gateway'.repeat(3)}`, dir: `apps/tenant-router-${pad(i)}-${'gateway'.repeat(3)}`, manifest: 'x' })),
+  };
+  const coverage = coverageFloor(extract);
+  const id = 'apps-tenant-router';
+  const area = { id, title: `apps/tenant-router + ${globs.join(', ')}`, files: 1205, stacks: ['node-backend', 'python', 'ts-frontend'], globs };
+  const input = {
+    area, coverage, profile: 'balanced',
+    summary: `${work}/extracts/${id}.summary.json`,
+    fragment: `${work}/fragments/${id}.json`,
+    stackRef: `${work}/references/stack-node-backend.md`,
+  };
+  const full = explorerBrief(input);
+  assert.ok(full.length > BRIEF_CAP, `the input is over the cap untrimmed (${full.length})`);
+  let fit;
+  assert.doesNotThrow(() => { fit = fitExplorerBrief(input, id); });
+  assert.ok(fit.text.length <= BRIEF_CAP, `${fit.text.length} characters`);
+  const rungs = BRIEF_TRIMS.map((t) => t.drop);
+  assert.deepEqual(fit.note.dropped, rungs, 'this area needs every rung, in order');
+  assert.equal(fit.note.dropped[fit.note.dropped.length - 1], rungs[rungs.length - 1], 'the note names the last rung');
+  assert.equal(fit.note.area, id);
+  assert.equal(fit.note.after, fit.text.length);
+  assert.equal(fit.note.before, full.length);
+  const contract = (t) => t.slice(t.indexOf('## Fragment contract'));
+  assert.ok(contract(full).length > 1000);
+  assert.equal(contract(fit.text), contract(full), 'the contract section is never cut');
+  assert.ok(fit.text.includes(input.summary), 'the summary path');
+  assert.ok(fit.text.includes(input.fragment), 'the fragment path');
+  assert.match(fit.text, new RegExp(`Coverage floor: at least ${coverage.floor} nodes`), 'the floor keeps its count');
+  assert.doesNotMatch(fit.text, /Each of these needs its own node/, 'the floor names went with the terminal rungs');
+});

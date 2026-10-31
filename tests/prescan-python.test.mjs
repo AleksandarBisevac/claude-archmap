@@ -392,3 +392,42 @@ test('py13 a table only queries name is a reference with every op it is used wit
   assert.deepEqual(odd.sqlTables.map((t) => `${t.table} ${t.op}`), ['pilots select'], 'nothing is guessed from a placeholder');
   assert.equal(odd.skipped.sqlTables, 2);
 });
+
+// ---------------------------------------------------------------------------------------------
+// P10.15: the middleware and the sibling modules of an entry point reach the coverage floor.
+
+test('py14 FastAPI/Starlette middleware (@app.middleware("http") over a def, app.add_middleware(<Class>, ...)) gives {name, file, line} rows; the sibling .py modules of an entry point that define a top-level def or class (not __init__, not tests, not the entry point) are listed under modules as paths', () => {
+  assert.deepEqual(frag.middleware, [
+    { name: 'CORSMiddleware', file: 'app/main.py', line: 43 },
+    { name: 'check_db_ready', file: 'app/main.py', line: 46 },
+  ]);
+  assert.deepEqual(frag.modules, [
+    'app/admin.py', 'app/auth.py', 'app/cache_utils.py', 'app/clients.py', 'app/jobs.py', 'app/models.py',
+    'app/reports.py', 'app/schemas.py', 'app/stockroom.py', 'app/tasks.py', 'app/warehouse.py',
+  ], 'config.py and sidefx.py define no def or class; __init__.py and the entry point are left out');
+
+  const odd = memFrag({
+    'svc/api/main.py':
+      'from starlette.applications import Starlette\napi = Starlette()\n' +
+      'api.add_middleware(\n    GZipMiddleware,\n    minimum_size=500,\n)\n\n' +
+      '@api.middleware("http")\nasync def timing(request, call_next):\n    return await call_next(request)\n\n' +
+      'NOTE = "api.add_middleware(FakeMiddleware)"\n',
+    'svc/api/__init__.py': 'def init():\n    pass\n',
+    'svc/api/test_main.py': 'def test_a():\n    pass\n',
+    'svc/api/main_test.py': 'def test_b():\n    pass\n',
+    'svc/api/conftest.py': 'def client():\n    pass\n',
+    'svc/api/settings.py': 'LIMIT = 10\n',
+    'svc/api/text.py': 'NOTE = """\ndef fake():\n"""\n',
+    'svc/api/indented.py': 'if True:\n    def inner():\n        pass\n',
+    'svc/api/orders.py': 'class Order:\n    pass\n',
+    'svc/api/widgets.py': 'async def list_widgets():\n    return []\n',
+    'svc/api/nested/deep.py': 'def deep():\n    pass\n',
+    'svc/other.py': 'def other():\n    pass\n',
+  });
+  assert.deepEqual(odd.middleware, [
+    { name: 'GZipMiddleware', file: 'svc/api/main.py', line: 3 },
+    { name: 'timing', file: 'svc/api/main.py', line: 8 },
+  ], 'a call over several lines, a decorator on another app name; text inside a string is not a call');
+  assert.deepEqual(odd.modules, ['svc/api/orders.py', 'svc/api/widgets.py']);
+  assert.deepEqual(memFrag({ 'lib/a.py': 'def a():\n    pass\n' }).modules, [], 'no entry point, no modules');
+});

@@ -5,14 +5,18 @@
 // unit, a monolith with fewer than three units is opened one level, and small leftovers are
 // merged. Globs are disjoint and cover every path: `dir/**` owns a subtree, `dir/*` only the
 // files directly in `dir` (`*` for the repo root). Workspace apps (`opts.apps`) are never folded into one bucket: each
-// is its own area or the head of its area, and leftovers merge among themselves first. Deterministic: code-unit
-// sorted throughout.
+// is its own area or the head of its area, and leftovers merge among themselves only. To hold the cap the two
+// smallest leftovers merge while more than LEFTOVER_AREAS (or the cap, if lower) remain; a leftover joins an app's area
+// only when it is the single one left and smaller than SMALL. So the area count may pass `maxAreas` by what the apps
+// need: a workspace of 8 apps and many packages keeps 8 app areas and LEFTOVER_AREAS leftover areas, never one app
+// area that swallowed every package. Deterministic: code-unit sorted throughout.
 // Node >= 18, zero dependencies.
 
 import { byCodeUnit } from './inventory.mjs';
 
 export const MAX_AREAS = 8;
-const SMALL = 3; // fewer files than this is a "small leftover"
+export const SMALL = 3; // fewer files than this is a "small leftover"
+export const LEFTOVER_AREAS = 3; // leftover areas the cap never merges below (the apps take the rest of the cap)
 const SPLIT_MIN = 8; // a monolith unit is only opened when it has at least this many files
 const DEFAULT_CONTAINERS = new Set([
   'apps', 'packages', 'services', 'libs', 'modules', 'projects', 'workspaces', 'plugins', 'crates',
@@ -129,17 +133,19 @@ export function partition(paths, { containers = [], apps = [], maxAreas = MAX_AR
     areas = [...rest, merge(small, new Set(rest.map((a) => a.id)))];
   }
 
-  // Still too many: merge the two smallest leftovers until the cap holds; with one leftover left, fold it into the
-  // smallest app (the app heads the area). Two apps are never merged, so a workspace of more apps than the cap keeps
-  // them all.
+  // Still too many: merge the two smallest leftovers while more than `keep` of them remain; a single leftover left,
+  // smaller than SMALL, is folded into the smallest app (the app heads the area). Two apps are never merged, and the
+  // leftovers keep `keep` areas of their own, so the cap yields by what the apps need rather than gluing every
+  // package to one app.
+  const keep = Math.max(1, Math.min(LEFTOVER_AREAS, maxAreas));
   const bySize = (a, b) => a.paths.length - b.paths.length || byCodeUnit(a.id, b.id);
   while (areas.length > maxAreas) {
     const free = areas.filter((a) => !a.app).sort(bySize);
-    if (free.length >= 2) {
+    if (free.length > keep) {
       const [a, b] = free;
       const rest = areas.filter((x) => x !== a && x !== b);
       areas = [...rest, merge([a, b], new Set(rest.map((x) => x.id)))];
-    } else if (free.length === 1 && areas.some((a) => a.app)) {
+    } else if (free.length === 1 && free[0].paths.length < SMALL && areas.some((a) => a.app)) {
       const head = areas.filter((a) => a.app).sort(bySize)[0];
       areas = [...areas.filter((a) => a !== head && a !== free[0]), fold(head, free[0])];
     } else break;

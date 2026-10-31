@@ -23,3 +23,5 @@ One realistic example of each pattern the Python extractor looks for:
 | Environment variables and shared clients | `app/config.py` |
 | Celery tasks (consumers) | `app/tasks.py` |
 | Task producers and a cross-area import | `app/jobs.py` |
+| FastAPI middleware (decorator and `add_middleware`) | `app/main.py` |
+| Sibling modules of an entry point (a top-level def or class) | `app/auth.py`, `app/cache_utils.py` |
