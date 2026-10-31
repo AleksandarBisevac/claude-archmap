@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // cost-profile.mjs - offline token and list-price cost profile of Claude Code transcripts.
 //
-//   node scripts/cost-profile.mjs <transcript.jsonl>... [--json]
+//   node scripts/cost-profile.mjs <transcript.jsonl>... [--json] [--basename]
 //
 // Reads `claude -p --output-format stream-json --verbose` output (or a session .jsonl) and prints input, output,
 // cache-read and cache-write tokens per model and per agent (the orchestrator, plus one row per subagent_type of
@@ -17,10 +17,13 @@
 // column the stream's lower bound. Without a result event the model table is the stream's sums, flagged as a
 // lower bound. The reconciliation line says MATCH (input and cache classes equal) or names the class and the gap.
 // A model without a rate is reported "unpriced" and its cost is null, never 0.
+// --basename records each transcript in reconciliation.files by its base name instead of the path it was given, so a
+// profile saved as evidence carries no directory of the machine that ran it.
 // Nothing is read except the files named on the command line; nothing is sent anywhere.
 // Exit 0 ok, 2 usage error or unreadable/malformed transcript. Node >= 18, ESM, zero dependencies.
 
 import { readFileSync, realpathSync } from 'node:fs';
+import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // List prices in USD per million tokens, dated. Update the date when the numbers change, and the source comment of
@@ -48,7 +51,7 @@ export const RATES = {
 const CLASSES = ['input', 'output', 'cacheRead', 'cacheWrite'];
 const ORCHESTRATOR = 'orchestrator';
 const UNKNOWN_AGENT = 'unknown-subagent';
-const USAGE = 'usage: node scripts/cost-profile.mjs <transcript.jsonl>... [--json]';
+const USAGE = 'usage: node scripts/cost-profile.mjs <transcript.jsonl>... [--json] [--basename]';
 
 class UsageError extends Error {}
 
@@ -157,7 +160,7 @@ function reconcile(file, streamModels, { lastResult, resultEvents }) {
   return { file, resultEvents, matchesModelUsage: mismatches.length === 0, mismatches };
 }
 
-export function profile(files, readFn = readTranscript) {
+export function profile(files, readFn = readTranscript, { baseNames = false } = {}) {
   const models = {};
   let fromResultFiles = 0;
   let fromStreamFiles = 0;
@@ -173,7 +176,7 @@ export function profile(files, readFn = readTranscript) {
       add((a.byModel[m.model] ??= zero()), m);
       a.contexts.push(m.cacheRead + m.cacheWrite + m.input);
     }
-    reconciliation.push(reconcile(file, fileModels, c));
+    reconciliation.push(reconcile(baseNames ? basename(file) : file, fileModels, c));
     // The model table: every class from the last result event when there is one (a model the result does not
     // list keeps the stream's figures), otherwise the stream's sums.
     if (c.lastResult) fromResultFiles++;
@@ -258,8 +261,10 @@ function main(argv) {
   try {
     const files = [];
     let json = false;
+    let baseNames = false;
     for (const a of argv) {
       if (a === '--json') json = true;
+      else if (a === '--basename') baseNames = true;
       else if (a === '-h' || a === '--help') {
         console.log(USAGE);
         return 0;
@@ -267,7 +272,7 @@ function main(argv) {
       else files.push(a);
     }
     if (!files.length) throw new UsageError('missing <transcript.jsonl>');
-    const p = profile(files);
+    const p = profile(files, readTranscript, { baseNames });
     process.stdout.write(json ? JSON.stringify(p, null, 2) + '\n' : renderText(p));
     return 0;
   } catch (e) {

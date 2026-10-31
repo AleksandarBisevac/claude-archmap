@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -356,4 +356,149 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
   assert.throws(() => checkCostSection(broken('| 1 | 38.4 | 28.2 | 5.9 | - | 27.4 |', '| 1 | 38.4 | 28.2 | 5.9 | - | 30.4 |')), /shares sum to/);
   assert.throws(() => checkCostSection(broken('| 5 (build) |', '| 6 (build) |')));
   assert.throws(() => checkCostSection(broken('is therefore not a like-for-like comparison', 'is comparable')));
+});
+
+// P11.3: every cost, turn and context figure of the cost section is the figure of a tracked profile. The evidence files
+// are `node scripts/cost-profile.mjs <stream.jsonl> --json --basename`, one per run, under evidence/<iteration>/
+// <eval>-<configuration>-<run>.json; the "How each number was produced" table names the files of each row and column.
+// The check reads a README text and an evidence reader, so e20 can feed it a tampered README or a tampered profile.
+const evidenceDir = new URL('evidence/', evalsDir);
+const readEvidence = (rel) => JSON.parse(readFileSync(new URL(rel.replace(/^evidence\//, ''), evidenceDir), 'utf8'));
+const evidenceFiles = () => readdirSync(evidenceDir, { recursive: true }).filter((f) => f.endsWith('.json')).map((f) => `evidence/${f.split(/[\\/]/).join('/')}`).sort();
+const orchestratorOf = (j) => j.byAgent.find((a) => a.agent === 'orchestrator');
+const usd2 = (j) => `${(Math.round(j.total.costUsd * 100) / 100).toFixed(2)} USD`;
+
+const checkCostEvidence = (readme, read = readEvidence, onDisk = evidenceFiles) => {
+  const start = readme.indexOf('## Cost of a build');
+  assert.ok(start >= 0, 'the cost section exists');
+  const rest = readme.slice(start + 3);
+  const cost = rest.slice(0, rest.indexOf('\n## ') < 0 ? rest.length : rest.indexOf('\n## '));
+  const flat = cost.replace(/\s+/g, ' ');
+  const rows = (re) => cost.split('\n').filter((l) => re.test(l)).map((l) => l.split('|').slice(1, -1).map((c) => c.trim()));
+  const cache = new Map();
+  const get = (rel) => {
+    if (!cache.has(rel)) cache.set(rel, read(rel));
+    return cache.get(rel);
+  };
+
+  assert.match(cost, /### How each number was produced/, 'the cost section has the "How each number was produced" subsection');
+  const how = cost.slice(cost.indexOf('### How each number was produced'));
+  assert.match(how, /node scripts\/cost-profile\.mjs <stream\.jsonl> --json --basename/, 'the command is named');
+  assert.match(how, /last `?result`? event/i, "the per-model figure is the last result event's");
+  assert.match(how, /lower bound/i, "the per-agent output is the stream's lower bound");
+
+  // the evidence table: the files of each row, by column
+  const evHead = rows(/^\| Eval \| Evidence/)[0];
+  assert.ok(evHead, 'the evidence table header');
+  const costHead = rows(/^\| Eval \| Iteration 1/)[0];
+  assert.ok(costHead, 'the cost table header');
+  const col = (head, name) => {
+    const at = head.findIndex((c) => c.startsWith(name));
+    assert.ok(at >= 0, `a column ${name}`);
+    return at;
+  };
+  const evRows = rows(/^\| \d \| .*evidence\//);
+  const costRows = rows(/^\| \d \(/);
+  assert.deepEqual(evRows.map((r) => r[0]), ['1', '2', '3', '4', '5'], 'evidence rows for evals 1 to 5');
+  assert.deepEqual(costRows.map((r) => r[0].split(' ')[0]), ['1', '2', '3', '4', '5']);
+  const FILE = /^evidence\/iteration-(\d)\/(\d|self)-(with|without)-skill-(\d)\.json$/;
+  const filesOf = (cell) => [...cell.matchAll(/`([^`]+\.json)`/g)].map((m) => m[1]);
+  const named = new Set();
+  const figures = {};
+  for (const ev of evRows) {
+    const e = ev[0];
+    const cr = costRows.find((r) => r[0].split(' ')[0] === e);
+    figures[e] = {};
+    for (const [evName, costName, iteration, config] of [['Evidence, iteration 1', 'Iteration 1, with skill', '1', 'with'], ['Evidence, iteration 2', 'Iteration 2, with skill', '2', 'with'], ['Evidence, baseline', 'Baseline, no skill', null, 'without']]) {
+      const files = filesOf(ev[col(evHead, evName)]);
+      assert.ok(files.length >= 1, `eval ${e}, ${costName}: an evidence file is named`);
+      for (const f of files) {
+        const m = f.match(FILE);
+        assert.ok(m, `${f} is named evidence/<iteration>/<eval>-<configuration>-<run>.json`);
+        assert.equal(m[2], e, `${f} belongs to eval ${e}`);
+        assert.equal(m[3], config, `${f} is a ${config}-skill run`);
+        if (iteration) assert.equal(m[1], iteration, `${f} is an iteration ${iteration} run`);
+        named.add(f);
+      }
+      const j = get(files[0]);
+      assert.equal(cr[col(costHead, costName)], usd2(j), `eval ${e}, ${costName}: the cell is total.costUsd of ${files[0]} rounded to two decimals (${j.total.costUsd})`);
+      figures[e][costName] = { files, j };
+      if (costName === 'Iteration 2, with skill') {
+        assert.equal(Number(cr[col(costHead, 'Orchestrator turns')]), orchestratorOf(j).turns, `eval ${e}: the turn count is the orchestrator row of ${files[0]}`);
+      }
+    }
+    // the baseline runs of the other iteration are tracked too, though the cost table does not use them
+    for (const f of filesOf(ev[col(evHead, 'Evidence, other baseline')])) {
+      const m = f.match(FILE);
+      assert.ok(m && m[2] === e && m[3] === 'without', `${f} is a without-skill run of eval ${e}`);
+      named.add(f);
+    }
+  }
+  assert.deepEqual([...named].sort(), onDisk().filter((f) => !f.includes('/self-')).sort(), 'the table names every evidence file of the evals, and each exists');
+  const self = onDisk().filter((f) => f.includes('/self-'));
+  assert.ok(self.length >= 1, 'the self-build profile is tracked');
+  for (const f of self) assert.ok(how.includes(f), `${f} is named in the subsection`);
+  for (const f of [...named, ...self]) {
+    const j = get(f);
+    assert.equal(j.rates.date, how.match(/rate table dated (\d{4}-\d{2}-\d{2})/)?.[1], `${f}: the rate table date the README states`);
+    for (const r of j.reconciliation.files) assert.doesNotMatch(r.file, /[\\/]/, `${f}: transcripts are recorded by base name`);
+  }
+
+  // the eval 2 reruns sentence: turns, cost and the largest context of the two reruns, against the first run
+  const rerun = flat.match(/reruns[^.]*took (\d+) and (\d+) orchestrator turns[^.]*, ([\d.]+) and ([\d.]+) USD, and a context of at most ([\d.]+) K tokens, against (\d+) turns and ([\d.]+) USD/i);
+  assert.ok(rerun, 'the reruns sentence: turns, cost, context, against the first run');
+  const eval2 = figures[2]['Iteration 2, with skill'].files;
+  assert.equal(eval2.length, 3, 'eval 2 names the first run and the two reruns');
+  const [first, ...reruns] = eval2.map((f) => get(f));
+  assert.deepEqual(reruns.map((j) => orchestratorOf(j).turns), [Number(rerun[1]), Number(rerun[2])], 'the reruns turn counts');
+  assert.deepEqual(reruns.map(usd2), [`${rerun[3]} USD`, `${rerun[4]} USD`], 'the reruns costs');
+  assert.equal((Math.max(...reruns.map((j) => orchestratorOf(j).maxContext)) / 1000).toFixed(1), rerun[5], 'the reruns largest context, in K tokens');
+  assert.equal(orchestratorOf(first).turns, Number(rerun[6]), 'the first run turns');
+  assert.equal(usd2(first), `${rerun[7]} USD`, 'the first run cost');
+
+  // the stated maximum context over the evals it names
+  const ctx = flat.match(/orchestrator's context never exceeds (\d+) K tokens in evals ([\d, and]+)/i);
+  assert.ok(ctx, 'the maximum context sentence');
+  const covered = ctx[2].match(/\d/g);
+  assert.deepEqual(covered, ['1', '2', '4'], 'it covers evals 1, 2 and 4');
+  const largest = Math.max(...covered.flatMap((e) => figures[e]['Iteration 2, with skill'].files.map((f) => orchestratorOf(get(f)).maxContext)));
+  assert.equal(String(Math.round(largest / 1000)), ctx[1], `the largest orchestrator max ctx of those runs is ${largest}`);
+};
+
+test('e19 every cost, turn and context figure of the evals README cost section equals the figure in the tracked evidence profile it names', () => {
+  checkCostEvidence(readFileSync(readmePath, 'utf8'));
+});
+
+test('e20 the cost-evidence check fails on a tampered cost cell, turn count, reruns figure, context figure, evidence file name or evidence profile', () => {
+  const readme = readFileSync(readmePath, 'utf8');
+  checkCostEvidence(readme); // the unbroken text passes, so each failure below is the edit's
+  // the README wraps its prose, so a phrase matches across a line break
+  const broken = (from, to) => {
+    const re = new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'));
+    assert.match(readme, re, `the README carries ${from}`);
+    return readme.replace(re, to);
+  };
+  const cell = readme.match(/\| 1 \(build\) \| ([\d.]+) USD \| ([\d.]+) USD \| ([\d.]+) USD \| (\d+) \|/);
+  assert.ok(cell, 'the eval 1 row');
+  const [row, it1, it2, base, turns] = cell;
+  assert.throws(() => checkCostEvidence(broken(row, row.replace(`${it1} USD`, '13.84 USD'))), /cell is total\.costUsd/, 'iteration 1 cost');
+  assert.throws(() => checkCostEvidence(broken(row, row.replace(`| ${it2} USD`, '| 1.17 USD'))), /cell is total\.costUsd/, 'iteration 2 cost');
+  assert.throws(() => checkCostEvidence(broken(row, row.replace(`${base} USD`, '1.56 USD'))), /cell is total\.costUsd/, 'baseline cost');
+  assert.throws(() => checkCostEvidence(broken(row, row.replace(`| ${turns} |`, `| ${Number(turns) + 1} |`))), /turn count/, 'turns');
+  assert.throws(() => checkCostEvidence(broken('2.05 and 1.80 USD', '2.05 and 1.90 USD')), /reruns costs/);
+  assert.throws(() => checkCostEvidence(broken('took 11 and 13 orchestrator turns', 'took 11 and 12 orchestrator turns')), /reruns turn counts/);
+  assert.throws(() => checkCostEvidence(broken('at most 69.6 K tokens', 'at most 60.0 K tokens')), /largest context/);
+  assert.throws(() => checkCostEvidence(broken('never exceeds 72 K tokens', 'never exceeds 70 K tokens')), /largest orchestrator max ctx/);
+  assert.throws(() => checkCostEvidence(broken('`evidence/iteration-1/1-with-skill-1.json`', '`evidence/iteration-1/2-with-skill-1.json`')), /belongs to eval 1/);
+  // a profile that drifted from its transcript: the same README against a profile with one more orchestrator turn or one more dollar
+  const bump = (mutate) => (rel) => {
+    const j = JSON.parse(JSON.stringify(readEvidence(rel)));
+    if (rel === 'evidence/iteration-2/1-with-skill-1.json') mutate(j);
+    return j;
+  };
+  assert.throws(() => checkCostEvidence(readme, bump((j) => { j.total.costUsd += 1; })), /cell is total\.costUsd/);
+  assert.throws(() => checkCostEvidence(readme, bump((j) => { orchestratorOf(j).turns += 1; })), /turn count/);
+  assert.throws(() => checkCostEvidence(readme, bump((j) => { j.reconciliation.files[0].file = '/home/x/stream.jsonl'; })), /base name/);
+  // an evidence file the table does not name
+  assert.throws(() => checkCostEvidence(readme, readEvidence, () => [...evidenceFiles(), 'evidence/iteration-2/9-with-skill-1.json']), /names every evidence file/);
 });

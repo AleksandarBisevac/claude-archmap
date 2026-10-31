@@ -74,10 +74,10 @@ cross-area edges and zones. The baseline is the same prompt without the skill, o
 
 | Eval | Iteration 1, with skill | Iteration 2, with skill | Baseline, no skill | Orchestrator turns | Result |
 | --- | --- | --- | --- | --- | --- |
-| 1 (build) | 13.84 USD | 1.16 USD | 1.55 USD | 11 | 7/7 expectations |
-| 2 (build, issues) | 9.79 USD | 2.02 USD | 2.29 USD | 17 | first run 7/7; reruns 6/7; issue recall over three runs 0.67, 0.53, 0.53 (mean 0.58) |
+| 1 (build) | 13.78 USD | 1.16 USD | 1.55 USD | 11 | 7/7 expectations |
+| 2 (build, issues) | 9.71 USD | 2.02 USD | 2.29 USD | 17 | first run 7/7; reruns 6/7; issue recall over three runs 0.67, 0.53, 0.53 (mean 0.58) |
 | 3 (update) | 6.40 USD | 1.89 USD | 1.00 USD | 29 | 8/8 expectations; baseline 0/8 |
-| 4 (monorepo build) | 12.79 USD | 1.57 USD | 1.82 USD | 11 | 8/8 expectations |
+| 4 (monorepo build) | 12.55 USD | 1.57 USD | 1.82 USD | 11 | 8/8 expectations |
 | 5 (build) | 9.53 USD | 1.65 USD | 2.96 USD | 13 | 7/7 expectations; baseline 0/7 |
 
 The eval 2 row shows its first run: the cost, the turns and the first grade are that run's, and only the result cell
@@ -113,3 +113,37 @@ bound, so the output the stream under-counts is not attributed to any agent and 
 
 Eval 2 adds the reviewer on the larger model (23 percent of its run). The ten rounds that led here are in the private results log; each round's root causes became a fix task of the
 audit plan (P10.6 to P10.15).
+
+### How each number was produced
+
+Every cost, turn and context figure above is the output of one command on the `stream-json` transcript of the run
+(the transcripts stay in the private workspace, they are not tracked):
+
+```sh
+node scripts/cost-profile.mjs <stream.jsonl> --json --basename
+```
+
+The profile is saved as it printed, one file per run, under `evidence/<iteration>/<eval>-<configuration>-<run>.json`
+in this directory, named by eval number and configuration only. `--basename` records the transcript by its base name,
+so a profile carries no directory of the machine that ran it. The cost is the profile's `total.costUsd` rounded to two
+decimals, at the list prices of the rate table dated 2026-10-31 (the `rates` block of each file); a price change moves
+every figure, so the table is re-derived whenever the date moves. The turns and the context are the `orchestrator`
+row of `byAgent`: its `turns`, and its `maxContext` in tokens (cache read + cache write + input of the largest turn).
+Two rules decide what a figure is. The per-model figure, and so the cost, is the last `result` event's `modelUsage`,
+which is cumulative for the session; the per-agent output is the stream's lower bound, because the stream counts
+output at emission time. Where the stream's input and cache sums differ from that result event (iteration 1 of eval 4,
+iteration 2 of eval 3: `reconciliation.matchesModelUsage` is false in their files), the cost is still the result
+event's. `tests/evals.test.mjs` (e19) reads this section and the cost table and fails when a cell, a turn count or the
+stated maximum context differs from the file it names.
+
+| Eval | Evidence, iteration 1 | Evidence, iteration 2 | Evidence, baseline | Evidence, other baseline runs |
+| --- | --- | --- | --- | --- |
+| 1 | `evidence/iteration-1/1-with-skill-1.json` | `evidence/iteration-2/1-with-skill-1.json` | `evidence/iteration-2/1-without-skill-1.json` | `evidence/iteration-1/1-without-skill-1.json` |
+| 2 | `evidence/iteration-1/2-with-skill-1.json` | `evidence/iteration-2/2-with-skill-1.json` (first run), `evidence/iteration-2/2-with-skill-2.json` and `evidence/iteration-2/2-with-skill-3.json` (reruns) | `evidence/iteration-1/2-without-skill-1.json` | - |
+| 3 | `evidence/iteration-1/3-with-skill-1.json` | `evidence/iteration-2/3-with-skill-1.json` | `evidence/iteration-2/3-without-skill-1.json` | `evidence/iteration-1/3-without-skill-1.json` |
+| 4 | `evidence/iteration-1/4-with-skill-1.json` | `evidence/iteration-2/4-with-skill-1.json` | `evidence/iteration-1/4-without-skill-1.json` | - |
+| 5 | `evidence/iteration-1/5-with-skill-1.json` | `evidence/iteration-2/5-with-skill-1.json` | `evidence/iteration-2/5-without-skill-1.json` | `evidence/iteration-1/5-without-skill-1.json` |
+
+The baseline column takes the iteration-2 baseline run where there is one (evals 1, 3 and 5) and the iteration-1
+baseline for evals 2 and 4, which were not rerun; the other baseline run of each eval is tracked beside it. The profile
+of the build of this repository by its own skill is `evidence/iteration-2/self-with-skill-1.json`.

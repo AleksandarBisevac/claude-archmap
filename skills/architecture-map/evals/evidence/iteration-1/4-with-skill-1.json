@@ -1,0 +1,131 @@
+{
+  "rates": {
+    "date": "2026-10-31",
+    "perMillion": {
+      "claude-fable-5-1": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      },
+      "claude-opus-5-5": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      },
+      "claude-sonnet-5-5": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      },
+      "claude-haiku-5-5": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    }
+  },
+  "basis": {
+    "byModel": "result-event",
+    "byAgentOutput": "stream-lower-bound"
+  },
+  "byModel": [
+    {
+      "model": "claude-opus-5-5",
+      "turns": 137,
+      "input": 304,
+      "output": 124164,
+      "cacheRead": 19875880,
+      "cacheWrite": 655022,
+      "costUsd": 9.734782
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "turns": 73,
+      "input": 156,
+      "output": 155640,
+      "cacheRead": 2394614,
+      "cacheWrite": 408736,
+      "costUsd": 2.818013
+    }
+  ],
+  "byAgent": [
+    {
+      "agent": "orchestrator",
+      "turns": 67,
+      "input": 160,
+      "output": 2392,
+      "cacheRead": 11610620,
+      "cacheWrite": 256151,
+      "medianContext": 198619,
+      "maxContext": 267420,
+      "costUsd": 3.651359
+    },
+    {
+      "agent": "archmap:archmap-explorer",
+      "turns": 73,
+      "input": 156,
+      "output": 926,
+      "cacheRead": 2394614,
+      "cacheWrite": 408736,
+      "medianContext": 32780,
+      "maxContext": 101831,
+      "costUsd": 1.270873
+    },
+    {
+      "agent": "archmap:archmap-synthesizer",
+      "turns": 70,
+      "input": 146,
+      "output": 556,
+      "cacheRead": 8468564,
+      "cacheWrite": 399828,
+      "medianContext": 132199,
+      "maxContext": 204463,
+      "costUsd": 3.704557
+    }
+  ],
+  "total": {
+    "turns": 210,
+    "input": 460,
+    "output": 279804,
+    "cacheRead": 22270494,
+    "cacheWrite": 1063758,
+    "costUsd": 12.552795
+  },
+  "reconciliation": {
+    "files": [
+      {
+        "file": "stream.jsonl",
+        "resultEvents": 11,
+        "matchesModelUsage": false,
+        "mismatches": [
+          {
+            "model": "claude-opus-5-5",
+            "class": "input",
+            "stream": 306,
+            "result": 304,
+            "difference": 2
+          },
+          {
+            "model": "claude-opus-5-5",
+            "class": "cacheRead",
+            "stream": 20079184,
+            "result": 19875880,
+            "difference": 203304
+          },
+          {
+            "model": "claude-opus-5-5",
+            "class": "cacheWrite",
+            "stream": 655979,
+            "result": 655022,
+            "difference": 957
+          }
+        ]
+      }
+    ],
+    "matchesModelUsage": false
+  }
+}

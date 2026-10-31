@@ -7695,7 +7695,7 @@
         {
           "id": "P11.3",
           "title": "Evidence files: the profiler's JSON for every eval run is tracked and a test derives the cost table from them",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Every number in the evals README cost section reproduces today by re-running scripts/cost-profile.mjs on the run's stream transcript, but nothing tracked proves it: the transcripts are private and the text profiles saved beside them carry an older rate table. Save the output of `node scripts/cost-profile.mjs <stream.jsonl> --json` for every iteration-1 and iteration-2 run of evals 1 to 5 (with and without the skill, the three eval 2 runs) and for the self-build run, under skills/architecture-map/evals/evidence/<iteration>/<eval>-<configuration>-<run>.json, named by eval number and configuration only; the run directories are in the workspace the evals README names, under the home .claude directory. Add a test that reads the README's cost table and the reruns sentences and checks each cost cell against total.costUsd rounded to two decimals, each turn count against the orchestrator row's turns and the stated maximum context against the largest orchestrator max ctx of the runs it covers, failing on any drift; like e18 it must fail on a tampered README. The README gets a short 'How each number was produced' subsection: the command, the rate table date, the rule that the per-model figure is the last result event's and the per-agent output is the stream's lower bound, and the evidence file of each row. The profiler's --json writes the transcript's absolute path into reconciliation.files, so add a --basename switch to cost-profile.mjs that records each file by its base name, with a test in tests/cost-profile.test.mjs, and save the evidence with it. No evidence file may carry a machine path or a denylist term; the d1 test scans every tracked file once the files are staged.",
           "files": [
             "skills/architecture-map/evals/evidence",
@@ -7720,16 +7720,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T21:15:13Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T21:21:16Z.1dcd51",
+            "status": "passed",
+            "at": "2026-10-31T21:21:16Z"
+          }
         },
         {
           "id": "P11.4",

@@ -229,3 +229,20 @@ test('c16 the Sonnet 5.5 rate row is input 2, output 10, cacheRead 0.1, cacheWri
   assert.ok(Math.abs(j.byModel[0].costUsd - 0.3) < 1e-9, `3M Sonnet cache-read tokens cost 0.30 USD, got ${j.byModel[0].costUsd}`);
   assert.ok(Math.abs(j.total.costUsd - 0.3) < 1e-9, `total ${j.total.costUsd}`);
 });
+
+// P11.3: the evidence files are the profiler's --json for a transcript that lives outside this repository, and the JSON
+// records the transcript's path in reconciliation.files. --basename records each file by its base name, so the tracked
+// evidence carries no machine path.
+test('c17 --basename records each transcript by its base name in the JSON reconciliation and changes nothing else; the default keeps the path as given', () => {
+  const plain = profile(SAMPLE);
+  assert.equal(plain.reconciliation.files[0].file, SAMPLE, 'without the switch the path is the one given');
+  const r = run([SAMPLE, '--json', '--basename']);
+  assert.equal(r.status, 0, r.stderr);
+  const j = JSON.parse(r.stdout);
+  assert.deepEqual(j.reconciliation.files, [{ file: 'stream-sample.jsonl', resultEvents: 2, matchesModelUsage: true, mismatches: [] }]);
+  assert.doesNotMatch(r.stdout, /\/Users\/|\/home\/|\/tmp\/|\/var\/|C:\\/, 'no directory of this machine in the output');
+  assert.deepEqual({ ...j, reconciliation: null }, { ...plain, reconciliation: null }, 'every figure is the same');
+  const two = JSON.parse(run(['--basename', SAMPLE, SAMPLE, '--json']).stdout);
+  assert.deepEqual(two.reconciliation.files.map((f) => f.file), ['stream-sample.jsonl', 'stream-sample.jsonl'], 'the switch may come first and covers every file');
+  assert.equal(run([SAMPLE, '--basename']).status, 0, 'harmless on the text report');
+});

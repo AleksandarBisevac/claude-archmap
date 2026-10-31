@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/cost-profile.test.mjs tests/evals.test.mjs": "pass",
+    "node --test (full suite, files staged)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T21:19:35Z",
+    "basis": "`node --test tests/cost-profile.test.mjs tests/evals.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/cost-profile.mjs: --basename switch (profile() takes { baseNames }, reconciliation.files[].file = path.basename), usage/header updated, default output unchanged. tests/cost-profile.test.mjs: c17. Saved 21 evidence profiles under skills/architecture-map/evals/evidence/iteration-{1,2}/ named <eval>-<with|without>-skill-<run>.json (iteration 1: evals 1-5 with and without; iteration 2: evals 1-5 with skill incl. three eval 2 runs [2-with-skill-1 = first run = with_skill/round-1, -2 = round-2, -3 = run-1], without skill for evals 1,3,5; self-with-skill-1.json = real-1-build-self), all via 'node scripts/cost-profile.mjs <stream> --json --basename'; no machine path in any (grep for /Users, /home, /tmp is empty). README: added 'How each number was produced' subsection (command, rate date 2026-10-31, last result event rule, stream lower bound rule, evidence table per row, baseline provenance, self-build file). README CORRECTION: three iteration-1 cells did not reproduce from the transcripts and were corrected to the profiler's figures: eval 1 13.84 -> 13.78, eval 2 9.79 -> 9.71, eval 4 12.79 -> 12.55 (all other cells, turns, 69.6 K and 72 K reproduced as stated). tests/evals.test.mjs: e19 (checkCostEvidence: every cost cell = total.costUsd to 2 decimals of the file the evidence table names, turns = orchestrator row turns, reruns sentence = turns/costs/max ctx of the two reruns and the first run, '72 K in evals 1, 2 and 4' = largest orchestrator maxContext of those runs, every evidence file named and basename-recorded, rate date matches) and e20 (fails on tampered iteration-1/iteration-2/baseline cost cells, turns, reruns costs/turns/context, 72 K, a wrong-eval file name, a drifted profile, an unnamed evidence file). Full node --test: 444 pass, 0 fail (evidence files staged with git add so d1 scans them). Not committed. Dependants: scripts/pipeline.mjs, usage.mjs, skill.test.mjs, SKILL.md, pipeline.test.mjs, design.md use cost-profile by name/path and its default output is byte-identical, so still correct; README dependants (tests/evals.test.mjs etc.) still correct, e17/e18 pass on the edited README.",
+    "descriptive": "The evals README cost figures are now backed by 21 tracked profiler JSON files and a test that fails on any drifted cell; three stale iteration-1 costs were corrected."
+  },
+  "testsAdded": [
+    "c17: --basename records transcripts by base name, changes nothing else, works first or last and on the text report",
+    "e19: README cost table, turn counts, reruns sentence and max-context sentence equal the tracked evidence profiles",
+    "e20: e19's check throws on tampered README cells/sentences/file names and on tampered or unnamed evidence"
+  ],
+  "casesAdded": [
+    [
+      "e19",
+      "e20"
+    ],
+    "c17"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:5552fafc0a725e7774dab910fd461b7e4de56a423337625b175a97e20d2557f5\",\"dirtyDigest\":\"sha256:9cbd269f1328f0adc32e861a62db9fcc5c1a9ec185d3221a6f6dcb55cafe0b32\",\"dirtyPaths\":{\"scripts/cost-profile.mjs\":\"ad37e16d67d57157\",\"skills/architecture-map/evals/README.md\":\"ae2ea3c9c77913fb\",\"tests/cost-profile.test.mjs\":\"a282dd4dcebe93d6\",\"tests/evals.test.mjs\":\"32327fc952a2e994\"},\"head\":\"22d909c\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/cost-profile.mjs\",\"skills/architecture-map/evals/README.md\",\"skills/architecture-map/evals/evidence\",\"tests/cost-profile.test.mjs\",\"tests/evals.test.mjs\"],\"scopeDigest\":\"sha256:ee4d91a34e2df6e0c542e4249eeeb40b85aa0fd95ab2d386f7d2d6cafc92320c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
