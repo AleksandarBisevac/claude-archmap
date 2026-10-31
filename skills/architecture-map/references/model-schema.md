@@ -108,12 +108,20 @@ From the per-area prescan slices (`merge.mjs --extracts <work>/extracts --repo .
 - cross-area `edges[]`: an HTTP call to a route (`api`), a queue producer and its consumer each to the queue's own node
   (`queue`, `async`: the merge makes one `<name>-queue` node per queue, or uses the explorer's node of that name), an
   import (`call`), between the nodes that own the two files (the node whose `paths` match, deepest `level` first),
-  `confidence: verified`, `foundBy: static`; an edge the explorer already drew between the same nodes is not repeated;
+  `confidence: verified` on an exact match and `inferred` (said in `desc`) when an HTTP route matched through a
+  wildcard segment or an import line names the module by its file name only (a call path of wildcards only makes no
+  edge), `foundBy: static`; an edge the explorer already drew between the same nodes is not repeated;
 - `access[]` rows from the SQL statements of the slices (`select` R, `insert` C, `update` U, `delete` D) for the node
-  owning the file, on the entity modelling the table;
+  owning the file, on the entity modelling the table; from the slices' ORM models (R for the code node declaring the
+  model); and from the queue producers (C) and consumers (R) where an entity models the queue;
 - `relations[]` from declared foreign keys: an entity field's `fk`, and an ORM table's `fk=` in the slice
   (`kind: fk`, `cardinality: 1-n`, the field's provenance);
-- one zone per spelling of a zone id, and a zone for a node that had none (from its kind and its area's stacks).
+- one zone per spelling of a zone id, and a zone for a node that had none: the zone of the deepest slice container
+  directory (a Dockerfile's or compose file's directory, not the root) holding all its paths, labelled with that
+  directory, else one from its kind and its area's stacks.
+
+In update mode an area whose fragment file is unreadable keeps its previous elements (a conflict says so), and an
+`area:<id>` reference to an area with no fragment in the run resolves among the previous model's nodes of that area.
 
 What it cannot cite (a file no node owns, a table no entity models, an import line it cannot find) is counted in the
 `derivation` row of `meta.sources`. It also writes `<work>/digest.json`, under 30 K characters: node ids with kind,

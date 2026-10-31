@@ -5185,24 +5185,30 @@
             "severity": "med",
             "file": "scripts/pipeline.mjs:355",
             "issue": "coverageFloor() returns `floor: Math.max(1, total)` with no upper bound, and the brief states it as 'at least N nodes ... a fragment with fewer nodes than this floor is incomplete'. The same brief (CAPS) and the merge cap a fragment at 40 nodes, so a large area (30 router modules plus stores, queues and clients; p18 builds 30 route groups, a bigger monorepo area passes 40) gets a floor the explorer is told to reach and the merge then truncates. The brief contradicts itself and invites the explorer to spend its calls on nodes that are dropped.",
-            "resolution": "Clamp the floor to CAPS.nodes (and say in the brief when the extract holds more than the cap), and add a p18-style case with more than 40 groups.",
-            "fixTask": "P10.16-6rm"
+            "resolution": "fixed in P10.16-6rm (f068b93c4cb0): Clamp the floor to CAPS.nodes (and say in the brief when the extract holds more than the cap), and add a p18-style case with more than 40 groups.",
+            "fixTask": "P10.16-6rm",
+            "commit": "f068b93c4cb0",
+            "status": "fixed"
           },
           {
             "id": "P10-R10",
             "severity": "low",
             "file": "scripts/pipeline.mjs:169-195",
             "issue": "matchUsage() assigns an unmatched --usage label to the first area that still lacks a row 'by position' (and by unique prefix). The orchestrator copies labels off completion lines that carry the description, not the area id, so a wrong guess silently books one explorer's tokens and duration on another area; only a warning in the JSON says so, and the ledger and the share figures built from it are then wrong. This leniency (and the misc partition naming, brief trimming and the temp-dir default work dir) is not in P10.6's description, which covers only dangling references; it is in the task's tests.add list.",
-            "resolution": "Match on exact id and unique prefix only; record everything else under its own label (as the extras already are) instead of assigning it to an area by position, or have plan print an area-to-description map the orchestrator can copy.",
-            "fixTask": "P10.16-6rm"
+            "resolution": "fixed in P10.16-6rm (f068b93c4cb0): Match on exact id and unique prefix only; record everything else under its own label (as the extras already are) instead of assigning it to an area by position, or have plan print an area-to-description map the orchestrator can copy.",
+            "fixTask": "P10.16-6rm",
+            "commit": "f068b93c4cb0",
+            "status": "fixed"
           },
           {
             "id": "P10-R11",
             "severity": "low",
             "file": "scripts/pipeline.mjs:493",
             "issue": "The default work dir is <os tmpdir>/archmap/<12 hex of sha256(repo path)>: predictable, and shared on a multi-user Linux host where tmpdir is /tmp. plan then rmSync()s the BUILD_FILES inside it and writes briefs, extracts and fragments there with the process umask. Another local user can pre-create /tmp/archmap or that directory (or symlink 'fragments', 'briefs') so plan removes or writes through into places it picked, and the subagents read the briefs from a directory others can write (a brief is an instruction to an agent that has Write). p16 tests only the happy path.",
-            "resolution": "Create the directory with mode 0o700, lstat it and refuse (exit 2) when it is a symlink or not owned by the current uid, or use fs.mkdtempSync under the tmpdir and print the result; add a p16 case for a pre-existing foreign-owned or symlinked directory.",
-            "fixTask": "P10.16-6rm"
+            "resolution": "fixed in P10.16-6rm (f068b93c4cb0): Create the directory with mode 0o700, lstat it and refuse (exit 2) when it is a symlink or not owned by the current uid, or use fs.mkdtempSync under the tmpdir and print the result; add a p16 case for a pre-existing foreign-owned or symlinked directory.",
+            "fixTask": "P10.16-6rm",
+            "commit": "f068b93c4cb0",
+            "status": "fixed"
           },
           {
             "id": "P10-R12",
@@ -5249,8 +5255,10 @@
             "severity": "high",
             "file": "scripts/pipeline.mjs:697",
             "issue": "Scanner safety (rule 7). P10.11 (14f5ecb) probes and then queries DuckDB through python3 (readerFor line 697 `spawnSync('python3', ['-c', 'import duckdb'])`, queryColumns line 716 `['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]]`) with no cwd and no isolated mode. The driver is run from the analysed project's root (SKILL.md), so cwd is the scanned repository, and `python3 -c` puts the cwd first on sys.path. A scanned repo that holds a duckdb.py (or a duckdb/ package) and a file database named by duckdb.connect gets that file executed by `import duckdb` whenever the duckdb CLI is absent. This breaks 'prescan and extractors never import, require, eval or execute files from the scanned repo'. The new tests stub python3 on PATH, so none of them exercises the real interpreter or this path.",
-            "resolution": "Run both python3 calls in isolated mode (`python3 -I -c ...`, which drops the cwd and PYTHON* variables from sys.path) and also pass `cwd: tmp` (the mkdtemp dir) to spawnSync. Add a test where the repo holds a duckdb.py that writes a marker file, and assert the marker never appears.",
-            "fixTask": "P10.16-6rm"
+            "resolution": "fixed in P10.16-6rm (f068b93c4cb0): Run both python3 calls in isolated mode (`python3 -I -c ...`, which drops the cwd and PYTHON* variables from sys.path) and also pass `cwd: tmp` (the mkdtemp dir) to spawnSync. Add a test where the repo holds a duckdb.py that writes a marker file, and assert the marker never appears.",
+            "fixTask": "P10.16-6rm",
+            "commit": "f068b93c4cb0",
+            "status": "fixed"
           },
           {
             "id": "P10-R18",
@@ -5265,16 +5273,20 @@
             "severity": "low",
             "file": "scripts/pipeline.mjs:756",
             "issue": "P10.11 (14f5ecb): the outside-the-repository guard `file.startsWith(repoRoot + sep)` compares resolved strings only, so a symlink inside the repo that points at a database file elsewhere on the machine passes it. queryColumns then copies and opens the target. Only schema names reach the model, but the guard says the file is inside the repository when it is not.",
-            "resolution": "Compare `realpathSync(file)` with `realpathSync(repoRoot)` (guarded by existsSync) before reading, and add the outside-the-repo skip row for a symlink that escapes.",
-            "fixTask": "P10.16-6rm"
+            "resolution": "fixed in P10.16-6rm (f068b93c4cb0): Compare `realpathSync(file)` with `realpathSync(repoRoot)` (guarded by existsSync) before reading, and add the outside-the-repo skip row for a symlink that escapes.",
+            "fixTask": "P10.16-6rm",
+            "commit": "f068b93c4cb0",
+            "status": "fixed"
           },
           {
             "id": "P10-R20",
             "severity": "med",
             "file": "scripts/pipeline.mjs:580-607",
             "issue": "contradicts task clause: P10.15 clause 1 asks for \"rungs that always end under BRIEF_CAP\" and says the throw stays only as a last guard. The ladder never trims the `- Previous model: <path>. Reuse the node ids ...` line (explorerBrief, pipeline.mjs:438), which is about 110 characters plus a path, added in --update mode. p29 builds its pathological input without `previous`, and the executor measured the terminal rung at 3902 characters for a 200-character work path, so a 98-character margin. In update mode with the same area the brief is about 4200 characters and writeBrief throws, which kills the build with exit 2, the failure this task set out to remove. The new header comment (\"a brief ends under BRIEF_CAP\") overstates what the ladder does.",
-            "resolution": "Add the previous line to the terminal rung (drop its Reuse-the-ids sentence, or keep only the path), or fold it into the `terse` option. Extend p29 with `previous: <200-character path>/model.json` and assert the brief still fits. Alternatively make the comment say the guarantee holds for first builds only.",
-            "fixTask": "P10.16-6rm"
+            "resolution": "fixed in P10.16-6rm (f068b93c4cb0): Add the previous line to the terminal rung (drop its Reuse-the-ids sentence, or keep only the path), or fold it into the `terse` option. Extend p29 with `previous: <200-character path>/model.json` and assert the brief still fits. Alternatively make the comment say the guarantee holds for first builds only.",
+            "fixTask": "P10.16-6rm",
+            "commit": "f068b93c4cb0",
+            "status": "fixed"
           },
           {
             "id": "P10-R21",
@@ -5285,7 +5297,7 @@
             "fixTask": "P10.18-6rm"
           }
         ],
-        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 21 - 1 high, 10 med, 10 low; 6 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -6424,7 +6436,7 @@
         {
           "id": "P10.16-6rm",
           "title": "Pipeline hardening: isolated python for DuckDB, realpath guard, private work dir, floor clamped to the node cap, exact usage labels, previous line in the trim ladder",
-          "status": "in_progress",
+          "status": "done",
           "description": "Phase review of P10, findings in scripts/pipeline.mjs grouped into one task because they share the file. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow. The DuckDB probe and query must run python3 in isolated mode (-I) with cwd set to the temp copy directory, never the scanned repository (scanner safety rule 7).\n\nP10-R17 (high, scripts/pipeline.mjs:697): Scanner safety (rule 7). P10.11 (14f5ecb) probes and then queries DuckDB through python3 (readerFor line 697 `spawnSync('python3', ['-c', 'import duckdb'])`, queryColumns line 716 `['python3', ['-c', DUCKDB_PY, copy, DUCKDB_COLUMNS]]`) with no cwd and no isolated mode. The driver is run from the analysed project's root (SKILL.md), so cwd is the scanned repository, and `python3 -c` puts the cwd first on sys.path. A scanned repo that holds a duckdb.py (or a duckdb/ package) and a file database named by duckdb.connect gets that file executed by `import duckdb` whenever the duckdb CLI is absent. This breaks 'prescan and extractors never import, require, eval or execute files from the scanned repo'. The new tests stub python3 on PATH, so none of them exercises the real interpreter or this path.\nResolution asked: Run both python3 calls in isolated mode (`python3 -I -c ...`, which drops the cwd and PYTHON* variables from sys.path) and also pass `cwd: tmp` (the mkdtemp dir) to spawnSync. Add a test where the repo holds a duckdb.py that writes a marker file, and assert the marker never appears.\n\nP10-R9 (med, scripts/pipeline.mjs:355): coverageFloor() returns `floor: Math.max(1, total)` with no upper bound, and the brief states it as 'at least N nodes ... a fragment with fewer nodes than this floor is incomplete'. The same brief (CAPS) and the merge cap a fragment at 40 nodes, so a large area (30 router modules plus stores, queues and clients; p18 builds 30 route groups, a bigger monorepo area passes 40) gets a floor the explorer is told to reach and the merge then truncates. The brief contradicts itself and invites the explorer to spend its calls on nodes that are dropped.\nResolution asked: Clamp the floor to CAPS.nodes (and say in the brief when the extract holds more than the cap), and add a p18-style case with more than 40 groups.\n\nP10-R10 (low, scripts/pipeline.mjs:169-195): matchUsage() assigns an unmatched --usage label to the first area that still lacks a row 'by position' (and by unique prefix). The orchestrator copies labels off completion lines that carry the description, not the area id, so a wrong guess silently books one explorer's tokens and duration on another area; only a warning in the JSON says so, and the ledger and the share figures built from it are then wrong. This leniency (and the misc partition naming, brief trimming and the temp-dir default work dir) is not in P10.6's description, which covers only dangling references; it is in the task's tests.add list.\nResolution asked: Match on exact id and unique prefix only; record everything else under its own label (as the extras already are) instead of assigning it to an area by position, or have plan print an area-to-description map the orchestrator can copy.\n\nP10-R11 (low, scripts/pipeline.mjs:493): The default work dir is <os tmpdir>/archmap/<12 hex of sha256(repo path)>: predictable, and shared on a multi-user Linux host where tmpdir is /tmp. plan then rmSync()s the BUILD_FILES inside it and writes briefs, extracts and fragments there with the process umask. Another local user can pre-create /tmp/archmap or that directory (or symlink 'fragments', 'briefs') so plan removes or writes through into places it picked, and the subagents read the briefs from a directory others can write (a brief is an instruction to an agent that has Write). p16 tests only the happy path.\nResolution asked: Create the directory with mode 0o700, lstat it and refuse (exit 2) when it is a symlink or not owned by the current uid, or use fs.mkdtempSync under the tmpdir and print the result; add a p16 case for a pre-existing foreign-owned or symlinked directory.\n\nP10-R19 (low, scripts/pipeline.mjs:756): P10.11 (14f5ecb): the outside-the-repository guard `file.startsWith(repoRoot + sep)` compares resolved strings only, so a symlink inside the repo that points at a database file elsewhere on the machine passes it. queryColumns then copies and opens the target. Only schema names reach the model, but the guard says the file is inside the repository when it is not.\nResolution asked: Compare `realpathSync(file)` with `realpathSync(repoRoot)` (guarded by existsSync) before reading, and add the outside-the-repo skip row for a symlink that escapes.\n\nP10-R20 (med, scripts/pipeline.mjs:580-607): contradicts task clause: P10.15 clause 1 asks for \"rungs that always end under BRIEF_CAP\" and says the throw stays only as a last guard. The ladder never trims the `- Previous model: <path>. Reuse the node ids ...` line (explorerBrief, pipeline.mjs:438), which is about 110 characters plus a path, added in --update mode. p29 builds its pathological input without `previous`, and the executor measured the terminal rung at 3902 characters for a 200-character work path, so a 98-character margin. In update mode with the same area the brief is about 4200 characters and writeBrief throws, which kills the build with exit 2, the failure this task set out to remove. The new header comment (\"a brief ends under BRIEF_CAP\") overstates what the ladder does.\nResolution asked: Add the previous line to the terminal rung (drop its Reuse-the-ids sentence, or keep only the path), or fold it into the `terse` option. Extend p29 with `previous: <200-character path>/model.json` and assert the brief still fits. Alternatively make the comment say the guarantee holds for first builds only.",
           "files": [
             "scripts/pipeline.mjs",
@@ -6455,14 +6467,21 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "f068b93c4cb0",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/pipeline.mjs: (R17) both python3 calls of the duckdb fallback go through one helper python(args, cwd) = spawnSync('python3', ['-I', ...args], {cwd}); the readerFor probe runs from a fresh mkdtemp dir (removed after), the queryColumns query from the mkdtemp dir that holds the copy. (R9) coverageFloor returns floor = min(CAPS.nodes, max(1, total)) plus the unclamped total; floorLines adds 'The extract holds N, more than the 40-node cap: map the most structural.' when total > CAPS.nodes. (R10) matchUsage matches exact id, then unique prefix only; every other label is an extra row under its own label with a warning; the by-position branch is gone. (R11) new exported privateDir(dir, uid = process.getuid?.()): lstat, create with mode 0o700 when missing, refuse a symlink, a non-directory or another uid's directory, chmod an own directory to 0o700; plan applies it to <tmpdir>/archmap and to <tmpdir>/archmap/<hash> when --work is not given and exits 2 naming the reason. An explicit --work keeps its old behaviour. (R19) introspect compares realpathSync(file) with realpathSync(repoRoot) after the existsSync check, records '<path> is a link that leads outside the repository, so it is not read', and hands the real path to queryColumns. (R20) the terse rung (the last of BRIEF_TRIMS, renamed 'intro, and the labels, floor line, work steps and previous-model line to their gist') now also cuts the previous-model line to '- Previous model (keep its ids): <path>', drops the intro, merges the profile into the area line, shortens the summary and globs labels, leaves kinds of none out of the floor parts and shortens the cap note and the work steps. Measured with p29's input: terminal rung 3717 characters on a first build, 3962 in --update mode with a 211-character previous path (was 4225, over the cap). The ladder comment says what the terminal rung covers. Header comment updated for the work dir and the python isolation. tests/pipeline.test.mjs: p14 rewritten for the new matching (it asserted position matching); p17 expects the clamped floor; p22's python3 stand-ins find the -c argument wherever the flags put it (they read $2, which -I moves); step() takes an optional cwd; new p30 to p33; p29 extended. Red first on the old code with the new tests (node --test tests/pipeline.test.mjs): 33 tests, 27 pass, 6 fail (p14, p29 'update mode: 4225 characters', p30 'finish never imported the duckdb.py of the scanned repo', p31 expected 40 actual 45, p32 mode 493 (0o755) not 448 (0o700), p33 no outside-the-repository skip row). After the fix: 33/33 pass, exit 0. I also ran the full `node --test` once: 408/408 pass. That was more than own-tests asks for, and the orchestrator's run is the one that counts. Dependants: tests/pipeline.test.mjs changed (this task). scripts/usage.mjs is still correct: it only reads the ledger rows, and an unmatched label was already an extra row. tests/commands.test.mjs and tests/skill.test.mjs are still correct (green in the full run). commands/build.md and commands/update.md are still correct: they pass --usage <area>=..., which exact matching serves. skills/architecture-map/SKILL.md is still correct: it says leave --work off and never point it at a symlink, and the floor is 'counted from the extract'. It does not mention the 40-node clamp. It is not in this task's files, so it is not edited. skills/architecture-map/evals/README.md is still correct: it says nothing about these paths. Not done, out of scope: queryColumns still copies <file>.wal when it exists without a realpath check of the .wal itself.",
+            "descriptive": "The build driver no longer lets a scanned repo's duckdb.py run or a symlink lead introspection out of the repo, makes its default work dir private and refuses a planted one, books an unmatched --usage label under its own name instead of guessing, clamps the coverage floor to the 40-node cap, and fits the brief under its cap in --update mode too."
           },
           "startedAt": "2026-10-31T15:05:33Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T15:24:25Z",
+          "verifiedBy": [
+            "p30: a repo with a duckdb.py that writes a marker and a .duckdb file, finish run from the repo root with no duckdb CLI: with the real python3 (after a control run proving a plain `python3 -c 'import duckdb'` from the repo root writes the marker) the marker never appears; with a python3 stand-in, the probe and the query both pass -I first and run from outside the repo",
+            "p31: coverageFloor of 45 route groups gives floor 40 with counts 45, 3 stays 3, 40 stays 40; the brief says 'The extract holds 45, more than the 40-node cap', and a 40-group area has no such note; plan over a 45-router backend gives floor 40 and the cap note in a brief under BRIEF_CAP",
+            "p14 (rewritten): exact id and unique prefix match; an odd label and an extra label are rows under their own labels with warnings; root gets no tokens by position; a stray label before the exact ids stays its own row",
+            "p32: plan without --work creates <tmp>/archmap/<hash> and the archmap dir with mode 0o700; a planted symlink at the work dir and at the archmap dir exits 2 naming 'symlink', nothing removed or written through the link; privateDir refuses a directory for another uid ('not owned'), accepts and chmods the user's own to 0o700, creates a fresh one 0o700, refuses a symlink",
+            "p33: a symlink at src/entities/warehouse.duckdb pointing at a file outside the repo gets the introspection-skipped row 'outside the repository', and the duckdb stand-in is never called",
+            "p29 (extended): the same pathological area with previous = <200-character work path>/model.json does not throw, fits under BRIEF_CAP, keeps the previous path, the summary and fragment paths and the contract"
+          ],
           "notes": [
             {
               "at": "2026-10-31T15:04:36Z",
@@ -6494,20 +6513,31 @@
             "runId": "2026-10-31T15:24:24Z.40ce71",
             "status": "passed",
             "at": "2026-10-31T15:24:24Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "f068b93c4cb0",
+            "at": "2026-10-31T15:24:25Z",
+            "basis": "a fix task for P10-R17, P10-R9, P10-R10, P10-R11, P10-R19, P10-R20: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "at": "2026-10-31T15:22:49Z",
+            "basis": "`node --test tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P10.17-6rm",
           "title": "Merge correctness: zones and access rows from the slices, inferred confidence for wildcard http edges, update mode keeps an unreadable area and resolves hubs of unaffected areas",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Phase review of P10, findings in scripts/merge.mjs grouped into one task because they share the file. Fix every one of them; the finding texts and the resolutions the reviewer asked for follow. Zones come from the slice containers and the owning directory with kind and stack as the fallback; access rows come from the ORM table rows and the queue producer and consumer rows the slices carry; http edges matched through a wildcard segment are inferred, not verified; update mode keeps the previous elements of an area whose fragment is unreadable and resolves area:<id> hubs of unaffected areas from the previous model.\n\nP10-R2 (med, scripts/merge.mjs:158-165): contradicts task clause: P10.3 asks for 'zones from the directory and container structure with no duplicates' and 'access[] rows from the ORM, SQL and queue evidence'. zoneFor() (158-165) derives a zone only from the node kind and the area's stack and never reads the slice's `containers` or directory layout; the zone work otherwise only unifies spellings (resolveZone). deriveLayer's access loop (about 455-475) reads `sqlTables` only: no ORM-call evidence and no queue-evidence access row is produced. The synthesizer can no longer add access rows, so any access the explorers did not emit is lost. The executor's claim says 'SQL access rows' and so describes the narrower diff accurately, but the scope is narrower than the clause.\nResolution asked: Derive zones from the slice `containers` and the owning directory where present (keep kind/stack as the fallback), and derive access rows from the ORM table rows and queue producer/consumer rows the slices already carry, or record in the task and in model-schema.md 'What the merge computes' that ORM and queue access and container zones are not derived, and give the explorer fragment contract the duty to emit them.\n\nP10-R3 (med, scripts/merge.mjs:607-620): An unreadable fragment file becomes the stub `{area, skipped:{count:1,...}}` (line 618). In update mode (`--previous` with `--areas`) that stub counts as the area's fragment (it is in `present`, so the existing 'no fragment' conflict does not fire), and the area's previous nodes, edges, entities and access rows are removed with nothing replacing them; only locked/noted nodes survive. Before this change a broken file threw a UsageError (exit 2) and wrote nothing. The loss is visible only as a `skipped` row in meta.sources; with no --strict the run exits 0. A single explorer that writes a truncated JSON file therefore erases a good area on `/archmap:update`. m12d covers only the full-build case.\nResolution asked: In main(), when --previous and --areas are given, keep the previous elements of an area whose fragment is unreadable (mark the area skipped and add a conflict that says its old elements were kept), or refuse with exit 2 as before in update mode. Add a test next to m12d that runs an update with one broken fragment and asserts the previous nodes survive.\n\nP10-R4 (med, scripts/merge.mjs:431): Every derived edge is written `confidence: 'verified'`, but the http links behind them come from prescan's segment matcher, where a `*` (a template or `{param}` segment) on either side matches anything and `served.find` takes the first route of another area (scripts/prescan.mjs:284 at f39a917). A call such as `fetch(`${base}/x`)` or `/${id}` therefore links to any other-area route with the same segment count (for example `/health`) and the edge is stamped verified with citations on both sides. Import edges are cited by the first line that mentions the target's basename (importLine), which can pick a different module with the same file name. Inferred matches shown as verified conflict with the evidence-and-honesty rule.\nResolution asked: Mark an http edge `inferred` (and say so in `desc`) when the match used a wildcard segment on either side or the call path has no literal segment, and skip links whose call path is all wildcards; mark an import edge `inferred` when the import line was found by basename only. Keep `verified` for exact literal matches.\n\nP10-R8 (med, scripts/merge.mjs:884-887): hubOf() resolves `to: \"area:<id>\"` only through `placed`, which holds only the areas whose fragments are in this run. In update mode (--areas) the explorers of the affected areas are told to name other areas as `area:<id>`; the targets are mostly unaffected areas whose nodes sit in `nodes` from --previous but not in `placed`. hubOf returns null, the edge is deleted and a dropped-ref row says the node 'does not exist' although it does. Every cross-area edge from a re-explored area to an untouched one is lost on update. The tests (m19, m19b, p13) all run a full build, so none reaches this.\nResolution asked: Seed the hub lookup for areas missing from `placed` from the previous model's nodes of that area (match node paths or evidence against prev.meta.coverage[area]), prefer the level-2 app/service node as now, and add an update-mode case where an affected area's edge names an unaffected area.",
           "files": [
             "scripts/merge.mjs",
             "scripts/prescan.mjs",
             "tests/merge.test.mjs",
             "tests/prescan-wiring.test.mjs",
-            "scripts/merge.mjs",
-            "tests/merge.test.mjs"
+            "skills/architecture-map/references/model-schema.md"
           ],
           "tests": {
             "mode": "tdd",
@@ -6529,14 +6559,14 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T15:24:25Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -6562,7 +6592,13 @@
             "P10-R3",
             "P10-R4",
             "P10-R8"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T15:39:41Z.f257d1",
+            "status": "passed",
+            "at": "2026-10-31T15:39:41Z"
+          }
         },
         {
           "id": "P10.18-6rm",
@@ -7105,7 +7141,8 @@
       "P10.2-2xj",
       "P10.3-2xj",
       "P10.11-6rm",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P10.17-6rm"
     ],
     "skills/architecture-map/references/relation-taxonomy.md": [
       "P4.1"

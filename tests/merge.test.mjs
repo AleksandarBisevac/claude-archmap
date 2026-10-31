@@ -635,13 +635,13 @@ test('m15 zones are derived once each: no duplicate ids, every node zone exists,
   assert.deepEqual(z.nodes.map((n) => `${n.id}:${n.zone}`), ['db:data', 'spa:browser', 'svc-a:service', 'svc-b:service']);
 });
 
-test('m16 access rows come from the SQL evidence and relations from the declared foreign keys', () => {
+test('m16 access rows come from the SQL evidence (and the ORM models, P10.17) and relations from the declared foreign keys', () => {
   const { model } = crossed();
   const rows = model.access.map((a) => `${a.node} ${a.entity} ${a.ops} ${a.evidence.map((x) => `${x.path}:${x.lines}`).join(',')}`);
   assert.deepEqual(rows, [
     'mailer-worker orders R worker/tasks.py:12',
-    'orders-api customers R api/main.py:22',
-    'orders-api orders C api/main.py:25',
+    'orders-api customers R api/main.py:22,api/models.py:14',
+    'orders-api orders CR api/main.py:25,api/models.py:5',
     'orders-api orders-archive R api/main.py:27',
   ]);
   // P10.13: a SQL table no entity models is an inferred entity (no fields), cited at its statement
@@ -1303,4 +1303,216 @@ test('m24b a relation or foreign key that names its target by table name resolve
   assert.equal(rows[0].target, 'ghosts');
   assert.equal(m2.relations.length, 2);
   assert.equal(JSON.stringify(merge({ fragments: relFrags(), extracts: relExtracts(), meta: META }).model), JSON.stringify(model));
+});
+
+// ---------------------------------------------------------------------------------------------
+// P10.17: merge correctness. Zones from the slice containers, access rows from the ORM and queue rows of the
+// slices, wildcard http matches inferred, and an update that neither erases an area whose fragment is unreadable
+// nor loses the edges a re-explored area draws to an untouched one.
+
+const rowOf = (model) => (a) => {
+  const name = model.entities.find((e) => e.id === a.entity)?.name ?? `?${a.entity}`;
+  return `${a.node} ${name} ${a.ops} ${(a.evidence ?? []).map((x) => `${x.path}:${x.lines}`).join(',')}`;
+};
+
+test('m25 a node in a slice container directory gets that container\'s zone, a node outside any falls back to kind and stack, and no zone id repeats', () => {
+  const bare = (id, kind, dir, extra = {}) => node(id, { zone: undefined, kind, paths: [`${dir}/**`], evidence: ev(`${dir}/main.py`), ...extra });
+  const fragments = [
+    frag('a', { nodes: [
+      bare('billing-api', 'service', 'a/billing'),
+      bare('billing-jobs', 'job', 'a/billing/jobs', { level: 3 }),
+      bare('mailer', 'service', 'a/mail'),
+      bare('cache', 'store', 'a/cache'),
+      bare('tools', 'service', 'a/tools'),
+    ] }),
+    frag('b', { nodes: [
+      bare('pay', 'service', 'b/billing'),
+      node('gate', { zone: 'gateway', kind: 'service', paths: ['b/billing/gate/**'], evidence: ev('b/billing/gate/main.py') }),
+    ], zones: [{ id: 'gateway', kind: 'edge', label: 'Gateway' }] }),
+  ];
+  const slices = [
+    // a Dockerfile at the root says nothing about which node it builds, so it makes no zone
+    { area: 'a', stacks: ['python'], containers: ['Dockerfile', 'a/billing/Dockerfile', 'a/mail/docker-compose.yml'], links: [] },
+    { area: 'b', stacks: ['python'], containers: ['b/billing/Dockerfile'], links: [] },
+  ];
+  const run = (f, s) => merge({ fragments: f, extracts: s, meta: META }).model;
+  const model = run(fragments, slices);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(model.nodes.map((n) => `${n.id}:${n.zone}`), [
+    'billing-api:a-billing', 'billing-jobs:a-billing', 'cache:data', 'gate:gateway', 'mailer:mail', 'pay:b-billing', 'tools:service',
+  ]);
+  const zoneIds = ids(model.zones);
+  assert.equal(new Set(zoneIds).size, zoneIds.length, `duplicate zone ids: ${zoneIds}`);
+  assert.deepEqual(zoneIds, ['a-billing', 'b-billing', 'data', 'gateway', 'mail', 'service']);
+  const z = (id) => model.zones.find((x) => x.id === id);
+  assert.deepEqual([z('a-billing').kind, z('a-billing').label], ['service', 'a/billing']);
+  assert.deepEqual([z('mail').kind, z('mail').label], ['service', 'a/mail']);
+  assert.deepEqual([z('gateway').kind, z('gateway').label], ['edge', 'Gateway'], 'the declared zone is the explorer\'s');
+  assert.equal(JSON.stringify(run([...fragments].reverse(), [...slices].reverse())), JSON.stringify(model), 'input order does not matter');
+  // without containers in the slice, the kind and stack fallback is all there is
+  const plain = run(fragments, slices.map((s) => ({ ...s, containers: [] })));
+  assert.deepEqual(ids(plain.zones), ['data', 'gateway', 'service']);
+});
+
+test('m26 the ORM table rows and the queue producer and consumer rows of a slice become access rows with evidence at their lines', () => {
+  const fragments = [
+    frag('api', { nodes: [node('api-svc', { zone: 'svc', kind: 'service', paths: ['api/**'], evidence: ev('api/main.py') })] }),
+    frag('db', {
+      nodes: [node('db', { zone: 'data', kind: 'store', paths: ['db/**'], evidence: ev('db/schema.sql') })],
+      entities: [{ id: 'job-rows', store: 'db', name: 'mail_jobs', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }] }],
+    }),
+    frag('jobs', { nodes: [node('worker', { zone: 'svc', kind: 'job', paths: ['jobs/**'], evidence: ev('jobs/run.py') })] }),
+  ];
+  const slices = [
+    {
+      area: 'api', stacks: ['python'], links: [],
+      tables: [{ name: 'Order', table: 'orders', orm: 'sqlalchemy', fields: ['id int pk'], file: 'api/models.py', line: 5 }],
+      queues: [{ name: 'mail_jobs', producers: [{ file: 'api/main.py', line: 31 }], consumers: [] }],
+    },
+    { area: 'db', stacks: ['python'], links: [], queues: [] },
+    { area: 'jobs', stacks: ['python'], links: [], queues: [{ name: 'mail_jobs', producers: [], consumers: [{ handler: 'send', file: 'jobs/run.py', line: 8 }] }] },
+  ];
+  const run = (f, s) => merge({ fragments: f, extracts: s, meta: META }).model;
+  const model = run(fragments, slices);
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual((model.access ?? []).map(rowOf(model)), [
+    'api-svc mail_jobs C api/main.py:31',
+    'api-svc orders R api/models.py:5',
+    'worker mail_jobs R jobs/run.py:8',
+  ]);
+  assert.equal(JSON.stringify(run([...fragments].reverse(), [...slices].reverse())), JSON.stringify(model), 'input order does not matter');
+});
+
+test('m27 an http edge matched through a wildcard segment is inferred and says so, an all-wildcard call path makes no edge, a literal match stays verified', () => {
+  const fragments = [
+    frag('web', { nodes: [node('web-app', { zone: 'browser', kind: 'app', paths: ['web/**'], evidence: ev('web/main.ts') })] }),
+    frag('api', { nodes: [
+      node('api-orders', { zone: 'svc', kind: 'service', paths: ['api/orders/**'], evidence: ev('api/orders/r.py') }),
+      node('api-items', { zone: 'svc', kind: 'service', paths: ['api/items/**'], evidence: ev('api/items/r.py') }),
+      node('api-health', { zone: 'svc', kind: 'service', paths: ['api/health/**'], evidence: ev('api/health/r.py') }),
+    ] }),
+  ];
+  const links = [
+    { kind: 'http', from: 'web/a.ts:3', to: 'api/orders/r.py:10', via: 'GET /orders', match: 'exact', call: 'GET /orders' },
+    { kind: 'http', from: 'web/b.ts:4', to: 'api/items/r.py:20', via: 'GET /items/{id}', match: 'wildcard', call: 'GET /items/*' },
+    { kind: 'http', from: 'web/c.ts:5', to: 'api/health/r.py:30', via: 'GET /health', match: 'wildcard', call: 'GET /*' },
+  ];
+  const slices = [
+    { area: 'web', stacks: ['ts-frontend'], links: links.map((l) => ({ ...l, dir: 'out', other: 'api' })) },
+    { area: 'api', stacks: ['python'], links: links.map((l) => ({ ...l, dir: 'in', other: 'web' })) },
+  ];
+  const { model } = merge({ fragments, extracts: slices, meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const literal = edgeOf(model, 'web-app', 'api-orders', 'api');
+  assert.equal(literal.length, 1, JSON.stringify(model.edges));
+  assert.equal(literal[0].confidence, 'verified');
+  assert.doesNotMatch(literal[0].desc, /wildcard/i);
+  const wild = edgeOf(model, 'web-app', 'api-items', 'api');
+  assert.equal(wild.length, 1, JSON.stringify(model.edges));
+  assert.equal(wild[0].confidence, 'inferred');
+  assert.match(wild[0].desc, /wildcard/i);
+  assert.deepEqual(wild[0].evidence, [{ path: 'web/b.ts', lines: '4' }, { path: 'api/items/r.py', lines: '20' }]);
+  assert.equal(edgeOf(model, 'web-app', 'api-health', 'api').length, 0, 'a call path of wildcards only links nothing');
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  assert.ok(row && row.skipped.reasons.some((r) => /web\/c\.ts/.test(r)), JSON.stringify(row));
+});
+
+test('m28 in update mode an area whose fragment is unreadable keeps its previous nodes, edges, entities and access rows, is marked skipped and gets a conflict', () => {
+  const frags = {
+    web: frag('web', { nodes: [node('web-app', { zone: 'z', kind: 'app', paths: ['web/**'] })] }),
+    api: frag('api', {
+      nodes: [node('api-svc', { zone: 'z', kind: 'service', paths: ['api/**'] }), node('api-db', { zone: 'z', kind: 'store', paths: ['api/db/**'] })],
+      edges: [{ id: 'api-reads-db', from: 'api-svc', to: 'api-db', type: 'sql', desc: 'reads', evidence: ev('x/api.js', '3-4'), confidence: 'verified' }],
+      entities: [{ id: 'orders', store: 'api-db', name: 'orders', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }] }],
+      access: [{ node: 'api-svc', entity: 'orders', ops: 'R', evidence: ev('x/api.js', '5-6') }],
+    }),
+  };
+  const { r, out, model: before } = runDir(frags);
+  assert.equal(r.status, 0, r.stderr);
+  const dir = join(tmp(), 'fragments');
+  mkdirSync(dir);
+  writeFileSync(join(dir, 'api.json'), '{"area": "api", "nodes": [');
+  const up = cli([dir, '--out', out, '--previous', out, '--areas', 'api', '--commit', 'c2']);
+  assert.equal(up.status, 0, up.stderr);
+  const after = readJson(out);
+  assert.equal(validate(after).ok, true, JSON.stringify(validate(after).findings));
+  assert.deepEqual(ids(after.nodes), ids(before.nodes));
+  assert.deepEqual(after.nodes, before.nodes, 'the area\'s previous nodes survive unchanged');
+  assert.deepEqual(after.edges, before.edges);
+  assert.deepEqual(after.entities, before.entities);
+  assert.deepEqual(after.access, before.access);
+  assert.deepEqual(after.meta.coverage.api, before.meta.coverage.api);
+  const row = after.meta.sources.find((s) => s.area === 'api' && s.skipped && s.skipped.count >= 1);
+  assert.ok(row, JSON.stringify(after.meta.sources));
+  assert.match(row.skipped.reasons.join(' '), /api\.json unreadable/);
+  assert.match(up.stderr, /api/);
+  assert.match(up.stderr, /kept/i);
+  // the same through merge(): the stub fragment of an unreadable file is a conflict, not an empty area
+  const stub = { area: 'api', unreadable: true, skipped: { count: 1, reasons: ['api.json unreadable: x'] } };
+  const res = merge({ fragments: [stub], previous: before, areas: ['api'], meta: {} });
+  assert.deepEqual(res.model.nodes, before.nodes);
+  assert.ok(res.conflicts.some((c) => /api/.test(JSON.stringify(c)) && /kept/i.test(JSON.stringify(c))), JSON.stringify(res.conflicts));
+});
+
+test('m29 in update mode an edge from a re-explored area to area:<id> of an unaffected area lands on that area\'s level-2 node of the previous model, with no dropped-ref row', () => {
+  const first = merge({
+    fragments: [
+      frag('web', { nodes: [node('web-app', { zone: 'z', kind: 'app', paths: ['web/**'] })] }),
+      frag('api', { nodes: [
+        node('api-db', { zone: 'z', kind: 'store', paths: ['api/db/**'] }),
+        node('api-handler', { zone: 'z', kind: 'service', level: 3, paths: ['api/h/**'] }),
+        node('api-svc', { zone: 'z', kind: 'service', paths: ['api/**'] }),
+      ] }),
+    ],
+    meta: META,
+  }).model;
+  const web = frag('web', {
+    nodes: [node('web-app', { zone: 'z', kind: 'app', paths: ['web/**'] })],
+    edges: [
+      { id: 'w-to-api', from: 'web-app', to: 'area:api', type: 'api', desc: 'calls the api', evidence: ev('x/web.js', '3-4'), confidence: 'inferred' },
+      { id: 'api-to-w', from: 'api', to: 'web-app', type: 'call', desc: 'pushes', evidence: ev('x/web.js', '5-6'), confidence: 'inferred' },
+    ],
+  });
+  const { model } = merge({ fragments: [web], previous: first, areas: ['web'], meta: {} });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const e = (id) => model.edges.find((x) => x.id === id);
+  assert.ok(e('w-to-api'), JSON.stringify(model.edges));
+  assert.equal(e('w-to-api').to, 'api-svc');
+  assert.equal(e('api-to-w').from, 'api-svc');
+  assert.deepEqual(model.meta.sources.filter((s) => s.type === 'dropped-ref'), []);
+});
+
+test('m27b an import edge whose line names the module only by its file name is inferred; a relative specifier or dotted path that resolves to the file stays verified', () => {
+  const repo = tmp();
+  mkdirSync(join(repo, 'worker'), { recursive: true });
+  writeFileSync(join(repo, 'worker', 'a.js'), "// worker a\nimport { Order } from '../api/models.js';\n");
+  writeFileSync(join(repo, 'worker', 'b.js'), "const models = require('models');\n");
+  writeFileSync(join(repo, 'worker', 'c.py'), 'import os\nfrom models import Thing\nfrom lib.util.models import Other\n');
+  const fragments = [
+    frag('worker', { nodes: [node('worker-svc', { zone: 'svc', paths: ['worker/**'], evidence: ev('worker/a.js') })] }),
+    frag('api', { nodes: [node('api-svc', { zone: 'svc', paths: ['api/**'], evidence: ev('api/models.js') })] }),
+    frag('lib', { nodes: [node('lib-mod', { zone: 'svc', kind: 'module', paths: ['lib/**'], evidence: ev('lib/models.js') })] }),
+    frag('util', { nodes: [node('util-mod', { zone: 'svc', kind: 'module', paths: ['util/**'], evidence: ev('util/models.py') })] }),
+  ];
+  const imp = (from, to, other) => ({ kind: 'import', dir: 'out', from, to, other });
+  const slices = [{
+    area: 'worker', stacks: [], links: [
+      imp('worker/a.js', 'api/models.js', 'api'), imp('worker/b.js', 'lib/models.js', 'lib'), imp('worker/c.py', 'util/models.py', 'util'),
+    ],
+  }];
+  const { model } = merge({ fragments, extracts: slices, repo, meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const one = (to) => {
+    const es = edgeOf(model, 'worker-svc', to, 'call');
+    assert.equal(es.length, 1, JSON.stringify(model.edges));
+    return es[0];
+  };
+  assert.equal(one('api-svc').confidence, 'verified');
+  assert.deepEqual(one('api-svc').evidence, [{ path: 'worker/a.js', lines: '2' }]);
+  assert.equal(one('lib-mod').confidence, 'inferred');
+  assert.match(one('lib-mod').desc, /file name only/);
+  // `from models import` names a different module of that file name; `lib.util.models` is not util/models.py either
+  assert.equal(one('util-mod').confidence, 'inferred');
+  assert.deepEqual(one('util-mod').evidence, [{ path: 'worker/c.py', lines: '2' }]);
+  rmSync(repo, { recursive: true, force: true });
 });

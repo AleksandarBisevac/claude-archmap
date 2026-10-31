@@ -14,8 +14,9 @@
 // "<id>-<area>" (then -2, -3...) and every reference inside that fragment is rewritten (edge from/to, entity store,
 // fk targets, access node/entity, relation endpoints). Access rows dedupe on node+entity with the ops unioned.
 // Zone ids from fragments are matched by spelling ("Service", "service " and "service" are one zone); a node with
-// no zone gets one from its kind and its area's stacks; zones the nodes use but nobody declared are created (kind
-// from the zone id, else from its nodes' kinds, else "service").
+// no zone gets the zone of the deepest slice container directory (a Dockerfile's or compose file's directory, not the
+// root) that holds all its paths, labelled with that directory, else one from its kind and its area's stacks; zones
+// the nodes use but nobody declared are created (kind from the zone id, else from its nodes' kinds, else "service").
 //
 // The cross-area layer is computed here, not asked of an agent. With --extracts <work>/extracts (the per-area
 // slices prescan.mjs writes; the explorers' <area>.summary.json files beside them are not read) every cross-area
@@ -23,9 +24,12 @@
 // producer and its consumer each a `queue` edge (async) to the queue's node (straight to the consumer when no queue
 // node exists), an import a `call` edge. Each cites the link's file and line on both sides; an import link carries no
 // line, so with --repo the merge finds the import statement in the file (read as text, never run) and without it the
-// link is skipped. SQL
+// link is skipped. A derived edge is `verified` only on an exact match: an HTTP link prescan matched through a
+// wildcard segment (`match: "wildcard"`), and an import line that names the module by its file name only, make it
+// `inferred`, said in its desc; a call path of wildcards only makes no edge. SQL
 // statements in the slices become access rows (select R, insert C, update U, delete D) of the node owning the file on
-// the entity of that table. Declared foreign keys (an entity field's fk, an ORM table's fk=) become `relations[]`.
+// the entity of that table; so do the slices' ORM models (R, for the code node declaring the model) and, where an
+// entity models a queue, its producers (C) and consumers (R). Declared foreign keys (an entity field's fk, an ORM table's fk=) become `relations[]`.
 // The extracts are prescan's full record, so the script also makes what the explorers used to transcribe: one entity
 // per declared table (its fields with provenance declared, evidence at the declaring file and lines), merged into an
 // explorer's entity of the same table or model name when there is one, its store the store node that owns or covers
@@ -74,7 +78,9 @@
 // (a bare directory glob is literal; write `dir/**` to own a subtree).
 // --previous without --areas treats every area as affected (full rebuild that still carries user fields).
 // --areas and the fragment directory must name the same areas: an --areas entry with no fragment, and a fragment
-// whose area is not in --areas, are each reported as a conflict (exit 1 under --strict).
+// whose area is not in --areas, are each reported as a conflict (exit 1 under --strict). An area whose fragment file
+// is unreadable keeps its previous elements (a conflict, and its explorer row marked skipped), and `area:<id>` of an
+// area with no fragment this run resolves to its level-2 node among the previous model's nodes of that area.
 //
 // Synthesizer object (--synth): sequences and views merge by id; notes and conflicts are passed through. The
 // synthesizer may not add nodes, edges, entities, access rows or relations: any it carries are ignored and each
@@ -95,7 +101,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, realpathSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { basename, dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './validate.mjs';
 import { validateSchema } from './lib/jsonschema.mjs';
@@ -194,12 +200,54 @@ function zoneFor(n, stacks) {
   return 'service';
 }
 
-function normaliseFragment(raw, area, stacks = []) {
+/**
+ * The deployment zones the slices' containers declare: one per directory holding a Dockerfile or a compose file
+ * (a root one builds the whole repository and says nothing about which node it holds). The zone id is the
+ * directory's name, or its whole path where two directories share a name. `zoneOf(node)` is the zone of the deepest
+ * container directory that holds every path of the node (its `paths`, else its evidence), or null.
+ */
+function containerZones(slices) {
+  const dirs = new Set();
+  for (const s of slices) {
+    for (const c of list(s.containers)) {
+      if (typeof c !== 'string') continue;
+      const d = posix.dirname(posix.normalize(c));
+      if (d && d !== '.' && d !== '/' && !d.startsWith('..')) dirs.add(d);
+    }
+  }
+  const sorted = [...dirs].sort(cmp);
+  const named = new Map();
+  for (const d of sorted) named.set(slug(posix.basename(d)), (named.get(slug(posix.basename(d))) ?? 0) + 1);
+  const idOf = new Map();
+  for (const d of sorted) {
+    const b = slug(posix.basename(d));
+    idOf.set(d, b && named.get(b) === 1 ? b : slug(d));
+  }
+  const deepest = [...sorted].sort((a, b) => b.split('/').length - a.split('/').length || cmp(a, b));
+  const literal = (p) => {
+    const segs = String(p).trim().replace(/^\.\//, '').split('/');
+    const k = segs.findIndex((s) => /[*?[{]/.test(s));
+    return (k === -1 ? segs : segs.slice(0, k)).join('/');
+  };
+  const zoneOf = (n) => {
+    if (!sorted.length) return null;
+    let paths = list(n.paths).filter((p) => typeof p === 'string' && p.trim());
+    if (!paths.length) paths = list(n.evidence).filter((e) => isObj(e) && typeof e.path === 'string').map((e) => e.path);
+    const pre = paths.map(literal).filter(Boolean);
+    if (!pre.length) return null;
+    const d = deepest.find((dir) => pre.every((p) => p === dir || p.startsWith(`${dir}/`)));
+    return d === undefined ? null : idOf.get(d);
+  };
+  const dirOf = new Map([...idOf].map(([d, id]) => [id, d]));
+  return { zoneOf, dirOf };
+}
+
+function normaliseFragment(raw, area, stacks = [], containerZoneOf = () => null) {
   const fixed = { n: 0 };
   const f = clone(raw);
   const nodes = list(f.nodes).filter(isObj).map((n) => {
     if (typeof n.zone !== 'string' || !n.zone.trim()) {
-      n.zone = zoneFor(n, stacks);
+      n.zone = containerZoneOf(n) ?? zoneFor(n, stacks);
       fixed.n++;
     }
     if (n.evidence !== undefined) n.evidence = fixEvidence(n.evidence, fixed);
@@ -353,7 +401,12 @@ function nodeResolver(nodes) {
   };
 }
 
-/** The line of the import statement in `from` that names `to`, read as text under `repo`; null when none is found. */
+/**
+ * The line of the import statement in `from` that names `to`, read as text under `repo`, as {line, exact}; null when
+ * none is found. `exact` when the line names the module itself: a relative specifier that resolves to `to`, or its
+ * dotted module path (a python relative import resolved against the package). A line that only shares the file's
+ * base name may import another module of that name, so it is not exact; an exact line is preferred over it.
+ */
 function importLine(repo, from, to) {
   if (typeof repo !== 'string' || from.startsWith('/') || from.split('/').includes('..')) return null;
   const root = resolve(repo);
@@ -372,11 +425,42 @@ function importLine(repo, from, to) {
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const named = [...names].filter(Boolean).map((s) => new RegExp(`(^|[^\\w])${esc(s)}([^\\w]|$)`));
   const isImport = /^\s*(import|from)\b|\brequire\s*\(|\bimport\s*\(/;
+  const dropExt = (p) => p.replace(/\.[^./]+$/, '');
+  const targets = new Set([noExt, noExt.replace(/\/(index|__init__)$/, '')]);
+  const here = posix.dirname(from);
+  const resolvesTo = (spec) => targets.has(dropExt(posix.normalize(posix.join(here, spec))));
+  // the module path from its root: the whole path, or its last two or more segments (a src/ layout, an alias)
+  const segs = noExt.replace(/\/(index|__init__)$/, '').split('/');
+  const tails = segs.length < 2 ? [segs.join('/')] : segs.slice(0, -1).map((_, k) => segs.slice(k).join('/'));
+  const exactLine = (line) => {
+    for (const t of tails) if (new RegExp(`(^|[^\\w.])${esc(t.replace(/\//g, '.'))}([^\\w.]|$)`).test(line)) return true;
+    for (const m of line.matchAll(/['"`]([^'"`]+)['"`]/g)) {
+      const spec = m[1];
+      if (spec.startsWith('./') || spec.startsWith('../')) {
+        if (resolvesTo(spec)) return true;
+      } else if (tails.some((t) => t.includes('/') && (dropExt(spec) === t || dropExt(spec).endsWith(`/${t}`)))) return true;
+    }
+    // python: from .models import X, from ..pkg import models, from . import models
+    const py = /^\s*from\s+(\.+)([\w.]*)\s+import\s+(.+)$/.exec(line);
+    if (py) {
+      let base = here;
+      for (let k = 1; k < py[1].length; k++) base = posix.dirname(base);
+      const mod = py[2] ? posix.join(base, py[2].replace(/\./g, '/')) : base;
+      if (targets.has(mod)) return true;
+      for (const name of py[3].replace(/[()]/g, '').split(',').map((s) => s.trim().split(/\s+/)[0])) {
+        if (name && targets.has(posix.join(mod, name))) return true;
+      }
+    }
+    return false;
+  };
   const lines = text.split('\n');
+  let first = null;
   for (let i = 0; i < lines.length; i++) {
-    if (isImport.test(lines[i]) && named.some((re) => re.test(lines[i]))) return String(i + 1);
+    if (!isImport.test(lines[i]) || !named.some((re) => re.test(lines[i]))) continue;
+    if (exactLine(lines[i])) return { line: String(i + 1), exact: true };
+    if (first === null) first = String(i + 1);
   }
-  return null;
+  return first === null ? null : { line: first, exact: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -653,18 +737,27 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     for (const l of list(s.links)) {
       if (!isObj(l) || typeof l.from !== 'string' || typeof l.to !== 'string') continue;
       const key = `${l.kind}\u0000${l.from}\u0000${l.to}\u0000${l.via ?? ''}`;
-      if (!links.has(key)) links.set(key, { kind: String(l.kind), from: l.from, to: l.to, via: typeof l.via === 'string' ? l.via : null });
+      if (!links.has(key)) {
+        links.set(key, {
+          kind: String(l.kind), from: l.from, to: l.to, via: typeof l.via === 'string' ? l.via : null,
+          wildcard: l.match === 'wildcard', call: typeof l.call === 'string' ? l.call : null,
+        });
+      }
     }
   }
   const queueNodes = [...nodes.values()].filter((n) => kindOf(n) === 'queue').sort(byId);
   const queueNode = (name) => queueNodes.find((n) => isQueueOf(n, name))?.id ?? null;
   const groups = new Map();
-  const add = (from, type, to, evidence, via, extra = {}) => {
+  // `guess` is what makes a link inferred (a route matched through a wildcard segment, an import line found by its
+  // file name only); a pair of nodes is verified as soon as one of its links is exact
+  const add = (from, type, to, evidence, via, extra = {}, guess = null) => {
     const key = `${from}\u0000${type}\u0000${to}`;
-    if (!groups.has(key)) groups.set(key, { from, type, to, evidence: [], vias: [], ...extra });
+    if (!groups.has(key)) groups.set(key, { from, type, to, evidence: [], vias: [], exact: false, guesses: [], ...extra });
     const g = groups.get(key);
     g.evidence = unionEvidence(g.evidence, evidence);
     if (via && !g.vias.includes(via)) g.vias.push(via);
+    if (guess === null) g.exact = true;
+    else if (!g.guesses.includes(guess)) g.guesses.push(guess);
   };
   // the producers and consumers of each queue the extracts declare, each with its own line, to the queue's node
   for (const q of queues) {
@@ -697,7 +790,13 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
         continue;
       }
       if (l.kind === 'http') {
-        add(from, 'api', to, [a, b], l.via ?? 'a route');
+        const callSegs = l.call === null ? [] : l.call.replace(/^\S+\s+/, '').split('/').filter(Boolean);
+        if (l.wildcard && callSegs.every((s) => s === '*')) {
+          skipped.push(`${what}: the call path ${l.call ?? '(unknown)'} has no literal segment, so it names no route`);
+          continue;
+        }
+        const guess = l.wildcard ? 'the call path matched the route through a wildcard segment' : null;
+        add(from, 'api', to, [a, b], l.via ?? 'a route', {}, guess);
         flows.push({ kind: 'http', from, to, a, b, via: l.via ?? `${from} > ${to}` });
       } else {
         const q = l.via ? queueNode(l.via) : null;
@@ -708,12 +807,13 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
         flows.push({ kind: 'queue', from, to, a, b, via: l.via ?? 'queue' });
       }
     } else if (l.kind === 'import') {
-      const line = importLine(repo, a.path, b.path);
-      if (line === null) {
+      const found = importLine(repo, a.path, b.path);
+      if (found === null) {
         skipped.push(`${what}: no import line to cite${typeof repo === 'string' ? '' : ' (no --repo)'}`);
         continue;
       }
-      add(from, 'call', to, [{ path: a.path, lines: line }], b.path);
+      const guess = found.exact ? null : `the import line names ${basename(b.path).replace(/\.[^.]+$/, '')} by its file name only`;
+      add(from, 'call', to, [{ path: a.path, lines: found.line }], b.path, {}, guess);
     } else skipped.push(`${what}: unknown link kind`);
   }
   const mapped = new Set([...edges.values()].map((e) => `${e.from}\u0000${e.type}\u0000${e.to}`));
@@ -725,12 +825,14 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       : g.type === 'queue' && g.consume ? `Takes ${g.vias[0]}${more} jobs off the queue and works them.`
       : g.type === 'queue' ? `Enqueues ${g.vias[0]}${more}; the sender does not wait.`
       : `Imports ${g.vias[0]}${more}.`;
+    const inferred = !g.exact && g.guesses.length > 0;
     let id = slug(`${g.from}-${g.type}-${g.to}`);
     for (let n = 2; edges.has(id); n++) id = slug(`${g.from}-${g.type}-${g.to}-${n}`);
     const edge = {
-      id, from: g.from, to: g.to, type: g.type, desc,
+      id, from: g.from, to: g.to, type: g.type,
+      desc: inferred ? `${desc} Inferred: ${g.guesses.join('; ')}.` : desc,
       // the caller's side first: update mode gives an edge to the area of its first evidence path, its source
-      evidence: g.evidence.slice(0, MAX_EDGE_EVIDENCE), confidence: 'verified', foundBy: 'static',
+      evidence: g.evidence.slice(0, MAX_EDGE_EVIDENCE), confidence: inferred ? 'inferred' : 'verified', foundBy: 'static',
     };
     if (g.vias.length === 1 && g.type !== 'call') edge.label = g.vias[0];
     if (g.async) edge.async = true;
@@ -780,6 +882,47 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     count.access++;
   }
 
+  // --- access rows from the ORM models the slices declare: the code node that declares a model of a table maps it,
+  // so it reads it (R, the least the declaration shows; its SQL rows add the rest). A table created by DDL in a string
+  // shapes the schema and is no access; a store node declaring a table is the table's home, not a reader of it.
+  const isStore = (id) => STORE_KINDS.has(kindOf(nodes.get(id)));
+  const declared = tableRows
+    .filter((t) => t.orm !== 'sql' && typeof t.file === 'string' && Number.isInteger(t.line) && t.line > 0)
+    .sort((p, q) => cmp(p.file, q.file) || p.line - q.line || cmp(String(p.table), String(q.table)));
+  for (const t of declared) {
+    const entity = lookup(t.table) ?? lookup(t.name);
+    const node = owner(t.file);
+    if (entity === null || node === null) {
+      skipped.push(`orm ${t.name ?? t.table} at ${t.file}:${t.line}: ${entity === null ? 'no entity models the table' : `no node owns ${t.file}`}`);
+      continue;
+    }
+    if (isStore(node)) continue;
+    addAccess(access, { node, entity, ops: 'R', evidence: [{ path: t.file, lines: String(t.line) }] });
+    count.access++;
+  }
+  // --- access rows from the queue rows, when an entity models the queue (a job table, a collection): the producer
+  // writes a row of it (C), the consumer reads it (R). A queue with no entity is its queue node and edges only.
+  const queueSides = [];
+  for (const s of slices) {
+    for (const q of list(s.queues)) {
+      if (!isObj(q) || typeof q.name !== 'string' || !q.name) continue;
+      for (const [ops, rows] of [['C', q.producers], ['R', q.consumers]]) {
+        for (const r of list(rows)) {
+          if (isObj(r) && typeof r.file === 'string' && Number.isInteger(r.line) && r.line > 0) queueSides.push({ name: q.name, ops, path: r.file, line: r.line });
+        }
+      }
+    }
+  }
+  queueSides.sort((p, q) => cmp(p.path, q.path) || p.line - q.line || cmp(p.name, q.name) || cmp(p.ops, q.ops));
+  for (const { name, ops, path, line } of queueSides) {
+    const entity = lookup(name);
+    if (entity === null) continue;
+    const node = owner(path);
+    if (node === null || isStore(node)) continue; // the queue edge pass already counts a side no node owns
+    addAccess(access, { node, entity, ops, evidence: [{ path, lines: String(line) }] });
+    count.access++;
+  }
+
   // --- relations from declared foreign keys: a model field's fk, then an ORM table's fk=
   const hasField = (e, name) => list(e?.fields).some((f) => isObj(f) && f.name === name);
   const pkOf = (e) => list(e?.fields).find((f) => isObj(f) && f.pk === true)?.name ?? null;
@@ -825,7 +968,7 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       `merge.mjs made ${tally.entities} entit${tally.entities === 1 ? 'y' : 'ies'}${tally.inferred ? ` (${tally.inferred} inferred from the SQL the code runs)` : ''} (and merged ${tally.merged} into the explorers'), ` +
       `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, ` +
       `${tally.apps ? `${tally.apps} app node(s) from the workspace declaration, ` : ''}and derived ` +
-      `${count.edges} edge(s), ${count.access} SQL access row(s) and ${count.relations} fk relation(s) from the prescan extracts; ` +
+      `${count.edges} edge(s), ${count.access} access row(s) from the SQL, ORM models and queues and ${count.relations} fk relation(s) from the prescan extracts; ` +
       `${skipped.length} link(s) or statement(s) could not be cited or resolved`,
   };
   return { source, flows };
@@ -1071,14 +1214,28 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     .map(clone)
     .sort((a, b) => cmp(String(a.area ?? ''), String(b.area ?? '')) || cmp(canon(a), canon(b)));
   const stacksOf = new Map(slices.map((s) => [s.area, list(s.stacks).map(String)]));
+  const containers = containerZones(slices);
+
+  // update mode: an affected area whose fragment file could not be read (the CLI's stub, `unreadable: true`, and no
+  // readable fragment of the area beside it) is not replaced by nothing: its previous elements stay, as if it were
+  // not in --areas, and a conflict says so
+  const isStub = (f) => isObj(f) && f.unreadable === true;
+  const unreadableAreas = new Map();
+  if (updateMode) {
+    const readable = new Set(fragments.filter((f) => isObj(f) && !isStub(f)).map((f) => f.area));
+    for (const f of fragments.filter(isStub)) {
+      if (typeof f.area === 'string' && affected.has(f.area) && !readable.has(f.area) && !unreadableAreas.has(f.area)) unreadableAreas.set(f.area, f);
+    }
+  }
+  const replaced = updateMode ? new Set([...affected].filter((a) => !unreadableAreas.has(a))) : null;
 
   // fragments in area order; in update mode only the affected areas
   const fixNotes = [];
   const frags = fragments
     .map((f, i) => ({ f, area: typeof f?.area === 'string' && f.area ? f.area : `fragment${i}` }))
-    .filter((x) => isObj(x.f) && (!updateMode || affected.has(x.area)))
+    .filter((x) => isObj(x.f) && (!updateMode || replaced.has(x.area)))
     .map((x) => {
-      const n = normaliseFragment(x.f, x.area, stacksOf.get(x.area) ?? []);
+      const n = normaliseFragment(x.f, x.area, stacksOf.get(x.area) ?? [], containers.zoneOf);
       fixNotes.push(...n.notes);
       return { f: n.f, area: x.area };
     })
@@ -1098,10 +1255,13 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
         conflicts.push({ ids: [a], reason: `fragment of area '${a}' is not in --areas and was ignored; list it in --areas to merge it` });
       }
     }
+    for (const a of [...unreadableAreas.keys()].sort(cmp)) {
+      conflicts.push({ ids: [a], reason: `fragment of area '${a}' is unreadable; the area's previous nodes, edges, entities and access rows were kept unchanged; re-run its explorer to update it` });
+    }
   }
 
   // --- the part of the previous model that stays
-  const isOwned = prev ? ownerTest(updateMode ? [...affected] : null, prev.meta?.coverage) : () => false;
+  const isOwned = prev ? ownerTest(updateMode ? [...replaced] : null, prev.meta?.coverage) : () => false;
   const keep = (arr, owned) => {
     const kept = [];
     const gone = [];
@@ -1169,11 +1329,21 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
 
   // --- fragments
   const sources = list(prev?.meta?.sources).filter(
-    (s) => !(isObj(s) && typeof s.area === 'string' && (affected === null || affected.has(s.area))),
+    (s) => !(isObj(s) && typeof s.area === 'string' && (replaced === null || replaced.has(s.area) || (unreadableAreas.has(s.area) && s.type === 'explorer'))),
   );
+  // an area kept for an unreadable fragment: its explorer row says this run's file was skipped and the old elements stay
+  for (const [area, stub] of [...unreadableAreas].sort((a, b) => cmp(a[0], b[0]))) {
+    const sk = isObj(stub.skipped) ? stub.skipped : {};
+    sources.push({
+      area,
+      type: 'explorer',
+      skipped: { count: Number.isInteger(sk.count) ? sk.count : 1, reasons: list(sk.reasons).map(String) },
+      note: `area ${area}: fragment unreadable; the previous elements of the area were kept`,
+    });
+  }
   const coverage = {};
   for (const [a, g] of Object.entries(prev?.meta?.coverage ?? {})) {
-    if (updateMode && !affected.has(a)) coverage[a] = g;
+    if (updateMode && !replaced.has(a)) coverage[a] = g;
   }
 
   for (const { f, area } of frags) {
@@ -1330,7 +1500,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   // area name in an edge ("area:api") finds the app node first
   const appsMade = makeAppNodes({
     nodes, placed, zoneId: resolveZone, stacksOf,
-    slices: updateMode ? slices.filter((s) => affected.has(s.area)) : slices,
+    slices: updateMode ? slices.filter((s) => replaced.has(s.area)) : slices,
   });
 
   // a reference from another fragment to a node that collapsed into its same-paths twin follows it
@@ -1341,8 +1511,29 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   // still resolves to nothing is dropped, one dropped-ref row each, so a stray reference never costs the build.
   {
     const isHub = (n) => Number(n.level) === 2 && ['app', 'service'].includes(String(n.kind).toLowerCase());
+    // an area with no fragment this run (update mode: an unaffected one) is the previous model's nodes of that area,
+    // those with a path or an evidence file in its meta.coverage globs, in id order
+    const prevIds = new Map();
+    const previousOf = (area) => {
+      if (!prevIds.has(area)) {
+        const globs = list(prev?.meta?.coverage?.[area]).filter((g) => typeof g === 'string');
+        // a path glob is in the area when it is one of the area's globs or its literal directory lies inside them
+        const pathIn = (p) => {
+          if (globs.includes(p)) return true;
+          const segs = p.split('/');
+          const k = segs.findIndex((s) => /[*?[{]/.test(s));
+          if (k === -1) return matchAny(globs, p);
+          return k > 0 && matchAny(globs, `${segs.slice(0, k).join('/')}/-`);
+        };
+        const inArea = (n) =>
+          list(n.evidence).some((e) => isObj(e) && typeof e.path === 'string' && matchAny(globs, e.path)) ||
+          list(n.paths).some((p) => typeof p === 'string' && pathIn(p));
+        prevIds.set(area, globs.length ? nodePart.kept.filter((n) => isObj(n) && inArea(n)).map((n) => n.id).sort(cmp) : []);
+      }
+      return prevIds.get(area);
+    };
     const hubOf = (area) => {
-      const ids = list(placed.get(area)).filter((id) => nodes.has(id));
+      const ids = (placed.has(area) ? list(placed.get(area)) : previousOf(area)).filter((id) => nodes.has(id));
       return ids.find((id) => isHub(nodes.get(id))) ?? ids[0] ?? null;
     };
     const resolveNode = (ref) => {
@@ -1425,7 +1616,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
   // cross-area layer, computed from the prescan slices and the declared keys
   const gen = generateFromExtracts({
     nodes, entities, placed, zoneId: resolveZone,
-    slices: updateMode ? slices.filter((s) => affected.has(s.area)) : slices,
+    slices: updateMode ? slices.filter((s) => replaced.has(s.area)) : slices,
   });
   gen.made.apps = appsMade;
   // a foreign key that names its table (an explorer's field) means the entity of that name, whatever its id is now
@@ -1506,7 +1697,21 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     if (!usedBy.has(n.zone)) usedBy.set(n.zone, []);
     usedBy.get(n.zone).push(n);
   }
+  const areaOfNode = new Map();
+  for (const [area, ids] of placed) for (const nid of ids) if (!areaOfNode.has(nid)) areaOfNode.set(nid, area);
   for (const [id, members] of [...usedBy].sort((a, b) => cmp(a[0], b[0]))) {
+    if (containers.dirOf.has(id)) {
+      // a container's zone: labelled with its directory, of the kind most of its nodes would have had on their own
+      const votes = new Map();
+      for (const n of members) {
+        const k = zoneFor(n, stacksOf.get(areaOfNode.get(n.id)) ?? []);
+        votes.set(k, (votes.get(k) ?? 0) + 1);
+      }
+      const kind = [...votes].sort((a, b) => b[1] - a[1] || ZONE_KINDS.indexOf(a[0]) - ZONE_KINDS.indexOf(b[0]))[0][0];
+      zones.set(id, { id, kind, label: containers.dirOf.get(id) });
+      zonesCreated.push(id);
+      continue;
+    }
     let kind = ZONE_KINDS.includes(id) ? id : null;
     if (!kind && members.some((n) => STORE_KINDS.has(String(n.kind).toLowerCase()))) kind = 'data';
     if (!kind && members.every((n) => String(n.kind).toLowerCase() === 'external')) kind = 'external';
@@ -1641,8 +1846,9 @@ function main(argv) {
           if (!isObj(frag)) throw new UsageError('not a JSON object');
         } catch (e) {
           if (!(e instanceof UsageError)) throw e;
-          // an explorer that wrote a broken file is not asked again: the area is recorded as skipped
-          return { area: stem, skipped: { count: 1, reasons: [`fragment ${f} unreadable: ${e.message.replace(/^.*?is not valid JSON: /, 'not valid JSON: ')}`.slice(0, 200)] } };
+          // an explorer that wrote a broken file is not asked again: the area is recorded as skipped (and in update
+          // mode keeps its previous elements: merge() reads `unreadable`)
+          return { area: stem, unreadable: true, skipped: { count: 1, reasons: [`fragment ${f} unreadable: ${e.message.replace(/^.*?is not valid JSON: /, 'not valid JSON: ')}`.slice(0, 200)] } };
         }
         if (typeof frag.area !== 'string' || !frag.area) frag.area = stem;
         return frag;

@@ -103,3 +103,25 @@ test('pw5 the python area extract and its summary carry the middleware names and
     rmSync(work, { recursive: true, force: true });
   }
 });
+
+test('pw6 an http link prefers a literal route; a match through a wildcard segment is marked match wildcard with the call path, and a call path of wildcards only links nothing', async () => {
+  const { areaExtracts } = await import(pathToFileURL(PRESCAN).href);
+  const ev = (path, lines) => [{ path, lines }];
+  const route = (url, path, lines) => ({ method: 'GET', url, handler: 'h', evidence: ev(path, lines) });
+  const call = (url, path, lines) => ({ method: 'GET', url, client: 'fetch', evidence: ev(path, lines) });
+  const out = {
+    areas: [
+      { id: 'api', title: 'api', globs: ['api/**'], stacks: ['python'], files: 4 },
+      { id: 'web', title: 'web', globs: ['web/**'], stacks: ['ts-frontend'], files: 4 },
+    ],
+    extracts: {
+      python: { routes: [route('/{slug}', 'api/pages.py', '40'), route('/orders', 'api/orders.py', '10'), route('/items/{id}', 'api/items.py', '20'), route('/health', 'api/health.py', '30')] },
+      'ts-frontend': { apiCalls: [call('/orders', 'web/a.ts', '3'), call('/items/42', 'web/b.ts', '4'), call('${base}', 'web/c.ts', '5'), call('/${id}', 'web/d.ts', '6')] },
+    },
+  };
+  const web = areaExtracts(out).find((x) => x.id === 'web').slice;
+  assert.deepEqual(web.links.filter((l) => l.kind === 'http'), [
+    { kind: 'http', dir: 'out', from: 'web/a.ts:3', to: 'api/orders.py:10', other: 'api', via: 'GET /orders' },
+    { kind: 'http', dir: 'out', from: 'web/b.ts:4', to: 'api/items.py:20', other: 'api', via: 'GET /items/{id}', match: 'wildcard', call: 'GET /items/42' },
+  ]);
+});

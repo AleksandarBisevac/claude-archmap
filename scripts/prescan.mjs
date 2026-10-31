@@ -295,18 +295,20 @@ export function areaExtracts(out) {
     const from = areaOf(at(c).path);
     if (from === null || typeof c.url !== 'string') continue;
     const segs = normSegs(c.url);
-    if (segs.length === 0) continue;
-    const hit = served.find(
-      (r) => r.segs.length === segs.length && areaOf(at(r.item).path) !== from && sameMethod(c.method, r.method) &&
-        r.segs.every((s, i) => s === segs[i] || s === '*' || segs[i] === '*'),
-    );
+    // a call path with no literal segment (`${base}`, `/${id}`) would match any route of its length: no link
+    if (segs.length === 0 || segs.every((s) => s === '*')) continue;
+    const candidates = served.filter((r) => r.segs.length === segs.length && areaOf(at(r.item).path) !== from && sameMethod(c.method, r.method));
+    // a literal match first; a match through a wildcard segment on either side is a guess, and the link says so
+    const exact = candidates.find((r) => r.segs.every((s, i) => s === segs[i] && s !== '*'));
+    const hit = exact ?? candidates.find((r) => r.segs.every((s, i) => s === segs[i] || s === '*' || segs[i] === '*'));
     if (!hit) continue;
     const to = areaOf(at(hit.item).path);
     const f = `${at(c).path}:${firstLine(c)}`;
     const t = `${at(hit.item).path}:${firstLine(hit.item)}`;
     const via = `${hit.method ?? 'ANY'} ${hit.path}`;
-    addLink(from, { kind: 'http', dir: 'out', from: f, to: t, other: to, via });
-    addLink(to, { kind: 'http', dir: 'in', from: f, to: t, other: from, via });
+    const guess = exact ? {} : { match: 'wildcard', call: `${c.method ?? 'ANY'} /${segs.join('/')}` };
+    addLink(from, { kind: 'http', dir: 'out', from: f, to: t, other: to, via, ...guess });
+    addLink(to, { kind: 'http', dir: 'in', from: f, to: t, other: from, via, ...guess });
   }
   for (const p of queueSide.filter((q) => q.kind === 'producer')) {
     for (const c of queueSide.filter((q) => q.kind === 'consumer' && q.name === p.name && q.area !== p.area)) {

@@ -1,0 +1,38 @@
+{
+  "gates": {
+    "node --test tests/merge.test.mjs tests/prescan-wiring.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T15:37:44Z",
+    "basis": "`node --test tests/merge.test.mjs tests/prescan-wiring.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/merge.mjs: (R2) containerZones(slices) maps each slice container file (Dockerfile/compose, root excluded) to a zone per directory (id = dir basename, or the whole slugged path when two dirs share a name); normaliseFragment gives a zoneless node the deepest container zone holding all its paths, else zoneFor(kind, stacks); created container zones are labelled with the directory and take the kind most members would fall back to. deriveLayer adds access rows from slice ORM table rows (R, owner code node; orm 'sql' DDL and store owners skipped; unmatched counted in the derivation row) and from queue producer (C)/consumer (R) rows where an entity models the queue name. (R4) links keep match/call; a wildcard http link makes the edge confidence inferred with 'Inferred: ... wildcard segment' in desc, an all-wildcard call path is skipped and counted; importLine now returns {line, exact}, exact when a relative specifier resolves to the target, a dotted/aliased path of 2+ trailing segments names it, or a python relative import resolves; basename-only lines give an inferred edge; an exact line is preferred. A group of links between one node pair is verified if any link is exact. (R3) the CLI stub for an unreadable fragment carries unreadable:true; in update mode such an area is dropped from the replaced set (previous nodes/edges/entities/access/coverage kept, slices of it not regenerated), its previous explorer row replaced by a skipped row with a note, and a conflict 'unreadable; previous ... kept' is pushed. (R8) hubOf falls back, for an area not placed this run, to the previous model's kept nodes of that area (evidence in prev.meta.coverage[area], or a path equal to / under its globs), level-2 app/service first. Header comment updated. scripts/prescan.mjs: an http call with only wildcard segments makes no link; a literal route match is preferred over a wildcard one; a wildcard match carries match:'wildcard' and call:'<METHOD> /<segs>' (exact links unchanged, so existing slices and summaries are byte-identical). tests/merge.test.mjs: m25-m29 and m27b added; m16 expectation updated for the ORM rows (orders-api customers R api/main.py:22,api/models.py:14; orders-api orders CR api/main.py:25,api/models.py:5). tests/prescan-wiring.test.mjs: pw6 added. Outside files: skills/architecture-map/references/model-schema.md 'What the merge computes' updated to match (plan gate allowed the Edit). Runs: node --test tests/merge.test.mjs tests/prescan-wiring.test.mjs exit 0, 65/65; node --test exit 0, 415/415. Dependants: scripts/pipeline.mjs, tests/golden.test.mjs, tests/pipeline.test.mjs, tests/e2e.test.mjs, tests/agents.test.mjs, tests/skill.test.mjs still correct (merge() signature and CLI flags unchanged; full suite green); scripts/lib/prescan/*.mjs and discovery-generic.md still correct (link fields are optional additions only on wildcard matches); scripts/prescan.mjs is a dependant of merge.mjs by basename only. Not changed: agents/archmap-synthesizer.md line 10 still says access rows come 'from the SQL evidence', which is now incomplete but not wrong.",
+    "descriptive": "merge derives container zones and ORM/queue access rows, marks wildcard http and basename-only import edges inferred, and in update mode keeps an area whose fragment is unreadable and resolves area:<id> of untouched areas"
+  },
+  "testsAdded": [
+    "m25 container-directory zones, kind/stack fallback, root Dockerfile ignored, no duplicate zone ids, order-independent",
+    "m26 ORM table rows and queue producer/consumer rows become access rows with evidence",
+    "m27 wildcard http match inferred with desc, all-wildcard call path no edge plus derivation reason, literal stays verified",
+    "m27b import edge inferred when the line names the module by file name only; resolving relative specifier stays verified",
+    "m28 update-mode CLI run with an unreadable fragment keeps the area's nodes, edges, entities, access, coverage; skipped row and conflict",
+    "m29 update-mode area:<id> to an unaffected area resolves to its previous level-2 node, no dropped-ref",
+    "pw6 prescan prefers a literal route, marks wildcard matches with match and call, links no all-wildcard call path"
+  ],
+  "casesAdded": [
+    "m25",
+    "m26",
+    [
+      "m27",
+      "pw6"
+    ],
+    "m28",
+    "m29"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:5de4542f4b0fecce3baf0b22fade9171d54cd119e2a0e6202a42c688e2d0eab9\",\"dirtyDigest\":\"sha256:b3b9243ea697a8104b4e2d3bf8e2513782d0c0dc21a8d47631575bc9671f2579\",\"dirtyPaths\":{\"scripts/merge.mjs\":\"d86677a8d2a55874\",\"scripts/prescan.mjs\":\"c7c78caeb4f42dc8\",\"skills/architecture-map/references/model-schema.md\":\"c34a65f724dcca8a\",\"tests/merge.test.mjs\":\"d92f7c7eb407a4bb\",\"tests/prescan-wiring.test.mjs\":\"a3b75ccddf0a44a4\"},\"head\":\"f068b93\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"scripts/prescan.mjs\",\"tests/merge.test.mjs\",\"tests/prescan-wiring.test.mjs\"],\"scopeDigest\":\"sha256:7a380d3ab076fd8bde8e771881419b2bc10c56fc89bad6b2fa47efa8178b6a62\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
