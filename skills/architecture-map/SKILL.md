@@ -353,7 +353,8 @@ A run without `--repo` does not check evidence; the driver always passes it.
   make 6 to 20 tool calls, reach their coverage floor in nodes, and write fragments within the caps, one sentence per `desc` and `role`, no source excerpts.
 - **The synthesizer reads the digest only**: the merge computes edges, zones, access rows and relations and pre-drafts
   sequences, so the agent confirms flows and writes views within 12 targeted reads.
-- **The reviewer** receives the model and its brief, with at most 12 targeted reads only to confirm a specific claim.
+- **The reviewer** receives the model and its brief, makes each catalogue pattern's targeted reads the brief lists,
+  then at most 12 more reads only to confirm a specific claim.
 - **Update touches only affected areas**; it never re-explores the whole repo.
 - **The ledger is the driver's.** Explorer, synthesizer and reviewer tokens reach it as `--usage` pairs; you never
   record a row yourself. It shows what the completion lines reported, not your own context, which

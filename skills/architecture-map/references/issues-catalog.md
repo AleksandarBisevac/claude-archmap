@@ -11,7 +11,10 @@ properties, a node nothing guards, an entity nothing reads, a step that trusts t
 line-level review. Do not report style, naming, a single off-by-one, a missing null check or a local refactor. If you
 can only describe the problem by quoting one function body, it is not an architecture issue.
 
-Work from the model and the fragments you were handed. Open source files only to confirm an issue you already
+Work from the model and the fragments you were handed, and make each pattern's targeted reads whether or not the model
+suggests the issue: several patterns (P6, P8, P10, P16) live mostly in code, and the model rarely carries the fact
+that reveals them. A targeted read is a Grep for the construct the pattern names, then a line-range Read of what it
+finds; those lines are the evidence. Beyond the targeted reads, open a source file only to confirm an issue you
 suspect from the model, and only at the cited lines.
 
 ## The issue record
@@ -45,8 +48,9 @@ overlay stay on the author's machine. So each issue has a shared-safe part and a
 
 ## Patterns
 
-Each pattern gives the anchor kind, category and default severity, what to look for in the model, and
-calibrated example wording. Adapt the wording; do not paste it.
+Each pattern gives the anchor kind, category and default severity, what to look for in the model, the targeted reads
+to make in the code (one line, which the build copies into the reviewer's brief), and calibrated example wording.
+Adapt the wording; do not paste it.
 
 ### P1 No authentication at an application boundary
 - **Anchor:** node
@@ -55,6 +59,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Look for:** a node in an `edge` or `browser`-facing zone, or an app node that serves requests, with no `auth`
   edge into it or out of it, and whose `facts` or evidence show it trusting an upstream proxy or network position
   instead of checking identity itself.
+- **Targeted reads:** Grep the entry point and router modules for auth middleware, guards, decorators or token checks.
 - **Summary:** The service accepts requests without checking who sends them and relies on whatever sits in front of it.
 - **Impact:** Anything that can reach the service directly, or a change to the front layer, exposes it fully.
 - **Fix:** Verify identity in the service itself, or state and enforce the network restriction as part of the deployment.
@@ -67,6 +72,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Look for:** an `sql` edge whose `desc` or evidence shows a URL segment, query parameter or body field used as a
   table, column or path name without an allowlist; or an `sql` edge from a node that only reads (`access` ops `R`)
   but whose store connection is read-write.
+- **Targeted reads:** Grep the data layer for queries or paths built from request values, and read its connection setup.
 - **Summary:** Caller-supplied text chooses what the data layer touches, or the connection can write although the feature only reads.
 - **Impact:** A caller can reach data or objects the feature was never meant to expose, and a flaw in the read path can change data.
 - **Fix:** Resolve identifiers through a fixed allowlist, and open a read-only connection for read-only features.
@@ -79,6 +85,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Look for:** a startup, sync or first-request node that uses the credentials or tenant of the triggering user
   to load data that other users then read from a shared store or cache; an `access` entry that writes shared data
   from a node reached through a per-user `auth` edge.
+- **Targeted reads:** Read the startup or sync code that loads shared data, and note whose credentials it runs with.
 - **Summary:** Shared data is loaded under one user's identity, so what everyone sees depends on who happened to start it.
 - **Impact:** Users can see data they should not, or miss data they should see, and the result changes between restarts.
 - **Fix:** Load shared data with a service identity, and keep per-user data keyed by the user.
@@ -89,6 +96,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** med
 - **Look for:** a sequence step where a caller decides "ready" or "done" because a file, row or flag exists, when the
   producing node creates that marker before the work finishes; a `pull` or poll loop whose exit condition is that marker.
+- **Targeted reads:** Grep for the ready or done marker (file, row, flag) and read where it is set and where it is checked.
 - **Summary:** Readiness is read from a marker that is created before the work behind it is complete.
 - **Impact:** Consumers start early and see partial or empty results, and the failure only shows under load or after a crash.
 - **Fix:** Create the marker last, atomically, or expose an explicit status that the producer sets on completion.
@@ -99,6 +107,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** med
 - **Look for:** a `job` or worker node, or an `async` edge into a `queue`, with no failure path in the model or its
   sequences: no retry, dead-letter or error state, and a status flag set at start and cleared only on success.
+- **Targeted reads:** Read each job or worker body: its exception handlers and every path that clears its status flag.
 - **Summary:** Background work has no defined outcome on failure, so a flag or state can stay stuck.
 - **Impact:** A single failure leaves the feature permanently "in progress" until someone intervenes by hand.
 - **Fix:** Record failure explicitly, clear the flag in every exit path, and add a bounded retry with a visible final state.
@@ -108,7 +117,9 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Category:** reliability
 - **Severity:** low
 - **Look for:** an edge to an `external` node or a store whose evidence shows a retry or fallback that catches a broad or
-  unrelated error class, so the real failure of that dependency is not what triggers it.
+  unrelated error class, so the real failure of that dependency is not what triggers it. Raise to `med` when the
+  fallback sits in the request path or at the entry point, where every request depends on it.
+- **Targeted reads:** Read the exception handlers at the entry point and around each external call: which class each catches.
 - **Summary:** The retry around this dependency is tied to an error class that does not match how the dependency fails.
 - **Impact:** Real outages are not retried, while unrelated errors are retried or swallowed.
 - **Fix:** Retry only the failures the dependency actually raises, with a limit and a back-off.
@@ -119,6 +130,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** med
 - **Look for:** a `cache` edge whose invalidation is triggered from a different node or process than the one holding
   the cache; a "refresh" action in the UI whose `api` edge clears caches but never re-pulls the source.
+- **Targeted reads:** Grep for cache clear or invalidate calls, and read the handler behind the refresh action.
 - **Summary:** The action meant to refresh data clears a cache, or clears it in a different process, without reloading the data.
 - **Impact:** Users believe the data is current while they still see the old copy.
 - **Fix:** Invalidate where the cache lives, and have refresh reload the source, or rename the action to what it does.
@@ -129,7 +141,9 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** high
 - **Look for:** a node with admin, debug, metrics or maintenance routes in the same listener as public routes and no `auth`
   edge; or secrets read at startup from environment variables of a long-running process that also runs request code
-  or spawns child processes.
+  or spawns child processes; or request code that copies a user's credentials into the process environment, where
+  they outlive the request and are shared by every later request (the secrets half alone, `med`).
+- **Targeted reads:** Grep request code for writes to the process environment (`os.environ`, `process.env`), and list admin routes.
 - **Summary:** Administrative functions are reachable without a separate check, or secrets sit where every part of the process can read them.
 - **Impact:** Anyone who reaches the listener can use the admin functions, and a flaw anywhere in the process can expose the secrets.
 - **Fix:** Put admin routes behind their own authentication and network boundary, and load secrets from a secret store with the narrowest scope.
@@ -141,6 +155,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** med
 - **Look for:** a service node whose `facts` or evidence show module-level caches, in-memory sessions, singleton connections
   or local-disk state that later requests depend on, in a deployment view that runs, or must run, several instances.
+- **Targeted reads:** Grep service modules for module-level caches, globals, in-memory sessions and singleton clients.
 - **Summary:** The service keeps state in its own process that later requests depend on.
 - **Impact:** A second instance gives different answers, so the service cannot be scaled out or restarted safely.
 - **Fix:** Move shared state into a store or cache node, and keep the service itself stateless.
@@ -150,7 +165,9 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Category:** performance
 - **Severity:** low
 - **Look for:** an `api` or `sql` edge from a client or service that, per user action, fetches whole collections,
-  fans out one call per item, or polls on a short interval with no `async` or `cache` edge in between.
+  fans out one call per item, or polls on a short interval with no `async` or `cache` edge in between. Raise to `med`
+  when a full pull runs sequentially inside the request path, so a caller waits for all of it.
+- **Targeted reads:** Read the loop around each bulk or full pull: one call per item, no pagination, inside a request handler.
 - **Summary:** One user action causes a large or repeated data transfer along this edge.
 - **Impact:** Latency and load grow with data size, and the cost shows up first on the shared store.
 - **Fix:** Add pagination or a summary endpoint, batch the calls, or cache the result.
@@ -161,6 +178,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** low
 - **Look for:** an entity with writes in `access` (or a `pull` edge feeding it) and no reader; or an entity declared in
   code or schema that no `access` entry and no sequence ever touches.
+- **Targeted reads:** Grep the code for each written or declared entity's name, outside its writer, to find a reader.
 - **Summary:** This dataset is fetched and stored, or declared, without anything using it.
 - **Impact:** It costs storage, sync time and attention, and it misleads readers about what the system depends on.
 - **Fix:** Remove the pull or the declaration, or record the consumer that is missing.
@@ -171,6 +189,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** high
 - **Look for:** a `delivery`-zone node with a `deploy` edge to a production platform node and no approval, test or
   environment gate in its `facts` or evidence; a deploy triggered directly by a push to the main branch.
+- **Targeted reads:** Read the CI workflow's production job: its trigger, the jobs it needs, its environment and approvals.
 - **Summary:** Changes reach production from the delivery pipeline without a gate in between.
 - **Impact:** A bad commit goes live automatically, with no checkpoint and no easy stop.
 - **Fix:** Add a required check or approval before the production step, and a documented rollback.
@@ -181,6 +200,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** med
 - **Look for:** a `deploy` edge into a reusable pipeline workflow, action or image referenced by branch name or
   floating tag instead of a pinned version or digest; a base image that is past end of life (`low` for the image alone).
+- **Targeted reads:** Grep CI workflows and Dockerfiles for `uses:` and `FROM` lines without a pinned version or digest.
 - **Summary:** The pipeline pulls a component by a name that can change, or builds on a base that no longer gets fixes.
 - **Impact:** The next build can silently run different code, and known flaws in the base stay unpatched.
 - **Fix:** Pin by digest or version and update on a schedule, and move to a supported base image.
@@ -192,6 +212,7 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** low
 - **Look for:** a cycle among `call` edges between modules; a node with edges from most other nodes and many `access`
   entries, so every feature passes through it.
+- **Targeted reads:** Grep the import lines of the hub module and of modules that import each other.
 - **Summary:** These modules depend on each other in a loop, or one module sits under almost every flow.
 - **Impact:** Changes there ripple everywhere, and parts cannot be built, tested or deployed on their own.
 - **Fix:** Break the loop with an interface owned by one side, and split the hub by responsibility.
@@ -202,9 +223,23 @@ calibrated example wording. Adapt the wording; do not paste it.
 - **Severity:** low
 - **Look for:** a node whose `evidence` is a README, design note or diagram text naming components, stores or flows that
   the model does not contain (or the reverse), found while reconciling docs with code.
+- **Targeted reads:** Read the README's lists of components, stores and flows against the model's node labels.
 - **Summary:** The written description of this part does not match what the code does.
 - **Impact:** New readers and reviewers form the wrong picture, and decisions are made on it.
 - **Fix:** Update the document to match the code, or remove it and point to the generated map.
+
+### P16 Readiness with no loading state or retry in the client
+- **Anchor:** node
+- **Category:** design
+- **Severity:** med
+- **Look for:** a UI or client node whose backend needs time to become ready (a startup load, a sync, a warm-up), where
+  the client calls the backend as if it were always ready: no loading state while it is not, no error state when a
+  call fails, and no retry or poll against the health or readiness endpoint. A backend with no readiness endpoint at
+  all, under a client that needs one, is the same issue anchored to the backend.
+- **Targeted reads:** Grep the client for its health or readiness call, and read the component that waits on the first load.
+- **Summary:** The interface assumes the backend is ready and has no loading or retry state for the time it is not.
+- **Impact:** During startup or a slow load users see empty or broken screens, and recover only by reloading by hand.
+- **Fix:** Show a loading state until the readiness check passes, an error state on failure, and retry with a back-off.
 
 ## Choosing the anchor
 

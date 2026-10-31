@@ -73,6 +73,10 @@ import { SKIPPED_CAP } from './prescan.mjs';
 import { makeRow, readLedger, renderTable, summarize } from './usage.mjs';
 
 export const BRIEF_CAP = 4000; // characters per brief; with the agent file and an area summary it stays under 12 K
+// The reviewer's brief also lists every catalogue pattern's targeted reads (P11.1), and the reviewer reads the whole
+// model besides, so its brief has a cap of its own: room for the list, two 200-character work paths and an update's
+// touched ids.
+export const REVIEWER_BRIEF_CAP = 8000;
 export const EXPLORER_TOOL_CALLS = 20;
 export const SYNTH_READS = 12;
 export const MAX_AREAS = 8;
@@ -588,9 +592,23 @@ export function synthBrief({ digest, synth, profile, touched }) {
   return lines.join('\n');
 }
 
-const REVIEW_READS = 12;
+const REVIEW_READS = 12; // confirming reads beyond the catalogue's targeted reads
 
-/** The reviewer's brief: the model, the references by absolute path, the one file it writes and the three-line reply. */
+/**
+ * Each catalogue pattern ("### " heading) with its one-line `**Targeted reads:**` field, in catalogue order. The
+ * reviewer brief carries these so the code-only patterns are read for, not left to what the model happens to say.
+ */
+export function catalogueReads(text) {
+  return text
+    .split(/^(?=### )/m)
+    .filter((s) => s.startsWith('### '))
+    .map((s) => ({
+      name: s.split('\n')[0].replace(/^###\s*/, '').trim(),
+      reads: /\*\*Targeted reads?:\*\*[ \t]*(\S[^\n]*)/.exec(s)?.[1].trim() ?? null,
+    }));
+}
+
+/** The reviewer's brief: the model, the references by absolute path, the targeted reads, the one file it writes and the three-line reply. */
 export function reviewerBrief({ model, reviewer, profile, touched }) {
   const ref = (name) => join(REFS, name);
   const lines = [
@@ -601,7 +619,7 @@ export function reviewerBrief({ model, reviewer, profile, touched }) {
     '',
     `- Model, read it whole first (every anchor you name must be an id in it): ${model}`,
     `- Reviewer path, the one file you write: ${reviewer}`,
-    `- Profile ${profile}. Budget: at most ${REVIEW_READS} targeted source reads, only to confirm a suspicion at the cited lines.`,
+    `- Profile ${profile}. Budget: the targeted reads below, then at most ${REVIEW_READS} more reads, only to confirm a suspicion at the cited lines.`,
     '- References, read these by the paths given here (nothing else is needed):',
     `  - ${ref('issues-catalog.md')}: your rulebook; follow it exactly`,
     `  - ${ref('model-schema.md')}: the element shapes and the evidence rule`,
@@ -611,6 +629,18 @@ export function reviewerBrief({ model, reviewer, profile, touched }) {
   if (touched) {
     const parts = Object.entries(touched).filter(([, ids]) => ids.length).map(([k, ids]) => `${k} ${ids.slice(0, 30).join(', ')}`);
     lines.push(`- Update: re-review only what these touch: ${parts.join('; ') || 'none'}.`);
+  }
+  const patterns = catalogueReads(readFileSync(ref('issues-catalog.md'), 'utf8')).filter((p) => p.reads);
+  if (patterns.length) {
+    lines.push(
+      '',
+      '## Targeted reads',
+      '',
+      'Make each pattern\'s targeted reads whether or not the model suggests the issue: a Grep, then a line-range Read',
+      'of the hits, cited as evidence. Several patterns live mostly in code, and the model rarely carries their facts.',
+      '',
+      ...patterns.map((p) => `- ${p.name}: ${p.reads}`),
+    );
   }
   lines.push(
     '',
@@ -627,8 +657,8 @@ export function reviewerBrief({ model, reviewer, profile, touched }) {
   return lines.join('\n');
 }
 
-function writeBrief(path, text) {
-  if (text.length > BRIEF_CAP) throw new StepError(`brief ${path} is ${text.length} characters, over the ${BRIEF_CAP} cap`);
+function writeBrief(path, text, cap = BRIEF_CAP) {
+  if (text.length > cap) throw new StepError(`brief ${path} is ${text.length} characters, over the ${cap} cap`);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, text);
 }
@@ -1209,7 +1239,7 @@ function render(o, ctx) {
     const brief = join(work, 'briefs', 'reviewer.md');
     writeBrief(brief, reviewerBrief({
       model: files.model, reviewer: join(work, 'reviewer.json'), profile: state.profile, touched: state.update?.touched ?? null,
-    }));
+    }), REVIEWER_BRIEF_CAP);
     agents.push(agentCall('archmap-reviewer', 'archmap reviewer',
       `Your brief is ${brief}. Read it first and follow it: it names the model, the references and the one file you write. Reply with the three lines it specifies.`,
       overrideFor(state.profile, 'reviewer')));

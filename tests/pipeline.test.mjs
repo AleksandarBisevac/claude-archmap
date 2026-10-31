@@ -1433,3 +1433,28 @@ test('p39 plan on a repository with more test data directories than SKIPPED_CAP 
   assert.ok(line.startsWith(`Skipped or not checked: test data: ${td.count} files left out of the map under `), line);
   assert.match(line, / and \d+ more/, 'the line names the first directories and counts the rest');
 });
+
+// P11.1: the reviewer missed patterns that live only in code because it opened code only to confirm a suspicion from
+// the model. The brief now lists, per catalogue pattern, the targeted reads it must make, taken from the catalogue.
+test('p40 the reviewer brief lists every catalogue pattern with its targeted reads, says they are made whatever the model suggests, and keeps the three-line reply', () => {
+  const catalog = readFileSync(join(ROOT, 'skills/architecture-map/references/issues-catalog.md'), 'utf8');
+  const patterns = catalog
+    .split(/^(?=### )/m)
+    .filter((s) => s.startsWith('### '))
+    .map((s) => ({ name: s.split('\n')[0].replace(/^###\s*/, '').trim(), reads: /\*\*Targeted reads?:\*\*[ \t]*(\S[^\n]*)/.exec(s)?.[1].trim() }));
+  assert.ok(patterns.length >= 12, `catalogue patterns: ${patterns.length}`);
+  const w = readyForRender('work-p40');
+  const r = step(['render', '--work', w]);
+  assert.equal(r.status, 0, r.stdout);
+  const brief = readFileSync(join(w, 'briefs', 'reviewer.md'), 'utf8');
+  const flat = brief.replace(/\s+/g, ' ');
+  for (const p of patterns) {
+    assert.ok(p.reads, `${p.name}: the catalogue names its targeted reads`);
+    assert.ok(flat.includes(p.name), `the brief names the pattern ${p.name}`);
+    assert.ok(flat.includes(p.reads.replace(/\s+/g, ' ')), `the brief carries the targeted reads of ${p.name}`);
+  }
+  assert.match(brief, /targeted reads?[^\n]*(whether or not|even when|not only to confirm)/i, 'reads are made, not only to confirm');
+  for (const line of ['reviewer: ', 'counts: ', 'tool calls: ']) assert.ok(brief.includes(line), `reply line ${line}`);
+  assert.match(brief, /three lines/i);
+  assert.ok(r.stdout.length < 6000, 'the printed step stays small: the reads are in the brief, not on stdout');
+});

@@ -7576,15 +7576,15 @@
     {
       "id": "P11",
       "title": "User-facing documentation of what a build costs and delivers, with evidence",
-      "status": "pending",
+      "status": "in_progress",
       "description": "",
       "desiredOutcome": "A prospective user of the plugin can read, in the tracked documentation (README and the skill's evals README), what a build costs on each eval at list prices, how many orchestrator turns and how much context it takes, what the map contains and how each claim was measured (cost-profile on the stream transcript, grading against the eval expectations, test counts), with the before-and-after of the script-driven flow; every number points at the script or log that produced it; no client, dataset or repository name appears.",
       "testGate": [
         "test"
       ],
       "blockedBy": [],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "ef2d459bd2514c28c8e1783f2280e2144e647c31",
+      "branch": "audit/p11-user-facing-documentation-of-w",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -7593,8 +7593,247 @@
         "findings": []
       },
       "summary": null,
-      "tasks": [],
-      "priority": 1
+      "tasks": [
+        {
+          "id": "P11.1",
+          "title": "Reviewer recall on eval 2: the four medium reference issues missed in all three runs",
+          "status": "in_progress",
+          "description": "Eval 2 recall over three runs is 0.67, 0.53 and 0.53 against the 0.60 threshold (score-recall.mjs on the saved overlays). Four medium reference issues are missed in every run, one each in performance, security, reliability and design: a full data pull that runs sequentially inside the request path; user credentials copied into the process environment and kept beyond the request; a fallback or retry that handles the wrong exception class; a UI with no loading state and no retry against the readiness endpoint. Likely cause, to confirm from the three transcripts and the saved models: the reviewer works from the model and opens code only to confirm a suspicion it already has, and the script-made model after P10 carries few facts, so the patterns that live only in code (P6, P8 and P10 of issues-catalog.md) never surface; the loading-state pattern has no catalogue entry at all. Fix: add a readiness and loading-state pattern to the catalogue (design, medium by default); give the reviewer, per pattern, the targeted reads it must make (the entry point's exception handlers, writes to the process environment, the loop around a bulk pull, the client's health or readiness call) instead of confirm-only reads; where a fact is cheap to extract, let prescan or the explorer brief carry it (middleware is already in the python extract). Keep the calibrated wording and the three-line reply. The proof is P11.2 (owner-run reruns); this task's tests cover the catalogue entry and the brief text.",
+          "files": [
+            "skills/architecture-map/references/issues-catalog.md",
+            "agents/archmap-reviewer.md",
+            "scripts/pipeline.mjs",
+            "tests/skill-issues-catalog.test.mjs",
+            "tests/pipeline.test.mjs",
+            "skills/architecture-map/SKILL.md"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/skill-issues-catalog.test.mjs: the catalogue has a readiness and loading-state pattern in the design category with a default severity and every pattern names at least one targeted read; tests/pipeline.test.mjs: the reviewer brief lists the targeted reads per pattern"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-10-31T21:02:18Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T21:14:08Z.7e44a2",
+            "status": "passed",
+            "at": "2026-10-31T21:14:08Z"
+          }
+        },
+        {
+          "id": "P11.2",
+          "title": "Eval 2 reruns on the P11.1 reviewer: recall at least 0.60 in each of three runs (owner-run)",
+          "status": "pending",
+          "description": "Run eval 2 three times with the skill on the P11.1 code through the private harness, one run at a time and while nothing edits the scripts (the harness reads them live through --plugin-dir). Grade each run with the harness grader and score-recall.mjs and profile each stream with cost-profile.mjs --json. Done when recall is at least 0.60 in each run, the 12-turn target and the under-5-USD target still hold, and the three recall values, turn counts, costs and the remaining misses by category are recorded in the private results log, with the three profiles saved for P11.3. If a run stays below 0.60, record which categories still miss and reopen P11.1 with that evidence instead of closing this task. No repository, path or client name in any tracked file or task text.",
+          "files": [
+            "skills/architecture-map/evals/evals.json"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P11.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P11.3",
+          "title": "Evidence files: the profiler's JSON for every eval run is tracked and a test derives the cost table from them",
+          "status": "pending",
+          "description": "Every number in the evals README cost section reproduces today by re-running scripts/cost-profile.mjs on the run's stream transcript, but nothing tracked proves it: the transcripts are private and the text profiles saved beside them carry an older rate table. Save the output of `node scripts/cost-profile.mjs <stream.jsonl> --json` for every iteration-1 and iteration-2 run of evals 1 to 5 (with and without the skill, the three eval 2 runs) and for the self-build run, under skills/architecture-map/evals/evidence/<iteration>/<eval>-<configuration>-<run>.json, named by eval number and configuration only; the run directories are in the workspace the evals README names, under the home .claude directory. Add a test that reads the README's cost table and the reruns sentences and checks each cost cell against total.costUsd rounded to two decimals, each turn count against the orchestrator row's turns and the stated maximum context against the largest orchestrator max ctx of the runs it covers, failing on any drift; like e18 it must fail on a tampered README. The README gets a short 'How each number was produced' subsection: the command, the rate table date, the rule that the per-model figure is the last result event's and the per-agent output is the stream's lower bound, and the evidence file of each row. The profiler's --json writes the transcript's absolute path into reconciliation.files, so add a --basename switch to cost-profile.mjs that records each file by its base name, with a test in tests/cost-profile.test.mjs, and save the evidence with it. No evidence file may carry a machine path or a denylist term; the d1 test scans every tracked file once the files are staged.",
+          "files": [
+            "skills/architecture-map/evals/evidence",
+            "skills/architecture-map/evals/README.md",
+            "tests/evals.test.mjs",
+            "scripts/cost-profile.mjs",
+            "tests/cost-profile.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/evals.test.mjs: every cost, turn and context figure of the README cost section equals the figure in the tracked evidence profile it names and the check fails on a tampered cell; tests/cost-profile.test.mjs: --basename records each transcript by its base name in the JSON reconciliation"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P11.4",
+          "title": "Evals README: the eval 2 record names the four issues missed in all three runs by category, the source run of each figure, the self-build row and the P11.2 result",
+          "status": "pending",
+          "description": "The README says two medium reference issues, one on performance and one on security, were missed in all three eval 2 runs, and test e17 pins that sentence; score-recall.mjs on the saved overlays shows four, one each in performance, security, reliability and design. Correct the sentence and e17. For every figure in the eval 2 row and the reruns paragraph, say which run it comes from (first run, rerun 1, rerun 2) and name the evidence file P11.3 tracked for it. Add the self-build row: a build of this repository itself with the balanced profile and without issues, its cost, turns, context and model counts, as the one run whose whole output is public. Record the P11.2 outcome: the three recall values on the P11.1 reviewer and the remaining misses by category, replacing the below-threshold statement if the reruns pass or keeping it with the new figures if they do not. Keep every sentence the e17 checks pin unless this task changes the check with it.",
+          "files": [
+            "skills/architecture-map/evals/README.md",
+            "tests/evals.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/evals.test.mjs: e17 states four issues missed in all three runs by category, names the source run of each eval 2 figure and carries the self-build row"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P11.2",
+            "P11.3"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P11.5",
+          "title": "Top-level README: status, the real command table, what a build delivers and what it costs, with the method behind every number",
+          "status": "pending",
+          "description": "README.md still says the plugin is pre-release with commands not usable yet, lists planned commands and says nothing about cost. Rewrite it for a prospective user: status (release candidate for 1.0.0; P9 sets the version); a command table that matches the frontmatter of commands/*.md (description and argument hint); 'What a build delivers': the model's contents (nodes with file:line evidence, typed edges with confidence, entities with per-field provenance, relations, CRUD access, sequences, views), the offline viewer, the opt-in issues overlay that never enters the committed build, incremental update and the staleness hook, illustrated with the self-build counts; 'What a build costs': one table over the five evals with the with-skill cost, the no-skill baseline, orchestrator turns and maximum context, the iteration-1 figure as the before, the self-build line as the public example, and the caveats the evals README states (eval 3 is two flows, the evals 3 and 5 baselines are not like for like, the eval 2 recall); 'How these numbers were measured': cost-profile.mjs on the stream-json transcript at list prices with the rate table date, grading against the evals.json expectations, score-recall.mjs, the node --test count, each pointing at the evals README and the evidence files. Add tests/readme.test.mjs: the command table matches the commands directory, every cost figure equals the evidence file it cites, and no machine path and no 'planned' or 'pre-release' wording remain. No client, dataset or repository name.",
+          "files": [
+            "README.md",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/readme.test.mjs: the command table matches commands/*.md, every cost figure equals the evidence file it cites, and no machine path and no planned or pre-release wording remain"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P11.3",
+            "P11.4"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P11.6",
+          "title": "The plugin's own architecture map, built on HEAD and committed as the public example (owner-run)",
+          "status": "pending",
+          "description": "Run /archmap:build with the balanced profile and without --issues on a detached clone of this repository at the P11 branch head after P11.5, through the private harness so the stream is profiled, and copy docs/architecture (model, layout, clean HTML) into this repository to be committed through the plugin. Before the commit: validate.mjs --repo exits 0; the denylist test d1 passes (the model may quote docs/design.md, which d1 exempts but the model is not, so strip any such fact); the clean HTML carries no issue; the README links the viewer and states the build's cost, turns and counts from its evidence file in the P11.3 layout. From then on the SessionStart staleness hook reports in this repository whenever the map falls behind HEAD, which is the intended demonstration.",
+          "files": [
+            "docs/architecture",
+            "README.md",
+            "skills/architecture-map/evals/evidence"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "opus",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P11.5"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
+      "priority": 1,
+      "parentBranch": "audit/p9-release-v1-0-0-and-roadmap",
+      "reviewPerTask": "phase",
+      "startedAt": "2026-10-31T21:02:18Z"
     }
   ],
   "fileIndex": {
@@ -8014,10 +8253,12 @@
     ],
     "skills/architecture-map/references/issues-catalog.md": [
       "P4.3",
-      "BF1.4"
+      "BF1.4",
+      "P11.1"
     ],
     "tests/skill-issues-catalog.test.mjs": [
-      "P4.3"
+      "P4.3",
+      "P11.1"
     ],
     "skills/architecture-map/SKILL.md": [
       "P4.4",
@@ -8041,7 +8282,8 @@
       "P10.12-6rm",
       "P10.19-6rm",
       "P10.20-6rm",
-      "P8.9"
+      "P8.9",
+      "P11.1"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -8079,7 +8321,8 @@
     ],
     "agents/archmap-reviewer.md": [
       "P4.5",
-      "P10.12-6rm"
+      "P10.12-6rm",
+      "P11.1"
     ],
     "tests/agents.test.mjs": [
       "P4.5",
@@ -8249,14 +8492,17 @@
       "P7.6"
     ],
     "README.md": [
-      "P7.6"
+      "P7.6",
+      "P11.5",
+      "P11.6"
     ],
     "CHANGELOG.md": [
       "P7.6"
     ],
     "skills/architecture-map/evals/evals.json": [
       "P8.1",
-      "P8.3"
+      "P8.3",
+      "P11.2"
     ],
     "skills/architecture-map/evals/README.md": [
       "P8.1",
@@ -8265,14 +8511,18 @@
       "P10.19-6rm",
       "P8.8",
       "P8.9",
-      "P8.10"
+      "P8.10",
+      "P11.3",
+      "P11.4"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
       "P8.2",
       "P8.6",
       "P10.19-6rm",
-      "P8.10"
+      "P8.10",
+      "P11.3",
+      "P11.4"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"
@@ -8290,13 +8540,15 @@
       "P10.1-2xj",
       "P10.8-6rm",
       "P10.19-6rm",
-      "P8.8"
+      "P8.8",
+      "P11.3"
     ],
     "tests/cost-profile.test.mjs": [
       "P10.1-2xj",
       "P10.8-6rm",
       "P10.19-6rm",
-      "P8.8"
+      "P8.8",
+      "P11.3"
     ],
     "tests/fixtures/cost/stream-sample.jsonl": [
       "P10.1-2xj",
@@ -8330,7 +8582,8 @@
       "P8.7",
       "P8.5",
       "P8.9",
-      "P9.1"
+      "P9.1",
+      "P11.1"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -8347,7 +8600,8 @@
       "P10.20-6rm",
       "P8.7",
       "P8.5",
-      "P9.1"
+      "P9.1",
+      "P11.1"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -8375,6 +8629,16 @@
       "P10.11-6rm",
       "P10.13-6rm",
       "P10.15-6rm"
+    ],
+    "skills/architecture-map/evals/evidence": [
+      "P11.3",
+      "P11.6"
+    ],
+    "tests/readme.test.mjs": [
+      "P11.5"
+    ],
+    "docs/architecture": [
+      "P11.6"
     ]
   },
   "bugs": [

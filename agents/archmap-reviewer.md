@@ -18,7 +18,11 @@ The caller's prompt carries:
   and, for `update`, the anchors that changed, so you re-review only those;
 - when the caller asks for it, whether to import audit findings and the path of `docs/audit/audit-plan.json`.
 
-Work from the model. Open a source file only to confirm an issue you already suspect from the model, and only at the
+Work from the model, and make the targeted reads your brief lists for each catalogue pattern whether or not the model
+suggests the issue: a Grep for the named construct, then a line-range Read of the hits. Patterns that live mostly in
+code (a fallback catching the wrong exception class, credentials written into the process environment, a full pull
+looped inside the request path, a client with no loading state against the readiness endpoint) rarely show in the
+model. Beyond those reads, open a source file only to confirm an issue you suspect from the model, and only at the
 cited lines. Every anchor you name must be an id that exists in the model. Never invent one.
 
 ## References
@@ -35,10 +39,12 @@ Read these from the `architecture-map` skill, at the absolute paths your brief g
 
 1. Read the model whole, then walk the catalogue's patterns against it: which node has no guard, which edge crosses a
    trust boundary unauthenticated, which entity nothing reads, which step trusts the wrong thing.
-2. File an issue only when the model or a confirming read supports it, with at least one `{path, lines}` of evidence.
-3. Anchor each issue to the smallest element that carries the problem (one of node, edge, entity or step).
-4. Start severity from the pattern's default and move one step only for a stated reason.
-5. With an audit import, map findings as `issues-catalog.md` describes and print the counts it asks for. This is
+2. Make each pattern's targeted reads from the brief, and anchor what they find to the model element the code belongs to.
+3. File an issue only when the model, a targeted read or a confirming read supports it, with at least one
+   `{path, lines}` of evidence.
+4. Anchor each issue to the smallest element that carries the problem (one of node, edge, entity or step).
+5. Start severity from the pattern's default and move one step only for a stated reason.
+6. With an audit import, map findings as `issues-catalog.md` describes and print the counts it asks for. This is
    mapping, not re-review.
 
 ## Security detail is internal only

@@ -73,3 +73,30 @@ test('i4 the catalogue carries no absolute home paths and no denylist term (inde
   const hits = terms.flatMap((term, i) => (lower.includes(term) ? [`term #${i + 1}`] : []));
   assert.deepEqual(hits, []);
 });
+
+// P11.1: eval 2 missed four medium reference issues in every run because the reviewer only opened code to confirm
+// what the model already suggested. Each pattern now names the reads it must make, and the loading-state pattern,
+// which had no entry, has one.
+const targetedReads = (p) => /\*\*Targeted reads?:\*\*[ \t]*(\S[^\n]*)/.exec(p.body)?.[1].trim();
+
+test('i5 the catalogue has a readiness and loading-state pattern in the design category, medium by default, whose targeted read is the client\'s health or readiness call', () => {
+  const p = patterns.filter((x) => /loading[- ]state/i.test(x.heading) && /readiness/i.test(x.heading));
+  assert.equal(p.length, 1, `one readiness and loading-state pattern, got: ${patterns.map((x) => x.heading).join(' | ')}`);
+  assert.match(p[0].body, /\*\*Category:\*\*\s*design\b/);
+  assert.match(p[0].body, /\*\*Severity:\*\*\s*med\b/);
+  assert.match(p[0].body, /retry/i, 'the pattern covers the missing retry, not only the missing spinner');
+  assert.match(targetedReads(p[0]) ?? '', /health|readiness/i, 'the read is the client\'s health or readiness call');
+});
+
+test('i6 every pattern names at least one targeted read, and between them they cover exception handlers, process-environment writes, the loop around a bulk pull and the readiness call', () => {
+  assert.ok(patterns.length >= 12, `the 11 seeds and the loading-state pattern, got ${patterns.length}`);
+  const missing = patterns.filter((p) => !targetedReads(p)).map((p) => p.heading);
+  assert.deepEqual(missing, [], 'patterns with no **Targeted reads:** line');
+  const all = patterns.map(targetedReads).join('\n');
+  assert.match(all, /exception handler|except(ion)? (clause|block)|catch/i, 'the entry point\'s exception handlers');
+  assert.match(all, /process\.env|os\.environ|process environment/i, 'writes to the process environment');
+  assert.match(all, /loop[^\n]*(bulk|full|every|all)|(bulk|full)[^\n]*loop/i, 'the loop around a bulk pull');
+  assert.match(all, /health|readiness/i, 'the client\'s health or readiness call');
+  // the reads are made whether or not the model already raised a suspicion
+  assert.match(catalog, /targeted reads?[^\n]*(whether or not|even when|not only to confirm|before)/i);
+});
