@@ -5169,7 +5169,7 @@
         {
           "id": "P9.3",
           "title": "Version 1.0.0 in plugin.json and the released status in README",
-          "status": "in_progress",
+          "status": "done",
           "description": "Set version 1.0.0 in .claude-plugin/plugin.json. In README.md replace the release-candidate status paragraph with the released status: version 1.0.0, what the version covers in one sentence, the CHANGELOG link, and keep the sentence about the six commands, the tests and the evals. Update test r3 in tests/readme.test.mjs so it requires the released wording and the version that plugin.json carries, and still forbids planned or pre-release wording and machine paths. The CHANGELOG version test from P9.2 must pass with both at 1.0.0.",
           "files": [
             ".claude-plugin/plugin.json",
@@ -5196,25 +5196,38 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "c7a54f4c0641",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "plugin.json already carried 1.0.0 from P9.2 (unchanged). README.md Status paragraph replaced: released, version 1.0.0, one sentence on what it covers, CHANGELOG link, kept the six commands / test suite / evals sentence. tests/readme.test.mjs: checkWording now takes the plugin.json version (default read from .claude-plugin/plugin.json), requires 'released', 'version <plugin.json version>', a CHANGELOG.md link, six commands, test suite and evals in the Status section, and forbids planned / pre-release / release candidate wording and machine paths; r3 title updated; r5 wording checks updated (dropped CHANGELOG link, wrong version 9.9.9, 'release candidate' text, machine path, planned). node --test tests/readme.test.mjs: 5 pass 0 fail; with tests/manifest.test.mjs (mf3 CHANGELOG version = plugin.json version): 9 pass 0 fail. Dependants: plugin.json dependants (architecture model/html, manifest.test, design.md, readme.test) unchanged by this task since plugin.json was not edited; README dependants (evals README, fixtures, other tests citing README by basename) unaffected, only the Status paragraph changed and r1/r2/r4 still pass. Full node --test was not run (own-tests reading).",
+            "descriptive": "README now states the 1.0.0 release and r3 pins that status to the plugin.json version."
           },
           "startedAt": "2026-10-31T23:50:54Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T23:52:49Z",
+          "verifiedBy": [
+            "r3 requires the released status, the plugin.json version, the CHANGELOG link, and forbids planned/pre-release/release-candidate wording and machine paths; r5 extended with negative cases"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T23:52:48Z.d82844",
             "status": "passed",
             "at": "2026-10-31T23:52:48Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "c7a54f4c0641",
+            "at": "2026-10-31T23:52:49Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T23:51:40Z",
+            "basis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P9.4",
           "title": "docs/roadmap.md: v1.1 data platforms and infrastructure, CI drift gate, overlays, entity state machines, architecture diff, the open bug and the post-1.0.0 benchmark",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write docs/roadmap.md, the roadmap after 1.0.0, from docs/design.md section 9 step 11 and the open items of the audit plan: v1.1 adds data platform, pipeline and infrastructure extraction (dbt projects, data platform transforms and datasets described generically, Docker and compose, GitHub Actions and Azure Pipelines workflows, Terraform and Bicep) to the stack references and the prescan; then a CI drift gate on /archmap:check, ownership, churn and coverage overlays on the application graph, entity state machines, and an architecture diff between two commits; the open bug BUG-5-6o1 (an edge target resolved to the wrong script node); the reviewer recall tracked per release; and, after 1.0.0, the benchmark of the same build task against other architecture and codebase-mapping plugins for Claude Code (parked proposal PROP-2), with a repo-free report. Each item gets a sentence on what it delivers and what evidence closes it. docs/design.md is exempt from the denylist test and names a vendor data platform; docs/roadmap.md is not exempt, so name no vendor platform, product or client and describe data platforms generically. Link the roadmap from README.md (one line) and extend tests/readme.test.mjs so it fails when the roadmap file is missing, lacks a v1.1 heading or the benchmark item, or when the README does not link it.",
           "files": [
             "docs/roadmap.md",
@@ -5239,16 +5252,22 @@
           "dependsOn": [
             "P9.3"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T23:52:49Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-10-31T23:57:00Z.8a7e70",
+            "status": "passed",
+            "at": "2026-10-31T23:57:00Z"
+          }
         },
         {
           "id": "P9.5",

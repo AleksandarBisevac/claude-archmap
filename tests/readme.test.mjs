@@ -222,6 +222,19 @@ const checkDeliversAndMethod = (text, evalsReadme = readFileSync(join(EVALS_DIR,
   assert.ok(count > Number(stated), `the suite holds ${count} test cases, more than the ${stated} stated`);
 };
 
+// --- r6: the roadmap after 1.0.0 exists, has a v1.1 heading and the benchmark item, and the README links it ------------
+const ROADMAP = join(ROOT, 'docs', 'roadmap.md');
+const readRoadmap = () => (existsSync(ROADMAP) ? readFileSync(ROADMAP, 'utf8') : null);
+const checkRoadmap = (roadmap, readme) => {
+  assert.notEqual(roadmap, null, 'docs/roadmap.md exists');
+  assert.match(roadmap, /^#{1,3} .*\bv1\.1\b/m, 'the roadmap has a v1.1 heading');
+  assert.match(roadmap, /^#{1,3} .*\bbenchmark\b/im, 'the roadmap has a benchmark item heading');
+  for (const w of ['BUG-5-6o1', 'drift gate', 'ownership', 'churn', 'coverage', 'state machine', 'architecture diff', 'recall']) {
+    assert.match(roadmap, new RegExp(w, 'i'), `the roadmap names ${w}`);
+  }
+  assert.ok(/\]\(docs\/roadmap\.md\)/.test(readme), 'the README links docs/roadmap.md');
+};
+
 test('r1 the README command table has one row per commands/*.md, with its argument-hint and description verbatim', () => {
   checkCommandTable(readReadme());
 });
@@ -298,4 +311,19 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
   grown.nodes.push({ id: 'extra' });
   assert.throws(() => checkDeliversAndMethod(text, undefined, grown), /Nodes count is the committed model's/);
   assert.throws(() => checkDeliversAndMethod(swap('`iteration-2/self-with-skill-2.json`', '`iteration-2/self-with-skill-1.json`')), /committed map's profile/);
+});
+
+test('r6 docs/roadmap.md exists with a v1.1 heading and the benchmark item, and the README links it', () => {
+  checkRoadmap(readRoadmap(), readReadme());
+});
+
+test('r7 the roadmap check fails on a missing file, a missing v1.1 heading, a missing benchmark item and an unlinked README', () => {
+  const roadmap = readRoadmap();
+  const text = readReadme();
+  // the unbroken pair passes, so each failure below is the edit's
+  checkRoadmap(roadmap, text);
+  assert.throws(() => checkRoadmap(null, text), /roadmap\.md exists/);
+  assert.throws(() => checkRoadmap(roadmap.replace(/^(#{1,3} .*)\bv1\.1\b/gm, '$1next'), text), /v1\.1 heading/);
+  assert.throws(() => checkRoadmap(roadmap.replace(/benchmark/gi, 'comparison'), text), /benchmark/);
+  assert.throws(() => checkRoadmap(roadmap, text.replace('](docs/roadmap.md)', ']')), /links docs\/roadmap\.md/);
 });

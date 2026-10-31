@@ -12,6 +12,8 @@ evidence-backed model and renders it as an offline HTML viewer; see the [CHANGEL
 below work and are covered by the test suite and by five evals on three private repositories plus a build of this
 repository (see [What a build costs](#what-a-build-costs)).
 
+What comes next is in the [roadmap](docs/roadmap.md).
+
 ## Install
 
 ```

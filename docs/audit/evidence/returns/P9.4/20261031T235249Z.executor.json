@@ -1,0 +1,30 @@
+{
+  "gates": {
+    "node --test tests/readme.test.mjs": "pass",
+    "node --test (full, 453 tests, run once with the roadmap untracked)": "pass",
+    "node --test tests/denylist.test.mjs tests/readme.test.mjs (after git add docs/roadmap.md so the denylist scan sees it)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-10-31T23:54:29Z",
+    "basis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Wrote docs/roadmap.md (v1.1 data platform/pipeline/infra extraction described generically with dbt, Docker/compose, GitHub Actions, Azure Pipelines, Terraform, Bicep; CI drift gate; ownership/churn/coverage overlays; entity state machines; architecture diff; BUG-5-6o1; reviewer recall per release; post-1.0.0 benchmark PROP-2 with repo-free report), each with what it delivers and the evidence that closes it. Added one line to README.md Status linking docs/roadmap.md. Extended tests/readme.test.mjs with checkRoadmap, r6 (real roadmap + README) and r7 (fails on missing file, missing v1.1 heading, missing benchmark, unlinked README). Staged docs/roadmap.md with git add (no commit) because the denylist scans tracked files only; denylist test passes. Full node --test: 453 tests, 453 pass. Dependants: docs/design.md (already names docs/roadmap.md in its tree; still correct, unchanged), README.md dependants (architecture model/viewer, evals README tests, etc.): still correct, since only one prose line was added and no table, number or path they read moved; r1-r5 and the full suite pass. tests/readme.test.mjs dependant README: still correct.",
+    "descriptive": "The post-1.0.0 roadmap exists, is linked from the README, and a test now fails if it goes missing or loses its v1.1 heading or benchmark item."
+  },
+  "testsAdded": [
+    "r6: docs/roadmap.md exists with a v1.1 heading, the benchmark item and the other roadmap items, and the README links it",
+    "r7: the roadmap check throws on a missing file, no v1.1 heading, no benchmark item, and an unlinked README"
+  ],
+  "casesAdded": [
+    [
+      "r6",
+      "r7"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:0151d8305a2e49c99285957ffe8c040e4c0c9641730c1c2d528e0c76c5c7504c\",\"dirtyDigest\":\"sha256:a5a284592021f575fa613ca4c9557dc89c8d1b0a7d61b18ed939095f6ace6e39\",\"dirtyPaths\":{\"README.md\":\"9810b3784788afeb\",\"tests/readme.test.mjs\":\"e01ac20b18d227db\"},\"head\":\"c7a54f4\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"README.md\",\"docs/roadmap.md\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:012a9f52e6c26b41e22d13e0270e5f2d98e9b5f48fae3f6b64154868e191717a\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
