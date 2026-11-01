@@ -5043,27 +5043,41 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P9-R1",
             "severity": "med",
             "file": "CHANGELOG.md:116-118",
             "issue": "The 1.0.0 'map of this repository' entry says the committed map is 'built by its own skill ... and committed unchanged ... 30 nodes, 18 edges, 1 entity, 4 sequences and 5 views'. At the release head P9.7 replaced that map with the /archmap:update result: docs/architecture/architecture.model.json now holds 34 nodes and 23 edges (meta.commit 63d7495), and both READMEs say so. The changelog of the release is therefore wrong about the shipped example, and the P9.7 claim that no self-build count appears in CHANGELOG (grep) is false. No test derives the changelog counts from the model, so the suite stayed green. The Scripts bullet on diffmap (CHANGELOG.md:239-240) also omits the docs/audit skip P9.6 added.",
-            "resolution": "Rewrite the entry to 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views, built at 8174e41 and updated with /archmap:update at 63d7495; name docs/audit alongside the map's output directory in the diffmap bullet. Optionally add a manifest.test.mjs case that reads the counts out of the CHANGELOG entry and compares them with the committed model, as r4 does for the README.",
-            "fixTask": "P9.8"
+            "resolution": "fixed in P9.8 (02428c8c222c): Rewrite the entry to 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views, built at 8174e41 and updated with /archmap:update at 63d7495; name docs/audit alongside the map's output directory in the diffmap bullet. Optionally add a manifest.test.mjs case that reads the counts out of the CHANGELOG entry and compares them with the committed model, as r4 does for the README.",
+            "fixTask": "P9.8",
+            "commit": "02428c8c222c",
+            "status": "fixed"
           },
           {
             "id": "P9-R2",
             "severity": "low",
             "file": "docs/audit/audit-plan.json:P9",
             "issue": "The phase desired outcome says 'Version 1.0.0 tagged in this repo'. `git tag -l` is empty and no P9 task creates or records a tag; plugin.json, CHANGELOG, listing and roadmap are done, the tag is not.",
-            "resolution": "Create the v1.0.0 tag on the merge commit after the phase lands (owner step), or state in the plan that tagging is a post-merge act so the outcome is not read as met by this diff alone."
+            "resolution": "Create the v1.0.0 tag on the merge commit after the phase lands (owner step), or state in the plan that tagging is a post-merge act so the outcome is not read as met by this diff alone.",
+            "status": "accepted-open",
+            "acceptedReason": "P9 released 1.0.0 on the branch that also carries P11 (docs with evidence): CHANGELOG 1.0.0 entry by area with the version heading tied to plugin.json by test (P9.2); version 1.0.0 in plugin.json and the released status in README (P9.3); docs/roadmap.md after 1.0.0, linked from README and guarded by tests r6 and r7 (P9.4); the published marketplace entry at docs/release/marketplace-entry.json with the dev marketplace description aligned, guarded by mf5 to mf7 (P9.5); diffmap skips docs/audit like the map's own output directory so audit-state commits do not make the map stale, regression d14 (P9.6); the committed map brought to the release head with /archmap:update on a detached clone (30 to 34 nodes, 18 to 23 edges), profile tracked as self-with-skill-3.json, both READMEs record the update's cost and the tests derive it (P9.7, owner-run). Phase review: R1 (med, stale CHANGELOG counts) fixed by P9.8 with a test that reads the counts from the model; R2 (low, no tag) left recorded by the owner's decision: the v1.0.0 tag is made by hand after landing, and the marketplace entry is copied into the plugins catalogue by hand; nothing is pushed by the drive. Re-review of the P9.8 diff clean. Full node --test 458 of 458; validate.mjs --repo exit 0 on the committed model; denylist guard green. Known and documented: BUG-5-6o1 hook-edge target in the committed map, open."
           }
         ],
-        "outcome": "[findings: 2 - 0 high, 1 med, 1 low; 0 with a recorded fix commit]"
+        "outcome": "phase review filed at head 02428c8c222c [findings: 2 - 0 high, 1 med, 1 low; 1 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P9/02428c8c222ca18f423c34623c805b7366262367.reviewer.json",
+            "sha256": "ac083b17083e3146666079b16a19ac08be491271edb7285ff0a5e270db517352"
+          },
+          {
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "sha256": "9e31e4e7abf2f18bb2097153c8aa8a530af594b88630b7c673dc89bbcf523778"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P9 released 1.0.0 on the branch that also carries P11 (docs with evidence): CHANGELOG 1.0.0 entry by area with the version heading tied to plugin.json by test (P9.2); version 1.0.0 in plugin.json and the released status in README (P9.3); docs/roadmap.md after 1.0.0, linked from README and guarded by tests r6 and r7 (P9.4); the published marketplace entry at docs/release/marketplace-entry.json with the dev marketplace description aligned, guarded by mf5 to mf7 (P9.5); diffmap skips docs/audit like the map's own output directory so audit-state commits do not make the map stale, regression d14 (P9.6); the committed map brought to the release head with /archmap:update on a detached clone (30 to 34 nodes, 18 to 23 edges), profile tracked as self-with-skill-3.json, both READMEs record the update's cost and the tests derive it (P9.7, owner-run). Phase review: R1 (med, stale CHANGELOG counts) fixed by P9.8 with a test that reads the counts from the model; R2 (low, no tag) left recorded by the owner's decision: the v1.0.0 tag is made by hand after landing, and the marketplace entry is copied into the plugins catalogue by hand; nothing is pushed by the drive. Re-review of the P9.8 diff clean. Full node --test 458 of 458; validate.mjs --repo exit 0 on the committed model; denylist guard green. Known and documented: BUG-5-6o1 hook-edge target in the committed map, open.",
       "tasks": [
         {
           "id": "P9.1",
@@ -5109,9 +5123,14 @@
             "at": "2026-10-31T20:23:21Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "4d19e1580112",
-            "at": "2026-10-31T20:23:22Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test --test-name-pattern=p39 tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.1/20261031T201944Z.executor.json, at 2026-10-31T20:22:25Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T20:22:25Z",
@@ -5172,9 +5191,14 @@
             "at": "2026-10-31T23:50:53Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "4618cf343c01",
-            "at": "2026-10-31T23:50:54Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.2/20261031T234851Z.executor.json, at 2026-10-31T23:49:46Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T23:49:46Z",
@@ -5230,9 +5254,14 @@
             "at": "2026-10-31T23:52:48Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "c7a54f4c0641",
-            "at": "2026-10-31T23:52:49Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.3/20261031T235054Z.executor.json, at 2026-10-31T23:51:40Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T23:51:40Z",
@@ -5289,9 +5318,14 @@
             "at": "2026-10-31T23:57:00Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "34df6bd8c7b4",
-            "at": "2026-10-31T23:57:01Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.4/20261031T235249Z.executor.json, at 2026-10-31T23:54:29Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T23:54:29Z",
@@ -5349,9 +5383,14 @@
             "at": "2026-10-31T23:59:46Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "f11a22cd6303",
-            "at": "2026-10-31T23:59:48Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.5/20261031T235701Z.executor.json, at 2026-10-31T23:58:30Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-10-31T23:58:30Z",
@@ -5405,9 +5444,14 @@
             "at": "2026-11-01T00:04:05Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "63d7495bede7",
-            "at": "2026-11-01T00:04:06Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/diffmap.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.6/20261031T235948Z.executor.json, at 2026-11-01T00:02:58Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-01T00:02:58Z",
@@ -5477,9 +5521,14 @@
             "at": "2026-11-01T00:18:26Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "5ca70e88f4b2",
-            "at": "2026-11-01T00:18:27Z"
+            "at": "2026-11-01T00:50:16Z",
+            "return": "returns/P9/5ca70e88f4b2ca982effd29d2bac5ff085dde2de.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The filed redFirst is `not-attempted`: gate-only task, tests.add is none and expectRedFirst is false, so no red was owed. The basis holds; the executor's note that new assert.throws mutation cases pass is not a red-first proof and is not graded as one.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "status": "not-attempted",
@@ -5490,7 +5539,7 @@
         {
           "id": "P9.8",
           "title": "fix P9-R1: The 1.0.0 'map of this repository' entry says the committed map is...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The 1.0.0 'map of this repository' entry says the committed map is 'built by its own skill ... and committed unchanged ... 30 nodes, 18 edges, 1 entity, 4 sequences and 5 views'. At the release head P9.7 replaced that map with the /archmap:update result: docs/architecture/architecture.model.json now holds 34 nodes and 23 edges (meta.commit 63d7495), and both READMEs say so. The changelog of the release is therefore wrong about the shipped example, and the P9.7 claim that no self-build count appears in CHANGELOG (grep) is false. No test derives the changelog counts from the model, so the suite stayed green. The Scripts bullet on diffmap (CHANGELOG.md:239-240) also omits the docs/audit skip P9.6 added.\n\nResolution asked: Rewrite the entry to 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views, built at 8174e41 and updated with /archmap:update at 63d7495; name docs/audit alongside the map's output directory in the diffmap bullet. Optionally add a manifest.test.mjs case that reads the counts out of the CHANGELOG entry and compares them with the committed model, as r4 does for the README.",
           "files": [
             "CHANGELOG.md",
@@ -5512,14 +5561,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "02428c8c222c",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "CHANGELOG.md: rewrote the 'The map of this repository' bullet to 'built at 8174e41 and brought up to the release head with /archmap:update at 63d7495 ... 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views'; the diffmap bullet now says it ignores the map's own output directory and docs/audit. Heading '## [1.0.0] - 2026-11-01' and plugin.json untouched. tests/manifest.test.mjs: added mf5, which reads the counts from the 1.0.0 entry and compares them with nodes/edges/entities/sequences/views lengths in docs/architecture/architecture.model.json (34/23/1/4/5), plus a parse check on a stale string. Not a gate run: I ran 'node --test tests/manifest.test.mjs' once, exit 0, 8 pass 0 fail. The brief says there is nothing of its own to run, so I ran no other gate; the orchestrator's recorded run is the evidence. Dependants: .claude/audit.config.json, tests/readme.test.mjs, README.md, docs/design.md - still correct, because only two CHANGELOG bullets changed and no heading, version or other text those files might read was touched (not re-run by me). tests/manifest.test.mjs has no dependants.",
+            "descriptive": "The 1.0.0 changelog now states the real shipped map counts and the docs/audit skip in diffmap, and a test keeps the counts equal to the committed model."
           },
           "startedAt": "2026-11-01T00:21:30Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-01T00:24:04Z",
+          "verifiedBy": [
+            "mf5: CHANGELOG 1.0.0 entry counts equal the committed model's node, edge, entity, sequence and view counts"
+          ],
           "notes": [
             {
               "at": "2026-11-01T00:21:29Z",
@@ -5546,12 +5597,27 @@
             "runId": "2026-11-01T00:24:03Z.92aa98",
             "status": "passed",
             "at": "2026-11-01T00:24:03Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "02428c8c222c",
+            "at": "2026-11-01T00:24:04Z",
+            "basis": "a fix task for P9-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task with tests.expectRedFirst false; no test owed. I added one guard case (mf5) after the CHANGELOG fix anyway."
           }
         }
       ],
       "area": "release",
       "reviewPerTask": "phase",
-      "startedAt": "2026-10-31T20:19:44Z"
+      "startedAt": "2026-10-31T20:19:44Z",
+      "testEvidence": {
+        "runId": "2026-11-01T00:50:15Z.0e7214",
+        "status": "passed",
+        "at": "2026-11-01T00:50:15Z"
+      }
     },
     {
       "id": "BF1",

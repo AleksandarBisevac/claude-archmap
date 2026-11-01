@@ -1,0 +1,21 @@
+{
+  "findings": [],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome (1.0.0 tagged with changelog entry, marketplace description, roadmap) is unaffected by P9.8. P9.8 clause 'Rewrite the entry to 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views, built at 8174e41 and updated with /archmap:update at 63d7495; name docs/audit alongside the map's output directory in the diffmap bullet' is done verbatim in CHANGELOG.md. Verified against the tree: docs/architecture/architecture.model.json holds 34/23/1/4/5 and meta.commit 63d7495bede7. The optional test clause is done as mf5. The executor's claim describes the diff accurately (two bullets, one test case, heading and plugin.json untouched). Scan.mjs over 5ca70e8..02428c8: 0 leads. node --test tests/manifest.test.mjs run once by me: 8 pass, 0 fail.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Executor filed not-attempted: gate-only fix task with tests.expectRedFirst false. mf5 was added anyway; no red run was filed for it, so I do not call it proved. Reading: the first deepEqual compares the entry's counts with the model and would fail on the old 30/18 text; the closing parse check on a stale string guards the reader itself.",
+    "inheritedTests": "none-found",
+    "inheritedTestsBasis": "tests.gate is the literal 'node --test', which runs the whole project, so the question is bounded to what the task's changes can touch. Read tests/manifest.test.mjs in full and the diff: the only tests touching CHANGELOG are mf3 and mf5, and both assert on the heading or counts the diff changes. No assertion that the behaviour (stated counts) could be deleted from without failing was found."
+  },
+  "verdict": "clean",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P9.8",
+      "commit": "02428c8c222c"
+    }
+  ]
+}
