@@ -8765,7 +8765,7 @@
         {
           "id": "P12.1",
           "title": "Candidate selection: two or more installable Claude Code plugins or skills for architecture or codebase mapping, with name, source, version, install command and the selection criteria",
-          "status": "in_progress",
+          "status": "done",
           "description": "The benchmark needs comparable tools. Record, in a new tracked document skills/architecture-map/evals/benchmark/CANDIDATES.md, two or more publicly installable Claude Code plugins or skills whose purpose is architecture or codebase mapping (a diagram, a component model, a dependency or module map, or an architecture document produced from a repository). The orchestrator hands the executor the research result (the executor has no web access): for each candidate the name, the public source (repository URL or marketplace), the version or commit pinned for the benchmark, the exact installation command (`claude plugin marketplace add` plus `claude plugin install`, or a `--plugin-dir` of a clone), the form of its output (files, formats) and a one-line statement of what it does and does not produce compared to this plugin (components, relations, entities, sequences, evidence, issues). Record the selection criteria before the table: publicly installable without an account or key beyond Claude Code itself, works headless under `claude -p`, produces an architecture artifact of the whole repository (not a per-file summary or a chat answer only), and was updated within the last year; list the candidates considered and rejected with the criterion that excluded each. The document names no private repository, client, machine path or environment-specific location. Add tests/benchmark.test.mjs with a first test that parses CANDIDATES.md and asserts: a `## Selection criteria` section with at least three bullet points, a candidates table with the columns Name, Source, Version, Install, Output and at least two rows, every Source cell a URL, every Install cell a fenced or inline command, and a `## Considered and rejected` section with at least one row that names its criterion. The test must fail red-first against the document without those sections and pass with them.",
           "files": [
             "skills/architecture-map/evals/benchmark/CANDIDATES.md",
@@ -8789,25 +8789,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "adbaf8315b48",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added skills/architecture-map/evals/benchmark/CANDIDATES.md (selection criteria as 5 bold-labelled bullets, candidates table Name/Source/Version/Install/Output with draw-c4, oh-my-mermaid, cc-codemaps pinned to the researched commits, a start-up note per candidate, a comparison table against this plugin on components/relations/entities/sequences/evidence/issues, and a Considered and rejected table with 7 rows each naming a criterion) from the orchestrator's research file only. Added tests/benchmark.test.mjs (node:test, no dependencies): b1 criteria section with 3+ bullets, b2 candidates table columns/2+ rows/URL sources/inline claude plugin install commands, b3 rejected rows each name one of the selection criteria labels, b4 no machine path or private location in the document. Both files staged with git add -N. node --test tests/denylist.test.mjs tests/benchmark.test.mjs: 6 pass; full node --test: 462 pass, 0 fail.",
+            "descriptive": "The benchmark now has a tracked, public candidate list with criteria, pins and install commands, guarded by a test."
           },
           "startedAt": "2026-11-01T22:08:12Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-01T22:12:59Z",
+          "verifiedBy": [
+            "tests/benchmark.test.mjs parses CANDIDATES.md: selection criteria bullets, candidates table shape with URL sources and command installs, rejected rows naming a criterion, and a public-document check"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-01T22:12:58Z.48c31e",
             "status": "passed",
             "at": "2026-11-01T22:12:58Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "adbaf8315b48",
+            "at": "2026-11-01T22:12:59Z"
+          },
+          "redFirst": {
+            "at": "2026-11-01T22:11:22Z",
+            "basis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P12.2",
           "title": "Benchmark protocol, repo-free: one tracked task prompt, three repositories described generically, the configurations and the metrics with their measurement, the tool-neutral expectations and the owner's rubric",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write the benchmark protocol as tracked, repo-free documents under skills/architecture-map/evals/benchmark/: PROTOCOL.md, prompt.md and rubric.md. prompt.md holds the one task prompt every tool receives, word for word; it is tool-neutral (it never names this plugin's commands or any candidate's), asks for an architecture map of the repository whose location is in an environment variable (ARCHMAP_EVAL_REPO_A, B or C, as the evals README already does), lists what the map must contain (the main components and their typed relations, the database entities with fields, at least three request or data flows as sequences, a file reference as evidence for every component) and asks that the result be written under docs/architecture of that repository and that the run end with a short summary of what was produced. PROTOCOL.md states: the three repositories only generically (a Python API with a React front end and an embedded analytical database; a TypeScript monorepo with a Node API, an ORM and a job queue; a Next.js application with an admin API), the configurations (this plugin at its 1.0.0 tag and each candidate at the version CANDIDATES.md pins, each installed alone through `--plugin-dir` or an isolated settings directory, the same orchestrator model for all, the same headless flags as the evals README records, one run per tool per repository, plus the issue-overlay run of this plugin on repository A for issue recall), the metrics with how each is measured (cost in USD from `node scripts/cost-profile.mjs <stream.jsonl> --json --basename` with the rate table date, wall-clock duration from the harness timing file, orchestrator turns from the profile's orchestrator row, maximum context from the same row, tool-neutral expectation pass rate graded by the harness against the expectations listed in the protocol, issue recall only for this plugin with score-recall.mjs against the private ground truth, and the owner's rubric score), the tool-neutral expectations themselves (the key components of the private checklist are each named in the produced artifact matched by name or path; at least three flows are described; every component carries a file reference; the artifact is a file under docs/architecture, not only chat text; the run exits 0), a rule that a candidate's expectation that cannot be graded mechanically is recorded as not graded rather than failed, the limits (one run per cell, so no variance claim; list prices; the private repositories are not shared, so a third party reproduces the method on its own repositories), and the evidence layout (skills/architecture-map/evals/evidence/benchmark/<tool>-<repo-letter>-<run>.json, raw streams private). rubric.md defines the owner's 1 to 5 score on four axes (coverage of the real components, correctness of the relations, usefulness of the flows, readability of the artifact) with one sentence per level. Extend tests/benchmark.test.mjs: prompt.md names no slash command and none of the candidate names from CANDIDATES.md, and names the three environment variables; PROTOCOL.md has sections Repositories, Configurations, Metrics, Expectations, Limits and Evidence, its Metrics section names each of cost, duration, turns, context, pass rate, recall and rubric, and every repository mention is one of the three generic descriptions (the test loads the private denylist when present, as tests/denylist.test.mjs does, and otherwise skips that assertion); rubric.md has four axes each with five levels. Red-first on the missing files.",
           "files": [
             "skills/architecture-map/evals/benchmark/PROTOCOL.md",
@@ -8833,16 +8846,22 @@
           "dependsOn": [
             "P12.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-01T22:12:59Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-01T22:17:59Z.8677f8",
+            "status": "passed",
+            "at": "2026-11-01T22:17:59Z"
+          }
         },
         {
           "id": "P12.3",
