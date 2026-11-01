@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/benchmark.test.mjs": "pass",
+    "node --test tests/denylist.test.mjs tests/benchmark.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-01T22:11:22Z",
+    "basis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added skills/architecture-map/evals/benchmark/CANDIDATES.md (selection criteria as 5 bold-labelled bullets, candidates table Name/Source/Version/Install/Output with draw-c4, oh-my-mermaid, cc-codemaps pinned to the researched commits, a start-up note per candidate, a comparison table against this plugin on components/relations/entities/sequences/evidence/issues, and a Considered and rejected table with 7 rows each naming a criterion) from the orchestrator's research file only. Added tests/benchmark.test.mjs (node:test, no dependencies): b1 criteria section with 3+ bullets, b2 candidates table columns/2+ rows/URL sources/inline claude plugin install commands, b3 rejected rows each name one of the selection criteria labels, b4 no machine path or private location in the document. Both files staged with git add -N. node --test tests/denylist.test.mjs tests/benchmark.test.mjs: 6 pass; full node --test: 462 pass, 0 fail.",
+    "descriptive": "The benchmark now has a tracked, public candidate list with criteria, pins and install commands, guarded by a test."
+  },
+  "testsAdded": [
+    "tests/benchmark.test.mjs parses CANDIDATES.md: selection criteria bullets, candidates table shape with URL sources and command installs, rejected rows naming a criterion, and a public-document check"
+  ],
+  "casesAdded": [
+    [
+      "b1",
+      "b2",
+      "b3",
+      "b4"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:e04ae42008953a5f7a4edbe241786abd4f8618c14fee221524b00ceec3bcfa1c\",\"dirtyDigest\":\"sha256:17ea6ff62a1016aab442f67eaa450dfa65a49c5552684c14aa8103e4fbef4947\",\"dirtyPaths\":{\"skills/architecture-map/evals/benchmark/CANDIDATES.md\":\"5587692521c54589\",\"tests/benchmark.test.mjs\":\"247ceb4dbcd3ba12\"},\"head\":\"bee1b5a\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/benchmark/CANDIDATES.md\",\"tests/benchmark.test.mjs\"],\"scopeDigest\":\"sha256:b06031bfcf464c00cc746407623ef8c8392629e06e90a6af45ae2361504a0409\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
