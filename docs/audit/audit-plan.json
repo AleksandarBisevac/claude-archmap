@@ -5026,7 +5026,7 @@
     {
       "id": "P9",
       "title": "Release v1.0.0 and roadmap",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "Version 1.0.0 tagged in this repo with a changelog entry, the marketplace listing description updated, and docs/roadmap.md covering v1.1 and later.",
       "testGate": [
@@ -5039,7 +5039,7 @@
       ],
       "baseRef": "0058766106a7f833ec1a781ad62cd6f92e74ee68",
       "branch": "audit/p9-release-v1-0-0-and-roadmap",
-      "mergedAt": null,
+      "mergedAt": "2026-11-01T00:50:18Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -5617,7 +5617,8 @@
         "runId": "2026-11-01T00:50:15Z.0e7214",
         "status": "passed",
         "at": "2026-11-01T00:50:15Z"
-      }
+      },
+      "mergedHead": "eba35e7b919528b38ffe816a2f775b8c82c65f98"
     },
     {
       "id": "BF1",
