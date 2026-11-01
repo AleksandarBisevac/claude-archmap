@@ -5286,7 +5286,7 @@
         {
           "id": "P9.5",
           "title": "Marketplace listing text for 1.0.0 prepared in this repository, aligned with the dev marketplace and plugin.json",
-          "status": "in_progress",
+          "status": "done",
           "description": "The published listing of this plugin in the quality-gates marketplace (repository AleksandarBisevac/claude-plugins, outside this plan) ends its description with a pre-release note and its tag list lacks crud-matrix. Prepare the exact replacement entry in this repository as docs/release/marketplace-entry.json: the same shape as the published entry (name, github source with the repo, description, category documentation, tags, homepage, strict), with a description that matches .claude-plugin/marketplace.json's description word for word and carries no pre-release note, and tags equal to plugin.json's keywords. Align the dev marketplace description if it needs the wording of README.md's first paragraph. Extend tests/manifest.test.mjs so it fails when the two descriptions differ, when the entry's tags differ from plugin.json's keywords, or when either carries the words pre-release. The owner copies the entry into the claude-plugins repository by hand; this task does not touch that repository.",
           "files": [
             "docs/release/marketplace-entry.json",
@@ -5313,25 +5313,40 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "f11a22cd6303",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Wrote mf5, mf6, mf7 in tests/manifest.test.mjs before creating anything else and saw mf5 and mf6 fail (docs/release/marketplace-entry.json did not exist; 5 pass, 2 fail). Then created docs/release/marketplace-entry.json (name, github source with repo AleksandarBisevac/claude-archmap, description, category documentation, tags = plugin.json keywords including crud-matrix, homepage, strict true) and aligned .claude-plugin/marketplace.json's plugin description to the wording of README's first paragraph; the release entry description is the same string. mf5 checks shape, description equality with the dev marketplace, no pre-release in either; mf6 checks tags equal keywords in order and include crud-matrix; mf7 proves the comparison helpers (sameText, sameList, preRelease) reject a differing description, a differing tag list and a pre-release note. After: node --test tests/manifest.test.mjs 7 pass 0 fail; node --test 456 pass 0 fail. Dependants: docs/architecture model and archmap.html and docs/design.md only name marketplace.json by path; grep for the old description text finds no other file, so they are still correct. tests/manifest.test.mjs and the new entry have no dependants. The claude-plugins repository was not touched.",
+            "descriptive": "Release-ready marketplace entry for 1.0.0 prepared in docs/release, dev marketplace description aligned, and tests that fail on description drift, tag drift or a pre-release note."
           },
           "startedAt": "2026-10-31T23:57:01Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-10-31T23:59:48Z",
+          "verifiedBy": [
+            "mf5: release entry shape, description equals dev marketplace description, no pre-release in either",
+            "mf6: release entry tags equal plugin.json keywords and include crud-matrix",
+            "mf7: the comparison helpers reject a differing description, a differing tag list and a pre-release note"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-10-31T23:59:46Z.071ff1",
             "status": "passed",
             "at": "2026-10-31T23:59:46Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "f11a22cd6303",
+            "at": "2026-10-31T23:59:48Z"
+          },
+          "redFirst": {
+            "at": "2026-10-31T23:58:30Z",
+            "basis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P9.6",
           "title": "diffmap ignores docs/audit like docs/architecture, so audit-state commits do not make the map stale",
-          "status": "pending",
+          "status": "in_progress",
           "description": "diffmap.mjs already ignores the map's own output directory (docs/architecture, P8.7) when it maps changed files to nodes, so a re-render does not make the map stale. The audit plugin's records under docs/audit (the plan, the journal, the evidence returns) are not architecture either, yet a commit that touches only them makes the staleness hook report the map behind HEAD: after P11 landed, the hook reports 6 commits behind with 5 nodes affected, most of them from docs-only and docs/audit-only commits. Make diffmap skip docs/audit/** the same way it skips docs/architecture/**, keep every other path mapped as before, state the rule in the diffmap header and in SKILL.md where the update flow names what diffmap ignores, and add the regression test: a change set made only of docs/audit files affects no node and the staleness line is not printed, while a change set with one source file still affects its node.",
           "files": [
             "scripts/diffmap.mjs",
@@ -5354,16 +5369,22 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-10-31T23:59:48Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-01T00:04:05Z.ebff47",
+            "status": "passed",
+            "at": "2026-11-01T00:04:05Z"
+          }
         },
         {
           "id": "P9.7",

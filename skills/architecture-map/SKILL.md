@@ -288,7 +288,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/pipeline.mjs" plan . --update [--since <sha>
 ```
 
 Plan runs prescan, then `diffmap.mjs` against `docs/architecture/architecture.model.json`, and briefs only the affected
-areas and the areas of new files no area owns; each brief names the previous model so the explorer reuses its area's
+areas and the areas of new files no area owns. Diffmap ignores the map's own output directory and `docs/audit/**` (the audit
+plugin's plan, journal and evidence returns are not architecture), so a commit that touches only those makes nothing
+affected and the staleness line stays silent; every other path is mapped. Each brief names the previous model so the explorer reuses its area's
 node ids. When `agents` is empty nothing is affected: skip to render, which re-renders only. Then finish and render as
 in the build flow: `merge.mjs` runs with `--previous` and `--areas` listing exactly the areas diffmap named (and that
 wrote a fragment), so every other area keeps its elements and ids, and the synthesizer brief lists the touched ids so

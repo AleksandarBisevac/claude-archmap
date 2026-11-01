@@ -262,3 +262,46 @@ test('d13 files under the directory holding the previous model are the map\'s ow
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('d14 files under docs/audit are the audit records, not architecture: a change set of only those affects no node and prints no staleness line, while a source file still affects its node', () => {
+  const STALE = fileURLToPath(new URL('../scripts/staleness.mjs', import.meta.url));
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-diffmap-audit-'));
+  git(dir, 'init', '-q');
+  for (const f of ['api/a.js', 'web/w.js', 'db/schema.sql', 'queue/q.js', 'queue/job.js', 'config/app.yml', 'README.md', 'docs/guide.md', 'docs/audit/audit-plan.json']) put(dir, f);
+  const base = commit(dir, 'base');
+  const model = modelFor(base);
+  // a node whose globs own the audit records, as a repo documenting its audit trail has: they must still not affect it
+  model.meta.coverage.docs = ['docs/guide.md', 'docs/audit/**'];
+  model.nodes.push({ id: 'n-docs', zone: 'z', kind: 'module', title: 'Docs', paths: ['docs/guide.md', 'docs/audit/**'], level: 2, evidence: ev('docs/guide.md') });
+  const modelPath = join(dir, 'docs/architecture/architecture.model.json');
+  const run = () => spawnSync(process.execPath, [CLI, modelPath, '--repo', dir, '--json'], { encoding: 'utf8' });
+  const hook = () => spawnSync(process.execPath, [STALE], { cwd: tmpdir(), env: { ...GIT_ENV, CLAUDE_PROJECT_DIR: dir }, encoding: 'utf8' });
+  put(dir, 'docs/audit/audit-plan.json', '{"v":2}\n');
+  put(dir, 'docs/audit/journal/2026-10.shard.jsonl', '{}\n');
+  commit(dir, 'audit records');
+  put(dir, 'docs/audit/evidence/P1.1.json', '{}\n');
+  // the model sits where the plugin puts it (left untracked, as in the staleness suite), so the staleness hook finds it
+  put(dir, 'docs/architecture/architecture.model.json', JSON.stringify(model));
+  const r = run();
+  assert.equal(r.status, 0, r.stderr);
+  const j = JSON.parse(r.stdout);
+  assert.deepEqual(j.files, [], JSON.stringify(j));
+  assert.deepEqual(j.areas, []);
+  assert.deepEqual(j.nodes, []);
+  assert.equal(j.behind, 0, 'a commit that touches only docs/audit leaves the map no commit behind');
+  const quiet = hook();
+  assert.equal(quiet.status, 0);
+  assert.equal(quiet.stdout, '', 'a docs/audit-only change set prints no staleness line');
+  // a docs file beside the audit records still counts, and so does a source file
+  put(dir, 'docs/guide.md', 'changed\n');
+  put(dir, 'api/a.js', 'changed\n');
+  put(dir, 'docs/audit/audit-plan.json', '{"v":3}\n');
+  commit(dir, 'edit');
+  const k = JSON.parse(run().stdout);
+  assert.ok(k.files.includes('api/a.js') && k.files.includes('docs/guide.md'));
+  assert.ok(!k.files.some((f) => f.startsWith('docs/audit/')));
+  assert.deepEqual(k.nodes, ['n-api', 'n-docs']);
+  assert.equal(k.behind, 1);
+  assert.match(hook().stdout, /^Architecture map is 1 commit behind \(2 nodes/);
+  rmSync(dir, { recursive: true, force: true });
+});

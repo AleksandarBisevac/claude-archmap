@@ -12,6 +12,9 @@
 // The directory holding <model.json> (the --out directory of the build, docs/architecture by default) is the map's
 // own output: a file under it is never a changed file, so committing the map's artifacts affects no area. A model
 // outside the repository, or at its root, excludes nothing.
+// docs/audit/** is skipped the same way: the audit plugin's records (the plan, the journal, the evidence returns) are
+// not architecture, so a commit that touches only them affects no node and does not make the map stale. Every other
+// path stays mapped. A commit that touches only docs/audit is not counted as a commit behind either.
 //
 // Report: {base, head, behind, files, areas, nodes, dependents, entities, sequences, uncovered}, all sorted.
 // Exit 0 ok (also when nothing is affected), 2 usage error, unreadable model, unknown base commit or not a git
@@ -27,6 +30,9 @@ const USAGE = 'usage: node scripts/diffmap.mjs <model.json> [--repo <dir>] [--si
 
 class UsageError extends Error {}
 
+// The audit plugin's records live here; they are never architecture, whatever area globs say.
+const AUDIT_DIR = 'docs/audit';
+
 const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const sorted = (set) => [...set].sort(byCodeUnit);
 const arr = (v) => (Array.isArray(v) ? v : []);
@@ -37,11 +43,12 @@ const arr = (v) => (Array.isArray(v) ? v : []);
  * @param {{base?: string|null, head?: string|null, behind?: number, files?: {status: string, path: string}[]}} changes
  *   status "A" marks a new file (an untracked file is "A" too); "D", "M" and the rest count as existing
  * @param {{outDir?: string|null}} [options] outDir: the repo-relative directory of the map's own output; no file
- *   under it counts as changed
+ *   under it counts as changed. docs/audit/** never counts as changed either.
  */
 export function diffmap(model, changes = {}, options = {}) {
   const out = typeof options.outDir === 'string' && options.outDir !== '' ? options.outDir.replace(/\/+$/, '') : null;
-  const own = (p) => out !== null && (p === out || p.startsWith(`${out}/`));
+  const under = (p, dir) => p === dir || p.startsWith(`${dir}/`);
+  const own = (p) => (out !== null && under(p, out)) || under(p, AUDIT_DIR);
   const files = arr(changes.files).filter((f) => f && typeof f.path === 'string' && !own(f.path));
   const paths = new Set(files.map((f) => f.path));
   const added = new Set(files.filter((f) => f.status === 'A').map((f) => f.path));
@@ -130,7 +137,8 @@ export function readGitChanges(repo, base) {
   } catch {
     throw new UsageError(`${repo} has no commits`);
   }
-  const behind = Number(git(repo, ['rev-list', '--count', `${baseSha}..${head}`]).trim());
+  // a commit that touches only docs/audit is not behind: those records are not architecture (see AUDIT_DIR)
+  const behind = Number(git(repo, ['rev-list', '--count', `${baseSha}..${head}`, '--', '.', `:(exclude)${AUDIT_DIR}`]).trim());
   const files = [];
   const tok = git(repo, ['diff', '--name-status', '-z', '--no-renames', '--relative', baseSha, head]).split('\0');
   for (let i = 0; i + 1 < tok.length; i += 2) files.push({ status: tok[i][0], path: tok[i + 1] });

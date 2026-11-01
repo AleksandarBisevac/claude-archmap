@@ -1,0 +1,25 @@
+{
+  "gates": {
+    "node --test": "pass",
+    "node --test tests/diffmap.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-01T00:02:58Z",
+    "basis": "`node --test tests/diffmap.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/diffmap.mjs: new AUDIT_DIR='docs/audit' constant; diffmap() now drops any path under docs/audit like the map's own output dir, so such files affect no area/node/entity and are never uncovered; readGitChanges() counts `behind` with rev-list pathspec ('.' ':(exclude)docs/audit'), so a commit touching only docs/audit is not a commit behind. That second part was needed because staleness.mjs (not in task scope, untouched) prints its line whenever behind>0, regardless of affected nodes. Header comment and JSDoc state the rule. skills/architecture-map/SKILL.md update flow now says diffmap ignores the map output dir and docs/audit/**. tests/diffmap.test.mjs: added d14 (end to end with a git repo, the CLI and the staleness hook: audit-only commit gives files [], no node, behind 0, hook prints nothing; a following commit with api/a.js, docs/guide.md and docs/audit changes gives nodes n-api and n-docs, behind 1, hook prints the 1 commit behind line). Gates: node --test tests/diffmap.test.mjs 14/14 pass; full node --test 457/457 pass. Dependants: scripts/staleness.mjs (import) still correct - it uses diffmap/readGitChanges and its own tests s1-s8 pass; behind is unchanged except for audit-only commits. tests/diffmap.test.mjs, merge/pipeline/evals/e2e basename mentions, model/html path mentions, skill/commands/pipeline tests: still correct, full suite green.",
+    "descriptive": "Commits that touch only docs/audit no longer make the architecture map look stale: diffmap skips docs/audit/** and does not count such commits as behind."
+  },
+  "testsAdded": [
+    "d14: docs/audit-only change set affects no node, behind 0 and the staleness hook prints nothing; a source file plus docs file change still affects its nodes and the hook prints the line"
+  ],
+  "casesAdded": [
+    "d14"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ea74b667e72fd33bb2cd8bbc5ecff8ab846b15ee0cd35fe68764d859c2381134\",\"dirtyDigest\":\"sha256:57e901b8b482d3c612a5efc87265befaad8a2e111a71cb51b687db76aa4631c5\",\"dirtyPaths\":{\"scripts/diffmap.mjs\":\"6db83aff92e1d413\",\"skills/architecture-map/SKILL.md\":\"c2e41f1a47195488\",\"tests/diffmap.test.mjs\":\"d295afb7b6de7ac9\"},\"head\":\"f11a22c\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/diffmap.mjs\",\"skills/architecture-map/SKILL.md\",\"tests/diffmap.test.mjs\"],\"scopeDigest\":\"sha256:36ba005ce20ad0ffb812ff4322ce56362948ad647cfb95d72cecef779966aac1\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
