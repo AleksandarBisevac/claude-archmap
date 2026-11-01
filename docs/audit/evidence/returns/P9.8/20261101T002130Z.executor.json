@@ -1,0 +1,20 @@
+{
+  "gates": {},
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task with tests.expectRedFirst false; no test owed. I added one guard case (mf5) after the CHANGELOG fix anyway."
+  },
+  "outcome": {
+    "technical": "CHANGELOG.md: rewrote the 'The map of this repository' bullet to 'built at 8174e41 and brought up to the release head with /archmap:update at 63d7495 ... 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views'; the diffmap bullet now says it ignores the map's own output directory and docs/audit. Heading '## [1.0.0] - 2026-11-01' and plugin.json untouched. tests/manifest.test.mjs: added mf5, which reads the counts from the 1.0.0 entry and compares them with nodes/edges/entities/sequences/views lengths in docs/architecture/architecture.model.json (34/23/1/4/5), plus a parse check on a stale string. Not a gate run: I ran 'node --test tests/manifest.test.mjs' once, exit 0, 8 pass 0 fail. The brief says there is nothing of its own to run, so I ran no other gate; the orchestrator's recorded run is the evidence. Dependants: .claude/audit.config.json, tests/readme.test.mjs, README.md, docs/design.md - still correct, because only two CHANGELOG bullets changed and no heading, version or other text those files might read was touched (not re-run by me). tests/manifest.test.mjs has no dependants.",
+    "descriptive": "The 1.0.0 changelog now states the real shipped map counts and the docs/audit skip in diffmap, and a test keeps the counts equal to the committed model."
+  },
+  "testsAdded": [
+    "mf5: CHANGELOG 1.0.0 entry counts equal the committed model's node, edge, entity, sequence and view counts"
+  ],
+  "casesAdded": [
+    "mf5"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ebcbfa3b539069fb3746f60bb0a7f333971324e5e8bc6208576f148d88e691ff\",\"dirtyDigest\":\"sha256:4375e827a738ef98e26bef9c865a189e47a44dd27bbb46e5e1fba576ec79502c\",\"dirtyPaths\":{\"CHANGELOG.md\":\"7e26f5b26f10b5a6\",\"tests/manifest.test.mjs\":\"7aa496f1b8674c45\"},\"head\":\"5ca70e8\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"CHANGELOG.md\",\"tests/manifest.test.mjs\"],\"scopeDigest\":\"sha256:cea938ca5a71a8d2f4e283e1424f33fc99096bd8d931ff4d18052e65f32a6266\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -58,7 +58,7 @@ All scripts are plain Node, deterministic and offline, and none of them executes
 - `render.mjs`: the clean, internal and shared builds of the viewer from one template. The clean build physically
   contains no issue; the shared build carries only the calibrated summary of a security issue.
 - `diffmap.mjs`: changed files to the affected areas, nodes, dependents, entities and sequences; it ignores the map's
-  own output directory.
+  own output directory and `docs/audit`.
 - `staleness.mjs` and the SessionStart hook: silent when the project has no model, otherwise one line when the model
   is behind HEAD; never runs the model.
 - `export.mjs`: Mermaid (flowchart, erDiagram, sequenceDiagram), PlantUML, a Markdown summary and static SVG from the
@@ -113,9 +113,9 @@ All scripts are plain Node, deterministic and offline, and none of them executes
 
 #### The map of this repository
 
-- `docs/architecture/` carries this repository's own map, built by its own skill (balanced profile, no issues) and
-  committed unchanged as the public example: 30 nodes, 18 edges, 1 entity, 4 sequences and 5 views, validated with
-  `validate.mjs --repo`.
+- `docs/architecture/` carries this repository's own map, built by its own skill (balanced profile, no issues) at
+  8174e41 and brought up to the release head with `/archmap:update` at 63d7495, committed as the public example:
+  34 nodes, 23 edges, 1 entity, 4 sequences and 5 views, validated with `validate.mjs --repo`.
 
 #### Repository
 

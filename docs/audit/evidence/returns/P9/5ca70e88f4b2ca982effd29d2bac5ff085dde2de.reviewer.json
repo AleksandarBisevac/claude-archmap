@@ -1,0 +1,195 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "CHANGELOG.md:116-118",
+      "issue": "The 1.0.0 'map of this repository' entry says the committed map is 'built by its own skill ... and committed unchanged ... 30 nodes, 18 edges, 1 entity, 4 sequences and 5 views'. At the release head P9.7 replaced that map with the /archmap:update result: docs/architecture/architecture.model.json now holds 34 nodes and 23 edges (meta.commit 63d7495), and both READMEs say so. The changelog of the release is therefore wrong about the shipped example, and the P9.7 claim that no self-build count appears in CHANGELOG (grep) is false. No test derives the changelog counts from the model, so the suite stayed green. The Scripts bullet on diffmap (CHANGELOG.md:239-240) also omits the docs/audit skip P9.6 added.",
+      "resolution": "Rewrite the entry to 34 nodes, 23 edges, 1 entity, 4 sequences and 5 views, built at 8174e41 and updated with /archmap:update at 63d7495; name docs/audit alongside the map's output directory in the diffmap bullet. Optionally add a manifest.test.mjs case that reads the counts out of the CHANGELOG entry and compares them with the committed model, as r4 does for the README."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "docs/audit/audit-plan.json:P9",
+      "issue": "The phase desired outcome says 'Version 1.0.0 tagged in this repo'. `git tag -l` is empty and no P9 task creates or records a tag; plugin.json, CHANGELOG, listing and roadmap are done, the tag is not.",
+      "resolution": "Create the v1.0.0 tag on the merge commit after the phase lands (owner step), or state in the plan that tagging is a post-merge act so the outcome is not read as met by this diff alone."
+    }
+  ],
+  "preExisting": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "scripts/diffmap.mjs:140",
+      "issue": "readGitChanges now excludes docs/audit from the behind count but not the map's own output directory, so a commit that touches only docs/architecture still counts as a commit behind while diffmap drops its files; the two rules differ.",
+      "resolution": "Derive the exclude pathspec from the same outDir used by diffmap() if the hook should be silent after a re-render commit."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "docs/audit/audit-plan.json:P9",
+      "issue": "The phase range 0058766..5ca70e8 also carries the P11 commits (reviewer agent, cost-profile, issues catalogue, evidence files); they are outside every P9 task's files and were signed off under P11, so they are not charged to this phase's diff.",
+      "resolution": "None for P9."
+    }
+  ],
+  "intent": {
+    "answer": "matches",
+    "note": "Against desiredOutcome (version 1.0.0 with a changelog entry, updated marketplace listing description, docs/roadmap.md covering v1.1 and later): plugin.json is 1.0.0, CHANGELOG has a dated [1.0.0] entry under an empty Unreleased, docs/release/marketplace-entry.json plus the aligned dev marketplace description carry the new listing text, docs/roadmap.md covers v1.1, drift gate, overlays, state machines, architecture diff, BUG-5-6o1 and the benchmark. Two gaps: the changelog's description of the committed map is stale after P9.7 (finding 1) and no git tag exists (finding 2). The mechanical archmap-review scan over the range (74 files, 10158 added lines, denylist of 14 terms checked) returned no leads; no machine path or external URL in the committed map or HTML; validate.mjs --repo on the committed model exits with 'OK: no findings'. The known BUG-5-6o1 error is not reported again.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "In mode phase intent.redFirst is not-attempted; per-task words are in tasks.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every task's tests.gate is the literal `node --test`, which runs the whole project, so the inherited-tests question is not asked (the filing verb computes not-asked for each task)."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P9.1",
+      "commit": "4d19e1580112",
+      "answer": "matches",
+      "note": "Clause 'cap dirs at the same constant' and 'add the pipeline test case': testDataOf slices dirs to SKIPPED_CAP (scripts/pipeline.mjs diff, count untouched) and p39 asserts count = base + extra, dirs.length === SKIPPED_CAP, path order, key shape, pipeline.json equality and the report's 'Skipped or not checked: test data: N files ...' line with 'and N more'. The claim describes the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test --test-name-pattern=p39 tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.1/20261031T201944Z.executor.json, at 2026-10-31T20:22:25Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P9.2",
+      "commit": "4618cf343c01",
+      "answer": "matches",
+      "note": "Clause 'Write the 1.0.0 entry ... grouped by area ... Unreleased heading empty ... No client, dataset or repository name': the entry is grouped as listed and mf3 compares the newest dated heading with plugin.json (1.0.0/1.0.0 passes), mf4 checks the parser. The claim describes the diff, including the plugin.json bump. One line in the entry (CHANGELOG.md:117) was true when written and is stale at the release head after P9.7; see finding 1.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.2/20261031T234851Z.executor.json, at 2026-10-31T23:49:46Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P9.3",
+      "commit": "c7a54f4c0641",
+      "answer": "matches",
+      "note": "Clause 'replace the release-candidate status paragraph with the released status: version 1.0.0, one sentence, the CHANGELOG link, keep the six commands, tests and evals sentence': README Status does exactly that, and r3 now requires 'released', 'version <plugin.json version>', the CHANGELOG link and still forbids planned/pre-release/release candidate wording and machine paths. plugin.json was already 1.0.0 from P9.2 and the claim says so.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.3/20261031T235054Z.executor.json, at 2026-10-31T23:51:40Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P9.4",
+      "commit": "34df6bd8c7b4",
+      "answer": "matches",
+      "note": "Clause 'each item gets a sentence on what it delivers and what evidence closes it ... name no vendor platform': docs/roadmap.md has every listed item with Delivers and Closed by text, data platforms described generically (dbt, Docker, Terraform and similar tools only), README links it, r6/r7 fail on a missing file, v1.1 heading, benchmark item or missing link. The test title in tests.add also says 'names no vendor platform'; that is enforced by the repository-wide denylist test, not by checkRoadmap, which the claim states.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.4/20261031T235249Z.executor.json, at 2026-10-31T23:54:29Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P9.5",
+      "commit": "f11a22cd6303",
+      "answer": "matches",
+      "note": "Clause 'same shape as the published entry ... description matches .claude-plugin/marketplace.json word for word, no pre-release note, tags equal plugin.json keywords': marketplace-entry.json has name, github source, description, category, tags, homepage, strict; mf5 and mf6 compare description, tags (order-sensitive) and the pre-release word; mf7 proves the helpers reject bad pairs. The other repository is not touched.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/manifest.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.5/20261031T235701Z.executor.json, at 2026-10-31T23:58:30Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P9.6",
+      "commit": "63d7495bede7",
+      "answer": "matches",
+      "note": "Clause 'make diffmap skip docs/audit/** the same way it skips docs/architecture/** ... state the rule in the diffmap header and in SKILL.md ... regression test': AUDIT_DIR joins the own() filter, the rule is in the header and the SKILL.md update flow, d14 drives the CLI and the staleness hook (audit-only change set: no files, nodes, behind 0, empty hook output; source change still affects its node). The behind count also gets a pathspec exclude, a step beyond the clause that the claim names and justifies (staleness prints on behind>0).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/diffmap.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P9.6/20261031T235948Z.executor.json, at 2026-11-01T00:02:58Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P9.7",
+      "commit": "5ca70e88f4b2",
+      "answer": "matches",
+      "note": "Clause 'bring docs/architecture in unchanged ... track the profile as self-with-skill-3.json and record in both READMEs the update's cost, turns and context beside the build's, with the counts of the updated model; e19, r2, r4 must pass': model (34 nodes, 23 edges, meta.commit 63d7495), layout, HTML and profile are in; README and evals README carry the 0.80 USD, 11 turns, 54.6 K row and the 34/23/1/4/5 counts; e17-e20, r2, r4, r5 read them. validate.mjs --repo reports no findings. The claim's dependants statement that CHANGELOG carries no self-build count is wrong (CHANGELOG.md:117, finding 1).",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The filed redFirst is `not-attempted`: gate-only task, tests.add is none and expectRedFirst is false, so no red was owed. The basis holds; the executor's note that new assert.throws mutation cases pass is not a red-first proof and is not graded as one.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P9.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P9.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P9.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P9.4": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P9.5": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P9.6": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P9.7": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P9.1",
+      "commit": "4d19e1580112"
+    },
+    {
+      "id": "P9.2",
+      "commit": "4618cf343c01"
+    },
+    {
+      "id": "P9.3",
+      "commit": "c7a54f4c0641"
+    },
+    {
+      "id": "P9.4",
+      "commit": "34df6bd8c7b4"
+    },
+    {
+      "id": "P9.5",
+      "commit": "f11a22cd6303"
+    },
+    {
+      "id": "P9.6",
+      "commit": "63d7495bede7"
+    },
+    {
+      "id": "P9.7",
+      "commit": "5ca70e88f4b2"
+    }
+  ]
+}

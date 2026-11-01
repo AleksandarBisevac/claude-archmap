@@ -84,3 +84,22 @@ test('mf7 the release-entry comparisons fail on a differing description, a diffe
   assert.ok(preRelease('a prerelease build'));
   assert.ok(!preRelease('The first release.'));
 });
+
+// The self-build counts the 1.0.0 entry states for the committed map, read from the entry and from the model.
+const countsIn = (entry) => {
+  const m = entry.match(/(\d+) nodes, (\d+) edges, (\d+) entit(?:y|ies), (\d+) sequences and (\d+) views/);
+  return m && m.slice(1).map(Number);
+};
+
+test('mf5 the CHANGELOG 1.0.0 entry states the node, edge, entity, sequence and view counts of the committed map', () => {
+  const changelog = text('CHANGELOG.md');
+  const start = changelog.indexOf('## [1.0.0]');
+  const next = changelog.indexOf('\n## [', start + 1);
+  assert.ok(start >= 0, 'CHANGELOG.md has a 1.0.0 entry');
+  const stated = countsIn(changelog.slice(start, next < 0 ? undefined : next));
+  assert.ok(stated, 'the 1.0.0 entry states "N nodes, N edges, N entity, N sequences and N views"');
+  const model = read('docs/architecture/architecture.model.json');
+  const actual = [model.nodes, model.edges, model.entities, model.sequences, model.views].map((a) => a.length);
+  assert.deepEqual(stated, actual, 'the counts in the 1.0.0 entry equal the committed model');
+  assert.deepEqual(countsIn('30 nodes, 18 edges, 1 entity, 4 sequences and 5 views'), [30, 18, 1, 4, 5], 'the reader parses a stale entry, which then differs from the model');
+});
