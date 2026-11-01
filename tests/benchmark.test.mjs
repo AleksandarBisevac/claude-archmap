@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, chmodSync, readdirSync, realpathSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
@@ -200,4 +202,145 @@ test('b9 the protocol documents are public: no machine path, home directory or d
       assert.doesNotMatch(text, re, `${f} matches ${re}`);
     }
   }
+});
+
+// ---- P12.3: the run script for one benchmark cell (run-candidate.sh) ----
+// The behaviour cases run it against a stub `claude` put on PATH through --path-prepend, so no session is started.
+const SCRIPT = join(DIR, 'run-candidate.sh');
+// The environment of the caller, minus any configuration directory of its own, plus `env` (a null value unsets).
+function runScript(args, env = {}) {
+  const e = { ...process.env, ...env };
+  delete e.CLAUDE_CONFIG_DIR;
+  for (const [k, v] of Object.entries(env)) if (v === null) delete e[k];
+  return spawnSync('sh', [SCRIPT, ...args], { encoding: 'utf8', env: e });
+}
+
+// A stub claude: `plugin ...` subcommands are logged and answered; a session records its argv (NUL-separated) and its
+// environment into the run directory, prints one stream line and exits 3.
+const STUB = `#!/bin/sh
+if [ "$1" = plugin ]; then
+  printf '%s\\n' "$*" >> "$CLAUDE_CONFIG_DIR/../plugin-calls.txt"
+  if [ "$2" = list ]; then printf '[{"id":"other@m","version":"9.9.9"},{"id":"mapper@mkt","version":"1.2.3"}]\\n'; fi
+  exit 0
+fi
+for a in "$@"; do printf '%s\\0' "$a"; done > ../argv.bin
+printf '{"type":"system","cwd":"%s","repo":"%s","claudecode":"%s","config":"%s"}\\n' "$PWD" "$ARCHMAP_EVAL_REPO_A" "\${CLAUDECODE-unset}" "\${CLAUDE_CONFIG_DIR-unset}"
+printf '{"type":"result","subtype":"success","is_error":false,"duration_ms":1000}\\n'
+echo "stub stderr" >&2
+exit 3
+`;
+function cell() {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'archmap-bench-')));
+  const run = join(base, 'cell', 'run');
+  mkdirSync(join(run, 'repo'), { recursive: true });
+  const bin = join(base, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'claude'), STUB);
+  chmodSync(join(bin, 'claude'), 0o755);
+  const prompt = join(base, 'prompt.md');
+  const text = "Map the repository in <ENV_NAME>.\nIt's the one <ENV_NAME> names; \"quote\" $HOME `x`.\n";
+  writeFileSync(prompt, text);
+  return { base, run, bin, prompt, text };
+}
+const readArgv = (run) => readFileSync(join(run, 'argv.bin'), 'utf8').split('\0').slice(0, -1);
+const HEADLESS = ['--output-format', 'stream-json', '--verbose', '--setting-sources', 'project', '--permission-mode', 'auto', '--permission-prompts', 'none'];
+
+test('b10 run-candidate.sh parses under sh -n and has a POSIX sh shebang', () => {
+  assert.ok(existsSync(SCRIPT), 'run-candidate.sh is missing');
+  assert.match(readFileSync(SCRIPT, 'utf8'), /^#!\/bin\/sh\n/);
+  const r = spawnSync('sh', ['-n', SCRIPT], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test('b11 without arguments, or with a wrong mode, it prints the usage and exits 2', () => {
+  const r = runScript([]);
+  assert.equal(r.status, 2);
+  const usage = r.stderr;
+  assert.match(usage, /usage: run-candidate\.sh <run-dir> <ENV_NAME> <prompt-file> \(--plugin-dir <dir> \| --plugin <name@marketplace> --marketplace <url-or-path>\)/);
+  for (const o of ['--model <model>', '--path-prepend <dir>', '-- <extra claude args>']) assert.ok(usage.includes(o), `usage names ${o}`);
+  assert.equal(r.stdout, '');
+  const c = cell();
+  for (const args of [
+    [c.run, 'ARCHMAP_EVAL_REPO_A', c.prompt],
+    [c.run, 'ARCHMAP_EVAL_REPO_A', c.prompt, '--plugin-dir', c.base, '--plugin', 'mapper@mkt', '--marketplace', c.base],
+    [c.run, 'ARCHMAP_EVAL_REPO_A', c.prompt, '--plugin', 'mapper@mkt'],
+    [c.run, 'NOT-A-NAME', c.prompt, '--plugin-dir', c.base],
+    [c.run, 'ARCHMAP_EVAL_REPO_A', join(c.base, 'missing.md'), '--plugin-dir', c.base],
+    [join(c.base, 'nowhere'), 'ARCHMAP_EVAL_REPO_A', c.prompt, '--plugin-dir', c.base],
+    [c.run, 'ARCHMAP_EVAL_REPO_A', c.prompt, '--plugin-dir', c.base, '--wat'],
+  ]) {
+    const e = runScript(args, { PATH: `${c.bin}:${process.env.PATH}` });
+    assert.equal(e.status, 2, args.join(' '));
+    assert.match(e.stderr, /usage: run-candidate\.sh/, args.join(' '));
+  }
+  assert.ok(!existsSync(join(c.run, 'argv.bin')), 'no session ran on a usage error');
+});
+
+test('b12 run-candidate.sh carries no absolute home path, no denylist term and no CLAUDECODE outside env -u (denylist skipped when absent)', (t) => {
+  const text = readFileSync(SCRIPT, 'utf8');
+  for (const re of [/\/Users\/\S/, /\/home\/\S/, /\/private\/\S/, /~\//, /[A-Za-z]:\\\\?\S/, /\.private\b/]) {
+    assert.doesNotMatch(text, re, `matches ${re}`);
+  }
+  assert.match(text, /env -u CLAUDECODE/);
+  assert.doesNotMatch(text.replaceAll('env -u CLAUDECODE', ''), /CLAUDECODE/, 'CLAUDECODE appears outside env -u');
+  if (!existsSync(DENYLIST)) {
+    t.skip('denylist not checked: .private/anonymise-denylist.txt is absent');
+    return;
+  }
+  assert.deepEqual(denylistHits(text), [], 'run-candidate.sh carries a denylist term');
+});
+
+test('b13 --plugin-dir: the session runs from <run-dir>/repo with the variable set, CLAUDECODE unset, the prompt substituted, the flags in order, and every file lands in <run-dir>', () => {
+  const c = cell();
+  const plugin = join(c.base, 'clone');
+  mkdirSync(plugin);
+  const r = runScript(
+    [c.run, 'ARCHMAP_EVAL_REPO_A', c.prompt, '--plugin-dir', plugin, '--model', 'opus', '--path-prepend', c.bin, '--', '--max-turns', '5'],
+    { CLAUDECODE: '1', ARCHMAP_EVAL_REPO_A: '' },
+  );
+  assert.equal(r.status, 3, `the session's exit status is the script's: ${r.stderr}`);
+  assert.equal(readFileSync(join(c.run, 'exit-code'), 'utf8').trim(), '3');
+  assert.equal(readFileSync(join(c.run, 'stderr.log'), 'utf8').trim(), 'stub stderr');
+  const lines = readFileSync(join(c.run, 'stream.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines.length, 2);
+  const repo = join(c.run, 'repo');
+  assert.deepEqual([realpathSync(lines[0].cwd), lines[0].repo, lines[0].claudecode, lines[0].config], [repo, repo, 'unset', 'unset']);
+  const expectedPrompt = c.text.replaceAll('<ENV_NAME>', 'ARCHMAP_EVAL_REPO_A').replace(/\n+$/, '');
+  assert.deepEqual(readArgv(c.run), ['-p', expectedPrompt, '--plugin-dir', plugin, '--model', 'opus', ...HEADLESS, '--max-turns', '5']);
+  const timing = JSON.parse(readFileSync(join(c.run, 'timing.json'), 'utf8'));
+  assert.deepEqual(Object.keys(timing).sort(), ['finished', 'started', 'total_duration_seconds']);
+  for (const v of Object.values(timing)) assert.equal(typeof v, 'number');
+  assert.equal(timing.total_duration_seconds, timing.finished - timing.started);
+  assert.ok(timing.total_duration_seconds >= 0 && timing.started > 1.7e9);
+  const command = readFileSync(join(c.run, 'command.txt'), 'utf8');
+  assert.ok(command.includes('env -u CLAUDECODE claude -p'), command);
+  assert.ok(command.includes(c.prompt), 'the prompt is recorded by its file path');
+  assert.ok(!command.includes('Map the repository'), 'the prompt text is redacted');
+  for (const a of ['--plugin-dir', plugin, '--model', 'opus', '--setting-sources', '--max-turns', 'ARCHMAP_EVAL_REPO_A=', c.bin]) assert.ok(command.includes(a), `command.txt records ${a}`);
+  assert.deepEqual(readdirSync(join(c.base, 'cell')), ['run'], 'nothing is written beside <run-dir>');
+  assert.deepEqual(readdirSync(c.run).sort(), ['argv.bin', 'command.txt', 'exit-code', 'repo', 'stderr.log', 'stream.jsonl', 'timing.json']);
+  assert.deepEqual(readdirSync(repo), [], 'nothing is written into the repository copy in --plugin-dir mode');
+});
+
+test('b14 --plugin: installs into an isolated CLAUDE_CONFIG_DIR under <run-dir>/config, records the installed version, warns about the login, and runs the session there without --plugin-dir', () => {
+  const c = cell();
+  // --path-prepend reaches the session only, so the install commands find the stub through the caller's PATH here.
+  const r = runScript([c.run, 'ARCHMAP_EVAL_REPO_A', c.prompt, '--plugin', 'mapper@mkt', '--marketplace', 'owner/repo'], { CLAUDECODE: '1', PATH: `${c.bin}:${process.env.PATH}` });
+  assert.equal(r.status, 3, r.stderr);
+  const config = join(c.run, 'config');
+  const calls = readFileSync(join(c.run, 'plugin-calls.txt'), 'utf8').trim().split('\n');
+  assert.equal(calls[0], 'plugin marketplace add owner/repo --scope project');
+  assert.equal(calls[1], 'plugin install mapper@mkt --scope project');
+  assert.match(calls[2], /^plugin list --json/);
+  assert.equal(readFileSync(join(c.run, 'plugin-version.txt'), 'utf8').trim(), '1.2.3');
+  assert.match(r.stderr, /log(ged)? in once/i);
+  assert.ok(r.stderr.includes(`CLAUDE_CONFIG_DIR=${config}`) && r.stderr.includes('/login'), r.stderr);
+  assert.equal(r.stderr.trim().split('\n').length, 1, 'the warning is one line');
+  const [line] = readFileSync(join(c.run, 'stream.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual([line.config, line.claudecode], [config, 'unset']);
+  const argv = readArgv(c.run);
+  assert.ok(!argv.includes('--plugin-dir'));
+  assert.deepEqual(argv.slice(2), HEADLESS);
+  assert.ok(readFileSync(join(c.run, 'command.txt'), 'utf8').includes(`CLAUDE_CONFIG_DIR=`));
+  assert.deepEqual(readdirSync(join(c.base, 'cell')), ['run'], 'nothing is written beside <run-dir>');
 });

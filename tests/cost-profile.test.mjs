@@ -246,3 +246,79 @@ test('c17 --basename records each transcript by its base name in the JSON reconc
   assert.deepEqual(two.reconciliation.files.map((f) => f.file), ['stream-sample.jsonl', 'stream-sample.jsonl'], 'the switch may come first and covers every file');
   assert.equal(run([SAMPLE, '--basename']).status, 0, 'harmless on the text report');
 });
+
+// P12.3: the release benchmark profiles the streams of other plugins, which name their agents their own way, may start
+// none, may call the older Task tool with only a description, and may end on a result event without modelUsage.
+const FOREIGN = fileURLToPath(new URL('./fixtures/cost/foreign-stream.jsonl', import.meta.url));
+const foreignEvents = () => readFileSync(FOREIGN, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+const writeStream = (name, evs) => {
+  const f = join(mkdtempSync(join(tmpdir(), 'archmap-cost-')), name);
+  writeFileSync(f, evs.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  return f;
+};
+const UNKNOWN_ROW = /unknown|subagent|^\(|^$/i;
+
+test('c18 a stream with no Agent or Task call yields one orchestrator row and no unknown-subagent row, and still reconciles', () => {
+  const u = (i, o, r, w) => ({ input_tokens: i, output_tokens: o, cache_read_input_tokens: r, cache_creation_input_tokens: w });
+  const turn = (id, content, usage) => ({ type: 'assistant', session_id: 's', parent_tool_use_id: null, message: { id, role: 'assistant', model: 'claude-opus-5-5', content, usage } });
+  const evs = [
+    { type: 'system', subtype: 'init', session_id: 's', model: 'claude-opus-5-5' },
+    turn('m1', [{ type: 'tool_use', id: 'toolu_B1', name: 'Bash', input: { command: 'ls' } }], u(30, 3, 0, 4000)),
+    { type: 'user', session_id: 's', parent_tool_use_id: null, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_B1', content: 'a b' }] } },
+    turn('m2', [{ type: 'tool_use', id: 'toolu_R1', name: 'Read', input: { file_path: 'a' } }], u(20, 4, 4000, 1000)),
+    { type: 'user', session_id: 's', parent_tool_use_id: null, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_R1', content: 'x' }] } },
+    turn('m3', [{ type: 'text', text: 'done' }], u(10, 5, 5000, 200)),
+    { type: 'result', subtype: 'success', session_id: 's', is_error: false, num_turns: 3, result: 'done', modelUsage: { 'claude-opus-5-5': { inputTokens: 60, outputTokens: 300, cacheReadInputTokens: 9000, cacheCreationInputTokens: 5200 } } },
+  ];
+  const f = writeStream('solo.jsonl', evs);
+  const j = profile(f);
+  assert.deepEqual(j.byAgent.map((r) => r.agent), ['orchestrator']);
+  assert.equal(j.byAgent[0].turns, 3);
+  assert.equal(j.byAgent[0].maxContext, 5210);
+  assert.equal(j.reconciliation.matchesModelUsage, true);
+  const out = run([f]).stdout;
+  assert.doesNotMatch(out.slice(out.indexOf('per agent')), /unknown/i, 'the text table carries no unknown-subagent row');
+});
+
+test('c19 foreign subagent_type values, from Task and from Agent calls, label the rows; the foreign fixture is synthetic and reconciles', () => {
+  const j = profile(FOREIGN);
+  const agents = j.byAgent.map((r) => r.agent);
+  assert.equal(agents[0], 'orchestrator', 'orchestrator first');
+  assert.ok(agents.includes('code-cartographer'), `a code-cartographer row in [${agents}]`);
+  assert.ok(agents.includes('diagram-drafter'), `a diagram-drafter row in [${agents}]`);
+  for (const a of agents) assert.doesNotMatch(a, UNKNOWN_ROW, `no unknown-subagent row: ${a}`);
+  const by = Object.fromEntries(j.byAgent.map((r) => [r.agent, r]));
+  assert.deepEqual([by.orchestrator.turns, by['code-cartographer'].turns, by['diagram-drafter'].turns], [3, 2, 1]);
+  assert.deepEqual([by['code-cartographer'].input, by['code-cartographer'].cacheWrite], [240, 4500]);
+  assert.deepEqual(j.byModel.map((r) => r.model).sort(), ['claude-opus-5-5', 'claude-sonnet-5-5'], 'two models');
+  assert.equal(j.reconciliation.matchesModelUsage, true);
+  const out = run([FOREIGN]).stdout;
+  for (const name of ['code-cartographer', 'diagram-drafter']) assert.ok(out.includes(name), name);
+  assert.doesNotMatch(readFileSync(FOREIGN, 'utf8'), /\/Users\/|\/home\/|C:\\|github\.com|@/);
+});
+
+test('c20 a Task call with a description and no subagent_type is labelled by its description', () => {
+  const j = profile(FOREIGN);
+  const row = j.byAgent.find((r) => r.agent === 'Survey the routes');
+  assert.ok(row, `a "Survey the routes" row in [${j.byAgent.map((r) => r.agent)}]`);
+  assert.deepEqual([row.turns, row.input, row.cacheWrite, row.maxContext], [1, 90, 2500, 2590]);
+  assert.equal(j.byAgent.length, 4, 'orchestrator, two typed subagents and the described one');
+  for (const c of ['input', 'cacheRead', 'cacheWrite']) assert.equal(j.byAgent.reduce((n, r) => n + r[c], 0), j.total[c], c);
+});
+
+test('c21 a result event without modelUsage does not throw: the profile falls back to the stream and marks the reconciliation missing', () => {
+  const evs = foreignEvents();
+  delete evs.at(-1).modelUsage;
+  const f = writeStream('no-model-usage.jsonl', evs);
+  const r = run([f, '--json']);
+  assert.equal(r.status, 0, r.stderr);
+  const j = JSON.parse(r.stdout);
+  assert.deepEqual(j.reconciliation.files[0], { file: f, resultEvents: 1, matchesModelUsage: null, mismatches: [], modelUsage: 'missing' });
+  assert.equal(j.reconciliation.matchesModelUsage, null);
+  assert.deepEqual(j.basis, { byModel: 'stream-lower-bound', byAgentOutput: 'stream-lower-bound' });
+  assert.equal(j.total.output, 6 + 4 + 3 + 5 + 7 + 2 + 9, 'output is the stream lower bound');
+  const t = run([f]);
+  assert.equal(t.status, 0, t.stderr);
+  assert.match(t.stdout, /modelUsage[^\n]*missing|missing[^\n]*modelUsage/i);
+  assert.doesNotMatch(t.stdout, /MATCH\b(?!ES)/);
+});

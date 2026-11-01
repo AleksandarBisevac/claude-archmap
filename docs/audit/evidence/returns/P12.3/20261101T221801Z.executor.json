@@ -1,0 +1,44 @@
+{
+  "gates": {
+    "node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs": "pass",
+    "node --test tests/denylist.test.mjs tests/benchmark.test.mjs tests/cost-profile.test.mjs": "pass",
+    "test (node --test)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-01T22:26:27Z",
+    "basis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "New skills/architecture-map/evals/benchmark/run-candidate.sh (POSIX sh, #!/bin/sh, executable, staged). Usage: run-candidate.sh <run-dir> <ENV_NAME> <prompt-file> (--plugin-dir <dir> | --plugin <name@marketplace> --marketplace <url-or-path>) [--model <model>] [--path-prepend <dir>] [-- <extra claude args>]. It validates the arguments (exit 2 with usage on stderr), makes every path absolute, cds into <run-dir>/repo, replaces <ENV_NAME> in the prompt with the variable name via sed, exports <ENV_NAME>=<run-dir>/repo and runs `env -u CLAUDECODE claude -p <prompt> [--plugin-dir d] [--model m] --output-format stream-json --verbose --setting-sources project --permission-mode auto --permission-prompts none <extras>`. It writes stream.jsonl, stderr.log, exit-code, timing.json {started, finished, total_duration_seconds} (epoch seconds from date +%s) and command.txt, a replayable shell line (cd, the env assignments, the prompt as \"$(sed ... <prompt-file>)\"); I replayed command.txt with sh -c and got the same argv. The script exits with the session's status. --plugin: CLAUDE_CONFIG_DIR=<run-dir>/config, prints a one-line warning that the directory must be logged in once (CLAUDE_CONFIG_DIR=<dir> claude /login), runs `claude plugin marketplace add <mkt> --scope project` and `claude plugin install <plugin> --scope project` from the repo copy (project scope because the session reads only the project setting source; user-scope enablement would not load under --setting-sources project), output to install.log, and reads the version from `claude plugin list --json` through node into plugin-version.txt ('unknown' as fallback). --path-prepend puts the directory first on PATH for the session only, not for the install commands. Nothing is written outside <run-dir>. The script parses under sh -n, zsh -n and dash -n. scripts/cost-profile.mjs: an Agent/Task call is labelled subagent_type, else description, else unknown-subagent; when result events exist but none carries modelUsage, the reconciliation file entry gets modelUsage:'missing' (and stays matchesModelUsage:null) and the text report adds a line 'reconciliation missing: the result events carry no modelUsage in <file>'; header comment documents both. Output for the existing fixtures is byte-identical to HEAD's script: cmp over text, --json and --json --basename on stream-sample.jsonl, and over text on the same stream with its result events removed. tests/fixtures/cost/expected.json is unchanged (git diff --quiet exit 0). PROTOCOL.md Configurations section now documents the run-candidate.sh usage, its outputs, both modes, --path-prepend and the one-sentence login requirement; the Duration bullet in Metrics now says timing.json is the clock read around the session, not the result event. New fixture tests/fixtures/cost/foreign-stream.jsonl: 12 synthetic events with Task subagent_type code-cartographer, a Task with only a description, an Agent diagram-drafter, opus and sonnet, and a final result whose input and cache classes reconcile. Tests: c18-c21 in tests/cost-profile.test.mjs and b10-b14 in tests/benchmark.test.mjs (b13/b14 drive the script against a stub claude on PATH). Before the fix c19, c20 and c21 failed and c18 passed; c18 locks behaviour the current code already had. b10-b14 all failed before the script existed. Commands: `node --test tests/denylist.test.mjs tests/benchmark.test.mjs tests/cost-profile.test.mjs` exit 0, 37/37 pass, 0 skipped. Full `node --test` exit 0, 476/476 pass. Dependents: docs/architecture/architecture.model.json and archmap.html name the path only (unchanged); scripts/pipeline.mjs:1277 and scripts/usage.mjs:191 mention it in prose (still correct); tests/readme.test.mjs and tests/evals.test.mjs check the documented `--json --basename` command (unchanged CLI); tests/skill.test.mjs s17 runs it over orchestrator turns (green in the full run); tests/cost-profile.test.mjs and tests/benchmark.test.mjs are this task's. PROTOCOL.md's dependant tests/benchmark.test.mjs b6/b7/b9 pass after the edit. Not committed.",
+    "descriptive": "The benchmark now has a tracked, path-free script that runs one cell, and the cost profiler labels another plugin's agents correctly and survives a result event without modelUsage."
+  },
+  "testsAdded": [
+    "c18 a stream with no Agent/Task call yields only the orchestrator row and still reconciles",
+    "c19 foreign subagent_type values from Task and Agent calls label the rows; foreign fixture is synthetic and reconciles",
+    "c20 a Task call with only a description is labelled by that description",
+    "c21 a result event without modelUsage exits 0, falls back to the stream and marks reconciliation modelUsage:'missing'",
+    "b10 run-candidate.sh has a /bin/sh shebang and parses under sh -n",
+    "b11 no arguments or a wrong mode prints usage and exits 2, and no session runs",
+    "b12 no home path, no denylist term (skipped if absent), no CLAUDECODE outside env -u",
+    "b13 --plugin-dir run against a stub claude: cwd, variable, CLAUDECODE unset, substituted prompt, flag order, timing.json, command.txt redaction, nothing written outside run-dir",
+    "b14 --plugin run against a stub claude: project-scope marketplace add/install under run-dir/config, plugin-version.txt, one-line login warning, session under that CLAUDE_CONFIG_DIR"
+  ],
+  "casesAdded": [
+    [
+      "c18",
+      "c19",
+      "c20",
+      "c21",
+      "b10",
+      "b11",
+      "b12",
+      "b13",
+      "b14"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:bab1f248565dde968cd8c50783116ebf3067b2bb5519ffbc2ecc6a51d822b245\",\"dirtyDigest\":\"sha256:70f1dacf3bf72650ed0c118e7dc7741c7301afad5f1bf27803b724d623ff59e6\",\"dirtyPaths\":{\"scripts/cost-profile.mjs\":\"8b373fff42ed39e5\",\"skills/architecture-map/evals/benchmark/PROTOCOL.md\":\"71fb2131744b68e1\",\"tests/benchmark.test.mjs\":\"1aa44c311533a79d\",\"tests/cost-profile.test.mjs\":\"7709aa1c33cabdd0\"},\"head\":\"7ba3e1b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/cost-profile.mjs\",\"skills/architecture-map/evals/benchmark/PROTOCOL.md\",\"skills/architecture-map/evals/benchmark/run-candidate.sh\",\"tests/benchmark.test.mjs\",\"tests/cost-profile.test.mjs\",\"tests/fixtures/cost/foreign-stream.jsonl\"],\"scopeDigest\":\"sha256:8295a20ac060bb1413db86a5cae612849b3ea6a1a2f871ab132a604a16a90dd9\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -50,6 +50,24 @@ evals README; the README records the transcript format (`stream-json`) and the v
 holds the rest. The orchestrator model is Opus for every cell (`--model opus`), so that a difference in cost is not a
 difference in model. Subagents use whatever model the tool itself chooses; that is part of what is measured.
 
+Each cell is run by `run-candidate.sh`, beside this document, which takes every location as an argument:
+
+```sh
+run-candidate.sh <run-dir> <ENV_NAME> <prompt-file> (--plugin-dir <dir> | --plugin <name@marketplace> --marketplace <url-or-path>) \
+  [--model <model>] [--path-prepend <dir>] [-- <extra claude args>]
+```
+
+It runs the session above from `<run-dir>/repo` with `<ENV_NAME>` exported to that directory and the prompt file's
+`<ENV_NAME>` placeholder replaced by the variable's name, unsets `CLAUDECODE` (through `env -u`), and writes into `<run-dir>` only: `stream.jsonl`, `stderr.log`, `exit-code`, `timing.json`
+(`started` and `finished` in epoch seconds and `total_duration_seconds`) and `command.txt`, the command line it ran
+with the prompt given by its file path. `--plugin-dir` passes a clone through (the benchmark's mode); `--plugin`
+instead adds the marketplace and installs the plugin, at project scope of the repository copy, under an isolated
+configuration directory `<run-dir>/config`, and records the installed version in `plugin-version.txt`. That directory
+starts logged out, so it must be logged in once (`claude /login` with `CLAUDE_CONFIG_DIR` set to it) before a session
+can run there. `--path-prepend <dir>` puts a directory first on `PATH` for the session only, which is how the tool
+whose CLI is installed under the workspace gets its `node_modules/.bin`; `--model` and the arguments after `--` are
+passed to `claude`. The script exits 2 on a usage error and otherwise with the session's exit status.
+
 One run per cell: four tools on each of three repositories, twelve runs. A tool whose installation needs a command line
 program from npm gets that program installed locally under the workspace, not globally, and the workspace's
 `node_modules/.bin` is put on `PATH` for the run of that tool only.
@@ -70,7 +88,7 @@ Every figure comes from a file the run left, never from the model's own report o
   `rates` block of each saved profile; this protocol was written against the table dated 2026-10-31. A price change
   moves every figure, so the comparison is re-derived from the transcripts whenever the date moves.
 - **Duration** in seconds: wall-clock time of the headless session, `total_duration_seconds` of the `timing.json` that
-  the harness writes from the result event of the transcript.
+  `run-candidate.sh` writes from the clock read just before the session starts and just after it exits.
 - **Turns**: the `turns` of the `orchestrator` row of the profile's `byAgent`. It counts the orchestrating session's
   turns only; subagent turns are in their own rows and in the cost.
 - **Context**: the `maxContext` of the same `orchestrator` row, in tokens (cache read, cache write and input of the

@@ -7,6 +7,10 @@
 // cache-read and cache-write tokens per model and per agent (the orchestrator, plus one row per subagent_type of
 // the Agent tool calls that spawned the subagent messages), the assistant turns, the median and maximum context
 // size per agent (cache read + cache write + input of one turn) and a list-price cost per row from RATES below.
+// The streams of other plugins are read the same way: a subagent_type of any name labels its row, an Agent or Task call
+// with no subagent_type is labelled by its description, and a stream that starts no subagent has the orchestrator row
+// only. A transcript whose result events carry no modelUsage is profiled from the stream and its reconciliation entry
+// is marked `modelUsage: "missing"`.
 //
 // Counting: a message is counted once per message.id (stream-json repeats a message once per content block; the
 // last copy wins). Every `result` event's modelUsage is CUMULATIVE for the session, so the figure to use is the
@@ -97,12 +101,13 @@ const num = (v) => (Number.isFinite(v) && v >= 0 ? v : 0);
 
 // One transcript -> unique messages (agent, model, usage) and the last result event's modelUsage.
 function collect(events) {
-  const spawned = new Map(); // Agent tool_use id -> subagent_type
+  const spawned = new Map(); // Agent tool_use id -> subagent_type, else its description
+  const label = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
   for (const e of events) {
     if (e?.type !== 'assistant' || !Array.isArray(e.message?.content)) continue;
     for (const part of e.message.content) {
       if (part?.type === 'tool_use' && (part.name === 'Agent' || part.name === 'Task')) {
-        spawned.set(part.id, part.input?.subagent_type ?? UNKNOWN_AGENT);
+        spawned.set(part.id, label(part.input?.subagent_type) ?? label(part.input?.description) ?? UNKNOWN_AGENT);
       }
     }
   }
@@ -147,8 +152,12 @@ const fromResult = (u) => ({ input: num(u?.[FIELD.input]), output: num(u?.[FIELD
 
 // Compare the stream's per-model sums with the last result event. Input and the cache classes must be equal;
 // output is only a lower bound in the stream, so it is a mismatch only when the stream exceeds the result.
+// Result events of which none carries modelUsage are marked `modelUsage: 'missing'`: nothing to reconcile against.
 function reconcile(file, streamModels, { lastResult, resultEvents }) {
-  if (!lastResult) return { file, resultEvents, matchesModelUsage: null, mismatches: [] };
+  if (!lastResult) {
+    const none = { file, resultEvents, matchesModelUsage: null, mismatches: [] };
+    return resultEvents ? { ...none, modelUsage: 'missing' } : none;
+  }
   const mismatches = [];
   for (const model of [...new Set([...Object.keys(streamModels), ...Object.keys(lastResult)])].sort()) {
     const r = fromResult(lastResult[model]);
@@ -254,6 +263,8 @@ export function renderText(p) {
     const gaps = r.files.flatMap((f) => f.mismatches).map((m) => `${m.model} ${m.class} differs by ${m.difference} (stream ${m.stream}, result ${m.result})`);
     out.push('', `totals DO NOT equal the last result event's modelUsage: ${gaps.join('; ')}`);
   }
+  const missing = r.files.filter((f) => f.modelUsage === 'missing').map((f) => f.file);
+  if (missing.length) out.push(`reconciliation missing: the result events carry no modelUsage in ${missing.join(', ')}`);
   return out.join('\n') + '\n';
 }
 

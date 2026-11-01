@@ -8820,7 +8820,7 @@
         {
           "id": "P12.2",
           "title": "Benchmark protocol, repo-free: one tracked task prompt, three repositories described generically, the configurations and the metrics with their measurement, the tool-neutral expectations and the owner's rubric",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write the benchmark protocol as tracked, repo-free documents under skills/architecture-map/evals/benchmark/: PROTOCOL.md, prompt.md and rubric.md. prompt.md holds the one task prompt every tool receives, word for word; it is tool-neutral (it never names this plugin's commands or any candidate's), asks for an architecture map of the repository whose location is in an environment variable (ARCHMAP_EVAL_REPO_A, B or C, as the evals README already does), lists what the map must contain (the main components and their typed relations, the database entities with fields, at least three request or data flows as sequences, a file reference as evidence for every component) and asks that the result be written under docs/architecture of that repository and that the run end with a short summary of what was produced. PROTOCOL.md states: the three repositories only generically (a Python API with a React front end and an embedded analytical database; a TypeScript monorepo with a Node API, an ORM and a job queue; a Next.js application with an admin API), the configurations (this plugin at its 1.0.0 tag and each candidate at the version CANDIDATES.md pins, each installed alone through `--plugin-dir` or an isolated settings directory, the same orchestrator model for all, the same headless flags as the evals README records, one run per tool per repository, plus the issue-overlay run of this plugin on repository A for issue recall), the metrics with how each is measured (cost in USD from `node scripts/cost-profile.mjs <stream.jsonl> --json --basename` with the rate table date, wall-clock duration from the harness timing file, orchestrator turns from the profile's orchestrator row, maximum context from the same row, tool-neutral expectation pass rate graded by the harness against the expectations listed in the protocol, issue recall only for this plugin with score-recall.mjs against the private ground truth, and the owner's rubric score), the tool-neutral expectations themselves (the key components of the private checklist are each named in the produced artifact matched by name or path; at least three flows are described; every component carries a file reference; the artifact is a file under docs/architecture, not only chat text; the run exits 0), a rule that a candidate's expectation that cannot be graded mechanically is recorded as not graded rather than failed, the limits (one run per cell, so no variance claim; list prices; the private repositories are not shared, so a third party reproduces the method on its own repositories), and the evidence layout (skills/architecture-map/evals/evidence/benchmark/<tool>-<repo-letter>-<run>.json, raw streams private). rubric.md defines the owner's 1 to 5 score on four axes (coverage of the real components, correctness of the relations, usefulness of the flows, readability of the artifact) with one sentence per level. Extend tests/benchmark.test.mjs: prompt.md names no slash command and none of the candidate names from CANDIDATES.md, and names the three environment variables; PROTOCOL.md has sections Repositories, Configurations, Metrics, Expectations, Limits and Evidence, its Metrics section names each of cost, duration, turns, context, pass rate, recall and rubric, and every repository mention is one of the three generic descriptions (the test loads the private denylist when present, as tests/denylist.test.mjs does, and otherwise skips that assertion); rubric.md has four axes each with five levels. Red-first on the missing files.",
           "files": [
             "skills/architecture-map/evals/benchmark/PROTOCOL.md",
@@ -8848,25 +8848,38 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "7ba3e1b06bb8",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added skills/architecture-map/evals/benchmark/prompt.md (tool-neutral task, whole file is the prompt, placeholder <ENV_NAME> for the repository variable, no slash command, no candidate name, no archmap or architecture-map), PROTOCOL.md (sections Repositories, Configurations, Metrics, Expectations, Limits, Evidence; the three generic repository descriptions as the only three bullets under Repositories; documents the three ARCHMAP_EVAL_REPO_* variables and that the harness replaces <ENV_NAME>; configurations via claude --plugin-dir clones with --setting-sources project and --model opus; harness flags taken from the private run-eval.sh because the evals README records only the stream-json format and the variables, and the protocol says so; rate table date 2026-10-31 read from scripts/cost-profile.mjs RATES; duration from timing.json total_duration_seconds; recall via score-recall.mjs; expectations with not-graded rule; limits; evidence layout) and rubric.md (four axes, five numbered levels each). Extended tests/benchmark.test.mjs with b5 to b9 (b1 to b4 kept). First run before the docs existed: b1-b4 ok, b5-b9 not ok (5 fail). After: node --test tests/denylist.test.mjs tests/benchmark.test.mjs exit 0, 11 pass 0 fail 0 skipped (denylist present, b7 denylist assertion ran, not skipped); node --test full suite 467 pass 0 fail. New files staged with git add; nothing committed. Deviation from tests.add wording: the test asserts prompt.md carries the <ENV_NAME> placeholder and PROTOCOL.md names the three variables (orchestrator chose the placeholder form), not that prompt.md names all three. The architecture-map name check uses word boundaries because the required sentence says architecture-mapping.",
+            "descriptive": "Repo-free benchmark protocol, task prompt and owner rubric for the 1.0.0 comparison, with tests locking their shape."
           },
           "startedAt": "2026-11-01T22:12:59Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-01T22:18:01Z",
+          "verifiedBy": [
+            "b5 prompt.md has no slash command, candidate or plugin name, has the placeholder and the required content; b6 PROTOCOL sections, metrics and variables; b7 three generic repository bullets and denylist check; b8 rubric four axes with five levels; b9 no machine paths in the three documents"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-01T22:17:59Z.8677f8",
             "status": "passed",
             "at": "2026-11-01T22:17:59Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "7ba3e1b06bb8",
+            "at": "2026-11-01T22:18:01Z"
+          },
+          "redFirst": {
+            "at": "2026-11-01T22:16:53Z",
+            "basis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P12.3",
           "title": "Harness: a tracked run script for a foreign plugin (plugin dir or isolated marketplace install) and a cost profiler robust to foreign agent names and streams without subagents, tested on a synthetic stream",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The harness must run a foreign plugin under the same conditions as this one and profile its stream. Add a tracked script skills/architecture-map/evals/benchmark/run-candidate.sh (zsh or POSIX sh, no machine path inside): usage `run-candidate.sh <run-dir> <ENV_NAME> <prompt-file> (--plugin-dir <dir> | --plugin <name@marketplace> --marketplace <url-or-path>) [--model <model>] [-- <extra claude args>]`. It runs `claude -p` from <run-dir>/repo with the environment variable set to that path, `--output-format stream-json --verbose --setting-sources project --permission-mode auto --permission-prompts none`, writes <run-dir>/stream.jsonl, stderr.log, exit-code and timing.json (started, finished and seconds as numbers), and unsets CLAUDECODE. With --plugin it installs the plugin into an isolated settings directory (a CLAUDE_CONFIG_DIR under <run-dir>/config) so the user's own plugins never load, by running `claude plugin marketplace add` and `claude plugin install` there before the session, and records the installed version in <run-dir>/plugin-version.txt; with --plugin-dir it passes that directory through. Document the usage in PROTOCOL.md's Configurations section. For the profiler, scripts/cost-profile.mjs must stay correct on a stream produced by another plugin: a stream with no Agent or Task tool calls yields one orchestrator row and no unknown-subagent row; a stream whose subagent_type values are foreign names keeps them as row labels; a stream whose Task tool call uses a `description` but no subagent_type falls back to that description; a result event without modelUsage does not throw but marks the reconciliation as missing. Write tests/fixtures/cost/foreign-stream.jsonl, a synthetic stream of a few messages with foreign agent names, a Task call without subagent_type, two models and a final result event, with made-up token counts, and tests in tests/cost-profile.test.mjs for the four behaviours, red-first where the current code fails them; keep tests/fixtures/cost/expected.json unchanged. tests/benchmark.test.mjs gets a test that run-candidate.sh parses under `sh -n` or `zsh -n`, prints usage and exits 2 without arguments, and contains none of the three forbidden things: an absolute home path, a denylist term, or the word CLAUDECODE outside an `env -u`.",
           "files": [
             "skills/architecture-map/evals/benchmark/run-candidate.sh",
@@ -8894,16 +8907,22 @@
           "dependsOn": [
             "P12.2"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-01T22:18:01Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-01T22:27:51Z.3a9102",
+            "status": "passed",
+            "at": "2026-11-01T22:27:51Z"
+          }
         },
         {
           "id": "P12.4",
