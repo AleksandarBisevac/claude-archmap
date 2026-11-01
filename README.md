@@ -77,15 +77,16 @@ notes and pinned positions. A SessionStart staleness hook prints one line when t
 otherwise), and `/archmap:check` gives the same answer as an exit code for CI.
 
 This repository carries its own map, built by its own skill (balanced profile, without `--issues`) at commit
-`8174e41` and committed unchanged: open [docs/architecture/archmap.html](docs/architecture/archmap.html) for the
-viewer, beside its model and layout in `docs/architecture/`. The model has these counts, as its build report lists
+`8174e41`, updated with `/archmap:update` at commit `63d7495` and committed unchanged: open
+[docs/architecture/archmap.html](docs/architecture/archmap.html) for the viewer, beside its model and layout in
+`docs/architecture/`. The model has these counts, as its build report lists
 them; it passed `validate.mjs --repo`. The figures are those of the committed-map row of the self-build table in
 [the evals README](skills/architecture-map/evals/README.md). From that commit on, the SessionStart staleness hook
 reports in this repository whenever the map falls behind HEAD, which is the hook working as designed.
 
 | Nodes | Edges | Entities | Sequences | Views |
 | --- | --- | --- | --- | --- |
-| 30 | 18 | 1 | 4 | 5 |
+| 34 | 23 | 1 | 4 | 5 |
 
 ## What a build costs
 
@@ -94,8 +95,8 @@ the same orchestrator model with no skill). "Before" is the same eval in iterati
 held every fragment and the whole model in its own context; the other columns are iteration 2, the script-driven
 flow, where `scripts/pipeline.mjs` runs every scripted step and the explorers write their fragments to files. The
 turns and the context are those of the orchestrating session. Each file in the Evidence column is under
-`skills/architecture-map/evals/evidence/`. Evals 1 to 5 ran on three private repositories; the self-build row is the
-build of this repository, the one run whose whole output can be shared.
+`skills/architecture-map/evals/evidence/`. Evals 1 to 5 ran on three private repositories; the self-build rows are the
+build of this repository and its update at the release head, the runs whose whole output can be shared.
 
 | Eval | With skill | Baseline, no skill | Orchestrator turns | Orchestrator max context | Before: iteration 1, with skill | Result | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -104,7 +105,8 @@ build of this repository, the one run whose whole output can be shared.
 | 3 (build, then update) | 1.89 USD | 1.00 USD | 29 | 94.5 K | 6.40 USD, 46 turns, 193.6 K | 8/8 expectations; baseline 0/8 | with skill `iteration-2/3-with-skill-1.json`; baseline `iteration-2/3-without-skill-1.json`; before `iteration-1/3-with-skill-1.json` |
 | 4 (monorepo build) | 1.57 USD | 1.82 USD | 11 | 67.7 K | 12.55 USD, 67 turns, 267.4 K | 8/8 expectations | with skill `iteration-2/4-with-skill-1.json`; baseline `iteration-1/4-without-skill-1.json`; before `iteration-1/4-with-skill-1.json` |
 | 5 (build) | 1.65 USD | 2.96 USD | 13 | 75.7 K | 9.53 USD, 47 turns, 271.4 K | 7/7 expectations; baseline 0/7 | with skill `iteration-2/5-with-skill-1.json`; baseline `iteration-2/5-without-skill-1.json`; before `iteration-1/5-with-skill-1.json` |
-| self-build (balanced, no issues), the committed map | 1.00 USD | - | 10 | 57.6 K | - | model validates | with skill `iteration-2/self-with-skill-2.json` |
+| self-build (balanced, no issues) | 1.00 USD | - | 10 | 57.6 K | - | model validates | with skill `iteration-2/self-with-skill-2.json` |
+| self-build update (balanced, no issues), the committed map | 0.80 USD | - | 11 | 54.6 K | - | model validates | with skill `iteration-2/self-with-skill-3.json` |
 
 Read the table with these caveats, which [the evals README](skills/architecture-map/evals/README.md) states in full:
 
@@ -119,6 +121,9 @@ Read the table with these caveats, which [the evals README](skills/architecture-
 - **The baselines of evals 2 and 4 are iteration-1 runs**, as they were not rerun; the iteration-1 baselines of the
   other evals are tracked beside the iteration-2 ones.
 - Eval 5 took 13 turns and eval 2 up to 14, one and two over the 12-turn target of a build.
+- **The committed map is an update.** `/archmap:update` re-analysed only the areas whose files changed between the
+  build at `8174e41` and `63d7495`, so it cost 0.80 USD against the build's 1.00 USD; its orchestrator's median
+  context was 47.3 K tokens, against 46.4 K for the build.
 
 ## How these numbers were measured
 

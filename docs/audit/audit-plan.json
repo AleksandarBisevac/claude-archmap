@@ -5346,7 +5346,7 @@
         {
           "id": "P9.6",
           "title": "diffmap ignores docs/audit like docs/architecture, so audit-state commits do not make the map stale",
-          "status": "in_progress",
+          "status": "done",
           "description": "diffmap.mjs already ignores the map's own output directory (docs/architecture, P8.7) when it maps changed files to nodes, so a re-render does not make the map stale. The audit plugin's records under docs/audit (the plan, the journal, the evidence returns) are not architecture either, yet a commit that touches only them makes the staleness hook report the map behind HEAD: after P11 landed, the hook reports 6 commits behind with 5 nodes affected, most of them from docs-only and docs/audit-only commits. Make diffmap skip docs/audit/** the same way it skips docs/architecture/**, keep every other path mapped as before, state the rule in the diffmap header and in SKILL.md where the update flow names what diffmap ignores, and add the regression test: a change set made only of docs/audit files affects no node and the staleness line is not printed, while a change set with one source file still affects its node.",
           "files": [
             "scripts/diffmap.mjs",
@@ -5371,25 +5371,38 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "63d7495bede7",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/diffmap.mjs: new AUDIT_DIR='docs/audit' constant; diffmap() now drops any path under docs/audit like the map's own output dir, so such files affect no area/node/entity and are never uncovered; readGitChanges() counts `behind` with rev-list pathspec ('.' ':(exclude)docs/audit'), so a commit touching only docs/audit is not a commit behind. That second part was needed because staleness.mjs (not in task scope, untouched) prints its line whenever behind>0, regardless of affected nodes. Header comment and JSDoc state the rule. skills/architecture-map/SKILL.md update flow now says diffmap ignores the map output dir and docs/audit/**. tests/diffmap.test.mjs: added d14 (end to end with a git repo, the CLI and the staleness hook: audit-only commit gives files [], no node, behind 0, hook prints nothing; a following commit with api/a.js, docs/guide.md and docs/audit changes gives nodes n-api and n-docs, behind 1, hook prints the 1 commit behind line). Gates: node --test tests/diffmap.test.mjs 14/14 pass; full node --test 457/457 pass. Dependants: scripts/staleness.mjs (import) still correct - it uses diffmap/readGitChanges and its own tests s1-s8 pass; behind is unchanged except for audit-only commits. tests/diffmap.test.mjs, merge/pipeline/evals/e2e basename mentions, model/html path mentions, skill/commands/pipeline tests: still correct, full suite green.",
+            "descriptive": "Commits that touch only docs/audit no longer make the architecture map look stale: diffmap skips docs/audit/** and does not count such commits as behind."
           },
           "startedAt": "2026-10-31T23:59:48Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-01T00:04:06Z",
+          "verifiedBy": [
+            "d14: docs/audit-only change set affects no node, behind 0 and the staleness hook prints nothing; a source file plus docs file change still affects its nodes and the hook prints the line"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-01T00:04:05Z.ebff47",
             "status": "passed",
             "at": "2026-11-01T00:04:05Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "63d7495bede7",
+            "at": "2026-11-01T00:04:06Z"
+          },
+          "redFirst": {
+            "at": "2026-11-01T00:02:58Z",
+            "basis": "`node --test tests/diffmap.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P9.7",
           "title": "The committed map updated at the release head with /archmap:update, its profile tracked and both READMEs record the update's cost (owner-run)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Owner-run, the last task of P9 before sign-off, after P9.2 to P9.6 are committed: run /archmap:update (balanced, no issues) through the private harness on a detached clone of this repository at the P9 branch head, so the committed map catches up with the release; the harness profiles the stream. Bring docs/architecture (model, layout, clean HTML) in unchanged, validate.mjs --repo exit 0, denylist test green; track the profile as skills/architecture-map/evals/evidence/iteration-2/self-with-skill-3.json and record in both READMEs' self-build sections the update's cost, turns and context beside the build's (the update of this repository after the P11 and P9 commits), with the counts of the updated model; the evidence tests e19 and r2 and r4 read these rows and must pass. If the update changes no node, say so and record the run anyway. No executor runs while this build runs.",
           "files": [
             "docs/architecture",
@@ -5419,16 +5432,28 @@
             "P9.5",
             "P9.6"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-01T00:04:07Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-11-01T00:08:10Z",
+              "text": "Owner run done 2026-11-01: /archmap:update (balanced, no issues) through the private harness on a detached clone at 63d7495, the P9.6 head. The map moved from 8174e41 to 63d7495: nodes 30 to 34, edges 18 to 23, entities 1, sequences 4, views 5; the synthesizer rewrote 2 sequences. validate.mjs --repo exit 0; the three artifacts are copied into docs/architecture unchanged and staged; the denylist test is green. Profile tracked and staged as skills/architecture-map/evals/evidence/iteration-2/self-with-skill-3.json (rates 2026-10-31): total 0.797844 USD (opus 0.412370 over 11 turns, sonnet 0.385474 over 35 turns); orchestrator 11 turns, median context 47251, max 54558; explorers 29 turns 0.218 USD; synthesizer 6 turns 0.047884 USD; reconciliation true. The hook-edge target error BUG-5-6o1 is still present in the updated map (reported as a conflict, not hand-edited). Executor: record the update row beside the build row in both READMEs' self-build sections with the new counts (34 nodes, 23 edges, 1 entity, 4 sequences, 5 views at 63d7495), derive every figure from self-with-skill-3.json, extend tests e19, r2 and r4 to read that file, and run the full suite."
+            }
+          ],
+          "testEvidence": {
+            "runId": "2026-11-01T00:18:26Z.61b943",
+            "status": "passed",
+            "at": "2026-11-01T00:18:26Z"
+          }
         }
       ],
       "area": "release",

@@ -2,22 +2,23 @@
   "meta": {
     "schemaVersion": "1.0",
     "project": "repo",
-    "commit": "8174e41149abbda23ed2458b2bb86bc56a58a88f",
-    "generatedAt": "2026-10-31T22:00:37Z",
+    "commit": "63d7495bede75ef1c992a00891d920f3fe23cb46",
+    "generatedAt": "2026-11-01T00:04:55Z",
     "profile": "balanced",
     "sources": [
       {
         "derived": {
           "access": 1,
+          "carried": 33,
           "edges": 0,
-          "entities": 1,
-          "entitiesInferred": 1,
+          "entities": 0,
+          "entitiesInferred": 0,
           "entitiesMerged": 0,
           "queues": 0,
           "relations": 0,
-          "stores": 1
+          "stores": 0
         },
-        "note": "merge.mjs made 1 entity (1 inferred from the SQL the code runs) (and merged 0 into the explorers'), 1 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved",
+        "note": "merge.mjs made 0 entities (and merged 0 into the explorers'), 0 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved; update: 33 carried from the previous model unchanged (16 node(s), 16 edge(s), 1 entity): their evidence files are not among the 14 changed file(s)",
         "skipped": {
           "count": 0,
           "reasons": []
@@ -43,10 +44,16 @@
       },
       {
         "area": "docs",
+        "fixed": 1,
+        "note": "area docs: 1 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)",
+        "type": "normalisation"
+      },
+      {
+        "area": "docs",
         "skipped": {
-          "count": 1,
+          "count": 0,
           "reasons": [
-            "Journal and evidence jsonl files were listed, not read; no code reads them within this area, so no store nodes."
+            "Grep tool unavailable; used bash grep. Journal and evidence files not read in detail."
           ]
         },
         "type": "explorer"
@@ -82,9 +89,10 @@
       {
         "area": "scripts",
         "skipped": {
-          "count": 1,
+          "count": 3,
           "reasons": [
-            "Function bodies were not read; nodes are grouped by import and export surface. sqlite_master is introspection of target databases, not a store."
+            "Only file headers read; scripts/lib/prescan internals and the sqlite introspection in pipeline.mjs not examined",
+            "scripts-db store not re-emitted"
           ]
         },
         "type": "explorer"
@@ -92,33 +100,26 @@
       {
         "area": "skills",
         "skipped": {
-          "count": 3,
+          "count": 2,
           "reasons": [
-            "Evidence JSON files and most reference bodies not read; mapped by directory only.",
-            "Summary was empty (no routes, tables, queues); area is documentation and eval assets."
+            "evals evidence JSON and reference docs not read individually",
+            "no tables, routes or queues in this area"
           ]
         },
         "type": "explorer"
       },
       {
-        "area": "synthesizer",
-        "index": 2,
-        "reason": "step matches no step shape: matches 0 of 3 alternatives, expected exactly 1",
-        "sequence": "ci-run",
-        "type": "dropped-step"
-      },
-      {
         "area": "tests",
-        "fixed": 1,
-        "note": "area tests: 1 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)",
+        "fixed": 2,
+        "note": "area tests: 2 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)",
         "type": "normalisation"
       },
       {
         "area": "tests",
         "skipped": {
-          "count": 0,
+          "count": 1,
           "reasons": [
-            "Individual test files not mapped as nodes; one node per role."
+            "tests/visual and fixtures contents not read in depth; per-suite nodes not emitted"
           ]
         },
         "type": "explorer"
@@ -129,10 +130,10 @@
         ".agents/skills/webapp-testing/examples/console_logging.py"
       ],
       "docs": [
-        "docs/design.md",
-        "docs/audit/**"
+        "docs/**"
       ],
       "misc": [
+        "*",
         ".claude-plugin/**",
         ".github/**",
         "hooks/**"
@@ -147,14 +148,14 @@
         ".claude/**"
       ],
       "scripts": [
-        "scripts/**"
+        "scripts/*.mjs"
       ],
       "skills": [
         "skills/architecture-map/SKILL.md",
         "skills/architecture-map/evals/score-recall.mjs"
       ],
       "tests": [
-        "tests/**"
+        "tests/*.test.mjs"
       ]
     }
   },
@@ -233,6 +234,23 @@
     {
       "evidence": [
         {
+          "lines": "1-10",
+          "path": "docs/architecture/architecture.model.json"
+        }
+      ],
+      "id": "docs-architecture",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "docs/architecture/**"
+      ],
+      "role": "The generated architecture model, layout and viewer HTML produced by archmap itself.",
+      "title": "Generated architecture map",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
           "lines": "1-50",
           "path": "docs/audit/audit-plan.json"
         }
@@ -262,6 +280,40 @@
       ],
       "role": "The settled design of archmap: context, decisions, layout, model, command flows, viewer and verification.",
       "title": "Design document",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1",
+          "path": "docs/release/marketplace-entry.json"
+        }
+      ],
+      "id": "docs-release",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "docs/release/**"
+      ],
+      "role": "Marketplace listing entry prepared for the 1.0.0 release.",
+      "title": "Release metadata",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-23",
+          "path": "docs/roadmap.md"
+        }
+      ],
+      "id": "docs-roadmap",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "docs/roadmap.md"
+      ],
+      "role": "Post-1.0.0 roadmap covering v1.1 data platforms, the CI drift gate and later plans.",
+      "title": "Roadmap",
       "zone": "delivery"
     },
     {
@@ -490,8 +542,12 @@
     {
       "evidence": [
         {
-          "lines": "20-24",
+          "lines": "1-5",
           "path": "scripts/diffmap.mjs"
+        },
+        {
+          "lines": "88-95",
+          "path": "scripts/staleness.mjs"
         }
       ],
       "id": "scripts-diffmap",
@@ -501,8 +557,8 @@
         "scripts/diffmap.mjs",
         "scripts/staleness.mjs"
       ],
-      "role": "Maps git changes to model nodes and reports map staleness.",
-      "title": "diffmap.mjs and staleness.mjs",
+      "role": "Maps changed files onto the model and reports when the model is behind git HEAD.",
+      "title": "Diffmap and staleness",
       "zone": "delivery"
     },
     {
@@ -619,7 +675,7 @@
     {
       "evidence": [
         {
-          "lines": "1-384",
+          "lines": "1-386",
           "path": "skills/architecture-map/SKILL.md"
         }
       ],
@@ -653,7 +709,7 @@
     {
       "evidence": [
         {
-          "lines": "37-54",
+          "lines": "45-53",
           "path": "skills/architecture-map/SKILL.md"
         }
       ],
@@ -742,6 +798,23 @@
       "role": "Local-only Playwright script that screenshots every tab of the golden render, outside node --test and CI.",
       "title": "Visual check (local)",
       "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "tests/visual/README.md"
+        }
+      ],
+      "id": "tests-visual-tests",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "tests/visual/**"
+      ],
+      "role": "Local-only visual check of rendered output.",
+      "title": "Visual check (local)",
+      "zone": "delivery"
     }
   ],
   "edges": [
@@ -757,20 +830,6 @@
       "from": "agents-webapp-testing",
       "id": "agents-webapp-to-devserver",
       "to": "agents-local-dev-server",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "Diffmap uses glob matching to map paths to nodes.",
-      "evidence": [
-        {
-          "lines": "24",
-          "path": "scripts/diffmap.mjs"
-        }
-      ],
-      "from": "scripts-diffmap",
-      "id": "e-diffmap-glob",
-      "to": "scripts-validate",
       "type": "call"
     },
     {
@@ -858,6 +917,62 @@
       "type": "call"
     },
     {
+      "confidence": "verified",
+      "desc": "Diffmap imports the shared glob helper.",
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/diffmap.mjs"
+        }
+      ],
+      "from": "scripts-diffmap",
+      "id": "e-scripts-diffmap-glob",
+      "to": "scripts-validate",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Export and layout import the validator.",
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/export.mjs"
+        }
+      ],
+      "from": "scripts-export",
+      "id": "e-scripts-export-validate",
+      "to": "scripts-validate",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Issues imports the validator.",
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/issues.mjs"
+        }
+      ],
+      "from": "scripts-issues",
+      "id": "e-scripts-issues-validate",
+      "to": "scripts-validate",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The pipeline runs prescan to produce extracts.",
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/pipeline.mjs"
+        }
+      ],
+      "from": "scripts-pipeline",
+      "id": "e-scripts-pipeline-prescan",
+      "to": "scripts-prescan",
+      "type": "call"
+    },
+    {
       "confidence": "inferred",
       "desc": "Agents write fragments and issues in the shapes the schemas describe.",
       "evidence": [
@@ -918,7 +1033,7 @@
       "desc": "The skill points the agent to its reference files for schema, taxonomy and stack discovery.",
       "evidence": [
         {
-          "lines": "37-54",
+          "lines": "45-53",
           "path": "skills/architecture-map/SKILL.md"
         }
       ],
@@ -984,6 +1099,34 @@
       ],
       "from": "tests-suite",
       "id": "tests-suite-scripts",
+      "to": "scripts-pipeline",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Suites read and copy fixtures to temp dirs.",
+      "evidence": [
+        {
+          "lines": "9",
+          "path": "tests/merge.test.mjs"
+        }
+      ],
+      "from": "tests-suite",
+      "id": "tests-suite-to-fixtures",
+      "to": "tests-fixtures",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Suites spawn and import the pipeline scripts such as merge.mjs.",
+      "evidence": [
+        {
+          "lines": "8-13",
+          "path": "tests/merge.test.mjs"
+        }
+      ],
+      "from": "tests-suite",
+      "id": "tests-suite-to-scripts",
       "to": "scripts-pipeline",
       "type": "call"
     },
@@ -1179,19 +1322,26 @@
           "node": "misc-plugin-manifest"
         },
         {
-          "id": "tests",
-          "label": "Node test suite",
+          "id": "ts",
+          "label": "Test suite",
           "node": "tests-suite"
         },
         {
-          "id": "pipe",
-          "label": "pipeline.mjs",
-          "node": "scripts-pipeline"
+          "id": "fx",
+          "label": "Fixtures",
+          "node": "tests-fixtures"
         }
       ],
       "steps": [
         {
-          "d": "Each .claude-plugin JSON file must parse.",
+          "note": [
+            "ci"
+          ],
+          "t": "Triggers: push to main, any pull request; matrix Node 18, 20, 22",
+          "tone": "info"
+        },
+        {
+          "d": "Each .claude-plugin/*.json is parsed with JSON.parse; a failure stops the job.",
           "k": "call",
           "m": [
             "ci",
@@ -1200,22 +1350,34 @@
           "r": [
             ".github/workflows/ci.yml:23-25"
           ],
-          "t": "parse manifests"
+          "t": "Parse manifests"
         },
         {
-          "d": "The suite runs on each matrix Node version.",
+          "d": "Runs the node:test suites on each matrix Node version.",
           "k": "call",
           "m": [
             "ci",
-            "tests"
+            "ts"
           ],
           "r": [
-            ".github/workflows/ci.yml:15-27"
+            ".github/workflows/ci.yml:26-27"
           ],
           "t": "node --test"
+        },
+        {
+          "d": "Suites work over temp copies of fixtures and compare against the golden model.",
+          "k": "call",
+          "m": [
+            "ts",
+            "fx"
+          ],
+          "r": [
+            ".github/workflows/ci.yml:26-27"
+          ],
+          "t": "Copy fixtures"
         }
       ],
-      "summary": "CI parses the manifests, then runs the node test suite on Node 18, 20 and 22.",
+      "summary": "GitHub Actions checks out the repo, parses the plugin manifests, then runs node --test on Node 18, 20 and 22.",
       "title": "CI on push and pull request"
     },
     {
@@ -1316,31 +1478,87 @@
       "id": "session-staleness",
       "participants": [
         {
-          "id": "hooks",
+          "id": "hk",
           "label": "Session hooks",
           "node": "misc-hooks"
         },
         {
-          "id": "diff",
-          "label": "staleness.mjs",
+          "id": "dm",
+          "label": "Diffmap and staleness",
           "node": "scripts-diffmap"
+        },
+        {
+          "id": "vl",
+          "label": "validate and glob",
+          "node": "scripts-validate"
         }
       ],
       "steps": [
         {
-          "d": "On SessionStart the hook runs staleness.mjs to report whether the map is stale.",
+          "d": "SessionStart command runs the staleness script from the plugin root.",
           "k": "call",
           "m": [
-            "hooks",
-            "diff"
+            "hk",
+            "dm"
           ],
           "r": [
-            "hooks/hooks.json:3-11"
+            "hooks/hooks.json:3-9"
           ],
-          "t": "run staleness"
+          "t": "Run staleness.mjs"
+        },
+        {
+          "d": "Reads meta.commit of the model and calls diffmap over the git changes since it.",
+          "k": "call",
+          "m": [
+            "dm",
+            "dm"
+          ],
+          "r": [
+            "scripts/staleness.mjs:7-10",
+            "scripts/staleness.mjs:57-57"
+          ],
+          "t": "Compare model commit with HEAD"
+        },
+        {
+          "d": "diffmap uses glob matching to map changed files onto model nodes.",
+          "k": "call",
+          "m": [
+            "dm",
+            "vl"
+          ],
+          "r": [
+            "scripts/diffmap.mjs:1-5"
+          ],
+          "t": "Glob match changed files"
+        },
+        {
+          "frag": "alt",
+          "t": "model behind HEAD"
+        },
+        {
+          "note": [
+            "dm"
+          ],
+          "t": "Prints one stale line",
+          "tone": "warn"
+        },
+        {
+          "frag": "else",
+          "t": "current, missing or corrupt model"
+        },
+        {
+          "note": [
+            "dm"
+          ],
+          "t": "Prints nothing; hook mode always exits 0",
+          "tone": "info"
+        },
+        {
+          "frag": "end",
+          "t": ""
         }
       ],
-      "summary": "A SessionStart hook runs the staleness script when a session opens.",
+      "summary": "A SessionStart hook runs staleness.mjs, which compares the model commit with git HEAD through diffmap and prints one line only when stale.",
       "title": "Session start staleness check"
     }
   ],

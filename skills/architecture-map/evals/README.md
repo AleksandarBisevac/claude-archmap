@@ -136,7 +136,8 @@ workspace they ran in is its `iteration-2`.
 | P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |
 
 The self-build is a build of this repository itself, with the balanced profile and without `--issues`, run the way
-eval 1 is run, and the table below has one row per run of it. It is the one run whose whole output is public: the repository, its model and the profile of its
+eval 1 is run, and the table below has one row per run of it; its last row is an update of the committed map with
+`/archmap:update`, on the same profile. It is the one run whose whole output is public: the repository, its model and the profile of its
 transcript can all be shared, which the repositories of the evals cannot. The cost, turns, context and model figures are
 from the evidence profile of each row (the model split is its `byModel` block: the Opus orchestrator, and the Sonnet
 explorers and synthesizer); the map counts are those of the `architecture.model.json` the run built, as its build
@@ -150,18 +151,24 @@ report lists them, and each model passed `validate.mjs` with `--repo`, exit 0.
   node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")),f=(a)=>a.filter(x=>x.evidence?.length&&x.evidence.every(e=>e.path.startsWith("tests/fixtures/"))).length;console.log(f(m.nodes)+"/"+m.nodes.length,f(m.entities)+"/"+m.entities.length)' <model>
   ```
 
-- **Run 2** built commit `8174e41`, the head of this branch after P11.5, and is the committed map: its model, layout and
-  clean viewer are `docs/architecture/architecture.model.json`, `docs/architecture/architecture.layout.json` and
-  `docs/architecture/archmap.html` at the repository root, unchanged from the run. The drop from 63 to 30 nodes is the
-  P8.5 and P8.9 skip of fixture directories: in the run 1 model, 32 of the 63 nodes and 15 of the 16 entities cite
-  only files under `tests/fixtures/` (the command above), which prescan now skips as test data. The committed map is
-  unchanged from the run, so it keeps one known build error, tracked as BUG-5-6o1: the SessionStart hook edge targets the
-  pipeline script node instead of the node that holds `scripts/staleness.mjs`.
+- **Run 2** built commit `8174e41`, the head of this branch after P11.5, and was the committed map until run 3 updated
+  it. The drop from 63 to 30 nodes is the P8.5 and P8.9 skip of fixture directories: in the run 1 model, 32 of the 63
+  nodes and 15 of the 16 entities cite only files under `tests/fixtures/` (the command above), which prescan now skips
+  as test data.
+- **Run 3** is `/archmap:update` of the run 2 map at commit `63d7495`, the head of this branch after P9.6, and is the
+  committed map: its model, layout and clean viewer are `docs/architecture/architecture.model.json`,
+  `docs/architecture/architecture.layout.json` and `docs/architecture/archmap.html` at the repository root, unchanged
+  from the run. The update re-analysed only the areas whose files changed since `8174e41` and carried the rest over, so
+  the map grew from 30 to 34 nodes and from 18 to 23 edges, and its synthesizer rewrote two of the four sequences. Its
+  orchestrator's median context was 47.3 K tokens, against 46.4 K in run 2. The committed map is unchanged from the
+  run, so it keeps one known build error, tracked as BUG-5-6o1, which the update carried over: the SessionStart hook
+  edge targets the pipeline script node instead of the node that holds `scripts/staleness.mjs`.
 
 | Build | Evidence | Cost | Orchestrator turns | Orchestrator max context | Opus | Sonnet | Nodes | Edges | Entities | Sequences | Views |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | self-build run 1 (balanced, no issues) | `evidence/iteration-2/self-with-skill-1.json` | 1.11 USD | 12 | 58.4 K | 12 turns, 0.50 USD | 51 turns, 0.62 USD | 63 | 28 | 16 | 4 | 5 |
-| self-build run 2 (balanced, no issues), the committed map | `evidence/iteration-2/self-with-skill-2.json` | 1.00 USD | 10 | 57.6 K | 10 turns, 0.44 USD | 49 turns, 0.56 USD | 30 | 18 | 1 | 4 | 5 |
+| self-build run 2 (balanced, no issues) | `evidence/iteration-2/self-with-skill-2.json` | 1.00 USD | 10 | 57.6 K | 10 turns, 0.44 USD | 49 turns, 0.56 USD | 30 | 18 | 1 | 4 | 5 |
+| self-build run 3 (update, balanced, no issues), the committed map | `evidence/iteration-2/self-with-skill-3.json` | 0.80 USD | 11 | 54.6 K | 11 turns, 0.41 USD | 35 turns, 0.39 USD | 34 | 23 | 1 | 4 | 5 |
 
 Where the money goes in iteration 2, in percent of each run's cost. The figures are shares of the result-event total
 (the per-model figure in the table above); the per-agent rows come from the stream, whose output counts are a lower
@@ -208,7 +215,8 @@ stated maximum context differs from the file it names.
 
 The baseline column takes the iteration-2 baseline run where there is one (evals 1, 3 and 5) and the iteration-1
 baseline for evals 2 and 4, which were not rerun; the other baseline run of each eval is tracked beside it. The profiles
-of the builds of this repository by its own skill are `evidence/iteration-2/self-with-skill-1.json` (run 1) and
-`evidence/iteration-2/self-with-skill-2.json` (run 2, the committed map). The three P11.2
+of the builds of this repository by its own skill are `evidence/iteration-2/self-with-skill-1.json` (run 1),
+`evidence/iteration-2/self-with-skill-2.json` (run 2) and `evidence/iteration-2/self-with-skill-3.json` (run 3, the
+update, the committed map). The three P11.2
 runs are `evidence/iteration-2/2-with-skill-4.json` to `evidence/iteration-2/2-with-skill-6.json`, named in the eval 2
 run-by-run table, and e19 reads that table and the self-build rows against these files too.

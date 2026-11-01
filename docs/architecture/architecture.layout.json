@@ -20,6 +20,12 @@
         "w": 200,
         "h": 56
       },
+      "docs-architecture": {
+        "x": 580,
+        "y": 420,
+        "w": 250,
+        "h": 56
+      },
       "docs-audit": {
         "x": 50,
         "y": 342,
@@ -29,6 +35,18 @@
       "docs-design": {
         "x": 50,
         "y": 190,
+        "w": 160,
+        "h": 56
+      },
+      "docs-release": {
+        "x": 540,
+        "y": 720,
+        "w": 170,
+        "h": 56
+      },
+      "docs-roadmap": {
+        "x": 540,
+        "y": 340,
         "w": 160,
         "h": 56
       },
@@ -99,9 +117,9 @@
         "h": 56
       },
       "scripts-diffmap": {
-        "x": 590,
-        "y": 722,
-        "w": 280,
+        "x": 480,
+        "y": 880,
+        "w": 210,
         "h": 56
       },
       "scripts-export": {
@@ -181,6 +199,12 @@
         "y": 788.67,
         "w": 200,
         "h": 56
+      },
+      "tests-visual-tests": {
+        "x": 320,
+        "y": 340,
+        "w": 200,
+        "h": 56
       }
     },
     "zones": {
@@ -221,30 +245,6 @@
               "x": 1866,
               "y": 843
             }
-          }
-        ]
-      },
-      "e-diffmap-glob": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 870,
-              "y": 750
-            },
-            "endPoint": {
-              "x": 910,
-              "y": 685.2
-            },
-            "bendPoints": [
-              {
-                "x": 880,
-                "y": 750
-              },
-              {
-                "x": 880,
-                "y": 685.2
-              }
-            ]
           }
         ]
       },
@@ -366,6 +366,102 @@
               },
               {
                 "x": 560,
+                "y": 598
+              }
+            ]
+          }
+        ]
+      },
+      "e-scripts-diffmap-glob": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 690,
+              "y": 908
+            },
+            "endPoint": {
+              "x": 910,
+              "y": 690.8
+            },
+            "bendPoints": [
+              {
+                "x": 800,
+                "y": 908
+              },
+              {
+                "x": 800,
+                "y": 690.8
+              }
+            ]
+          }
+        ]
+      },
+      "e-scripts-export-validate": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 870,
+              "y": 826
+            },
+            "endPoint": {
+              "x": 910,
+              "y": 690.8
+            },
+            "bendPoints": [
+              {
+                "x": 890,
+                "y": 826
+              },
+              {
+                "x": 890,
+                "y": 690.8
+              }
+            ]
+          }
+        ]
+      },
+      "e-scripts-issues-validate": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 870,
+              "y": 902
+            },
+            "endPoint": {
+              "x": 910,
+              "y": 690.8
+            },
+            "bendPoints": [
+              {
+                "x": 890,
+                "y": 902
+              },
+              {
+                "x": 890,
+                "y": 690.8
+              }
+            ]
+          }
+        ]
+      },
+      "e-scripts-pipeline-prescan": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 494,
+              "y": 674
+            },
+            "endPoint": {
+              "x": 570,
+              "y": 598
+            },
+            "bendPoints": [
+              {
+                "x": 532,
+                "y": 674
+              },
+              {
+                "x": 532,
                 "y": 598
               }
             ]
@@ -519,6 +615,54 @@
               {
                 "x": 240,
                 "y": 683.33
+              }
+            ]
+          }
+        ]
+      },
+      "tests-suite-to-fixtures": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 230,
+              "y": 740.67
+            },
+            "endPoint": {
+              "x": 250,
+              "y": 759.33
+            },
+            "bendPoints": [
+              {
+                "x": 240,
+                "y": 740.67
+              },
+              {
+                "x": 240,
+                "y": 759.33
+              }
+            ]
+          }
+        ]
+      },
+      "tests-suite-to-scripts": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 230,
+              "y": 740.67
+            },
+            "endPoint": {
+              "x": 334,
+              "y": 674
+            },
+            "bendPoints": [
+              {
+                "x": 282,
+                "y": 740.67
+              },
+              {
+                "x": 282,
+                "y": 674
               }
             ]
           }
