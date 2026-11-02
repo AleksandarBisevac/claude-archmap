@@ -98,7 +98,9 @@ Every figure comes from a file the run left, never from the model's own report o
 - **Recall**: the issue recall of this plugin only, on the issues-overlay run, with
   `node skills/architecture-map/evals/score-recall.mjs <issues.json> <ground-truth.json> --json` against the private
   ground truth of repository A. The candidates do not produce an issues layer, so their recall is not applicable.
-- **Rubric**: the owner's score from `rubric.md`, four axes of 1 to 5, given by the owner after reading each artifact.
+- **Rubric**: the owner's score from `rubric.md`, four axes of 1 to 5, proposed by the orchestrator of the
+  benchmark session and confirmed by the owner as their own after reading each artifact (on 2026-11-02 for the
+  recorded runs).
   It is the only judgement in the table and the only figure the harness does not produce.
 
 ## Expectations
@@ -170,8 +172,8 @@ checklists stay private and are not tracked.
 - **Expectations**: none is recorded as not graded; every expectation of every tool was graded mechanically. The file
   reference check ("every component carries a file reference") leaves out the elements a tool marks as external
   systems, actors or the system boundary.
-- **Rubric**: the scores in `summary.json` were given by the orchestrator and are provisional, marked so in each
-  cell's `scoredBy`; the owner confirms or replaces them at sign-off.
+- **Rubric**: the scores in `summary.json` were proposed by the orchestrator and confirmed by the owner as their own
+  on 2026-11-02, after reading the artifacts, as each cell's `scoredBy` records.
 - **Recall**: the `archmap-issues` run on A (`archmap-issues-A-1.json`, outside the comparison table) has a recall of
   0.933, 14 of the 15 counted reference issues with one miss, and reported 23 issues.
 - **Side effects observed**: two candidates edited an existing README of the repository they mapped (a project

@@ -8758,7 +8758,41 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P12-R1",
+            "severity": "med",
+            "file": "skills/architecture-map/evals/benchmark/PROTOCOL.md:173-174",
+            "issue": "contradicts task clause P12.4 'record the owner's rubric scores' and the phase desiredOutcome 'the owner's judgement of the maps': every rubric cell in evidence/benchmark/summary.json carries scoredBy 'orchestrator, provisional' (the orchestrating session that ran the plugin under test scored all 12 maps), and BENCHMARK.md:35 and :125 say the owner 'confirms or replaces them at sign-off'. PROTOCOL.md:101 and rubric.md still state the score is 'given by the owner after reading each artifact', so the protocol contradicts its own Runs section. The top-level README sentence (README.md:128-130) and the evals README advertise 'a rubric score' without saying it is provisional, and the roadmap Benchmark item and the CHANGELOG line close the item as done.",
+            "resolution": "Have the owner score the 12 maps and replace the rubric blocks (and scoredBy) in summary.json; regenerate the BENCHMARK.md rubric cells (b21 then follows), drop the provisional caveats, or - if the owner cannot score yet - leave the roadmap item and the CHANGELOG line open and say 'provisional' in the README sentence. Align PROTOCOL.md:101 with whichever is true.",
+            "fixTask": "P12.6-m8w"
+          },
+          {
+            "id": "P12-R2",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/benchmark/PROTOCOL.md:164-168",
+            "issue": "The Runs section describes a private repository's own Claude Code setup: a .claude/settings.json with hooks, an enabled plugin whose write guard was in deny mode, and a .claude/audit.config.json removed from the clone. That is environment-specific detail about a private repository (which tooling it runs) in a public tracked file. No denylist term, name or path is present (scan clean, 14 terms), so this is a tightening, not a leak.",
+            "resolution": "Generalise to 'the repository carries its own Claude Code project configuration whose write guard blocked two tools; run 2 used fresh clones without that configuration' and drop the file names and the plugin description.",
+            "fixTask": "P12.7-m8w"
+          },
+          {
+            "id": "P12-R3",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/BENCHMARK.md:157-161",
+            "issue": "The expectation pass counts (and the 'file references failed, 24 of 28' notes) come from 'the harness', but no grader is tracked: PROTOCOL.md:39-49 also sends the reader to 'the harness script' for the headless flags, and the only tracked check on these cells is b21 comparing the page to summary.json, which is itself unverifiable. A third party can re-run the method but not the grading.",
+            "resolution": "State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture).",
+            "fixTask": "P12.8-m8w"
+          },
+          {
+            "id": "P12-R4",
+            "severity": "low",
+            "file": "scripts/cost-profile.mjs:110",
+            "issue": "An Agent or Task call with no subagent_type is now labelled by its free-text description, trimmed but unbounded. The label lands verbatim in the tracked evidence profiles and the text report, so a description that quotes repository content would put it in a public file, and a description equal to 'orchestrator' would merge into the orchestrator row. This phase's 13 profiles are clean (labels are archmap:* names and Explore), so it is a latent risk of the new fallback.",
+            "resolution": "Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20.",
+            "fixTask": "P12.9-m8w"
+          }
+        ],
+        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -9012,7 +9046,7 @@
         {
           "id": "P12.5",
           "title": "BENCHMARK.md: every figure derived from an evidence file by a test, linked from both READMEs, the roadmap Benchmark item closed by its own criterion and a CHANGELOG line",
-          "status": "in_progress",
+          "status": "done",
           "description": "Write skills/architecture-map/evals/BENCHMARK.md, the report of PROTOCOL.md's runs: a short statement of what was compared and when, the configuration table (tool, version, install, orchestrator model), the result table with one row per cell (tool, repository letter, cost USD, seconds, orchestrator turns, maximum context, expectations passed of graded, rubric total) and the recall row for this plugin, a paragraph per tool on what its artifact contained and lacked against the task (from summary.json and the rubric notes, in generic terms), the limits paragraph (one run per cell, list prices, private repositories, the owner graded the rubric), and a `## How each number was produced` section that names the evidence file of every row like the evals README does. Every figure in the tables is derived from evidence/benchmark/ files: extend tests/benchmark.test.mjs so that each cost cell equals total.costUsd of the named evidence file rounded to two decimals, each turn and context cell equals the orchestrator row, each seconds, expectations and rubric cell equals summary.json, and the test fails on a tampered cell (feed it a modified copy as tests/evals.test.mjs does). Link the report from the top-level README (in the section that gives the cost table, one sentence that says what the benchmark compared and links the file) and from skills/architecture-map/evals/README.md; tests/readme.test.mjs checks the link exists and resolves. In docs/roadmap.md, mark the Benchmark section closed with the date and the report path, by its own criterion (repo-free, tracked prompt, versions, rate table date, raw profiles), and add a one-line CHANGELOG entry under an Unreleased heading. No denylist term, no machine path, no candidate's output quoted beyond generic terms.",
           "files": [
             "skills/architecture-map/evals/BENCHMARK.md",
@@ -9044,20 +9078,249 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
+          "commit": "3433c8b3a982",
+          "outcome": {
+            "technical": "Wrote skills/architecture-map/evals/BENCHMARK.md: intro (dates, Claude Code 2.1.316, links to prompt/PROTOCOL/rubric/CANDIDATES), Configurations table (Tool | Version | Install | Orchestrator model), Results with the 12-row comparison table (tool, repository, run, cost, seconds, orchestrator turns, max context, expectations passed/graded with the failing check named, rubric total plus four axes), a caption saying the rubric scores are the orchestrator's provisional scores (scoredBy) and that the owner confirms or replaces them at sign-off, a per-tool totals table (sum of the three profiles' total.costUsd, rounded once; cc-codemaps is 4.95 against 4.94 from the rounded cells, and the page says so), and a separate one-row issue-recall table marked outside the comparison (recall 0.933, 23 issues, 2.38 USD, 11 turns); one generic paragraph per tool as briefed; Limits (one run per cell, list prices, private repositories, provisional rubric, the C run-2 deviation, the five owner-launched cells and why, Opus orchestrator against subagent models per tool, four tools only); How each number was produced (run-candidate.sh, `node scripts/cost-profile.mjs <stream.jsonl> --json --basename`, the field of each column, the five expectations as PROTOCOL.md states them, score-recall.mjs, rate table dated 2026-10-31, and a 13-row Tool | Repository | Run | Evidence table). Table rows were generated by a node one-liner from summary.json and the profiles, not typed by hand. tests/benchmark.test.mjs, appended after b20: checkReport(text, read, cells) with b21 (every cell of the report equals its named evidence file or summary.json; the evidence table names each summary cell once with the file summary.json names; configuration versions and commits equal the CANDIDATES.md pins; caveats in Results and Limits), b22 (no machine path, no denylist term; the denylist was present, so this was not skipped), b23 (22 tamperings: cost, seconds, turns, context, expectations, rubric, dropped row, total, recall, issues reported, issues cost, evidence file, dropped evidence row, rate date, the provisional caveat, the outside-the-comparison mark, a profile with a changed cost/turns/context, and a summary with changed seconds/passed/rubric; each must throw). Prose checks match whitespace-flattened text so line wrapping does not matter. tests/readme.test.mjs: checkBenchmarkLinks with r8 (the README section 'What a build costs' links BENCHMARK.md, the link resolves, and its sentence names 1.0.0 and the other plugins; the evals README section 'Benchmark against other plugins' links BENCHMARK.md, PROTOCOL.md and CANDIDATES.md, each resolving against that file's own directory) and r9 (dropped link, link that does not resolve, missing section, a stubbed exists). The r8/r9 test() calls were moved to the end of the file with a python one-liner (Bash, in scope), so the ids print in order. README.md: one paragraph after the cost caveats linking the report. Evals README: a new '## Benchmark against other plugins' section at the end. docs/roadmap.md: the Benchmark heading is marked closed on 2026-11-02 with the report path, and the closing paragraph walks its own criterion (repo-free, tracked prompt, versions, rate table date, raw profiles tracked and re-derived by the test); it also says plainly that the repositories are private, so a third party re-runs the method, not the cells. CHANGELOG.md: '### Added' and one line under the existing, previously empty '## [Unreleased]'. ADJACENT FILE EDITED, outside this task's files: tests/manifest.test.mjs mf3 asserted 'the Unreleased section is empty', which the required CHANGELOG line would break; I changed it to allow only '### ' kinds, '- ' items and indented continuations under Unreleased, and renamed the case title to match (case id mf3 kept). The plan gate (Edit tool) allowed both edits. Runs: node --test tests/denylist.test.mjs tests/benchmark.test.mjs tests/readme.test.mjs tests/manifest.test.mjs: pass 42, fail 0, skipped 0. Full node --test: exit 0, tests 487, pass 487, fail 0, skipped 0. BENCHMARK.md is staged (git add) so the denylist test sees it; nothing committed. Dependants: README.md, still correct (r1 to r7 pass; one paragraph added inside 'What a build costs', with no machine path and no stale wording); evals README, still correct (e19/e20 read only the '## Cost of a build' section, and the new section comes after it and names no iteration evidence file; the full suite is green); docs/roadmap.md, still correct (r6/r7 pass; the heading still carries 'benchmark'); CHANGELOG.md, changed: mf3 in tests/manifest.test.mjs was relaxed as above; tests/benchmark.test.mjs, its dependant tests/evals.test.mjs names it only in a comment, still correct; tests/readme.test.mjs, its dependant README.md is still correct.",
+            "descriptive": "The release benchmark report exists, with every figure tied to the tracked evidence by a test that catches tampering, and it is linked from both READMEs, the roadmap and the CHANGELOG."
+          },
+          "startedAt": "2026-11-02T08:06:00Z",
+          "completedAt": "2026-11-02T08:16:07Z",
+          "verifiedBy": [
+            "b21 every cost, seconds, turn, context, expectations, rubric, total and recall cell of BENCHMARK.md equals its named evidence file or summary.json",
+            "b22 BENCHMARK.md carries no machine path or denylist term",
+            "b23 the report check fails on 22 tampered cells, profiles and summaries",
+            "r8 both READMEs link BENCHMARK.md (and the evals README also PROTOCOL.md and CANDIDATES.md), and each link resolves",
+            "r9 the link check fails on a dropped link, a link that does not resolve and a missing section"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T08:16:53Z.20a62a",
+            "status": "passed",
+            "at": "2026-11-02T08:16:53Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "3433c8b3a982",
+            "at": "2026-11-02T08:16:07Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T08:14:23Z",
+            "basis": "`node --test tests/benchmark.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
+          }
+        },
+        {
+          "id": "P12.6-m8w",
+          "title": "fix P12-R1: contradicts task clause P12.4 'record the owner's rubric scores' ...",
+          "status": "in_progress",
+          "description": "contradicts task clause P12.4 'record the owner's rubric scores' and the phase desiredOutcome 'the owner's judgement of the maps': every rubric cell in evidence/benchmark/summary.json carries scoredBy 'orchestrator, provisional' (the orchestrating session that ran the plugin under test scored all 12 maps), and BENCHMARK.md:35 and :125 say the owner 'confirms or replaces them at sign-off'. PROTOCOL.md:101 and rubric.md still state the score is 'given by the owner after reading each artifact', so the protocol contradicts its own Runs section. The top-level README sentence (README.md:128-130) and the evals README advertise 'a rubric score' without saying it is provisional, and the roadmap Benchmark item and the CHANGELOG line close the item as done.\n\nResolution asked: Have the owner score the 12 maps and replace the rubric blocks (and scoredBy) in summary.json; regenerate the BENCHMARK.md rubric cells (b21 then follows), drop the provisional caveats, or - if the owner cannot score yet - leave the roadmap item and the CHANGELOG line open and say 'provisional' in the README sentence. Align PROTOCOL.md:101 with whichever is true.",
+          "files": [
+            "skills/architecture-map/evals/benchmark/PROTOCOL.md",
+            "skills/architecture-map/evals/evidence/benchmark",
+            "skills/architecture-map/evals/BENCHMARK.md",
+            "tests/benchmark.test.mjs"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-11-02T08:06:00Z",
+          "startedAt": "2026-11-02T08:23:16Z",
           "completedAt": null,
           "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "scope: skills/architecture-map/evals/benchmark/PROTOCOL.md, every path the finding(s) P12-R1 name"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "no suite: skills/architecture-map/evals/benchmark/PROTOCOL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/benchmark.test.mjs, tests/readme.test.mjs"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "gate-only, not tdd: every file P12-R1 names is a document (skills/architecture-map/evals/benchmark/PROTOCOL.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P12-R1"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
-            "runId": "2026-11-02T08:16:05Z.488a8d",
+            "runId": "2026-11-02T08:29:07Z.dec6f5",
             "status": "passed",
-            "at": "2026-11-02T08:16:05Z"
+            "at": "2026-11-02T08:29:07Z"
           }
+        },
+        {
+          "id": "P12.7-m8w",
+          "title": "fix P12-R2: The Runs section describes a private repository's own Claude Code...",
+          "status": "pending",
+          "description": "The Runs section describes a private repository's own Claude Code setup: a .claude/settings.json with hooks, an enabled plugin whose write guard was in deny mode, and a .claude/audit.config.json removed from the clone. That is environment-specific detail about a private repository (which tooling it runs) in a public tracked file. No denylist term, name or path is present (scan clean, 14 terms), so this is a tightening, not a leak.\n\nResolution asked: Generalise to 'the repository carries its own Claude Code project configuration whose write guard blocked two tools; run 2 used fresh clones without that configuration' and drop the file names and the plugin description.",
+          "files": [
+            "skills/architecture-map/evals/benchmark/PROTOCOL.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "scope: skills/architecture-map/evals/benchmark/PROTOCOL.md, every path the finding(s) P12-R2 name"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "no suite: skills/architecture-map/evals/benchmark/PROTOCOL.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/benchmark.test.mjs, tests/readme.test.mjs"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "gate-only, not tdd: every file P12-R2 names is a document (skills/architecture-map/evals/benchmark/PROTOCOL.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P12-R2"
+          ]
+        },
+        {
+          "id": "P12.8-m8w",
+          "title": "fix P12-R3: The expectation pass counts (and the 'file references failed, 24 ...",
+          "status": "pending",
+          "description": "The expectation pass counts (and the 'file references failed, 24 of 28' notes) come from 'the harness', but no grader is tracked: PROTOCOL.md:39-49 also sends the reader to 'the harness script' for the headless flags, and the only tracked check on these cells is b21 comparing the page to summary.json, which is itself unverifiable. A third party can re-run the method but not the grading.\n\nResolution asked: State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture).",
+          "files": [
+            "skills/architecture-map/evals/BENCHMARK.md",
+            "skills/architecture-map/evals/benchmark/PROTOCOL.md",
+            "skills/architecture-map/evals/benchmark/grade-benchmark.mjs",
+            "tests/benchmark.test.mjs",
+            "tests/fixtures/benchmark"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "scope: skills/architecture-map/evals/BENCHMARK.md, every path the finding(s) P12-R3 name"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "no suite: skills/architecture-map/evals/BENCHMARK.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/benchmark.test.mjs, tests/readme.test.mjs"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "gate-only, not tdd: every file P12-R3 names is a document (skills/architecture-map/evals/BENCHMARK.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P12-R3"
+          ]
+        },
+        {
+          "id": "P12.9-m8w",
+          "title": "fix P12-R4: An Agent or Task call with no subagent_type is now labelled by it...",
+          "status": "pending",
+          "description": "An Agent or Task call with no subagent_type is now labelled by its free-text description, trimmed but unbounded. The label lands verbatim in the tracked evidence profiles and the text report, so a description that quotes repository content would put it in a public file, and a description equal to 'orchestrator' would merge into the orchestrator row. This phase's 13 profiles are clean (labels are archmap:* names and Explore), so it is a latent risk of the new fallback.\n\nResolution asked: Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20.",
+          "files": [
+            "scripts/cost-profile.mjs",
+            "tests/cost-profile.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/cost-profile.test.mjs: Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "scope: scripts/cost-profile.mjs, every path the finding(s) P12-R4 name"
+            },
+            {
+              "at": "2026-11-02T08:23:16Z",
+              "text": "scope: tests/cost-profile.test.mjs, the suite that tests scripts/cost-profile.mjs (the test file that names cost-profile.mjs)"
+            }
+          ],
+          "fixes": [
+            "P12-R4"
+          ]
         }
       ],
       "reviewPerTask": "phase",
@@ -9790,7 +10053,8 @@
       "P10.19-6rm",
       "P8.8",
       "P11.3",
-      "P12.3"
+      "P12.3",
+      "P12.9-m8w"
     ],
     "tests/cost-profile.test.mjs": [
       "P10.1-2xj",
@@ -9798,7 +10062,8 @@
       "P10.19-6rm",
       "P8.8",
       "P11.3",
-      "P12.3"
+      "P12.3",
+      "P12.9-m8w"
     ],
     "tests/fixtures/cost/stream-sample.jsonl": [
       "P10.1-2xj",
@@ -9926,12 +10191,17 @@
       "P12.2",
       "P12.3",
       "P12.4",
-      "P12.5"
+      "P12.5",
+      "P12.6-m8w",
+      "P12.8-m8w"
     ],
     "skills/architecture-map/evals/benchmark/PROTOCOL.md": [
       "P12.2",
       "P12.3",
-      "P12.4"
+      "P12.4",
+      "P12.6-m8w",
+      "P12.7-m8w",
+      "P12.8-m8w"
     ],
     "skills/architecture-map/evals/benchmark/prompt.md": [
       "P12.2"
@@ -9946,10 +10216,19 @@
       "P12.3"
     ],
     "skills/architecture-map/evals/evidence/benchmark": [
-      "P12.4"
+      "P12.4",
+      "P12.6-m8w"
     ],
     "skills/architecture-map/evals/BENCHMARK.md": [
-      "P12.5"
+      "P12.5",
+      "P12.8-m8w",
+      "P12.6-m8w"
+    ],
+    "skills/architecture-map/evals/benchmark/grade-benchmark.mjs": [
+      "P12.8-m8w"
+    ],
+    "tests/fixtures/benchmark": [
+      "P12.8-m8w"
     ]
   },
   "bugs": [

@@ -1,0 +1,155 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "skills/architecture-map/evals/benchmark/PROTOCOL.md:173-174",
+      "issue": "contradicts task clause P12.4 'record the owner's rubric scores' and the phase desiredOutcome 'the owner's judgement of the maps': every rubric cell in evidence/benchmark/summary.json carries scoredBy 'orchestrator, provisional' (the orchestrating session that ran the plugin under test scored all 12 maps), and BENCHMARK.md:35 and :125 say the owner 'confirms or replaces them at sign-off'. PROTOCOL.md:101 and rubric.md still state the score is 'given by the owner after reading each artifact', so the protocol contradicts its own Runs section. The top-level README sentence (README.md:128-130) and the evals README advertise 'a rubric score' without saying it is provisional, and the roadmap Benchmark item and the CHANGELOG line close the item as done.",
+      "resolution": "Have the owner score the 12 maps and replace the rubric blocks (and scoredBy) in summary.json; regenerate the BENCHMARK.md rubric cells (b21 then follows), drop the provisional caveats, or - if the owner cannot score yet - leave the roadmap item and the CHANGELOG line open and say 'provisional' in the README sentence. Align PROTOCOL.md:101 with whichever is true."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/benchmark/PROTOCOL.md:164-168",
+      "issue": "The Runs section describes a private repository's own Claude Code setup: a .claude/settings.json with hooks, an enabled plugin whose write guard was in deny mode, and a .claude/audit.config.json removed from the clone. That is environment-specific detail about a private repository (which tooling it runs) in a public tracked file. No denylist term, name or path is present (scan clean, 14 terms), so this is a tightening, not a leak.",
+      "resolution": "Generalise to 'the repository carries its own Claude Code project configuration whose write guard blocked two tools; run 2 used fresh clones without that configuration' and drop the file names and the plugin description."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/BENCHMARK.md:157-161",
+      "issue": "The expectation pass counts (and the 'file references failed, 24 of 28' notes) come from 'the harness', but no grader is tracked: PROTOCOL.md:39-49 also sends the reader to 'the harness script' for the headless flags, and the only tracked check on these cells is b21 comparing the page to summary.json, which is itself unverifiable. A third party can re-run the method but not the grading.",
+      "resolution": "State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture)."
+    },
+    {
+      "id": 4,
+      "severity": "low",
+      "file": "scripts/cost-profile.mjs:110",
+      "issue": "An Agent or Task call with no subagent_type is now labelled by its free-text description, trimmed but unbounded. The label lands verbatim in the tracked evidence profiles and the text report, so a description that quotes repository content would put it in a public file, and a description equal to 'orchestrator' would merge into the orchestrator row. This phase's 13 profiles are clean (labels are archmap:* names and Explore), so it is a latent risk of the new fallback.",
+      "resolution": "Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "diverges",
+    "note": "The phase built what the outcome asks except for one clause: the same prompt was run with this plugin and three candidates over three repositories, with a tracked repo-free protocol, candidate pins, harness, 13 cost profiles, a summary and a report whose figures a test re-derives (b21 and b23, 22 tampers). Against desiredOutcome 'the owner's judgement of the maps' the rubric column is the orchestrator's provisional score, not the owner's (finding 1); the report says so honestly, but the roadmap item and CHANGELOG close it. Privacy: scan.mjs found no denylist hit, no machine path in any tracked file, evidence profiles or audit return; PROTOCOL.md and rubric.md name .private/reference/ only in the form evals/README.md already uses.",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "mode phase: the brief gives no phase-level red-first; per-task grades are in tasks.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Each owed task's gate resolves to a named-suite command or to a whole-project 'node --test'; the brief marks all per-task inherited-tests entries computed (not-asked)."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P12.1",
+      "commit": "adbaf8315b48",
+      "answer": "matches",
+      "note": "CANDIDATES.md has the five-bullet Selection criteria, a Candidates table with Name/Source/Version/Install/Output (three rows, URL sources, inline claude plugin commands, pinned commits), a comparison table and a seven-row Considered and rejected table naming a criterion per row, and no machine path. tests/benchmark.test.mjs b1-b4 assert these. The claim describes the diff. Facts about the candidates came from the orchestrator's research and could not be checked here.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.1/20261101T220812Z.executor.json, at 2026-11-01T22:11:22Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P12.2",
+      "commit": "7ba3e1b06bb8",
+      "answer": "diverges",
+      "note": "PROTOCOL.md, prompt.md and rubric.md carry every item the task lists. One scope difference, disclosed by the executor: the task says the test asserts prompt.md 'names the three environment variables'; the diff uses an <ENV_NAME> placeholder and b5 asserts the prompt names none (tests/benchmark.test.mjs:146). The placeholder is consistent with the P12.3 usage '<ENV_NAME>', so the wrong half is likely the P12.2 wording. The headless flags are said to come from the evals README but come from a private harness (PROTOCOL.md:48-49), as the executor's claim says.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.2/20261101T221259Z.executor.json, at 2026-11-01T22:16:53Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P12.3",
+      "commit": "e9466077f2a1",
+      "answer": "matches",
+      "note": "run-candidate.sh implements the usage, the files, env -u CLAUDECODE, --plugin isolated config and plugin-version.txt, plus the disclosed --path-prepend; usage errors exit 2. cost-profile.mjs implements the four behaviours (orchestrator-only, foreign labels, description fallback, modelUsage: 'missing') and c18-c21 and b10-b14 (stub claude on PATH) test them; expected.json is unchanged. The claim matches. See finding 4 for the unbounded description label.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.3/20261101T221801Z.executor.json, at 2026-11-01T22:26:27Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P12.4",
+      "commit": "2030f2ac0fa7",
+      "answer": "diverges",
+      "note": "Clause 'record the owner's rubric scores' versus summary.json cells with scoredBy 'orchestrator, provisional'; the Runs section and the claim say so openly. The rest matches: 13 profiles named <tool>-<repo>-<run>.json, summary.json with the listed fields, a Runs section with dates, versions, model, Claude Code version and rate date, and b15-b20. The e19/e20 filter in tests/evals.test.mjs is outside the declared files but disclosed and minimal. The 'files' list in this task's brief section is empty, so the 14 evidence files are charged to the phase.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.4/20261102T075726Z.executor.json, at 2026-11-02T08:02:41Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P12.5",
+      "commit": "3433c8b3a982",
+      "answer": "matches",
+      "note": "BENCHMARK.md has every section the task lists, its tables are derived from evidence files and checked by b21, b23 tampers 22 cells, r8/r9 check both README links, and the roadmap and CHANGELOG are edited. I recomputed the per-tool totals, the turn ranges, the 'under 90 K' claim and the file-reference notes (24 of 28, 71 of 76, 22 of 23) against the evidence: all agree. The mf3 relaxation is an adjacent edit the claim discloses. The page's rubric column is provisional (finding 1). The task asked for a rubric total that is the owner's; the page labels it provisional.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Executor basis, verbatim: '`node --test tests/benchmark.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected'. The reason holds; I did not re-run it.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "P12.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P12.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P12.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P12.4": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P12.5": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P12.1",
+      "commit": "adbaf8315b48"
+    },
+    {
+      "id": "P12.2",
+      "commit": "7ba3e1b06bb8"
+    },
+    {
+      "id": "P12.3",
+      "commit": "e9466077f2a1"
+    },
+    {
+      "id": "P12.4",
+      "commit": "2030f2ac0fa7"
+    },
+    {
+      "id": "P12.5",
+      "commit": "3433c8b3a982"
+    }
+  ]
+}

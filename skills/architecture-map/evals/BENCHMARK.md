@@ -32,8 +32,8 @@ One row per cell of the comparison: four tools on three repositories, one run ea
 whole run, all models and all subagents; seconds are the wall clock of the session; turns and max context are the
 orchestrating session's only, context in thousands of tokens. Expectations are the five tool-neutral checks passed of
 those graded. Rubric is the total of the four rubric axes (out of 20), followed by coverage, relations, flows and
-readability. **The rubric scores are provisional: they were given by the orchestrator of the benchmark session, as the
-`scoredBy` of every summary.json cell records, not by the owner; the owner confirms or replaces them at sign-off.**
+readability. **The rubric scores were proposed by the orchestrator of the benchmark session and confirmed as their own by
+the owner on 2026-11-02, after reading the artifacts, as the `scoredBy` of every summary.json cell records.**
 
 | Tool | Repository | Run | Cost | Seconds | Orchestrator turns | Max context | Expectations | Rubric |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -122,8 +122,8 @@ edited an existing README on one repository. It renders no diagram and ships no 
 - **Private repositories.** The repositories, the transcripts, the artifacts and the key-component checklists are
   private. A third party cannot re-run the cells; it can re-run the method with the same prompt, rubric and
   expectations on its own repositories.
-- **Provisional rubric.** The rubric scores are the orchestrator's provisional scores, not yet the owner's; the owner
-  confirms or replaces them at sign-off, and a rubric is one person's judgement in any case.
+- **Rubric.** The rubric scores were proposed by the orchestrator of the benchmark session and confirmed as their own
+  by the owner on 2026-11-02, after reading the artifacts; a rubric is one person's judgement in any case.
 - **Repository C is run 2.** The repository's own Claude Code configuration blocked two of the tools from writing their
   result in run 1, so run 1 on C was discarded for every tool, and every C cell is run 2 on a fresh clone without that
   configuration.
@@ -159,7 +159,7 @@ and the profile saved exactly as it printed, one file per run, under `evidence/b
   or path), flows (at least three), file references (every component carries a path that exists, leaving out external
   systems, actors and the system boundary), artifact on disk (files under `docs/architecture`, or the tool's own
   documented location) and exit status (the run exits 0). None was recorded as not graded.
-- **Rubric**: the four axes and the total of the `rubric` block in `summary.json`, provisional as stated above.
+- **Rubric**: the four axes and the total of the `rubric` block in `summary.json`, proposed by the orchestrator and confirmed by the owner as stated above.
 - **Recall** and **issues reported**: `recall` and `issuesReported` of the issues cell in `summary.json`, from
   `node skills/architecture-map/evals/score-recall.mjs <issues.json> <ground-truth.json> --json` against the private
   ground truth of repository A.

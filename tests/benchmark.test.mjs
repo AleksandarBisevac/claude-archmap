@@ -425,6 +425,18 @@ test('b18 summary.json has 13 cells: each of the four tools once on A, B and C, 
   assert.ok(issues[0].recall >= 0 && issues[0].recall <= 1, `recall ${issues[0].recall}`);
 });
 
+test('b18a every cell\'s rubric.scoredBy names the owner and the date 2026-11-02, and no cell is still provisional', () => {
+  const scored = cells().filter((c) => c.tool !== 'archmap-issues');
+  assert.equal(scored.length, 12, 'twelve compared cells carry a rubric');
+  for (const c of scored) {
+    const label = `${c.tool} ${c.repo} ${c.run}`;
+    assert.equal(typeof c.rubric?.scoredBy, 'string', `${label}: rubric.scoredBy`);
+    assert.match(c.rubric.scoredBy, /\bowner\b/, `${label}: scoredBy names the owner`);
+    assert.match(c.rubric.scoredBy, /2026-11-02/, `${label}: scoredBy names the date 2026-11-02`);
+    assert.doesNotMatch(c.rubric.scoredBy, /provisional/i, `${label}: scoredBy is not provisional`);
+  }
+});
+
 test('b19 each cell\'s costUsd is its evidence file\'s total.costUsd to the cent, and its orchestratorTurns and maxContext are the orchestrator row\'s', () => {
   for (const c of cells()) {
     const label = `${c.tool} ${c.repo} ${c.run}`;
@@ -519,8 +531,9 @@ const checkReport = (text, read = readBench, all = cells()) => {
   // the result table: one row per compared cell
   const res = section(text, 'Results');
   assert.notEqual(res, null, 'no "## Results" section');
-  assert.match(flat(res), /provisional/i, 'the Results caption says the rubric scores are provisional');
-  assert.match(flat(res), /owner confirms or replaces/i, 'the Results caption says the owner confirms or replaces them');
+  assert.match(flat(res), /proposed by the orchestrator/i, 'the Results caption says the orchestrator proposed the rubric scores');
+  assert.match(flat(res), /confirmed as their own by the owner on 2026-11-02/i, 'the Results caption says the owner confirmed them on 2026-11-02');
+  assert.doesNotMatch(flat(res), /provisional/i, 'the Results caption no longer calls the rubric scores provisional');
   const rt = tableAt(res, 'Tool | Repository | Run | Cost');
   assert.ok(rt, 'no result table (Tool | Repository | Run | Cost ...)');
   const at = (n) => colOf(rt, n);
@@ -590,7 +603,7 @@ const checkReport = (text, read = readBench, all = cells()) => {
   // the limits
   const limits = section(text, 'Limits');
   assert.notEqual(limits, null, 'no "## Limits" section');
-  for (const re of [/one run per cell/i, /list price/i, /private/i, /provisional/i, /owner confirms or replaces/i, /run 2/i, /owner/i]) {
+  for (const re of [/one run per cell/i, /list price/i, /private/i, /proposed by the orchestrator/i, /confirmed as their own by the owner on 2026-11-02/i, /run 2/i, /owner/i]) {
     assert.match(flat(limits), re, `the limits say ${re}`);
   }
 };
@@ -651,7 +664,7 @@ test('b23 the report check fails on a tampered cost, seconds, turn, context, exp
   assert.throws(() => checkReport(swap(evRow, evRow.replace('draw-c4-B-1.json', 'draw-c4-A-1.json'))), /the one summary\.json names/, 'evidence file');
   assert.throws(() => checkReport(swap(`${evRow}\n`, '')), /names every summary\.json cell once/, 'a dropped evidence row');
   assert.throws(() => checkReport(text.replace(/rate\s+table\s+dated\s+\d{4}-\d{2}-\d{2}/, 'rate table dated 2026-01-01')), /rate table dated 2026-01-01/, 'date');
-  assert.throws(() => checkReport(text.replace(/owner\s+confirms\s+or\s+replaces/gi, 'owner reads')), /owner confirms or replaces/, 'the provisional caveat');
+  assert.throws(() => checkReport(text.replace(/confirmed\s+as\s+their\s+own\s+by\s+the\s+owner/gi, 'read by the owner')), /owner confirmed them on 2026-11-02/, 'the owner-confirmation statement');
   assert.throws(() => checkReport(text.replace(/outside\s+the\s+comparison/gi, 'below')), /outside the comparison/, 'the outside-the-comparison mark');
   // the same report against a profile that drifted from its transcript, or a summary with another figure
   const bump = (mutate) => (rel) => {

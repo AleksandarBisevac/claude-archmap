@@ -1,0 +1,23 @@
+{
+  "gates": {
+    "node --test tests/denylist.test.mjs tests/benchmark.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task with expectRedFirst false and tests.add none: no red was owed",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "summary.json: rubric.scoredBy of all 12 compared cells is now \"owner, confirmed 2026-11-02 from the benchmark orchestrator's proposed scores\"; the numbers are unchanged (the archmap-issues cell has no rubric block). BENCHMARK.md: the Results caption, the limits bullet (now 'Rubric') and the How-each-number line say the scores were proposed by the orchestrator of the benchmark session and confirmed as their own by the owner on 2026-11-02 after reading the artifacts; 'provisional' and 'confirms or replaces at sign-off' removed. PROTOCOL.md: the Metrics rubric bullet and the Runs rubric bullet say the same. tests/benchmark.test.mjs: b21 caption and limits assertions and the b23 tamper case moved to the new wording (with a check that 'provisional' is absent); new case b18a asserts every compared cell's scoredBy names the owner and 2026-11-02 and is not provisional. Gates run: node --test tests/denylist.test.mjs tests/benchmark.test.mjs -> 26/26 pass; node --test -> 488/488 pass, exit 0. git grep -i provisional outside docs/audit matches only the three test assertions that check its absence. The brief names no command of the task's own to run; the full node --test was run as the task's tests.gate. Dependants: run-candidate.sh unaffected, still correct; tests/readme.test.mjs, tests/evals.test.mjs and tests/cost-profile.test.mjs passed in the full run; evidence profiles under evidence/benchmark untouched, so cost-profile and evals tests are still correct; the evals README, README.md, CHANGELOG.md and docs/roadmap.md make no provisional claim and were not edited, still correct since the item is now genuinely closed by the owner's confirmation. Side effect: an unintended 'git add -N .' marked the untracked docs/audit/evidence/returns/P12/ file as intent-to-add (no content change, nothing committed). No denylist term, no machine path added.",
+    "descriptive": "The owner's 2026-11-02 confirmation of the rubric scores is recorded in summary.json, BENCHMARK.md and PROTOCOL.md, and a test locks it."
+  },
+  "testsAdded": [
+    "b18a: every compared cell's rubric.scoredBy names the owner and 2026-11-02 and is not provisional",
+    "b21 and b23 updated to assert and tamper-check the owner-confirmation wording instead of the provisional wording"
+  ],
+  "casesAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:332646c2aa7808f7c067fe0cd19a6f7034aad322839b55236837097a342f7dfd\",\"dirtyDigest\":\"sha256:9d4da0fd4c69d66dd8bdcc95623f41426b5939d51677b7e5ff8923ed8ff4328a\",\"dirtyPaths\":{\"skills/architecture-map/evals/BENCHMARK.md\":\"69f826e901a0252f\",\"skills/architecture-map/evals/benchmark/PROTOCOL.md\":\"dcf38cb754d21e0e\",\"skills/architecture-map/evals/evidence/benchmark/summary.json\":\"f768766475625443\",\"tests/benchmark.test.mjs\":\"e5c5fd0dc1a49674\"},\"head\":\"3433c8b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/BENCHMARK.md\",\"skills/architecture-map/evals/benchmark/PROTOCOL.md\",\"skills/architecture-map/evals/evidence/benchmark\",\"tests/benchmark.test.mjs\"],\"scopeDigest\":\"sha256:65ee399494136459f3c74be27a8989ecf4155c07406da0c49752745b448f5a9e\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
