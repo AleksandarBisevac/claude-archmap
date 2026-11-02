@@ -1,0 +1,36 @@
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: Package
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - script: dotnet publish -o $(Build.ArtifactStagingDirectory)
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifact: drop
+
+  - stage: Deploy
+    dependsOn: Build
+    jobs:
+      - deployment: Release
+        environment: staging
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifact: drop
+                - task: AzureWebApp@1
+                  inputs:
+                    appName: 'fleet-api-staging'
+                    package: '$(Pipeline.Workspace)/drop'

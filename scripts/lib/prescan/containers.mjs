@@ -167,7 +167,8 @@ function keyValue(text) {
 
 const isSeqLine = (l) => l.text === '-' || l.text.startsWith('- ');
 
-function parseYaml(text) {
+// parseYaml and the three accessors below are exported for the other prescan extractors that read YAML (pipelines.mjs).
+export function parseYaml(text) {
   const lines = [];
   text.split(/\r?\n/).forEach((raw, i) => {
     const t = stripComment(raw).trimEnd();
@@ -270,9 +271,9 @@ function parseYaml(text) {
   return lines.length ? block(lines[0].indent) : null;
 }
 
-const entryOf = (node, key) => (node?.t === 'map' ? node.entries.find((e) => e.key === key) : undefined);
-const valueOf = (node, key) => entryOf(node, key)?.v;
-const textOf = (node) => (node?.t === 'scalar' && node.value !== '' ? node.value : null);
+export const entryOf = (node, key) => (node?.t === 'map' ? node.entries.find((e) => e.key === key) : undefined);
+export const valueOf = (node, key) => entryOf(node, key)?.v;
+export const textOf = (node) => (node?.t === 'scalar' && node.value !== '' ? node.value : null);
 
 // ---------------------------------------------------------------------------------------------
 // Compose

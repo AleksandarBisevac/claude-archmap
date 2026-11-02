@@ -50,6 +50,7 @@ flow; read one only at the step that names it.
 | [references/stack-ts-frontend.md](references/stack-ts-frontend.md) | The `ts-frontend` stack: React, Next.js, React Native, routers, RTK Query, React Query, Redux, Zustand, axios, fetch. |
 | [references/stack-node-backend.md](references/stack-node-backend.md) | The `node-backend` stack: NestJS, Express, Hono, Prisma, TypeORM, Drizzle, OpenAPI, queues. |
 | [references/stack-containers.md](references/stack-containers.md) | The `containers` stack: Dockerfiles and Docker Compose services, ports, volumes, depends_on. |
+| [references/stack-pipelines.md](references/stack-pipelines.md) | The `pipelines` stack: GitHub Actions workflows and Azure Pipelines, jobs and stages, artefact hand-offs, deploy targets. |
 | [references/schema-introspection.md](references/schema-introspection.md) | The read-only introspection rules the driver follows; read it only for `--db <dsn>`. |
 | [references/issues-catalog.md](references/issues-catalog.md) | Only with `--issues`: the `archmap-reviewer` reads it; you read it to word the hand-off. |
 

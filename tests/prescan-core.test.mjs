@@ -110,7 +110,7 @@ test('pc1 lists files via git ls-files, honouring .gitignore, vendored dirs and 
 
 test('pc2 detects stacks from pyproject/requirements and package.json deps', () => {
   const repo = makeRepo(MIXED, MIXED_OPTS);
-  assert.deepEqual(scan(repo).stacks, ['containers', 'node-backend', 'python', 'ts-frontend']); // the Dockerfile in MIXED names the containers stack
+  assert.deepEqual(scan(repo).stacks, ['containers', 'node-backend', 'pipelines', 'python', 'ts-frontend']); // the Dockerfile in MIXED names the containers stack, its .github/workflows file the pipelines stack
 
   const pyOnly = makeRepo({ 'requirements.txt': 'flask\n', 'app.py': 'x = 1\n' });
   assert.deepEqual(scan(pyOnly).stacks, ['python']);

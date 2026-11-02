@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/prescan-pipelines.test.mjs": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-02T22:32:08Z",
+    "basis": "`node --test tests/prescan-pipelines.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/prescan/pipelines.mjs (extractPipelines, MAX_ITEMS, MAX_NESTED, plug-in id 'pipelines'; fragment keys artifacts, deployTargets, jobs, passes, pipelines, scanned, skipped{pipelines,templates}, truncated) and stacks/pipelines.mjs re-export; fixtures tests/fixtures/repos/pipelines/.github/workflows/release.yml (3 jobs passing artefact dist) and azure-pipelines.yml (2 stages); tests/prescan-pipelines.test.mjs (pl1-pl10, 10 cases pass); references/stack-pipelines.md. To reuse the YAML reader I added `export` to parseYaml, entryOf, valueOf, textOf in scripts/lib/prescan/containers.mjs (gate allowed it; it spent this writer's one free file). Updated tests/prescan-core.test.mjs pc2 (gate allowed): the mixed fixture's .github/workflows/ci.yml now detects 'pipelines', expected stacks are containers, node-backend, pipelines, python, ts-frontend. BLOCKED: skills/architecture-map/SKILL.md references-table row for stack-pipelines.md was refused by require-plan (file declared only by done tasks P4.4 etc. and pending P13.5/P13.9; free file already spent), so full `node --test` has exactly one failure: s2 (reference not linked from SKILL.md). Orchestrator must add this row after the stack-containers row: | [references/stack-pipelines.md](references/stack-pipelines.md) | The `pipelines` stack: GitHub Actions workflows and Azure Pipelines, jobs and stages, artefact hand-offs, deploy targets. | (or via a new task / P13.5). Full node --test: 541 tests, 540 pass, 1 fail (s2). Dependants: tests/fixtures/repos/pipelines named by basename in .agents/skills/node/SKILL.md, docs/roadmap.md, discovery-generic.md, relation-taxonomy.md - still correct, those mention 'pipelines' as a word, not the fixture path; no other tracked file names the new files.",
+    "descriptive": "Prescan now extracts GitHub Actions and Azure Pipelines (pipelines, jobs/stages with needs, artefact uploads/downloads and hand-off edges, deploy targets) with line evidence; SKILL.md row still owed."
+  },
+  "testsAdded": [
+    "tests/prescan-pipelines.test.mjs: pl1-pl10 cover pipeline items with triggers, jobs and stages with needs, artefact rows, pass edges with upload and download evidence, deploy targets, alternate forms, evidence/determinism, caps, detection and no-execution/shim/prescan wiring"
+  ],
+  "casesAdded": [
+    [
+      "pl1",
+      "pl2",
+      "pl3",
+      "pl4",
+      "pl5",
+      "pl6",
+      "pl7",
+      "pl8",
+      "pl9",
+      "pl10"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:3c1de1a7d3c595cb460ac551a30b9af275132eaeb1ba0d6e1fa7dccef37e7c05\",\"dirtyDigest\":\"sha256:bcf28581bed9e90a7a4b93c68258719490a62bd898e355b13e264f25c6d83631\",\"dirtyPaths\":{\"scripts/lib/prescan/containers.mjs\":\"118a99c1ab080087\",\"scripts/lib/prescan/pipelines.mjs\":\"4358f011024ca0d5\",\"scripts/lib/prescan/stacks/pipelines.mjs\":\"09a59165607cbe51\",\"skills/architecture-map/references/stack-pipelines.md\":\"eca6acb1d4dd84c1\",\"tests/fixtures/repos/pipelines/.github/workflows/release.yml\":\"7af5e7b4d32f5879\",\"tests/fixtures/repos/pipelines/azure-pipelines.yml\":\"83abc2e2dcd92cdf\",\"tests/prescan-core.test.mjs\":\"e9c22dfc5a99f95c\",\"tests/prescan-pipelines.test.mjs\":\"17e18695f824eb55\"},\"head\":\"2e92f27\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/pipelines.mjs\",\"scripts/lib/prescan/stacks/pipelines.mjs\",\"skills/architecture-map/references/stack-pipelines.md\",\"tests/fixtures/repos/pipelines\",\"tests/prescan-pipelines.test.mjs\"],\"scopeDigest\":\"sha256:7e1b24e390e1a493f7d8b57afcf91d0da147d6dcd79601b5e95b609d059ff11f\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -9681,7 +9681,7 @@
         {
           "id": "P13.1",
           "title": "Prescan extractor for containers: Dockerfiles and compose files",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add scripts/lib/prescan/containers.mjs (re-exported from stacks/containers.mjs) detected from Dockerfile*, compose*.y(a)ml and docker-compose*.y(a)ml: one item per compose service (image or build context, ports, volumes, depends_on, env keys by name only) and per Dockerfile (base image, exposed ports, the entrypoint file), each with evidence {path, lines}, sorted and capped per kind with truncated counts. Write skills/architecture-map/references/stack-containers.md in the shape of stack-ts-frontend.md (what prescan extracts, what the explorer must still read, how services map to nodes and depends_on and ports to edges). Add the fixture tests/fixtures/repos/containers (a compose file with three services, two Dockerfiles, one .env.example; no real secrets).",
           "files": [
             "scripts/lib/prescan/containers.mjs",
@@ -9710,32 +9710,48 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2e92f27302ad",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/containers.mjs (hand-written block/flow YAML subset reader; compose services: image or build context+dockerfile resolved repo-relative, ports {host,container,protocol}, volumes, dependsOn, envKeys by name only incl. env_file key names; Dockerfiles: final-stage base, stages, EXPOSE ports, ENTRYPOINT+CMD command, entrypoint file; evidence {path,lines}; sort by path/line; MAX_ITEMS 20000 per kind with truncated counts, MAX_NESTED 2000; skipped counts for alias/merge services and FROM-less Dockerfiles; no code execution) and the one-line stacks/containers.mjs re-export. Wrote skills/architecture-map/references/stack-containers.md in the shape of stack-ts-frontend.md. Fixture tests/fixtures/repos/containers: docker-compose.yml (web, api, db), web/Dockerfile (multi-stage), api/Dockerfile; git add -N applied. tests/prescan-containers.test.mjs: 8 cases ct1..ct8. First run was red (ERR_MODULE_NOT_FOUND for containers.mjs, before implementation), then 8/8 green. Full `node --test`: 531 pass, 0 fail. Two adjacent files outside the declared files had to change and the plan gate allowed both edits: skills/architecture-map/SKILL.md (one table row linking stack-containers.md, required by s2 'every reference is linked') and tests/prescan-core.test.mjs pc2 (expected stacks now include 'containers' because the MIXED fixture holds api/Dockerfile). BLOCKED: the fixture's .env.example could not be created - Write on tests/fixtures/repos/containers/.env.example was refused ('File is in a directory that is denied by your permission settings'); I did not work around it via Bash. Consequence: the fixture has no .env.example (the compose file has no env_file line so nothing depends on it); env_file key-name reading is covered in-memory by ct3. Also a python heredoc edit via Bash was refused by the auto-mode classifier; I redid it with the Edit tool. Dependants: tests/fixtures/repos/containers is a new directory, so the 'basename' dependants (generic.mjs, partition.mjs, merge.mjs, prescan.mjs, golden model, merge/prescan-core tests, discovery-generic.md) name the word 'containers' generically, not this path, and the full suite is green, so they are still correct; the other three files have no dependants.",
+            "descriptive": "Prescan now extracts compose services and Dockerfiles (ports, volumes, depends_on, env names, entrypoint) with file:line evidence, behind a stack reference and a fixture, at no cost to the agent prompts."
           },
           "startedAt": "2026-11-02T22:15:47Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T22:25:57Z",
+          "verifiedBy": [
+            "tests/prescan-containers.test.mjs: ct1 compose services, ct2 Dockerfiles (multi-stage, inheritance, shell/exec forms), ct3 env names only, ct4 compose long/flow syntax and resolution, ct5 evidence/sort/determinism, ct6 caps, ct7 detect, ct8 nothing executed and prescan wiring"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T22:25:55Z.b7942e",
             "status": "passed",
             "at": "2026-11-02T22:25:55Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2e92f27302ad",
+            "at": "2026-11-02T22:25:57Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T22:24:40Z",
+            "basis": "`node --test tests/prescan-containers.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.2",
           "title": "Prescan extractor for pipelines: GitHub Actions and Azure Pipelines",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add scripts/lib/prescan/pipelines.mjs (and stacks/pipelines.mjs) detected from .github/workflows/*.y(a)ml and azure-pipelines*.y(a)ml or *.pipeline.yml: one item per workflow or pipeline with its triggers, one per job or stage with needs/dependsOn, the artefacts uploaded and downloaded (actions/upload-artifact, PublishPipelineArtifact and their download counterparts) and the deploy targets named as string literals, each with evidence. Write skills/architecture-map/references/stack-pipelines.md and the fixture tests/fixtures/repos/pipelines (one GitHub workflow with three jobs passing an artefact, one Azure pipeline with two stages).",
           "files": [
             "scripts/lib/prescan/pipelines.mjs",
             "scripts/lib/prescan/stacks/pipelines.mjs",
+            "scripts/lib/prescan/containers.mjs",
             "skills/architecture-map/references/stack-pipelines.md",
+            "skills/architecture-map/SKILL.md",
             "tests/fixtures/repos/pipelines",
-            "tests/prescan-pipelines.test.mjs"
+            "tests/prescan-pipelines.test.mjs",
+            "tests/prescan-core.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
@@ -9753,16 +9769,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T22:25:57Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T22:33:41Z.f3bc35",
+            "status": "passed",
+            "at": "2026-11-02T22:33:41Z"
+          }
         },
         {
           "id": "P13.3",
@@ -10408,7 +10430,8 @@
       "P10.15-6rm",
       "P8.5",
       "P8.9",
-      "P13.1"
+      "P13.1",
+      "P13.2"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",
@@ -10731,7 +10754,8 @@
       "P9.6",
       "P13.5",
       "P13.9",
-      "P13.1"
+      "P13.1",
+      "P13.2"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -11234,7 +11258,8 @@
       "BF2.2-8q4"
     ],
     "scripts/lib/prescan/containers.mjs": [
-      "P13.1"
+      "P13.1",
+      "P13.2"
     ],
     "scripts/lib/prescan/stacks/containers.mjs": [
       "P13.1"
