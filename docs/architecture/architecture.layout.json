@@ -21,51 +21,27 @@
         "h": 56
       },
       "docs-architecture": {
-        "x": 580,
-        "y": 420,
-        "w": 250,
+        "x": 70,
+        "y": 987,
+        "w": 270,
         "h": 56
       },
       "docs-audit": {
-        "x": 50,
-        "y": 342,
-        "w": 160,
+        "x": 70,
+        "y": 1083,
+        "w": 250,
         "h": 56
       },
       "docs-design": {
-        "x": 50,
-        "y": 190,
-        "w": 160,
+        "x": 70,
+        "y": 1179,
+        "w": 230,
         "h": 56
       },
       "docs-release": {
-        "x": 540,
-        "y": 720,
-        "w": 170,
-        "h": 56
-      },
-      "docs-roadmap": {
-        "x": 540,
-        "y": 340,
-        "w": 160,
-        "h": 56
-      },
-      "misc-2-agents": {
-        "x": 1348,
-        "y": 739,
-        "w": 160,
-        "h": 56
-      },
-      "misc-2-commands": {
-        "x": 1050,
-        "y": 738.8,
-        "w": 160,
-        "h": 56
-      },
-      "misc-2-schema": {
-        "x": 1548,
-        "y": 739,
-        "w": 160,
+        "x": 70,
+        "y": 1275,
+        "w": 250,
         "h": 56
       },
       "misc-ci": {
@@ -74,22 +50,58 @@
         "w": 160,
         "h": 56
       },
-      "misc-hooks": {
+      "misc-plugin-manifest": {
         "x": 70,
-        "y": 636.67,
+        "y": 1371,
         "w": 160,
         "h": 56
       },
-      "misc-plugin-manifest": {
-        "x": 250,
-        "y": 418,
-        "w": 300,
+      "misc-session-hook": {
+        "x": 70,
+        "y": 1467,
+        "w": 180,
+        "h": 56
+      },
+      "misc2-agents": {
+        "x": 70,
+        "y": 1563,
+        "w": 200,
+        "h": 56
+      },
+      "misc2-commands": {
+        "x": 70,
+        "y": 1659,
+        "w": 160,
+        "h": 56
+      },
+      "misc2-explorer": {
+        "x": 70,
+        "y": 1755,
+        "w": 220,
+        "h": 56
+      },
+      "misc2-reviewer": {
+        "x": 70,
+        "y": 1851,
+        "w": 220,
+        "h": 56
+      },
+      "misc2-schema": {
+        "x": 70,
+        "y": 1947,
+        "w": 160,
+        "h": 56
+      },
+      "misc2-synthesizer": {
+        "x": 70,
+        "y": 2043,
+        "w": 250,
         "h": 56
       },
       "misc3-audit-config": {
-        "x": 1348,
-        "y": 815,
-        "w": 160,
+        "x": 70,
+        "y": 2139,
+        "w": 200,
         "h": 56
       },
       "misc3-review-skill": {
@@ -98,16 +110,22 @@
         "w": 200,
         "h": 56
       },
-      "misc3-viewer-assets": {
-        "x": 50,
-        "y": 266,
+      "misc3-viewer": {
+        "x": 80,
+        "y": 2260,
+        "w": 250,
+        "h": 56
+      },
+      "scripts": {
+        "x": 70,
+        "y": 2356,
         "w": 160,
         "h": 56
       },
-      "scripts-cost": {
-        "x": 570,
-        "y": 950,
-        "w": 290,
+      "scripts-cost-profile": {
+        "x": 70,
+        "y": 2452,
+        "w": 160,
         "h": 56
       },
       "scripts-db": {
@@ -117,20 +135,38 @@
         "h": 56
       },
       "scripts-diffmap": {
-        "x": 480,
-        "y": 880,
-        "w": 210,
+        "x": 70,
+        "y": 2548,
+        "w": 160,
         "h": 56
       },
       "scripts-export": {
-        "x": 570,
-        "y": 798,
-        "w": 300,
+        "x": 70,
+        "y": 2644,
+        "w": 160,
         "h": 56
       },
       "scripts-issues": {
         "x": 710,
         "y": 874,
+        "w": 160,
+        "h": 56
+      },
+      "scripts-layout": {
+        "x": 70,
+        "y": 2740,
+        "w": 160,
+        "h": 56
+      },
+      "scripts-lib-prescan": {
+        "x": 70,
+        "y": 2836,
+        "w": 160,
+        "h": 56
+      },
+      "scripts-lib-shared": {
+        "x": 70,
+        "y": 2932,
         "w": 160,
         "h": 56
       },
@@ -147,15 +183,33 @@
         "h": 56
       },
       "scripts-prescan": {
-        "x": 570,
-        "y": 570,
-        "w": 260,
+        "x": 70,
+        "y": 3028,
+        "w": 160,
+        "h": 56
+      },
+      "scripts-render": {
+        "x": 70,
+        "y": 3124,
+        "w": 160,
+        "h": 56
+      },
+      "scripts-staleness": {
+        "x": 70,
+        "y": 3220,
+        "w": 160,
+        "h": 56
+      },
+      "scripts-usage": {
+        "x": 70,
+        "y": 3316,
+        "w": 160,
         "h": 56
       },
       "scripts-validate": {
-        "x": 910,
-        "y": 662.8,
-        "w": 300,
+        "x": 70,
+        "y": 3412,
+        "w": 160,
         "h": 56
       },
       "skills-architecture-map": {
@@ -166,8 +220,14 @@
       },
       "skills-evals": {
         "x": 70,
-        "y": 503.33,
-        "w": 160,
+        "y": 3508,
+        "w": 250,
+        "h": 56
+      },
+      "skills-grade-benchmark": {
+        "x": 70,
+        "y": 3604,
+        "w": 200,
         "h": 56
       },
       "skills-references": {
@@ -176,16 +236,22 @@
         "w": 170,
         "h": 56
       },
-      "skills-score-recall": {
-        "x": 250,
-        "y": 570,
-        "w": 200,
+      "skills-run-candidate": {
+        "x": 70,
+        "y": 3700,
+        "w": 170,
         "h": 56
       },
-      "tests-fixtures": {
-        "x": 250,
-        "y": 731.33,
-        "w": 160,
+      "skills-score-recall": {
+        "x": 70,
+        "y": 3796,
+        "w": 170,
+        "h": 56
+      },
+      "tests-e2e": {
+        "x": 70,
+        "y": 3892,
+        "w": 170,
         "h": 56
       },
       "tests-suite": {
@@ -193,21 +259,15 @@
         "y": 712.67,
         "w": 160,
         "h": 56
-      },
-      "tests-visual": {
-        "x": 30,
-        "y": 788.67,
-        "w": 200,
-        "h": 56
-      },
-      "tests-visual-tests": {
-        "x": 320,
-        "y": 340,
-        "w": 200,
-        "h": 56
       }
     },
     "zones": {
+      "browser": {
+        "x": 62,
+        "y": 2224,
+        "w": 286,
+        "h": 110
+      },
       "data": {
         "x": 519.5,
         "y": 12,
@@ -215,10 +275,10 @@
         "h": 110
       },
       "delivery": {
-        "x": 12,
-        "y": 154,
-        "w": 1216,
-        "h": 870
+        "x": 52,
+        "y": 382,
+        "w": 1494,
+        "h": 3584
       },
       "external": {
         "x": 1848,
@@ -227,14 +287,14 @@
         "h": 110
       },
       "platform": {
-        "x": 1310,
-        "y": 627,
-        "w": 456,
-        "h": 338
+        "x": 52,
+        "y": 458,
+        "w": 1714,
+        "h": 1083
       }
     },
     "edges": {
-      "agents-webapp-to-devserver": {
+      "agents-webapp-testing-to-dev-server": {
         "sections": [
           {
             "startPoint": {
@@ -248,27 +308,31 @@
           }
         ]
       },
+      "e-diffmap-lib-shared": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 2604
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 2932
+            }
+          }
+        ]
+      },
       "e-export-validate": {
         "sections": [
           {
             "startPoint": {
-              "x": 870,
-              "y": 826
+              "x": 150,
+              "y": 2700
             },
             "endPoint": {
-              "x": 910,
-              "y": 696.4
-            },
-            "bendPoints": [
-              {
-                "x": 890,
-                "y": 826
-              },
-              {
-                "x": 890,
-                "y": 696.4
-              }
-            ]
+              "x": 150,
+              "y": 3412
+            }
           }
         ]
       },
@@ -276,21 +340,59 @@
         "sections": [
           {
             "startPoint": {
-              "x": 870,
+              "x": 710,
               "y": 902
             },
             "endPoint": {
-              "x": 910,
-              "y": 707.6
+              "x": 230,
+              "y": 3440
             },
             "bendPoints": [
               {
-                "x": 900,
+                "x": 470,
                 "y": 902
               },
               {
-                "x": 900,
-                "y": 707.6
+                "x": 470,
+                "y": 3440
+              }
+            ]
+          }
+        ]
+      },
+      "e-layout-validate": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 2796
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 3412
+            }
+          }
+        ]
+      },
+      "e-merge-lib-shared": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 640,
+              "y": 674
+            },
+            "endPoint": {
+              "x": 230,
+              "y": 2960
+            },
+            "bendPoints": [
+              {
+                "x": 435,
+                "y": 674
+              },
+              {
+                "x": 435,
+                "y": 2960
               }
             ]
           }
@@ -300,35 +402,21 @@
         "sections": [
           {
             "startPoint": {
-              "x": 800,
+              "x": 640,
               "y": 674
             },
             "endPoint": {
-              "x": 910,
-              "y": 674
-            }
-          }
-        ]
-      },
-      "e-pipeline-cost": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 494,
-              "y": 688
-            },
-            "endPoint": {
-              "x": 570,
-              "y": 978
+              "x": 230,
+              "y": 3440
             },
             "bendPoints": [
               {
-                "x": 560,
-                "y": 688
+                "x": 435,
+                "y": 674
               },
               {
-                "x": 560,
-                "y": 978
+                "x": 435,
+                "y": 3440
               }
             ]
           }
@@ -352,185 +440,303 @@
         "sections": [
           {
             "startPoint": {
-              "x": 494,
-              "y": 660
-            },
-            "endPoint": {
-              "x": 570,
-              "y": 598
-            },
-            "bendPoints": [
-              {
-                "x": 560,
-                "y": 660
-              },
-              {
-                "x": 560,
-                "y": 598
-              }
-            ]
-          }
-        ]
-      },
-      "e-scripts-diffmap-glob": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 690,
-              "y": 908
-            },
-            "endPoint": {
-              "x": 910,
-              "y": 690.8
-            },
-            "bendPoints": [
-              {
-                "x": 800,
-                "y": 908
-              },
-              {
-                "x": 800,
-                "y": 690.8
-              }
-            ]
-          }
-        ]
-      },
-      "e-scripts-export-validate": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 870,
-              "y": 826
-            },
-            "endPoint": {
-              "x": 910,
-              "y": 690.8
-            },
-            "bendPoints": [
-              {
-                "x": 890,
-                "y": 826
-              },
-              {
-                "x": 890,
-                "y": 690.8
-              }
-            ]
-          }
-        ]
-      },
-      "e-scripts-issues-validate": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 870,
-              "y": 902
-            },
-            "endPoint": {
-              "x": 910,
-              "y": 690.8
-            },
-            "bendPoints": [
-              {
-                "x": 890,
-                "y": 902
-              },
-              {
-                "x": 890,
-                "y": 690.8
-              }
-            ]
-          }
-        ]
-      },
-      "e-scripts-pipeline-prescan": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 494,
+              "x": 334,
               "y": 674
             },
             "endPoint": {
-              "x": 570,
-              "y": 598
+              "x": 230,
+              "y": 3056
             },
             "bendPoints": [
               {
-                "x": 532,
+                "x": 282,
                 "y": 674
               },
               {
-                "x": 532,
+                "x": 282,
+                "y": 3056
+              }
+            ]
+          }
+        ]
+      },
+      "e-pipeline-usage": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 334,
+              "y": 674
+            },
+            "endPoint": {
+              "x": 230,
+              "y": 3344
+            },
+            "bendPoints": [
+              {
+                "x": 282,
+                "y": 674
+              },
+              {
+                "x": 282,
+                "y": 3344
+              }
+            ]
+          }
+        ]
+      },
+      "e-prescan-lib-prescan": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 3028
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 2892
+            }
+          }
+        ]
+      },
+      "e-render-validate": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 3180
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 3412
+            }
+          }
+        ]
+      },
+      "e-staleness-diffmap": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 3220
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 2604
+            }
+          }
+        ]
+      },
+      "e-validate-lib-shared": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 3412
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 2988
+            }
+          }
+        ]
+      },
+      "misc-ci-manifest": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 474
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 1371
+            }
+          }
+        ]
+      },
+      "misc-hook-staleness": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 160,
+              "y": 1523
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 3220
+            },
+            "bendPoints": [
+              {
+                "x": 160,
+                "y": 2371.5
+              },
+              {
+                "x": 150,
+                "y": 2371.5
+              }
+            ]
+          }
+        ]
+      },
+      "misc2-e-build-explorer": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 1659
+            },
+            "endPoint": {
+              "x": 170,
+              "y": 1619
+            },
+            "bendPoints": [
+              {
+                "x": 150,
+                "y": 1639
+              },
+              {
+                "x": 170,
+                "y": 1639
+              }
+            ]
+          }
+        ]
+      },
+      "misc2-e-commands-scripts": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 150,
+              "y": 1715
+            },
+            "endPoint": {
+              "x": 150,
+              "y": 2356
+            }
+          }
+        ]
+      },
+      "skills-evals-grade": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 195,
+              "y": 3564
+            },
+            "endPoint": {
+              "x": 170,
+              "y": 3604
+            },
+            "bendPoints": [
+              {
+                "x": 195,
+                "y": 3584
+              },
+              {
+                "x": 170,
+                "y": 3584
+              }
+            ]
+          }
+        ]
+      },
+      "skills-evals-run": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 195,
+              "y": 3564
+            },
+            "endPoint": {
+              "x": 155,
+              "y": 3700
+            },
+            "bendPoints": [
+              {
+                "x": 195,
+                "y": 3632
+              },
+              {
+                "x": 155,
+                "y": 3632
+              }
+            ]
+          }
+        ]
+      },
+      "skills-evals-score": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 195,
+              "y": 3564
+            },
+            "endPoint": {
+              "x": 155,
+              "y": 3796
+            },
+            "bendPoints": [
+              {
+                "x": 195,
+                "y": 3680
+              },
+              {
+                "x": 155,
+                "y": 3680
+              }
+            ]
+          }
+        ]
+      },
+      "skills-evals-skill": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 195,
+              "y": 3508
+            },
+            "endPoint": {
+              "x": 400,
+              "y": 550
+            },
+            "bendPoints": [
+              {
+                "x": 195,
+                "y": 2029
+              },
+              {
+                "x": 400,
+                "y": 2029
+              }
+            ]
+          }
+        ]
+      },
+      "skills-skill-pipeline": {
+        "sections": [
+          {
+            "startPoint": {
+              "x": 400,
+              "y": 550
+            },
+            "endPoint": {
+              "x": 414,
+              "y": 646
+            },
+            "bendPoints": [
+              {
+                "x": 400,
+                "y": 598
+              },
+              {
+                "x": 414,
                 "y": 598
               }
             ]
           }
         ]
       },
-      "misc-2-agents-schema": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 1508,
-              "y": 767
-            },
-            "endPoint": {
-              "x": 1548,
-              "y": 767
-            }
-          }
-        ]
-      },
-      "misc-2-cmd-agents": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 1210,
-              "y": 766.8
-            },
-            "endPoint": {
-              "x": 1348,
-              "y": 767
-            },
-            "bendPoints": [
-              {
-                "x": 1233,
-                "y": 767
-              }
-            ]
-          }
-        ]
-      },
-      "misc-ci-to-manifest": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 446
-            },
-            "endPoint": {
-              "x": 250,
-              "y": 446
-            }
-          }
-        ]
-      },
-      "misc-hooks-to-scripts": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 664.67
-            },
-            "endPoint": {
-              "x": 334,
-              "y": 664.67
-            }
-          }
-        ]
-      },
-      "skills-e1": {
+      "skills-skill-refs": {
         "sections": [
           {
             "startPoint": {
@@ -544,151 +750,17 @@
           }
         ]
       },
-      "skills-e2": {
+      "tests-suite-merge": {
         "sections": [
           {
             "startPoint": {
-              "x": 230,
-              "y": 522
-            },
-            "endPoint": {
-              "x": 290,
-              "y": 522
-            }
-          }
-        ]
-      },
-      "skills-e3": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 540.67
-            },
-            "endPoint": {
-              "x": 250,
-              "y": 598
-            },
-            "bendPoints": [
-              {
-                "x": 240,
-                "y": 540.67
-              },
-              {
-                "x": 240,
-                "y": 598
-              }
-            ]
-          }
-        ]
-      },
-      "tests-suite-fixtures": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 750
-            },
-            "endPoint": {
-              "x": 250,
-              "y": 750
-            }
-          }
-        ]
-      },
-      "tests-suite-scripts": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 731.33
-            },
-            "endPoint": {
-              "x": 334,
-              "y": 683.33
-            },
-            "bendPoints": [
-              {
-                "x": 240,
-                "y": 731.33
-              },
-              {
-                "x": 240,
-                "y": 683.33
-              }
-            ]
-          }
-        ]
-      },
-      "tests-suite-to-fixtures": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 740.67
-            },
-            "endPoint": {
-              "x": 250,
-              "y": 759.33
-            },
-            "bendPoints": [
-              {
-                "x": 240,
-                "y": 740.67
-              },
-              {
-                "x": 240,
-                "y": 759.33
-              }
-            ]
-          }
-        ]
-      },
-      "tests-suite-to-scripts": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 740.67
-            },
-            "endPoint": {
-              "x": 334,
-              "y": 674
-            },
-            "bendPoints": [
-              {
-                "x": 282,
-                "y": 740.67
-              },
-              {
-                "x": 282,
-                "y": 674
-              }
-            ]
-          }
-        ]
-      },
-      "tests-visual-fixtures": {
-        "sections": [
-          {
-            "startPoint": {
-              "x": 230,
-              "y": 816.67
-            },
-            "endPoint": {
-              "x": 250,
+              "x": 150,
               "y": 768.67
             },
-            "bendPoints": [
-              {
-                "x": 240,
-                "y": 816.67
-              },
-              {
-                "x": 240,
-                "y": 768.67
-              }
-            ]
+            "endPoint": {
+              "x": 150,
+              "y": 2356
+            }
           }
         ]
       }

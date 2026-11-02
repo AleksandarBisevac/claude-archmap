@@ -2,23 +2,22 @@
   "meta": {
     "schemaVersion": "1.0",
     "project": "repo",
-    "commit": "63d7495bede75ef1c992a00891d920f3fe23cb46",
-    "generatedAt": "2026-11-01T00:04:55Z",
+    "commit": "ddbd0be3bb5db77876266fb4908a08ce505fee81",
+    "generatedAt": "2026-11-02T09:05:33Z",
     "profile": "balanced",
     "sources": [
       {
         "derived": {
           "access": 1,
-          "carried": 33,
           "edges": 0,
-          "entities": 0,
-          "entitiesInferred": 0,
+          "entities": 1,
+          "entitiesInferred": 1,
           "entitiesMerged": 0,
           "queues": 0,
           "relations": 0,
-          "stores": 0
+          "stores": 1
         },
-        "note": "merge.mjs made 0 entities (and merged 0 into the explorers'), 0 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved; update: 33 carried from the previous model unchanged (16 node(s), 16 edge(s), 1 entity): their evidence files are not among the 14 changed file(s)",
+        "note": "merge.mjs made 1 entity (1 inferred from the SQL the code runs) (and merged 0 into the explorers'), 1 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved",
         "skipped": {
           "count": 0,
           "reasons": []
@@ -27,17 +26,10 @@
       },
       {
         "area": ".agents",
-        "fixed": 1,
-        "note": "area .agents: 1 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)",
-        "type": "normalisation"
-      },
-      {
-        "area": ".agents",
         "skipped": {
           "count": 2,
           "reasons": [
-            "node rules markdown and webapp-testing other scripts not read, budget",
-            "tile.json lines not verified"
+            "Markdown rule files and other example scripts not read in detail"
           ]
         },
         "type": "explorer"
@@ -51,9 +43,9 @@
       {
         "area": "docs",
         "skipped": {
-          "count": 0,
+          "count": 1,
           "reasons": [
-            "Grep tool unavailable; used bash grep. Journal and evidence files not read in detail."
+            "audit journal and evidence files not read individually"
           ]
         },
         "type": "explorer"
@@ -62,7 +54,9 @@
         "area": "misc",
         "skipped": {
           "count": 0,
-          "reasons": []
+          "reasons": [
+            "Root files (README, CHANGELOG, LICENSE, skills-lock.json) not mapped as modules"
+          ]
         },
         "type": "explorer"
       },
@@ -71,7 +65,7 @@
         "skipped": {
           "count": 0,
           "reasons": [
-            "Bodies of agents and schemas only sampled by head, not read in full"
+            "schema and agent bodies only partly read; node evidence limited to headers"
           ]
         },
         "type": "explorer"
@@ -81,7 +75,8 @@
         "skipped": {
           "count": 2,
           "reasons": [
-            "elk.bundled.js and scan.mjs bodies not read in detail (vendored bundle; budget)"
+            "elk.bundled.js and viewer.css not read (vendored bundle, styles)",
+            "audit.config.json contents not read in detail"
           ]
         },
         "type": "explorer"
@@ -89,10 +84,9 @@
       {
         "area": "scripts",
         "skipped": {
-          "count": 3,
+          "count": 0,
           "reasons": [
-            "Only file headers read; scripts/lib/prescan internals and the sqlite introspection in pipeline.mjs not examined",
-            "scripts-db store not re-emitted"
+            "sqlite_master select is a read-only introspection query, not a store"
           ]
         },
         "type": "explorer"
@@ -102,24 +96,18 @@
         "skipped": {
           "count": 2,
           "reasons": [
-            "evals evidence JSON and reference docs not read individually",
-            "no tables, routes or queues in this area"
+            "Evidence JSON files under evals/evidence are data records, not modules",
+            "Reference documents and benchmark docs were sampled by headings, not read in full"
           ]
         },
         "type": "explorer"
       },
       {
         "area": "tests",
-        "fixed": 2,
-        "note": "area tests: 2 fragment field(s) normalised (evidence lines, level, paths, zone, confidence, ops)",
-        "type": "normalisation"
-      },
-      {
-        "area": "tests",
         "skipped": {
           "count": 1,
           "reasons": [
-            "tests/visual and fixtures contents not read in depth; per-suite nodes not emitted"
+            "Most test files not read individually; only merge and e2e headers sampled."
           ]
         },
         "type": "explorer"
@@ -127,32 +115,36 @@
     ],
     "coverage": {
       ".agents": [
-        ".agents/skills/webapp-testing/examples/console_logging.py"
+        ".agents/skills/webapp-testing/examples/console_logging.py",
+        ".agents/skills/node/tile.json"
       ],
       "docs": [
-        "docs/**"
+        "docs/*.md",
+        "docs/release/**",
+        "docs/architecture/**"
       ],
       "misc": [
-        "*",
         ".claude-plugin/**",
         ".github/**",
         "hooks/**"
       ],
       "misc-2": [
-        "agents/**",
         "commands/**",
+        "agents/**",
         "schema/**"
       ],
       "misc-3": [
-        "assets/viewer/**",
-        ".claude/**"
+        ".claude/**",
+        "assets/viewer/viewer.js",
+        "assets/viewer/template.html"
       ],
       "scripts": [
-        "scripts/*.mjs"
+        "scripts/**"
       ],
       "skills": [
         "skills/architecture-map/SKILL.md",
-        "skills/architecture-map/evals/score-recall.mjs"
+        "skills/architecture-map/evals/**",
+        "skills/architecture-map/references/**"
       ],
       "tests": [
         "tests/*.test.mjs"
@@ -160,6 +152,11 @@
     }
   },
   "zones": [
+    {
+      "id": "browser",
+      "kind": "browser",
+      "label": "browser"
+    },
     {
       "id": "data",
       "kind": "data",
@@ -193,8 +190,8 @@
       "kind": "external",
       "level": 3,
       "paths": [],
-      "role": "Example target URL the Playwright console logging script browses.",
-      "title": "Local dev server localhost:5173",
+      "role": "Placeholder base URL the example script drives a browser against.",
+      "title": "Local dev server (localhost:5173)",
       "zone": "external"
     },
     {
@@ -210,14 +207,14 @@
       "paths": [
         ".agents/skills/node/**"
       ],
-      "role": "Agent skill of Node.js rule documents and a graceful-shutdown server asset.",
+      "role": "Agent skill of Node.js guidance rules and example assets.",
       "title": "node skill",
       "zone": "platform"
     },
     {
       "evidence": [
         {
-          "lines": "1-20",
+          "lines": "1-15",
           "path": ".agents/skills/webapp-testing/examples/console_logging.py"
         }
       ],
@@ -227,15 +224,15 @@
       "paths": [
         ".agents/skills/webapp-testing/**"
       ],
-      "role": "Agent skill with Playwright example scripts and a server-launch helper for testing local web apps.",
+      "role": "Agent skill with Playwright example scripts and a server launcher for testing local web apps.",
       "title": "webapp-testing skill",
       "zone": "platform"
     },
     {
       "evidence": [
         {
-          "lines": "1-10",
-          "path": "docs/architecture/architecture.model.json"
+          "lines": "1-1767",
+          "path": "docs/architecture/archmap.html"
         }
       ],
       "id": "docs-architecture",
@@ -244,14 +241,14 @@
       "paths": [
         "docs/architecture/**"
       ],
-      "role": "The generated architecture model, layout and viewer HTML produced by archmap itself.",
-      "title": "Generated architecture map",
+      "role": "Generated HTML viewer and layout file for the architecture map.",
+      "title": "Rendered architecture output",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "1-50",
+          "lines": "1",
           "path": "docs/audit/audit-plan.json"
         }
       ],
@@ -261,31 +258,36 @@
       "paths": [
         "docs/audit/**"
       ],
-      "role": "Audit plan, journal and evidence files recording the phased audit runs.",
-      "title": "Audit records",
+      "role": "Audit plan, journal entries and evidence records of the project's audit phases.",
+      "title": "Audit journal and evidence",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "1-30",
+          "lines": "1-292",
           "path": "docs/design.md"
+        },
+        {
+          "lines": "1-91",
+          "path": "docs/roadmap.md"
         }
       ],
       "id": "docs-design",
       "kind": "module",
       "level": 3,
       "paths": [
-        "docs/design.md"
+        "docs/design.md",
+        "docs/roadmap.md"
       ],
-      "role": "The settled design of archmap: context, decisions, layout, model, command flows, viewer and verification.",
-      "title": "Design document",
+      "role": "Prose design document and roadmap describing the tool.",
+      "title": "Design and roadmap docs",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "1",
+          "lines": "1-21",
           "path": "docs/release/marketplace-entry.json"
         }
       ],
@@ -295,101 +297,9 @@
       "paths": [
         "docs/release/**"
       ],
-      "role": "Marketplace listing entry prepared for the 1.0.0 release.",
-      "title": "Release metadata",
+      "role": "Marketplace entry metadata for publishing the plugin.",
+      "title": "Marketplace release entry",
       "zone": "delivery"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-23",
-          "path": "docs/roadmap.md"
-        }
-      ],
-      "id": "docs-roadmap",
-      "kind": "module",
-      "level": 3,
-      "paths": [
-        "docs/roadmap.md"
-      ],
-      "role": "Post-1.0.0 roadmap covering v1.1 data platforms, the CI drift gate and later plans.",
-      "title": "Roadmap",
-      "zone": "delivery"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-8",
-          "path": "agents/archmap-explorer.md"
-        },
-        {
-          "lines": "1-8",
-          "path": "agents/archmap-reviewer.md"
-        },
-        {
-          "lines": "1-8",
-          "path": "agents/archmap-synthesizer.md"
-        }
-      ],
-      "id": "misc-2-agents",
-      "kind": "module",
-      "level": 2,
-      "paths": [
-        "agents/**"
-      ],
-      "role": "Defines the explorer, reviewer and synthesizer subagents that the build and update flows dispatch.",
-      "title": "Subagents",
-      "zone": "platform"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-12",
-          "path": "commands/build.md"
-        },
-        {
-          "lines": "1-15",
-          "path": "commands/check.md"
-        },
-        {
-          "lines": "1-21",
-          "path": "commands/export.md"
-        }
-      ],
-      "id": "misc-2-commands",
-      "kind": "module",
-      "level": 2,
-      "paths": [
-        "commands/**"
-      ],
-      "role": "Defines the /archmap build, update, check, render, export and issues commands that start the skill or scripts.",
-      "title": "Slash commands",
-      "zone": "delivery"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-30",
-          "path": "schema/archmap-model.schema.json"
-        },
-        {
-          "lines": "1-20",
-          "path": "schema/archmap-issues.schema.json"
-        },
-        {
-          "lines": "1-27",
-          "path": "schema/archmap-theme.schema.json"
-        }
-      ],
-      "id": "misc-2-schema",
-      "kind": "module",
-      "level": 2,
-      "paths": [
-        "schema/**"
-      ],
-      "role": "Holds the JSON schemas for the architecture model, the issues overlay and the theme.",
-      "title": "JSON schemas",
-      "zone": "platform"
     },
     {
       "evidence": [
@@ -404,8 +314,25 @@
       "paths": [
         ".github/**"
       ],
-      "role": "GitHub Actions job that validates the plugin manifests and runs node --test on Node 18, 20 and 22.",
+      "role": "GitHub Actions job that validates plugin manifests and runs node --test on Node 18, 20 and 22.",
       "title": "CI workflow",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-22",
+          "path": ".claude-plugin/plugin.json"
+        }
+      ],
+      "id": "misc-plugin-manifest",
+      "kind": "module",
+      "level": 2,
+      "paths": [
+        ".claude-plugin/**"
+      ],
+      "role": "Declares the archmap Claude Code plugin (name, version, license) and its marketplace listing.",
+      "title": "Plugin manifest",
       "zone": "delivery"
     },
     {
@@ -415,41 +342,142 @@
           "path": "hooks/hooks.json"
         }
       ],
-      "id": "misc-hooks",
+      "id": "misc-session-hook",
       "kind": "module",
       "level": 3,
       "paths": [
         "hooks/**"
       ],
-      "role": "Registers a SessionStart hook that runs the staleness check script.",
-      "title": "Session hooks",
-      "zone": "delivery"
+      "role": "Registers a SessionStart command hook that runs the staleness check script.",
+      "title": "SessionStart hook",
+      "zone": "platform"
     },
     {
       "evidence": [
         {
-          "lines": "1-22",
-          "path": ".claude-plugin/plugin.json"
+          "lines": "1-5",
+          "path": "agents/archmap-explorer.md"
         },
         {
-          "lines": "1-17",
-          "path": ".claude-plugin/marketplace.json"
+          "lines": "1-5",
+          "path": "agents/archmap-synthesizer.md"
+        },
+        {
+          "lines": "1-5",
+          "path": "agents/archmap-reviewer.md"
         }
       ],
-      "id": "misc-plugin-manifest",
+      "id": "misc2-agents",
       "kind": "module",
       "level": 2,
       "paths": [
-        ".claude-plugin/**"
+        "agents/**"
       ],
-      "role": "Declares the archmap plugin (name, version, metadata) and a local development marketplace listing it.",
-      "title": "Plugin manifest and marketplace",
+      "role": "Explorer, synthesizer and reviewer subagent prompts that the build and update flows dispatch.",
+      "title": "Subagent definitions",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
+          "lines": "1-12",
+          "path": "commands/build.md"
+        },
+        {
           "lines": "1-15",
+          "path": "commands/check.md"
+        }
+      ],
+      "id": "misc2-commands",
+      "kind": "module",
+      "level": 2,
+      "paths": [
+        "commands/**"
+      ],
+      "role": "Six /archmap command definitions (build, update, check, export, render, issues) that delegate to the skill or to node scripts.",
+      "title": "Slash commands",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "agents/archmap-explorer.md"
+        }
+      ],
+      "id": "misc2-explorer",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "agents/archmap-explorer.md"
+      ],
+      "role": "Maps one area from its prescan summary into a size-capped JSON fragment.",
+      "title": "archmap-explorer agent",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "agents/archmap-reviewer.md"
+        }
+      ],
+      "id": "misc2-reviewer",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "agents/archmap-reviewer.md"
+      ],
+      "role": "Reviews the model for architecture-level issues when run with --issues.",
+      "title": "archmap-reviewer agent",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-30",
+          "path": "schema/archmap-model.schema.json"
+        },
+        {
+          "lines": "1-20",
+          "path": "schema/archmap-issues.schema.json"
+        },
+        {
+          "lines": "1-15",
+          "path": "schema/archmap-theme.schema.json"
+        }
+      ],
+      "id": "misc2-schema",
+      "kind": "module",
+      "level": 2,
+      "paths": [
+        "schema/**"
+      ],
+      "role": "JSON Schemas for the architecture model, the issues overlay and the theme.",
+      "title": "JSON schemas",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "agents/archmap-synthesizer.md"
+        }
+      ],
+      "id": "misc2-synthesizer",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "agents/archmap-synthesizer.md"
+      ],
+      "role": "Writes the narrative layer (sequences and views) from the merge digest.",
+      "title": "archmap-synthesizer agent",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-39",
           "path": ".claude/audit.config.json"
         }
       ],
@@ -460,68 +488,84 @@
         ".claude/audit.config.json",
         ".claude/.gitignore"
       ],
-      "role": "Configuration for the audit workflow naming the manifest path and exempt globs.",
-      "title": "Audit config",
-      "zone": "platform"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-26",
-          "path": ".claude/skills/archmap-review/SKILL.md"
-        }
-      ],
-      "id": "misc3-review-skill",
-      "kind": "module",
-      "level": 2,
-      "paths": [
-        ".claude/skills/archmap-review/**"
-      ],
-      "role": "Repo-local code review skill with a read-only scan script that checks diffs against the plugin's invariants.",
-      "title": "archmap-review skill",
-      "zone": "platform"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-25",
-          "path": "assets/viewer/template.html"
-        },
-        {
-          "lines": "1-10",
-          "path": "assets/viewer/viewer.js"
-        }
-      ],
-      "id": "misc3-viewer-assets",
-      "kind": "module",
-      "level": 2,
-      "paths": [
-        "assets/viewer/**"
-      ],
-      "role": "Offline HTML template, CSS, viewer script and bundled ELK layout library that render.mjs inlines into the single-file architecture viewer.",
-      "title": "Viewer assets",
+      "role": "Project settings for the audit phase workflow.",
+      "title": "Audit configuration",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "25-27",
-          "path": "scripts/cost-profile.mjs"
+          "lines": "1-15",
+          "path": ".claude/skills/archmap-review/SKILL.md"
         },
         {
-          "lines": "73",
-          "path": "scripts/pipeline.mjs"
+          "lines": "1-12",
+          "path": ".claude/skills/archmap-review/scripts/scan.mjs"
         }
       ],
-      "id": "scripts-cost",
+      "id": "misc3-review-skill",
       "kind": "module",
       "level": 3,
       "paths": [
-        "scripts/cost-profile.mjs",
-        "scripts/usage.mjs"
+        ".claude/skills/archmap-review/**"
       ],
-      "role": "Profiles transcript token cost and keeps the usage ledger.",
-      "title": "cost-profile.mjs and usage.mjs",
+      "role": "Repo-local code review skill with a diff scanner script that flags rule violations.",
+      "title": "archmap-review skill",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-8",
+          "path": "assets/viewer/viewer.js"
+        },
+        {
+          "lines": "1-12",
+          "path": "assets/viewer/template.html"
+        }
+      ],
+      "id": "misc3-viewer",
+      "kind": "app",
+      "level": 2,
+      "paths": [
+        "assets/viewer/**"
+      ],
+      "role": "Template, CSS, JS and bundled ELK that render the embedded model, layout and issues as one offline HTML file.",
+      "title": "Offline HTML viewer assets",
+      "zone": "browser"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/pipeline.mjs"
+        }
+      ],
+      "id": "scripts",
+      "kind": "app",
+      "level": 2,
+      "paths": [
+        "scripts/**"
+      ],
+      "role": "Node CLI scripts that run the deterministic parts of the archmap build, check and render flow.",
+      "title": "Archmap scripts",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-4",
+          "path": "scripts/cost-profile.mjs"
+        }
+      ],
+      "id": "scripts-cost-profile",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/cost-profile.mjs"
+      ],
+      "role": "Offline token and cost profile of transcripts.",
+      "title": "Cost profile",
       "zone": "delivery"
     },
     {
@@ -542,52 +586,41 @@
     {
       "evidence": [
         {
-          "lines": "1-5",
+          "lines": "1-4",
           "path": "scripts/diffmap.mjs"
-        },
-        {
-          "lines": "88-95",
-          "path": "scripts/staleness.mjs"
         }
       ],
       "id": "scripts-diffmap",
       "kind": "module",
       "level": 3,
       "paths": [
-        "scripts/diffmap.mjs",
-        "scripts/staleness.mjs"
+        "scripts/diffmap.mjs"
       ],
-      "role": "Maps changed files onto the model and reports when the model is behind git HEAD.",
-      "title": "Diffmap and staleness",
+      "role": "Maps files changed since the build onto the model.",
+      "title": "Diffmap",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "60-65",
+          "lines": "1-4",
           "path": "scripts/export.mjs"
-        },
-        {
-          "lines": "26-30",
-          "path": "scripts/layout.mjs"
         }
       ],
       "id": "scripts-export",
       "kind": "module",
       "level": 3,
       "paths": [
-        "scripts/export.mjs",
-        "scripts/layout.mjs",
-        "scripts/render.mjs"
+        "scripts/export.mjs"
       ],
-      "role": "Lays out the model and exports Mermaid, PlantUML, Markdown and SVG, optionally rasterised via Chromium.",
-      "title": "export.mjs, layout.mjs, render.mjs",
+      "role": "Writes the model as diagram-as-code files.",
+      "title": "Export",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "35-41",
+          "lines": "1-5",
           "path": "scripts/issues.mjs"
         }
       ],
@@ -597,14 +630,65 @@
       "paths": [
         "scripts/issues.mjs"
       ],
-      "role": "Imports, merges, sorts and lints review issues against the model.",
-      "title": "issues.mjs",
+      "role": "Imports audit plans into the issues overlay.",
+      "title": "Issues",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "112-118",
+          "lines": "1-4",
+          "path": "scripts/layout.mjs"
+        }
+      ],
+      "id": "scripts-layout",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/layout.mjs"
+      ],
+      "role": "Lays out the model with elkjs and persists positions.",
+      "title": "Layout",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/lib/prescan/generic.mjs"
+        }
+      ],
+      "id": "scripts-lib-prescan",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/lib/prescan/**"
+      ],
+      "role": "Stack detectors, inventory and partitioning used by prescan.",
+      "title": "Prescan library",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/lib/glob.mjs"
+        }
+      ],
+      "id": "scripts-lib-shared",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/lib/*.mjs"
+      ],
+      "role": "Glob matching and JSON schema validation helpers.",
+      "title": "Shared libs",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
           "path": "scripts/merge.mjs"
         }
       ],
@@ -614,68 +698,116 @@
       "paths": [
         "scripts/merge.mjs"
       ],
-      "role": "Merges explorer fragments and extracts into the architecture model under caps.",
-      "title": "merge.mjs",
+      "role": "Merges explorer fragments and the synthesizer object into the architecture model.",
+      "title": "Merge",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "61-73",
+          "lines": "1-5",
           "path": "scripts/pipeline.mjs"
         }
       ],
       "id": "scripts-pipeline",
-      "kind": "app",
-      "level": 2,
+      "kind": "module",
+      "level": 3,
       "paths": [
         "scripts/pipeline.mjs"
       ],
-      "role": "Orchestrates plan, explorer briefs, finish and read-only database introspection for a map build.",
-      "title": "pipeline.mjs",
+      "role": "Build driver that runs the deterministic steps between plan, explorer dispatch and finish.",
+      "title": "Pipeline driver",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "72",
-          "path": "scripts/pipeline.mjs"
+          "lines": "1-4",
+          "path": "scripts/prescan.mjs"
         }
       ],
       "id": "scripts-prescan",
       "kind": "module",
       "level": 3,
       "paths": [
-        "scripts/prescan.mjs",
-        "scripts/lib/prescan/**"
+        "scripts/prescan.mjs"
       ],
-      "role": "Regex-based prescan producing extracts per stack (python, node backend, ts frontend, generic) and partitions areas.",
-      "title": "prescan.mjs and lib/prescan",
+      "role": "Zero-token first step: inventory, stacks, areas and extracts.",
+      "title": "Prescan",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "116-118",
-          "path": "scripts/merge.mjs"
+          "lines": "1-5",
+          "path": "scripts/render.mjs"
+        }
+      ],
+      "id": "scripts-render",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/render.mjs"
+      ],
+      "role": "Builds the self-contained HTML from a model and layout.",
+      "title": "Render",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/staleness.mjs"
+        }
+      ],
+      "id": "scripts-staleness",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/staleness.mjs"
+      ],
+      "role": "Reports whether the model is behind git HEAD, as a hook or a check.",
+      "title": "Staleness",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-5",
+          "path": "scripts/usage.mjs"
+        }
+      ],
+      "id": "scripts-usage",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/usage.mjs"
+      ],
+      "role": "Per-phase token and duration ledger.",
+      "title": "Usage ledger",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-4",
+          "path": "scripts/validate.mjs"
         }
       ],
       "id": "scripts-validate",
       "kind": "module",
       "level": 3,
       "paths": [
-        "scripts/validate.mjs",
-        "scripts/lib/jsonschema.mjs",
-        "scripts/lib/glob.mjs"
+        "scripts/validate.mjs"
       ],
-      "role": "Validates models and fragments against the schema and provides glob matching.",
-      "title": "validate.mjs and lib/jsonschema",
+      "role": "Validates a model and its issues overlay.",
+      "title": "Validate",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "1-386",
+          "lines": "1-14",
           "path": "skills/architecture-map/SKILL.md"
         }
       ],
@@ -685,15 +817,19 @@
       "paths": [
         "skills/architecture-map/SKILL.md"
       ],
-      "role": "Skill definition that sets the hard rules, agents, build, update and other command flows for producing the architecture model.",
+      "role": "Skill definition that instructs the orchestrator to run the pipeline driver, dispatch explorer, synthesizer and reviewer agents, and write the architecture model.",
       "title": "architecture-map skill",
-      "zone": "delivery"
+      "zone": "platform"
     },
     {
       "evidence": [
         {
-          "lines": "1-190",
+          "lines": "1-12",
           "path": "skills/architecture-map/evals/README.md"
+        },
+        {
+          "lines": "16-30",
+          "path": "skills/architecture-map/evals/BENCHMARK.md"
         }
       ],
       "id": "skills-evals",
@@ -702,14 +838,31 @@
       "paths": [
         "skills/architecture-map/evals/**"
       ],
-      "role": "Eval definitions, trigger evals, recall scorer and tracked evidence JSON of eval runs.",
-      "title": "skill evals",
+      "role": "Eval definitions, recall scorer, benchmark protocol and grader, and recorded evidence files used to test the skill against other mapping plugins.",
+      "title": "skill evals and benchmark",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "45-53",
+          "lines": "1-20",
+          "path": "skills/architecture-map/evals/benchmark/grade-benchmark.mjs"
+        }
+      ],
+      "id": "skills-grade-benchmark",
+      "kind": "job",
+      "level": 3,
+      "paths": [
+        "skills/architecture-map/evals/benchmark/grade-benchmark.mjs"
+      ],
+      "role": "Command-line script that grades one benchmark cell against the five protocol expectations and writes grading.json.",
+      "title": "grade-benchmark.mjs",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "37-53",
           "path": "skills/architecture-map/SKILL.md"
         }
       ],
@@ -719,14 +872,31 @@
       "paths": [
         "skills/architecture-map/references/**"
       ],
-      "role": "Reference documents for the model schema, relation taxonomy, stack discovery, sequences, schema introspection and the issues catalog.",
+      "role": "Reference documents for the model schema, relation taxonomy, sequences, stack discovery, schema introspection and issues catalog that agents read on demand.",
       "title": "skill references",
+      "zone": "platform"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-15",
+          "path": "skills/architecture-map/evals/benchmark/run-candidate.sh"
+        }
+      ],
+      "id": "skills-run-candidate",
+      "kind": "job",
+      "level": 3,
+      "paths": [
+        "skills/architecture-map/evals/benchmark/run-candidate.sh"
+      ],
+      "role": "Shell script that runs one headless claude session of a plugin under test for a benchmark cell and records its evidence.",
+      "title": "run-candidate.sh",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "27-46",
+          "lines": "1-20",
           "path": "skills/architecture-map/evals/score-recall.mjs"
         }
       ],
@@ -736,29 +906,26 @@
       "paths": [
         "skills/architecture-map/evals/score-recall.mjs"
       ],
-      "role": "Node script that reads run files and scores reviewer recall against reference issues.",
-      "title": "score-recall script",
+      "role": "Command-line script that scores the recall of a produced issues file against a ground truth of reference issues.",
+      "title": "score-recall.mjs",
       "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "1-5",
-          "path": "tests/golden.test.mjs"
-        },
-        {
-          "lines": "12",
-          "path": "tests/pipeline.test.mjs"
+          "lines": "1-27",
+          "path": "tests/e2e.test.mjs"
         }
       ],
-      "id": "tests-fixtures",
+      "id": "tests-e2e",
       "kind": "module",
       "level": 3,
       "paths": [
-        "tests/fixtures/**"
+        "tests/e2e.test.mjs",
+        "tests/fixtures/e2e/**"
       ],
-      "role": "Fictional repos, fragments, golden model and eval ground truth that the suites copy and compare against.",
-      "title": "Test fixtures",
+      "role": "Runs the pipeline scripts over fixture repos via child processes.",
+      "title": "End-to-end tests",
       "zone": "delivery"
     },
     {
@@ -766,61 +933,23 @@
         {
           "lines": "1-13",
           "path": "tests/merge.test.mjs"
-        },
-        {
-          "lines": "12-25",
-          "path": "tests/pipeline.test.mjs"
         }
       ],
       "id": "tests-suite",
       "kind": "module",
       "level": 2,
       "paths": [
-        "tests/*.test.mjs"
+        "tests/**"
       ],
-      "role": "node:test suites that run the archmap scripts (merge, prescan, pipeline, render, validate, export) as CLIs or imports over temp copies of fixtures.",
-      "title": "Node test suite",
-      "zone": "delivery"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-20",
-          "path": "tests/visual/README.md"
-        }
-      ],
-      "id": "tests-visual",
-      "kind": "module",
-      "level": 3,
-      "paths": [
-        "tests/visual/**"
-      ],
-      "role": "Local-only Playwright script that screenshots every tab of the golden render, outside node --test and CI.",
-      "title": "Visual check (local)",
-      "zone": "delivery"
-    },
-    {
-      "evidence": [
-        {
-          "lines": "1-5",
-          "path": "tests/visual/README.md"
-        }
-      ],
-      "id": "tests-visual-tests",
-      "kind": "module",
-      "level": 3,
-      "paths": [
-        "tests/visual/**"
-      ],
-      "role": "Local-only visual check of rendered output.",
-      "title": "Visual check (local)",
+      "role": "Node test-runner suites covering the scripts (merge, prescan, pipeline, render, validate) plus end-to-end and golden fixtures.",
+      "title": "Test suite",
       "zone": "delivery"
     }
   ],
   "edges": [
     {
       "confidence": "external",
-      "desc": "The example script drives a headless browser against the local dev server URL.",
+      "desc": "Example Playwright script opens the local dev server URL.",
       "evidence": [
         {
           "lines": "5-12",
@@ -828,13 +957,27 @@
         }
       ],
       "from": "agents-webapp-testing",
-      "id": "agents-webapp-to-devserver",
+      "id": "agents-webapp-testing-to-dev-server",
       "to": "agents-local-dev-server",
       "type": "call"
     },
     {
       "confidence": "verified",
-      "desc": "Export validates the model before rendering.",
+      "desc": "diffmap imports lib-shared.",
+      "evidence": [
+        {
+          "lines": "27",
+          "path": "scripts/diffmap.mjs"
+        }
+      ],
+      "from": "scripts-diffmap",
+      "id": "e-diffmap-lib-shared",
+      "to": "scripts-lib-shared",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "export imports validate.",
       "evidence": [
         {
           "lines": "65",
@@ -848,10 +991,10 @@
     },
     {
       "confidence": "verified",
-      "desc": "Issues validates against the model schema.",
+      "desc": "issues imports validate.",
       "evidence": [
         {
-          "lines": "40-41",
+          "lines": "41",
           "path": "scripts/issues.mjs"
         }
       ],
@@ -862,10 +1005,38 @@
     },
     {
       "confidence": "verified",
-      "desc": "Merge validates results with validate and jsonschema.",
+      "desc": "layout imports validate.",
       "evidence": [
         {
-          "lines": "116-118",
+          "lines": "30",
+          "path": "scripts/layout.mjs"
+        }
+      ],
+      "from": "scripts-layout",
+      "id": "e-layout-validate",
+      "to": "scripts-validate",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "merge imports lib-shared.",
+      "evidence": [
+        {
+          "lines": "117",
+          "path": "scripts/merge.mjs"
+        }
+      ],
+      "from": "scripts-merge",
+      "id": "e-merge-lib-shared",
+      "to": "scripts-lib-shared",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "merge imports validate.",
+      "evidence": [
+        {
+          "lines": "116",
           "path": "scripts/merge.mjs"
         }
       ],
@@ -876,21 +1047,7 @@
     },
     {
       "confidence": "verified",
-      "desc": "Pipeline records usage through the ledger helpers.",
-      "evidence": [
-        {
-          "lines": "73",
-          "path": "scripts/pipeline.mjs"
-        }
-      ],
-      "from": "scripts-pipeline",
-      "id": "e-pipeline-cost",
-      "to": "scripts-cost",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "Pipeline imports merge caps and runs the merge.",
+      "desc": "pipeline imports merge.",
       "evidence": [
         {
           "lines": "71",
@@ -904,7 +1061,7 @@
     },
     {
       "confidence": "verified",
-      "desc": "Pipeline imports prescan limits.",
+      "desc": "pipeline imports prescan.",
       "evidence": [
         {
           "lines": "72",
@@ -918,91 +1075,77 @@
     },
     {
       "confidence": "verified",
-      "desc": "Diffmap imports the shared glob helper.",
+      "desc": "pipeline imports usage.",
       "evidence": [
         {
-          "lines": "1-5",
-          "path": "scripts/diffmap.mjs"
-        }
-      ],
-      "from": "scripts-diffmap",
-      "id": "e-scripts-diffmap-glob",
-      "to": "scripts-validate",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "Export and layout import the validator.",
-      "evidence": [
-        {
-          "lines": "1-5",
-          "path": "scripts/export.mjs"
-        }
-      ],
-      "from": "scripts-export",
-      "id": "e-scripts-export-validate",
-      "to": "scripts-validate",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "Issues imports the validator.",
-      "evidence": [
-        {
-          "lines": "1-5",
-          "path": "scripts/issues.mjs"
-        }
-      ],
-      "from": "scripts-issues",
-      "id": "e-scripts-issues-validate",
-      "to": "scripts-validate",
-      "type": "call"
-    },
-    {
-      "confidence": "inferred",
-      "desc": "The pipeline runs prescan to produce extracts.",
-      "evidence": [
-        {
-          "lines": "1-5",
+          "lines": "73",
           "path": "scripts/pipeline.mjs"
         }
       ],
       "from": "scripts-pipeline",
-      "id": "e-scripts-pipeline-prescan",
-      "to": "scripts-prescan",
-      "type": "call"
-    },
-    {
-      "confidence": "inferred",
-      "desc": "Agents write fragments and issues in the shapes the schemas describe.",
-      "evidence": [
-        {
-          "lines": "1-8",
-          "path": "agents/archmap-explorer.md"
-        }
-      ],
-      "from": "misc-2-agents",
-      "id": "misc-2-agents-schema",
-      "to": "misc-2-schema",
-      "type": "link"
-    },
-    {
-      "confidence": "inferred",
-      "desc": "Build, update and issues commands dispatch the subagents through the skill.",
-      "evidence": [
-        {
-          "lines": "1-12",
-          "path": "commands/build.md"
-        }
-      ],
-      "from": "misc-2-commands",
-      "id": "misc-2-cmd-agents",
-      "to": "misc-2-agents",
+      "id": "e-pipeline-usage",
+      "to": "scripts-usage",
       "type": "call"
     },
     {
       "confidence": "verified",
-      "desc": "CI parses every JSON file under .claude-plugin.",
+      "desc": "prescan imports lib-prescan.",
+      "evidence": [
+        {
+          "lines": "37",
+          "path": "scripts/prescan.mjs"
+        }
+      ],
+      "from": "scripts-prescan",
+      "id": "e-prescan-lib-prescan",
+      "to": "scripts-lib-prescan",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "render imports validate.",
+      "evidence": [
+        {
+          "lines": "28",
+          "path": "scripts/render.mjs"
+        }
+      ],
+      "from": "scripts-render",
+      "id": "e-render-validate",
+      "to": "scripts-validate",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "staleness imports diffmap.",
+      "evidence": [
+        {
+          "lines": "24",
+          "path": "scripts/staleness.mjs"
+        }
+      ],
+      "from": "scripts-staleness",
+      "id": "e-staleness-diffmap",
+      "to": "scripts-diffmap",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "validate imports lib-shared.",
+      "evidence": [
+        {
+          "lines": "14",
+          "path": "scripts/validate.mjs"
+        }
+      ],
+      "from": "scripts-validate",
+      "id": "e-validate-lib-shared",
+      "to": "scripts-lib-shared",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "CI parses each manifest JSON file under .claude-plugin.",
       "evidence": [
         {
           "lines": "20-22",
@@ -1010,138 +1153,152 @@
         }
       ],
       "from": "misc-ci",
-      "id": "misc-ci-to-manifest",
+      "id": "misc-ci-manifest",
       "to": "misc-plugin-manifest",
-      "type": "call"
+      "type": "link"
     },
     {
       "confidence": "inferred",
       "desc": "The SessionStart hook runs scripts/staleness.mjs.",
       "evidence": [
         {
-          "lines": "5-12",
+          "lines": "7-9",
           "path": "hooks/hooks.json"
         }
       ],
-      "from": "misc-hooks",
-      "id": "misc-hooks-to-scripts",
-      "to": "scripts-pipeline",
+      "from": "misc-session-hook",
+      "id": "misc-hook-staleness",
+      "to": "scripts-staleness",
       "type": "call"
     },
     {
-      "confidence": "verified",
-      "desc": "The skill points the agent to its reference files for schema, taxonomy and stack discovery.",
+      "confidence": "inferred",
+      "desc": "The build and update commands run the skill flow, which dispatches the subagents.",
       "evidence": [
         {
-          "lines": "45-53",
-          "path": "skills/architecture-map/SKILL.md"
+          "lines": "8-12",
+          "path": "commands/build.md"
         }
       ],
-      "from": "skills-architecture-map",
-      "id": "skills-e1",
-      "to": "skills-references",
-      "type": "link"
+      "from": "misc2-commands",
+      "id": "misc2-e-build-explorer",
+      "to": "misc2-agents",
+      "type": "call"
     },
     {
       "confidence": "inferred",
-      "desc": "The evals exercise the skill's build flow and trigger description.",
+      "desc": "Commands invoke node scripts such as pipeline, staleness, export, layout and render.",
       "evidence": [
         {
-          "lines": "1-190",
+          "lines": "9-12",
+          "path": "commands/check.md"
+        },
+        {
+          "lines": "14-29",
+          "path": "commands/render.md"
+        }
+      ],
+      "from": "misc2-commands",
+      "id": "misc2-e-commands-scripts",
+      "to": "scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The benchmark grades each cell with grade-benchmark.mjs.",
+      "evidence": [
+        {
+          "lines": "1-20",
+          "path": "skills/architecture-map/evals/benchmark/grade-benchmark.mjs"
+        }
+      ],
+      "from": "skills-evals",
+      "id": "skills-evals-grade",
+      "to": "skills-grade-benchmark",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The benchmark runs each cell with run-candidate.sh.",
+      "evidence": [
+        {
+          "lines": "1-15",
+          "path": "skills/architecture-map/evals/benchmark/run-candidate.sh"
+        }
+      ],
+      "from": "skills-evals",
+      "id": "skills-evals-run",
+      "to": "skills-run-candidate",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The issues eval scores recall with score-recall.mjs.",
+      "evidence": [
+        {
+          "lines": "1-20",
+          "path": "skills/architecture-map/evals/score-recall.mjs"
+        }
+      ],
+      "from": "skills-evals",
+      "id": "skills-evals-score",
+      "to": "skills-score-recall",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The evals exercise the skill and compare it to other mapping plugins.",
+      "evidence": [
+        {
+          "lines": "1-12",
           "path": "skills/architecture-map/evals/README.md"
         }
       ],
       "from": "skills-evals",
-      "id": "skills-e2",
+      "id": "skills-evals-skill",
       "to": "skills-architecture-map",
       "type": "link"
     },
     {
       "confidence": "inferred",
-      "desc": "The evals use the recall scorer to measure reviewer results.",
+      "desc": "The skill runs the pipeline.mjs driver for plan, finish, render and issues steps.",
       "evidence": [
         {
-          "lines": "27-46",
-          "path": "skills/architecture-map/evals/score-recall.mjs"
+          "lines": "160-200",
+          "path": "skills/architecture-map/SKILL.md"
         }
       ],
-      "from": "skills-evals",
-      "id": "skills-e3",
-      "to": "skills-score-recall",
+      "from": "skills-architecture-map",
+      "id": "skills-skill-pipeline",
+      "to": "scripts-pipeline",
       "type": "call"
     },
     {
       "confidence": "verified",
-      "desc": "The suites copy and compare against the fixture repos and golden files.",
+      "desc": "The skill points agents to its reference documents for the schema, taxonomy and stack rules.",
       "evidence": [
         {
-          "lines": "12-25",
-          "path": "tests/pipeline.test.mjs"
+          "lines": "37-53",
+          "path": "skills/architecture-map/SKILL.md"
         }
       ],
-      "from": "tests-suite",
-      "id": "tests-suite-fixtures",
-      "to": "tests-fixtures",
-      "type": "call"
+      "from": "skills-architecture-map",
+      "id": "skills-skill-refs",
+      "to": "skills-references",
+      "type": "link"
     },
     {
       "confidence": "inferred",
-      "desc": "The suites run scripts/merge.mjs, pipeline.mjs, render.mjs and validate.mjs as CLIs or import them.",
+      "desc": "Tests spawn and import scripts/merge.mjs.",
       "evidence": [
         {
-          "lines": "10-13",
-          "path": "tests/merge.test.mjs"
-        },
-        {
-          "lines": "17-19",
-          "path": "tests/pipeline.test.mjs"
-        }
-      ],
-      "from": "tests-suite",
-      "id": "tests-suite-scripts",
-      "to": "scripts-pipeline",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "Suites read and copy fixtures to temp dirs.",
-      "evidence": [
-        {
-          "lines": "9",
+          "lines": "11-13",
           "path": "tests/merge.test.mjs"
         }
       ],
       "from": "tests-suite",
-      "id": "tests-suite-to-fixtures",
-      "to": "tests-fixtures",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "Suites spawn and import the pipeline scripts such as merge.mjs.",
-      "evidence": [
-        {
-          "lines": "8-13",
-          "path": "tests/merge.test.mjs"
-        }
-      ],
-      "from": "tests-suite",
-      "id": "tests-suite-to-scripts",
-      "to": "scripts-pipeline",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "The screenshot script renders the golden fixture.",
-      "evidence": [
-        {
-          "lines": "13-18",
-          "path": "tests/visual/README.md"
-        }
-      ],
-      "from": "tests-visual",
-      "id": "tests-visual-fixtures",
-      "to": "tests-fixtures",
+      "id": "tests-suite-merge",
+      "to": "scripts",
       "type": "call"
     }
   ],
@@ -1176,90 +1333,54 @@
   ],
   "sequences": [
     {
-      "id": "build-map",
+      "id": "build-finish",
       "participants": [
         {
-          "id": "cmd",
-          "label": "Slash commands",
-          "node": "misc-2-commands"
-        },
-        {
-          "id": "agents",
-          "label": "Subagents",
-          "node": "misc-2-agents"
+          "id": "skill",
+          "label": "architecture-map skill",
+          "node": "skills-architecture-map"
         },
         {
           "id": "pipe",
-          "label": "pipeline.mjs",
+          "label": "Pipeline driver",
           "node": "scripts-pipeline"
         },
         {
-          "id": "pre",
-          "label": "prescan",
-          "node": "scripts-prescan"
-        },
-        {
           "id": "merge",
-          "label": "merge.mjs",
+          "label": "Merge",
           "node": "scripts-merge"
         },
         {
           "id": "val",
-          "label": "validate.mjs",
+          "label": "Validate",
           "node": "scripts-validate"
+        },
+        {
+          "id": "layout",
+          "label": "Layout",
+          "node": "scripts-layout"
+        },
+        {
+          "id": "render",
+          "label": "Render",
+          "node": "scripts-render"
         }
       ],
       "steps": [
         {
-          "d": "The build command starts the pipeline plan step.",
+          "d": "Checks every planned fragment exists.",
           "k": "call",
           "m": [
-            "cmd",
+            "skill",
             "pipe"
           ],
           "r": [
-            "scripts/pipeline.mjs:712-760"
+            "scripts/pipeline.mjs:1104-1127"
           ],
-          "t": "plan"
+          "t": "pipeline finish"
         },
         {
-          "d": "plan runs prescan.mjs to extract per-stack facts and partition areas.",
-          "k": "call",
-          "m": [
-            "pipe",
-            "pre"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:755-755"
-          ],
-          "t": "prescan repo"
-        },
-        {
-          "d": "The command dispatches explorer subagents that write fragments from the briefs.",
-          "k": "call",
-          "m": [
-            "cmd",
-            "agents"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:701-706"
-          ],
-          "t": "dispatch explorers"
-        },
-        {
-          "d": "After the explorers return, finish assembles the model.",
-          "k": "call",
-          "m": [
-            "cmd",
-            "pipe"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:1104-1140"
-          ],
-          "t": "finish"
-        },
-        {
-          "d": "finish runs merge.mjs over fragments and extracts.",
+          "d": "Merges fragments and extracts into model.json.",
           "k": "call",
           "m": [
             "pipe",
@@ -1271,175 +1392,43 @@
           "t": "merge fragments"
         },
         {
-          "d": "merge uses the validator library to check fragments and model.",
+          "d": "The model is validated against the schema.",
           "k": "call",
           "m": [
             "merge",
             "val"
           ],
           "r": [
-            "scripts/pipeline.mjs:1065-1082"
+            "scripts/merge.mjs:116-116",
+            "scripts/pipeline.mjs:1093-1093"
           ],
-          "t": "schema check"
-        },
-        {
-          "d": "finish validates the merged model with evidence checked at the commit.",
-          "k": "call",
-          "m": [
-            "pipe",
-            "val"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:1092-1101"
-          ],
-          "t": "validate model"
+          "t": "validate"
         },
         {
           "note": [
-            "pipe"
+            "skill"
           ],
-          "r": [
-            "scripts/pipeline.mjs:1159-1159"
-          ],
-          "t": "If validate finds the model invalid, finish exits non-zero and reports findings without patching.",
-          "tone": "warn"
-        }
-      ],
-      "summary": "The build command plans via pipeline.mjs, explorers write fragments, then finish merges and validates the model.",
-      "title": "Build the architecture map"
-    },
-    {
-      "id": "ci-run",
-      "participants": [
-        {
-          "id": "ci",
-          "label": "CI workflow",
-          "node": "misc-ci"
-        },
-        {
-          "id": "man",
-          "label": "Plugin manifest",
-          "node": "misc-plugin-manifest"
-        },
-        {
-          "id": "ts",
-          "label": "Test suite",
-          "node": "tests-suite"
-        },
-        {
-          "id": "fx",
-          "label": "Fixtures",
-          "node": "tests-fixtures"
-        }
-      ],
-      "steps": [
-        {
-          "note": [
-            "ci"
-          ],
-          "t": "Triggers: push to main, any pull request; matrix Node 18, 20, 22",
+          "t": "Orchestrator dispatches the synthesizer, which writes synth.json.",
           "tone": "info"
         },
         {
-          "d": "Each .claude-plugin/*.json is parsed with JSON.parse; a failure stops the job.",
+          "d": "Merges synth.json into the model.",
           "k": "call",
           "m": [
-            "ci",
-            "man"
-          ],
-          "r": [
-            ".github/workflows/ci.yml:23-25"
-          ],
-          "t": "Parse manifests"
-        },
-        {
-          "d": "Runs the node:test suites on each matrix Node version.",
-          "k": "call",
-          "m": [
-            "ci",
-            "ts"
-          ],
-          "r": [
-            ".github/workflows/ci.yml:26-27"
-          ],
-          "t": "node --test"
-        },
-        {
-          "d": "Suites work over temp copies of fixtures and compare against the golden model.",
-          "k": "call",
-          "m": [
-            "ts",
-            "fx"
-          ],
-          "r": [
-            ".github/workflows/ci.yml:26-27"
-          ],
-          "t": "Copy fixtures"
-        }
-      ],
-      "summary": "GitHub Actions checks out the repo, parses the plugin manifests, then runs node --test on Node 18, 20 and 22.",
-      "title": "CI on push and pull request"
-    },
-    {
-      "id": "render-viewer",
-      "participants": [
-        {
-          "id": "cmd",
-          "label": "Slash commands",
-          "node": "misc-2-commands"
-        },
-        {
-          "id": "pipe",
-          "label": "pipeline.mjs",
-          "node": "scripts-pipeline"
-        },
-        {
-          "id": "merge",
-          "label": "merge.mjs",
-          "node": "scripts-merge"
-        },
-        {
-          "id": "exp",
-          "label": "layout and render",
-          "node": "scripts-export"
-        },
-        {
-          "id": "assets",
-          "label": "Viewer assets",
-          "node": "misc3-viewer-assets"
-        }
-      ],
-      "steps": [
-        {
-          "d": "The render command invokes the pipeline render step.",
-          "k": "call",
-          "m": [
-            "cmd",
+            "skill",
             "pipe"
           ],
           "r": [
-            "scripts/pipeline.mjs:1177-1200"
+            "scripts/pipeline.mjs:1196-1203"
           ],
-          "t": "render"
+          "t": "pipeline render"
         },
         {
-          "d": "render merges the synthesizer output into the model.",
+          "d": "Positions are computed and persisted.",
           "k": "call",
           "m": [
             "pipe",
-            "merge"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:1203-1203"
-          ],
-          "t": "merge synth"
-        },
-        {
-          "d": "layout.mjs computes positions into the layout file.",
-          "k": "call",
-          "m": [
-            "pipe",
-            "exp"
+            "layout"
           ],
           "r": [
             "scripts/pipeline.mjs:1217-1217"
@@ -1447,194 +1436,324 @@
           "t": "layout"
         },
         {
-          "d": "render.mjs writes the viewer HTML.",
+          "d": "Writes the self-contained viewer file.",
           "k": "call",
           "m": [
             "pipe",
-            "exp"
+            "render"
           ],
           "r": [
-            "scripts/pipeline.mjs:1221-1221"
+            "scripts/pipeline.mjs:227-228"
           ],
-          "t": "render html"
-        },
-        {
-          "d": "render inlines the template, CSS and scripts into one file.",
-          "k": "link",
-          "m": [
-            "exp",
-            "assets"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:1221-1221"
-          ],
-          "t": "inline assets"
+          "t": "render HTML"
         }
       ],
-      "summary": "The render step re-merges, lays out the model and inlines it into the single-file viewer.",
-      "title": "Render the viewer"
+      "summary": "After explorers return, finish merges fragments and validates; the synthesizer adds narrative; render lays out and writes HTML.",
+      "title": "Build: finish, synthesize and render"
+    },
+    {
+      "id": "build-plan",
+      "participants": [
+        {
+          "id": "cmd",
+          "label": "Slash commands",
+          "node": "misc2-commands"
+        },
+        {
+          "id": "skill",
+          "label": "architecture-map skill",
+          "node": "skills-architecture-map"
+        },
+        {
+          "id": "pipe",
+          "label": "Pipeline driver",
+          "node": "scripts-pipeline"
+        },
+        {
+          "id": "scan",
+          "label": "Prescan",
+          "node": "scripts-prescan"
+        },
+        {
+          "id": "agents",
+          "label": "Subagents",
+          "node": "misc2-agents"
+        }
+      ],
+      "steps": [
+        {
+          "d": "The build command delegates to the skill.",
+          "k": "link",
+          "m": [
+            "cmd",
+            "skill"
+          ],
+          "r": [
+            "commands/build.md:1-20"
+          ],
+          "t": "/archmap:build"
+        },
+        {
+          "d": "The skill runs the pipeline driver.",
+          "k": "call",
+          "m": [
+            "skill",
+            "pipe"
+          ],
+          "r": [
+            "scripts/pipeline.mjs:7-20"
+          ],
+          "t": "pipeline plan"
+        },
+        {
+          "d": "The driver spawns prescan.mjs for inventory and extracts.",
+          "k": "call",
+          "m": [
+            "pipe",
+            "scan"
+          ],
+          "r": [
+            "scripts/pipeline.mjs:755-755"
+          ],
+          "t": "run prescan"
+        },
+        {
+          "d": "The driver prints one Agent call per area for the orchestrator to dispatch in one message.",
+          "k": "call",
+          "m": [
+            "pipe",
+            "agents"
+          ],
+          "r": [
+            "scripts/pipeline.mjs:840-840"
+          ],
+          "t": "explorer briefs"
+        }
+      ],
+      "summary": "The skill drives pipeline.mjs plan, which runs prescan and hands per-area briefs to explorer subagents.",
+      "title": "Build: plan, prescan and explorer dispatch"
+    },
+    {
+      "id": "eval-benchmark",
+      "participants": [
+        {
+          "id": "evals",
+          "label": "skill evals",
+          "node": "skills-evals"
+        },
+        {
+          "id": "run",
+          "label": "run-candidate.sh",
+          "node": "skills-run-candidate"
+        },
+        {
+          "id": "grade",
+          "label": "grade-benchmark.mjs",
+          "node": "skills-grade-benchmark"
+        },
+        {
+          "id": "score",
+          "label": "score-recall.mjs",
+          "node": "skills-score-recall"
+        }
+      ],
+      "steps": [
+        {
+          "d": "Runs one headless claude session and records evidence.",
+          "k": "call",
+          "m": [
+            "evals",
+            "run"
+          ],
+          "r": [
+            "skills/architecture-map/evals/run-candidate.sh:1-20"
+          ],
+          "t": "run cell"
+        },
+        {
+          "d": "Grades against the protocol expectations.",
+          "k": "call",
+          "m": [
+            "evals",
+            "grade"
+          ],
+          "r": [
+            "skills/architecture-map/evals/grade-benchmark.mjs:1-20"
+          ],
+          "t": "grade cell"
+        },
+        {
+          "d": "Scores the issues file against ground truth.",
+          "k": "call",
+          "m": [
+            "evals",
+            "score"
+          ],
+          "r": [
+            "skills/architecture-map/evals/score-recall.mjs:1-20"
+          ],
+          "t": "score recall"
+        }
+      ],
+      "summary": "Evals run a candidate plugin headlessly, then grade and score its output.",
+      "title": "Skill eval benchmark"
     },
     {
       "id": "session-staleness",
       "participants": [
         {
-          "id": "hk",
-          "label": "Session hooks",
-          "node": "misc-hooks"
+          "id": "hook",
+          "label": "SessionStart hook",
+          "node": "misc-session-hook"
         },
         {
-          "id": "dm",
-          "label": "Diffmap and staleness",
+          "id": "stale",
+          "label": "Staleness",
+          "node": "scripts-staleness"
+        },
+        {
+          "id": "diff",
+          "label": "Diffmap",
           "node": "scripts-diffmap"
-        },
-        {
-          "id": "vl",
-          "label": "validate and glob",
-          "node": "scripts-validate"
         }
       ],
       "steps": [
         {
-          "d": "SessionStart command runs the staleness script from the plugin root.",
+          "d": "The hook command launches the script.",
           "k": "call",
           "m": [
-            "hk",
-            "dm"
+            "hook",
+            "stale"
           ],
           "r": [
-            "hooks/hooks.json:3-9"
+            "hooks/hooks.json:3-11"
           ],
-          "t": "Run staleness.mjs"
+          "t": "run staleness.mjs"
         },
         {
-          "d": "Reads meta.commit of the model and calls diffmap over the git changes since it.",
+          "d": "Maps changes since the build commit onto the model.",
           "k": "call",
           "m": [
-            "dm",
-            "dm"
+            "stale",
+            "diff"
           ],
           "r": [
-            "scripts/staleness.mjs:7-10",
+            "scripts/staleness.mjs:24-24",
             "scripts/staleness.mjs:57-57"
           ],
-          "t": "Compare model commit with HEAD"
+          "t": "diffmap"
         },
         {
-          "d": "diffmap uses glob matching to map changed files onto model nodes.",
+          "frag": "opt",
+          "t": "model is behind HEAD"
+        },
+        {
+          "d": "One line is printed; the script always exits 0 in hook mode.",
           "k": "call",
           "m": [
-            "dm",
-            "vl"
+            "stale",
+            "hook"
           ],
           "r": [
-            "scripts/diffmap.mjs:1-5"
+            "scripts/staleness.mjs:112-112"
           ],
-          "t": "Glob match changed files"
-        },
-        {
-          "frag": "alt",
-          "t": "model behind HEAD"
-        },
-        {
-          "note": [
-            "dm"
-          ],
-          "t": "Prints one stale line",
-          "tone": "warn"
-        },
-        {
-          "frag": "else",
-          "t": "current, missing or corrupt model"
-        },
-        {
-          "note": [
-            "dm"
-          ],
-          "t": "Prints nothing; hook mode always exits 0",
-          "tone": "info"
+          "t": "print stale line"
         },
         {
           "frag": "end",
           "t": ""
         }
       ],
-      "summary": "A SessionStart hook runs staleness.mjs, which compares the model commit with git HEAD through diffmap and prints one line only when stale.",
-      "title": "Session start staleness check"
+      "summary": "On session start a hook reports when the model is behind git HEAD.",
+      "title": "SessionStart staleness check"
     }
   ],
   "views": [
+    {
+      "id": "component-agents",
+      "kind": "graph",
+      "nodes": [
+        "misc2-commands",
+        "misc2-agents",
+        "misc2-explorer",
+        "misc2-synthesizer",
+        "misc2-reviewer",
+        "misc2-schema"
+      ],
+      "title": "Agents and commands components"
+    },
+    {
+      "id": "component-evals",
+      "kind": "graph",
+      "nodes": [
+        "skills-architecture-map",
+        "skills-references",
+        "skills-evals",
+        "skills-grade-benchmark",
+        "skills-run-candidate",
+        "skills-score-recall"
+      ],
+      "title": "Skill and evals components"
+    },
     {
       "id": "component-scripts",
       "kind": "graph",
       "nodes": [
         "scripts-pipeline",
         "scripts-prescan",
+        "scripts-lib-prescan",
         "scripts-merge",
         "scripts-validate",
+        "scripts-lib-shared",
+        "scripts-layout",
+        "scripts-render",
         "scripts-export",
         "scripts-issues",
         "scripts-diffmap",
-        "scripts-cost",
+        "scripts-staleness",
+        "scripts-usage",
+        "scripts-cost-profile",
         "scripts-db"
       ],
       "title": "Scripts components"
     },
     {
-      "id": "component-skill",
-      "kind": "graph",
-      "nodes": [
-        "skills-architecture-map",
-        "skills-references",
-        "skills-evals",
-        "skills-score-recall",
-        "misc-2-commands",
-        "misc-2-agents",
-        "misc-2-schema",
-        "misc-plugin-manifest",
-        "misc-hooks",
-        "misc3-review-skill"
-      ],
-      "title": "Skill and plugin components"
-    },
-    {
       "id": "deployment",
       "kind": "deployment",
-      "nodes": [
-        "misc-ci",
-        "misc-plugin-manifest",
-        "misc-hooks",
-        "tests-suite",
-        "tests-fixtures"
-      ],
-      "title": "Delivery and CI"
+      "title": "Deployment",
+      "zones": [
+        "platform",
+        "delivery",
+        "browser",
+        "data",
+        "external"
+      ]
     },
     {
       "id": "system",
       "kind": "graph",
       "nodes": [
+        "scripts",
+        "misc2-commands",
+        "misc2-agents",
         "skills-architecture-map",
-        "misc-2-commands",
-        "misc-2-agents",
-        "misc-2-schema",
-        "scripts-pipeline",
-        "scripts-merge",
-        "scripts-prescan",
-        "scripts-validate",
-        "scripts-export",
-        "misc3-viewer-assets",
-        "scripts-db",
-        "tests-suite"
+        "misc-session-hook",
+        "misc3-viewer",
+        "tests-suite",
+        "skills-evals",
+        "misc-plugin-manifest",
+        "scripts-db"
       ],
       "title": "System"
     },
     {
       "id": "trust",
       "kind": "trust",
-      "title": "Zones",
+      "title": "Trust",
       "zones": [
-        "delivery",
         "platform",
-        "data",
+        "delivery",
+        "browser",
         "external"
       ]
     }

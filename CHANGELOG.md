@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The release benchmark, `skills/architecture-map/evals/BENCHMARK.md`: 1.0.0 against three other mapping plugins on the same prompt and repositories, every figure derived by a test from the tracked profiles.
 
+### Fixed
+
+- BUG-5-6o1: an edge written to an area whose evidence lines name a file that exactly one node of that area owns now targets that node, not the area hub, so the SessionStart hook edge in the committed map reaches the node that holds `scripts/staleness.mjs`; the committed map is rebuilt at the fix: 43 nodes, 25 edges, 1 entity, 4 sequences and 6 views.
+
 ## [1.0.0] - 2026-11-01
 
 The first release: a Claude Code plugin that maps a repository's architecture into one evidence-backed model,

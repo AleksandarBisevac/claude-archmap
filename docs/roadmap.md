@@ -54,10 +54,16 @@ viewer and as a Markdown summary. It extends the file-to-node mapping `diffmap` 
 Closed by: a test over two committed fixture models with a known set of differences, and a determinism check that the
 same two inputs give byte-identical output.
 
-## Open bug BUG-5-6o1
+## Open bug BUG-5-6o1, closed on 2026-11-02
 
-An edge target is resolved to the wrong script node: in the committed map of this repository the session-start hook
-edge points at the pipeline script node instead of the node that holds the staleness script. It is documented in the
+Closed on 2026-11-02 by the regression test m31 of `tests/merge.test.mjs`, the fix at commit `ddbd0be` (an edge written
+to an area whose evidence lines name a file that exactly one node of that area owns now targets that node, not the area
+hub) and the rebuilt committed map: `docs/architecture/` is a fresh `/archmap:build` at that commit, 43 nodes and 25
+edges, and its SessionStart hook edge targets the node that holds `scripts/staleness.mjs`. Both READMEs state the new
+counts.
+
+An edge target was resolved to the wrong script node: in the committed map of this repository the session-start hook
+edge pointed at the pipeline script node instead of the node that holds the staleness script. It was documented in the
 evals README as a known build error of that map.
 
 Closed by: a regression test that builds the case and asserts the edge target, then a rebuilt committed map whose

@@ -1,0 +1,109 @@
+{
+  "rates": {
+    "date": "2026-10-31",
+    "perMillion": {
+      "claude-fable-5-1": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      },
+      "claude-opus-5-5": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      },
+      "claude-sonnet-5-5": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      },
+      "claude-haiku-5-5": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    }
+  },
+  "basis": {
+    "byModel": "result-event",
+    "byAgentOutput": "stream-lower-bound"
+  },
+  "byModel": [
+    {
+      "model": "claude-opus-5-5",
+      "turns": 16,
+      "input": 42,
+      "output": 12404,
+      "cacheRead": 792788,
+      "cacheWrite": 61342,
+      "costUsd": 0.713516
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "turns": 90,
+      "input": 180,
+      "output": 32521,
+      "cacheRead": 845548,
+      "cacheWrite": 210182,
+      "costUsd": 0.93558
+    }
+  ],
+  "byAgent": [
+    {
+      "agent": "orchestrator",
+      "turns": 16,
+      "input": 42,
+      "output": 227,
+      "cacheRead": 792788,
+      "cacheWrite": 61342,
+      "medianContext": 55213.5,
+      "maxContext": 72610,
+      "costUsd": 0.469976
+    },
+    {
+      "agent": "archmap:archmap-explorer",
+      "turns": 84,
+      "input": 168,
+      "output": 1477,
+      "cacheRead": 784045,
+      "cacheWrite": 188938,
+      "medianContext": 11270.5,
+      "maxContext": 21074,
+      "costUsd": 0.565856
+    },
+    {
+      "agent": "archmap:archmap-synthesizer",
+      "turns": 6,
+      "input": 12,
+      "output": 83,
+      "cacheRead": 61503,
+      "cacheWrite": 21244,
+      "medianContext": 14248.5,
+      "maxContext": 21246,
+      "costUsd": 0.060114
+    }
+  ],
+  "total": {
+    "turns": 106,
+    "input": 222,
+    "output": 44925,
+    "cacheRead": 1638336,
+    "cacheWrite": 271524,
+    "costUsd": 1.649095
+  },
+  "reconciliation": {
+    "files": [
+      {
+        "file": "stream.jsonl",
+        "resultEvents": 1,
+        "matchesModelUsage": true,
+        "mismatches": []
+      }
+    ],
+    "matchesModelUsage": true
+  }
+}

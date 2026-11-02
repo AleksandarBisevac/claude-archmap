@@ -1,0 +1,28 @@
+{
+  "gates": {
+    "node --test tests/readme.test.mjs tests/denylist.test.mjs tests/evals.test.mjs": "pass",
+    "node --test (full suite)": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task with tests.expectRedFirst false: the committed map and the READMEs were updated first and the readme/evals/manifest checks were then adapted to the new fact and proven able to fail by their own negative cases in r5/e18/mf5"
+  },
+  "outcome": {
+    "technical": "Copied architecture.model.json, architecture.layout.json, archmap.html from run-4 repo/docs/architecture unchanged; validate.mjs --repo OK (exit 0); the hooks/hooks.json edge misc-hook-staleness targets scripts-staleness (paths scripts/staleness.mjs). Copied cost-profile.json to evals/evidence/iteration-2/self-with-skill-4.json. Evals README: run 4 row (1.65 USD, 16 turns, 72.6 K, Opus 16 turns 0.71 USD, Sonnet 90 turns 0.94 USD, 43/25/1/4/6) marked the committed map, mark removed from run 3, Run 3 paragraph rewritten, Run 4 paragraph added, BUG-5-6o1 known-error sentence replaced by the hook edge now targeting the staleness node, profiles list names run 4. README.md: committed map built with /archmap:build at ddbd0be, counts 43/25/1/4/6, cost table adds the run 4 committed-map row (run 3 stays a plain update row), caveat bullet reworded (keeps the update cost/median-context sentence r2 reads). tests/readme.test.mjs: r2 now expects self-build rows build/update/build with the last as committed map; r4 accepts 'built with /archmap:build at commit sha' or the update wording; r5 keeps the wrong-commit negative (ddbd0be -> 8174e41) and gains negatives for the committed-map mark, row order, run 4 turns, and both wordings. Outside the declared files (the plan gate allowed both edits): tests/evals.test.mjs (e17/e18 expected three self-build rows with run 3 committed and BUG-5-6o1 still present; now four rows, run 4 committed, run 3 counts pinned, the hook edge must target the staleness node, with negatives) and tests/manifest.test.mjs (mf5 tied the released 1.0.0 CHANGELOG entry to the committed model; now the 1.0.0 entry is pinned to the shipped 34/23/1/4/5 and the Unreleased entry must state the committed model's counts). docs/roadmap.md: BUG-5-6o1 heading closed 2026-11-02 with a Closed on paragraph naming m31, ddbd0be and the rebuilt map. CHANGELOG.md: Unreleased Fixed line with 43 nodes, 25 edges, 1 entity, 4 sequences and 6 views. Evidence: node --test tests/readme.test.mjs tests/denylist.test.mjs tests/evals.test.mjs: 31 pass 0 fail; full node --test: 499 pass 0 fail (exit 0). No machine path added to any tracked file (new profile and model grep clean for the home directory). Dependants: README.md, evals README, model, layout, viewer, roadmap, CHANGELOG are consistent with each other via r2/r4/r8, e17-e19, mf5; docs/design.md and commands/render.md, SKILL.md that name the map by path are still correct because the paths are unchanged; tests/benchmark.test.mjs and diffmap/commands tests still pass against the new model.",
+    "descriptive": "The committed map is rebuilt at the BUG-5-6o1 fix (43 nodes, 25 edges, hook edge now reaches the staleness node), both READMEs, roadmap and changelog state it, and the checks that pinned the old map follow."
+  },
+  "testsAdded": [
+    "r4 now accepts the committed map described as built with /archmap:build at commit sha (and still the update wording); r5 still fails on a wrong commit and on a dropped wording; r2 expects the run 4 committed-map row",
+    "e17/e18 and mf5 adapted to run 4 as the committed map with negatives"
+  ],
+  "casesAdded": [
+    [
+      "r4",
+      "r5",
+      "r2"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:1852d35b6348083682aa29d83894698bd46f6fb0687d7a1673543c5391e0d53c\",\"dirtyDigest\":\"sha256:8f5a0bbf5595ede7708c56e0013fe036cb41b9276f61243ddac170c5b8f78014\",\"dirtyPaths\":{\"CHANGELOG.md\":\"a80b1f16fd5f1ea4\",\"README.md\":\"3f0450539b853a74\",\"docs/architecture/architecture.layout.json\":\"fca1a665e22c848b\",\"docs/architecture/architecture.model.json\":\"2fe17ae4ec9bcf10\",\"docs/architecture/archmap.html\":\"ef7c888749e25fbd\",\"docs/roadmap.md\":\"a26afb0a1d5a38af\",\"skills/architecture-map/evals/README.md\":\"196995261395ef49\",\"skills/architecture-map/evals/evidence/iteration-2/self-with-skill-4.json\":\"2ede4d4b673343bf\",\"tests/evals.test.mjs\":\"b10a07f0eddff182\",\"tests/manifest.test.mjs\":\"15ff9c61920d3ef1\",\"tests/readme.test.mjs\":\"bbff89e287b33a4e\"},\"head\":\"ddbd0be\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"CHANGELOG.md\",\"README.md\",\"docs/architecture/architecture.layout.json\",\"docs/architecture/architecture.model.json\",\"docs/architecture/archmap.html\",\"docs/roadmap.md\",\"skills/architecture-map/evals/README.md\",\"skills/architecture-map/evals/evidence/iteration-2/self-with-skill-4.json\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:a7f3385d479f7a648af58f55d2d01376461b13a88d60bdb09a1729a7dc500db0\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

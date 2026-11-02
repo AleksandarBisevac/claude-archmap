@@ -350,34 +350,36 @@ const checkCostSection = (readme, committed = readCommittedModel()) => {
   // counts are those of the model committed in docs/architecture/
   const selfHead = rows(/^\| Build \| Evidence/)[0];
   assert.ok(selfHead, 'the self-build table header');
-  // P9.7: run 3 is the update of run 2 at the release head, and is now the committed map
+  // P9.7: run 3 is the update of run 2 at the release head; BF2.2: run 4 is the fresh build at the BF2.1 fix, and is now the committed map
   const selfRows = rows(/^\| self-build /);
-  assert.deepEqual(selfRows.map((r) => r[0].match(/^self-build (run \d)/)?.[1]), ['run 1', 'run 2', 'run 3'], 'three self-build rows, run 1 to run 3');
+  assert.deepEqual(selfRows.map((r) => r[0].match(/^self-build (run \d)/)?.[1]), ['run 1', 'run 2', 'run 3', 'run 4'], 'four self-build rows, run 1 to run 4');
   for (const r of selfRows) {
     assert.match(r[0], /balanced/);
     assert.match(r[0], /no issues/);
   }
-  assert.deepEqual(selfRows.map((r) => /\bupdate\b/.test(r[0])), [false, false, true], 'run 3 is the update');
-  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[0])), [false, false, true], 'run 3 is the committed map');
+  assert.deepEqual(selfRows.map((r) => /\bupdate\b/.test(r[0])), [false, false, true, false], 'run 3 is the update');
+  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[0])), [false, false, false, true], 'run 4 is the committed map');
   const countAt = (name) => selfHead.findIndex((c) => c.startsWith(name));
-  for (const [name, run1, run2] of [['Nodes', '63', '30'], ['Edges', '28', '18'], ['Entities', '16', '1'], ['Sequences', '4', '4'], ['Views', '5', '5']]) {
+  for (const [name, run1, run2, run3] of [['Nodes', '63', '30', '34'], ['Edges', '28', '18', '23'], ['Entities', '16', '1', '1'], ['Sequences', '4', '4', '4'], ['Views', '5', '5', '5']]) {
     assert.equal(selfRows[0][countAt(name)], run1, `self-build run 1 ${name}`);
     assert.equal(selfRows[1][countAt(name)], run2, `self-build run 2 ${name}`);
-    assert.equal(selfRows[2][countAt(name)], String(committed[name.toLowerCase()].length), `self-build run 3 ${name} is the committed model's`);
+    assert.equal(selfRows[2][countAt(name)], run3, `self-build run 3 ${name}`);
+    assert.equal(selfRows[3][countAt(name)], String(committed[name.toLowerCase()].length), `self-build run 4 ${name} is the committed model's`);
   }
   assert.match(flat, /drop from 63 to 30 nodes is the P8\.5 and P8\.9 skip of fixture directories/i, 'the run 1 to run 2 drop is explained');
   const grew = flat.match(/the map grew from (\d+) to (\d+) nodes and from (\d+) to (\d+) edges/);
   assert.ok(grew, 'the run 2 to run 3 growth is stated');
   assert.deepEqual(grew.slice(1), [selfRows[1][countAt('Nodes')], selfRows[2][countAt('Nodes')], selfRows[1][countAt('Edges')], selfRows[2][countAt('Edges')]], 'the growth is the run 2 and run 3 node and edge counts');
-  // BUG-5-6o1 stays stated while the committed model still carries it: the SessionStart hook edge, which says it runs
-  // scripts/staleness.mjs, targets the node citing scripts/pipeline.mjs and not the node citing scripts/staleness.mjs
-  assert.match(flat, /BUG-5-6o1[^.]*: the SessionStart hook edge targets the pipeline script node instead of the node that holds `scripts\/staleness\.mjs`/, 'the BUG-5-6o1 sentence');
+  // BF2.2: BUG-5-6o1 is fixed in the committed model: the SessionStart hook edge, which says it runs
+  // scripts/staleness.mjs, targets the node citing scripts/staleness.mjs and not the node citing scripts/pipeline.mjs
+  assert.match(flat, /BUG-5-6o1 and fixed in BF2\.1/, 'the BUG-5-6o1 sentence: tracked and fixed in BF2.1');
+  assert.match(flat, /hook edge, whose evidence is `hooks\/hooks\.json`, now targets the staleness node, the one whose paths include `scripts\/staleness\.mjs`/, 'the hook edge sentence: it now targets the staleness node');
+  assert.doesNotMatch(flat, /targets the pipeline script node instead/, 'the known-error sentence is gone');
   const cites = (n, path) => (n?.evidence ?? []).some((e) => e.path === path);
   const hookEdge = committed.edges.find((e) => cites(e, 'hooks/hooks.json') && /scripts\/staleness\.mjs/.test(e.desc ?? ''));
   assert.ok(hookEdge, 'the committed model has the SessionStart hook edge that runs scripts/staleness.mjs');
   const target = committed.nodes.find((n) => n.id === hookEdge.to);
-  assert.ok(cites(target, 'scripts/pipeline.mjs') && !cites(target, 'scripts/staleness.mjs'), `BUG-5-6o1 holds in the committed model: the hook edge targets ${hookEdge.to}, the pipeline script node`);
-  assert.ok(committed.nodes.some((n) => cites(n, 'scripts/staleness.mjs')), 'a node of the committed model holds scripts/staleness.mjs');
+  assert.ok(cites(target, 'scripts/staleness.mjs') && !cites(target, 'scripts/pipeline.mjs'), `BUG-5-6o1 is fixed in the committed model: the hook edge targets ${hookEdge.to}, the staleness script node`);
   for (const name of ['Cost', 'Orchestrator turns', 'Orchestrator max context', 'Opus', 'Sonnet']) assert.ok(selfHead.some((c) => c.startsWith(name)), `a self-build column ${name}`);
   assert.match(flat, /the one run whose whole output is public/i, 'the self-build row says why it is there');
 
@@ -428,17 +430,21 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
   assert.throws(() => checkCostSection(broken('| rerun 2 | P8 |', '| rerun 3 | P8 |')), /six eval 2 runs|each in its own row/);
   assert.throws(() => checkCostSection(broken('| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |', '| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.53 | security |')), /recall of the three P11\.2 runs/);
   assert.throws(() => checkCostSection(broken('| self-build run 1 (balanced, no issues) |', '| self-build run 1 (max) |')));
-  assert.throws(() => checkCostSection(broken('| self-build run 3 (update, balanced, no issues), the committed map |', '| self-build run 3 (update, balanced, no issues) |')), /committed map/);
-  assert.throws(() => checkCostSection(broken('| self-build run 3 (update, balanced, no issues),', '| self-build run 3 (balanced, no issues),')), /run 3 is the update/);
-  assert.throws(() => checkCostSection(broken('| 35 turns, 0.39 USD | 34 |', '| 35 turns, 0.39 USD | 35 |')), /committed model's/);
+  assert.throws(() => checkCostSection(broken('| self-build run 4 (balanced, no issues), the committed map |', '| self-build run 4 (balanced, no issues) |')), /committed map/);
+  assert.throws(() => checkCostSection(broken('| self-build run 3 (update, balanced, no issues) |', '| self-build run 3 (balanced, no issues) |')), /run 3 is the update/);
+  assert.throws(() => checkCostSection(broken('| 90 turns, 0.94 USD | 43 |', '| 90 turns, 0.94 USD | 44 |')), /committed model's/);
   assert.throws(() => checkCostSection(broken('| 49 turns, 0.56 USD | 30 |', '| 49 turns, 0.56 USD | 31 |')), /self-build run 2 Nodes/);
-  // P9.7: the growth sentence, the BUG-5-6o1 sentence, and a committed model whose hook edge no longer carries the bug
+  // P9.7: the growth sentence; BF2.2: the BUG-5-6o1 sentences, and a committed model whose hook edge carries the bug again
   assert.throws(() => checkCostSection(broken('from 18 to 23 edges', 'from 18 to 22 edges')), /growth is the run 2 and run 3/);
-  assert.throws(() => checkCostSection(broken('BUG-5-6o1', 'BUG-0')), /BUG-5-6o1 sentence/);
-  const fixed = readCommittedModel();
-  const staleNode = fixed.nodes.find((n) => n.evidence?.some((e) => e.path === 'scripts/staleness.mjs'));
-  for (const e of fixed.edges) if (e.evidence?.some((x) => x.path === 'hooks/hooks.json')) e.to = staleNode.id;
-  assert.throws(() => checkCostSection(readme, fixed), /BUG-5-6o1 holds in the committed model/);
+  assert.throws(() => checkCostSection(broken('BUG-5-6o1 and fixed in BF2.1', 'BUG-0')), /BUG-5-6o1 sentence/);
+  assert.throws(() => checkCostSection(broken('now targets the staleness', 'targets the pipeline script node instead of the staleness')), /hook edge sentence/);
+  assert.throws(() => checkCostSection(broken('now targets the staleness', 'is wired to the staleness')), /hook edge sentence/);
+  assert.throws(() => checkCostSection(broken('tracked as BUG-5-6o1 and fixed in BF2.1,', 'tracked as BUG-5-6o1 and fixed in BF2.1, which targets the pipeline script node instead of the staleness,')), /known-error sentence/);
+  const regressed = readCommittedModel();
+  const pipelineNode = regressed.nodes.find((n) => n.evidence?.some((e) => e.path === 'scripts/pipeline.mjs') && !n.evidence?.some((e) => e.path === 'scripts/staleness.mjs'));
+  assert.ok(pipelineNode, 'the committed model has a node that cites scripts/pipeline.mjs and not scripts/staleness.mjs');
+  for (const e of regressed.edges) if (e.evidence?.some((x) => x.path === 'hooks/hooks.json')) e.to = pipelineNode.id;
+  assert.throws(() => checkCostSection(readme, regressed), /BUG-5-6o1 is fixed in the committed model/);
   assert.throws(() => checkCostSection(broken('It is the one run whose whole output is public', 'It is a run')), /says why/);
   // P11.7: the earlier figures and the rate change
   assert.throws(() => checkCostSection(broken('13.84, 9.79 and 12.79', '13.8, 9.8 and 12.8')), /earlier iteration 1 figures/);
