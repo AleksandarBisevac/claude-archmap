@@ -9498,10 +9498,17 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
-        "findings": []
+        "status": "passed",
+        "findings": [],
+        "outcome": "phase review filed at head cdb9cc83b35e",
+        "readReturns": [
+          {
+            "return": "returns/BF2/cdb9cc83b35efcf4af8a0b8cfe71e4433c7e377b.reviewer.json",
+            "sha256": "e2b57979f33a775443a1dfe0b5a87b035697b9478b4439382a129cbcf56fc4f1"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "BF2 delivered the fix of BUG-5-6o1 and the rebuilt committed map. BF2.1 (ddbd0be): scripts/merge.mjs resolves an edge written to an area to the one node of that area that owns a file named on the edge own evidence lines, read at meta.commit, and keeps the area hub when there is no reader, no named file or more than one owner; test m31 in tests/merge.test.mjs builds the case in a temporary repository. The red-first helper recorded could-not-prove (its run at HEAD exited 1 with no tally it could read); the executor reports m31 failing before the fix with scripts-pipeline as the target and passing after. BF2.2-8q4 (cdb9cc8): a fresh /archmap:build of this repository at ddbd0be (self-build run 4, 1.65 USD, 16 orchestrator turns, max context 72.6 K, profile evidence/iteration-2/self-with-skill-4.json) is the committed map, 43 nodes, 25 edges, 1 entity, 4 sequences, 6 views, validate --repo OK, with the hook edge targeting the node that owns scripts/staleness.mjs; both READMEs, the roadmap item, the CHANGELOG and tests r2, r4, r5, e17, e18 and mf5 follow it. Phase review: no findings, intent matches. Owner decision on 2026-11-02: Da, potpisi i sleti na main; no push.",
       "tasks": [
         {
           "id": "BF2.1",
@@ -9548,9 +9555,14 @@
             "at": "2026-11-02T09:02:43Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "ddbd0be3bb5d",
-            "at": "2026-11-02T09:02:44Z"
+            "at": "2026-11-02T09:57:44Z",
+            "return": "returns/BF2/cdb9cc83b35efcf4af8a0b8cfe71e4433c7e377b.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/BF2.1/20261102T085800Z.executor.json, at 2026-11-02T08:59:40Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T08:59:40Z",
@@ -9562,7 +9574,7 @@
         {
           "id": "BF2.2-8q4",
           "title": "Rebuild the committed map at the BUG-5-6o1 fix and restate its counts in both READMEs",
-          "status": "in_progress",
+          "status": "done",
           "description": "Closes the roadmap item \"Open bug BUG-5-6o1\" (docs/roadmap.md): after the regression test of BF2.1, a rebuilt committed map whose counts the README and the evals README state again.\n\nThe rebuild is a headless /archmap:build run (balanced, no --issues) of this repository at the BF2.1 fix commit ddbd0be, run by the orchestrator as self-build run 4 with the fixed plugin as --plugin-dir; its workspace is <home>/.claude/archmap/evals/iteration-2/real-1-build-self/with_skill/run-4 (repo/ is the detached clone that holds the new docs/architecture artifacts, stream.jsonl the transcript, cost-profile.json the profile from `node scripts/cost-profile.mjs --json --basename`, outputs/report.md the run's report). The task brief's notes carry the measured figures.\n\nDo: (1) copy repo/docs/architecture/architecture.model.json, architecture.layout.json and archmap.html from that workspace into docs/architecture/ unchanged, and check with `node scripts/validate.mjs --repo . docs/architecture/architecture.model.json` (or the spelling the skill documents) that the model validates and that the edge whose evidence is hooks/hooks.json targets the node whose paths include scripts/staleness.mjs; (2) copy cost-profile.json to skills/architecture-map/evals/evidence/iteration-2/self-with-skill-4.json; (3) in skills/architecture-map/evals/README.md, add a self-build run 4 row to the \"Build | Evidence\" table marked \", the committed map\" (and remove that mark from the run 3 row), with the run's cost, orchestrator turns, max context, Opus and Sonnet turns and cost, and the model's node, edge, entity, sequence and view counts, all read from the profile and the model; rewrite the Run 3 paragraph so that run 4 is the committed map, built fresh at commit ddbd0be with the BF2.1 fix, and drop the \"known build error, tracked as BUG-5-6o1\" sentence (say instead that the hook edge now targets the staleness node); (4) in README.md \"What a build delivers\", say the committed map was built by its own skill at commit `ddbd0be` (the prior wording \"built at 8174e41, updated with /archmap:update at commit 63d7495\" goes), update the counts table, and in \"What a build costs\" make the run 4 row the one marked \", the committed map\" citing `iteration-2/self-with-skill-4.json` (keep the run 3 update row as a plain self-build update row); (5) in tests/readme.test.mjs r4, accept \"built with `/archmap:build` at commit `<sha>`\" as well as the \"updated with `/archmap:update` at commit\" wording for the committed map's commit, and keep r5's negative case on a wrong commit; (6) in docs/roadmap.md, close the \"Open bug BUG-5-6o1\" item the way the benchmark item is closed (heading with the close date 2026-11-02 and a \"Closed on\" paragraph naming m31 of tests/merge.test.mjs, the fix commit and the rebuilt map), and add a CHANGELOG.md Unreleased \"Fixed\" line for BUG-5-6o1. Every figure in both READMEs must be the one the profile or the model carries; tests/readme.test.mjs r2, r4 and r8 check them. No machine path in any tracked file.",
           "files": [
             "README.md",
@@ -9597,14 +9609,17 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "cdb9cc83b35e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Copied architecture.model.json, architecture.layout.json, archmap.html from run-4 repo/docs/architecture unchanged; validate.mjs --repo OK (exit 0); the hooks/hooks.json edge misc-hook-staleness targets scripts-staleness (paths scripts/staleness.mjs). Copied cost-profile.json to evals/evidence/iteration-2/self-with-skill-4.json. Evals README: run 4 row (1.65 USD, 16 turns, 72.6 K, Opus 16 turns 0.71 USD, Sonnet 90 turns 0.94 USD, 43/25/1/4/6) marked the committed map, mark removed from run 3, Run 3 paragraph rewritten, Run 4 paragraph added, BUG-5-6o1 known-error sentence replaced by the hook edge now targeting the staleness node, profiles list names run 4. README.md: committed map built with /archmap:build at ddbd0be, counts 43/25/1/4/6, cost table adds the run 4 committed-map row (run 3 stays a plain update row), caveat bullet reworded (keeps the update cost/median-context sentence r2 reads). tests/readme.test.mjs: r2 now expects self-build rows build/update/build with the last as committed map; r4 accepts 'built with /archmap:build at commit sha' or the update wording; r5 keeps the wrong-commit negative (ddbd0be -> 8174e41) and gains negatives for the committed-map mark, row order, run 4 turns, and both wordings. Outside the declared files (the plan gate allowed both edits): tests/evals.test.mjs (e17/e18 expected three self-build rows with run 3 committed and BUG-5-6o1 still present; now four rows, run 4 committed, run 3 counts pinned, the hook edge must target the staleness node, with negatives) and tests/manifest.test.mjs (mf5 tied the released 1.0.0 CHANGELOG entry to the committed model; now the 1.0.0 entry is pinned to the shipped 34/23/1/4/5 and the Unreleased entry must state the committed model's counts). docs/roadmap.md: BUG-5-6o1 heading closed 2026-11-02 with a Closed on paragraph naming m31, ddbd0be and the rebuilt map. CHANGELOG.md: Unreleased Fixed line with 43 nodes, 25 edges, 1 entity, 4 sequences and 6 views. Evidence: node --test tests/readme.test.mjs tests/denylist.test.mjs tests/evals.test.mjs: 31 pass 0 fail; full node --test: 499 pass 0 fail (exit 0). No machine path added to any tracked file (new profile and model grep clean for the home directory). Dependants: README.md, evals README, model, layout, viewer, roadmap, CHANGELOG are consistent with each other via r2/r4/r8, e17-e19, mf5; docs/design.md and commands/render.md, SKILL.md that name the map by path are still correct because the paths are unchanged; tests/benchmark.test.mjs and diffmap/commands tests still pass against the new model.",
+            "descriptive": "The committed map is rebuilt at the BUG-5-6o1 fix (43 nodes, 25 edges, hook edge now reaches the staleness node), both READMEs, roadmap and changelog state it, and the checks that pinned the old map follow."
           },
           "startedAt": "2026-11-02T09:08:52Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T09:16:17Z",
+          "verifiedBy": [
+            "r4 now accepts the committed map described as built with /archmap:build at commit sha (and still the update wording); r5 still fails on a wrong commit and on a dropped wording; r2 expects the run 4 committed-map row",
+            "e17/e18 and mf5 adapted to run 4 as the committed map with negatives"
+          ],
           "notes": [
             {
               "at": "2026-11-02T09:08:52Z",
@@ -9616,11 +9631,30 @@
             "runId": "2026-11-02T09:16:16Z.a10399",
             "status": "passed",
             "at": "2026-11-02T09:16:16Z"
+          },
+          "intentCheck": {
+            "commit": "cdb9cc83b35e",
+            "at": "2026-11-02T09:57:44Z",
+            "return": "returns/BF2/cdb9cc83b35efcf4af8a0b8cfe71e4433c7e377b.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "Executor filed status not-attempted: 'regression task with tests.expectRedFirst false'. The task owes no red-first; the readme/evals/manifest checks were adapted after the artifacts and carry their own negative cases (r5, e18, mf5), which I read but did not run.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task with tests.expectRedFirst false: the committed map and the READMEs were updated first and the readme/evals/manifest checks were then adapted to the new fact and proven able to fail by their own negative cases in r5/e18/mf5"
           }
         }
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-11-02T08:58:00Z"
+      "startedAt": "2026-11-02T08:58:00Z",
+      "testEvidence": {
+        "runId": "2026-11-02T09:57:43Z.c05b98",
+        "status": "passed",
+        "at": "2026-11-02T09:57:43Z"
+      }
     }
   ],
   "fileIndex": {

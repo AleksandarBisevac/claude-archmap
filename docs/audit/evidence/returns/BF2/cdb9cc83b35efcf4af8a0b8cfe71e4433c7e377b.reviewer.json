@@ -1,0 +1,63 @@
+{
+  "findings": [],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Phase desired outcome: an edge to an area whose evidence lines name a file exactly one node of that area owns targets that node, so the SessionStart hook edge reaches the node owning scripts/staleness.mjs. scripts/merge.mjs resolveNode(ref, e) now calls namedOwner(area, e) before hubOf(area) (merge.mjs ~1623-1652): it reads the edge's own evidence line ranges at meta.commit via the new reader.text, collects path tokens that are files at the commit, resolves them with nodeResolver over that area's nodes, and returns the node only when exactly one distinct node owns them; no reader, none, or several keep the hub. Entity store and access node pass no edge, so they are unchanged. The committed map is rebuilt at ddbd0be: meta.commit is ddbd0be3bb5d, 43 nodes / 25 edges / 1 entity / 4 sequences / 6 views, edge misc-hook-staleness (evidence hooks/hooks.json) targets scripts-staleness; validate.mjs --repo exits 0 (OK: no findings, evidence checked at meta.commit). README, evals README, roadmap, CHANGELOG and the readme/evals/manifest checks state the same counts and commit. The executor claims describe the diffs. Scan with archmap-review scan.mjs: 0 leads, denylist checked; no absolute home paths in the committed artifacts. No task chose something a request left open (no request was saved).",
+    "missing": [
+      "phase.request",
+      "phase.openChoices"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level: the phase diff is judged against desiredOutcome; red-first is graded per task in the tasks entries (BF2.1 computed could-not-prove by the helper; BF2.2-8q4 not-attempted, expectRedFirst false).",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Both tasks' tests.gate is the single command `node --test`, which runs the whole project, so the question does not reach a bounded set of tests."
+  },
+  "verdict": "clean",
+  "tasks": [
+    {
+      "id": "BF2.1",
+      "commit": "ddbd0be3bb5d",
+      "answer": "matches",
+      "note": "Description clause 'when an edge reference resolves through an area ... and a repository reader exists ... read the edge's own evidence lines at the commit and collect the repo-relative file paths named ... that a node of the target area owns (nodeResolver over that area's nodes)' is implemented by namedOwner (merge.mjs diff lines +100-122). 'exactly one node ... else keep the hub' is `found.size === 1 ? ... : null` then `?? hubOf(area)`. 'The same rule applies to from' is resolveNode(e.from, e). 'Without --repo or a resolvable commit nothing changes' is the `reader === null` early return. 'extend [the reader] with a way to read the text of a path' is evidenceReader.text, with lineCount derived from it with the same 0/null results. Determinism: the result is a set cardinality, independent of evidence or fragment order, and m31 asserts reversed fragment order gives identical edges. Git calls use execFileSync with an argument array, so repo-controlled path tokens are not shell-interpolated. No new dependency, exported signatures unchanged, only scripts/merge.mjs and tests/merge.test.mjs touched. I ran the single test m31 once: pass. The executor's outcome matches the diff, including its disclosure that golden/pipeline suites were not run (the recorded gate run of `node --test` is exit 0 for the final head).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/BF2.1/20261102T085800Z.executor.json, at 2026-11-02T08:59:40Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "BF2.2-8q4",
+      "commit": "cdb9cc83b35e",
+      "answer": "matches",
+      "note": "Description clauses: (1) copy model/layout/html unchanged and check the hook edge: the committed model's hook edge targets scripts-staleness and validate --repo passes; (2) cost-profile copied to evidence/iteration-2/self-with-skill-4.json (total 1.649 USD, 16 orchestrator turns, maxContext 72610, Opus 16 turns 0.71, Sonnet 90 turns 0.94 - agree with the README and evals README row); (3) evals README gets the run 4 committed-map row, the mark is removed from run 3, the Run 3 paragraph is rewritten, a Run 4 paragraph is added, and the 'known build error' sentence is replaced; (4) README names `ddbd0be`, the counts table is 43/25/1/4/6, and the cost table's committed-map row cites self-with-skill-4.json. The diff also edits CHANGELOG, docs/roadmap.md, tests/evals.test.mjs and tests/manifest.test.mjs; all are in the task's declared files, and the executor's outcome names them (the roadmap and changelog edits close the 'Closes the roadmap item' clause). The old assertions that pinned the bug (e17/e18, mf5) are inverted rather than weakened, with negative cases for the regressed edge target and for the dropped wordings. One figure, 'The run took 258 seconds', is not in the tracked profile, so no tracked file shows it; it is not asserted by a test and I do not charge it.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "Executor filed status not-attempted: 'regression task with tests.expectRedFirst false'. The task owes no red-first; the readme/evals/manifest checks were adapted after the artifacts and carry their own negative cases (r5, e18, mf5), which I read but did not run.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "computedAnswers": {
+    "BF2.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "BF2.2-8q4": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "BF2.1",
+      "commit": "ddbd0be3bb5d"
+    },
+    {
+      "id": "BF2.2-8q4",
+      "commit": "cdb9cc83b35e"
+    }
+  ]
+}
