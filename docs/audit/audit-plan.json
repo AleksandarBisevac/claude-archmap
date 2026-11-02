@@ -9741,7 +9741,7 @@
         {
           "id": "P13.2",
           "title": "Prescan extractor for pipelines: GitHub Actions and Azure Pipelines",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add scripts/lib/prescan/pipelines.mjs (and stacks/pipelines.mjs) detected from .github/workflows/*.y(a)ml and azure-pipelines*.y(a)ml or *.pipeline.yml: one item per workflow or pipeline with its triggers, one per job or stage with needs/dependsOn, the artefacts uploaded and downloaded (actions/upload-artifact, PublishPipelineArtifact and their download counterparts) and the deploy targets named as string literals, each with evidence. Write skills/architecture-map/references/stack-pipelines.md and the fixture tests/fixtures/repos/pipelines (one GitHub workflow with three jobs passing an artefact, one Azure pipeline with two stages).",
           "files": [
             "scripts/lib/prescan/pipelines.mjs",
@@ -9771,30 +9771,44 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "dfdaf364930e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/pipelines.mjs (extractPipelines, MAX_ITEMS, MAX_NESTED, plug-in id 'pipelines'; fragment keys artifacts, deployTargets, jobs, passes, pipelines, scanned, skipped{pipelines,templates}, truncated) and stacks/pipelines.mjs re-export; fixtures tests/fixtures/repos/pipelines/.github/workflows/release.yml (3 jobs passing artefact dist) and azure-pipelines.yml (2 stages); tests/prescan-pipelines.test.mjs (pl1-pl10, 10 cases pass); references/stack-pipelines.md. To reuse the YAML reader I added `export` to parseYaml, entryOf, valueOf, textOf in scripts/lib/prescan/containers.mjs (gate allowed it; it spent this writer's one free file). Updated tests/prescan-core.test.mjs pc2 (gate allowed): the mixed fixture's .github/workflows/ci.yml now detects 'pipelines', expected stacks are containers, node-backend, pipelines, python, ts-frontend. BLOCKED: skills/architecture-map/SKILL.md references-table row for stack-pipelines.md was refused by require-plan (file declared only by done tasks P4.4 etc. and pending P13.5/P13.9; free file already spent), so full `node --test` has exactly one failure: s2 (reference not linked from SKILL.md). Orchestrator must add this row after the stack-containers row: | [references/stack-pipelines.md](references/stack-pipelines.md) | The `pipelines` stack: GitHub Actions workflows and Azure Pipelines, jobs and stages, artefact hand-offs, deploy targets. | (or via a new task / P13.5). Full node --test: 541 tests, 540 pass, 1 fail (s2). Dependants: tests/fixtures/repos/pipelines named by basename in .agents/skills/node/SKILL.md, docs/roadmap.md, discovery-generic.md, relation-taxonomy.md - still correct, those mention 'pipelines' as a word, not the fixture path; no other tracked file names the new files.",
+            "descriptive": "Prescan now extracts GitHub Actions and Azure Pipelines (pipelines, jobs/stages with needs, artefact uploads/downloads and hand-off edges, deploy targets) with line evidence; SKILL.md row still owed."
           },
           "startedAt": "2026-11-02T22:25:57Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T22:33:42Z",
+          "verifiedBy": [
+            "tests/prescan-pipelines.test.mjs: pl1-pl10 cover pipeline items with triggers, jobs and stages with needs, artefact rows, pass edges with upload and download evidence, deploy targets, alternate forms, evidence/determinism, caps, detection and no-execution/shim/prescan wiring"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T22:33:41Z.f3bc35",
             "status": "passed",
             "at": "2026-11-02T22:33:41Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "dfdaf364930e",
+            "at": "2026-11-02T22:33:42Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T22:32:08Z",
+            "basis": "`node --test tests/prescan-pipelines.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.3",
           "title": "Prescan extractor for infrastructure as code: Terraform and Bicep",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add scripts/lib/prescan/iac.mjs (and stacks/iac.mjs) detected from *.tf and *.bicep: one item per resource and module (type, name, the file and lines), references between them read from attribute expressions (module.x, resource_type.name.attr, Bicep symbolic names) as edges with evidence, variables and outputs by name only, never a value. Write skills/architecture-map/references/stack-iac.md and the fixture tests/fixtures/repos/iac (a Terraform root with two modules and four resources referencing each other, one Bicep file with three resources).",
           "files": [
             "scripts/lib/prescan/iac.mjs",
             "scripts/lib/prescan/stacks/iac.mjs",
             "skills/architecture-map/references/stack-iac.md",
+            "skills/architecture-map/SKILL.md",
             "tests/fixtures/repos/iac",
             "tests/prescan-iac.test.mjs"
           ],
@@ -9814,16 +9828,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T22:33:43Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T22:42:47Z.2ef673",
+            "status": "passed",
+            "at": "2026-11-02T22:42:47Z"
+          }
         },
         {
           "id": "P13.4",
@@ -10755,7 +10775,8 @@
       "P13.5",
       "P13.9",
       "P13.1",
-      "P13.2"
+      "P13.2",
+      "P13.3"
     ],
     "tests/skill.test.mjs": [
       "P4.4",

@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/prescan-iac.test.mjs": "pass",
+    "node --test (full, informational)": "fail"
+  },
+  "redFirst": {
+    "at": "2026-11-02T22:41:25Z",
+    "basis": "`node --test tests/prescan-iac.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/prescan/iac.mjs (Terraform and Bicep plug-in id 'iac', mask-then-parse reader: comments, string and heredoc text blanked, interpolations kept; resources, modules with source and local target, variables and outputs by name only, references with via attribute/depends_on/parent and attributes, evidence per line, caps MAX_ITEMS/MAX_NESTED, skipped.blocks), stacks/iac.mjs re-export, references/stack-iac.md, fixture tests/fixtures/repos/iac (Terraform root with 4 resources, 2 local modules, variables and outputs; one Bicep file with 3 resources), tests/prescan-iac.test.mjs (9 cases iac1..iac9). First red: import error, module absent. Own test: node --test tests/prescan-iac.test.mjs -> 9 pass. Full node --test: 550 tests, 549 pass, 1 fail: s2 of tests/skill.test.mjs (references/stack-iac.md not linked from SKILL.md; SKILL.md is outside my files and was not edited). tests/prescan-core.test.mjs pc2 passes unchanged (its inline MIXED repo holds no .tf or .bicep). All new files git add -N. SKILL.md table row the orchestrator must add, after the stack-pipelines row: | [references/stack-iac.md](references/stack-iac.md) | The `iac` stack: Terraform and Bicep resources, modules, variables and outputs by name, references between them. | Dependants: tests/fixtures/repos/iac is named only by assets/viewer/elk.bundled.js by basename (an unrelated bundled-library match); still correct, the fixture is a new directory and no existing file changed. The other four files have no dependants.",
+    "descriptive": "Prescan now extracts Terraform and Bicep resources, modules, variables, outputs and the references between them with file:line evidence."
+  },
+  "testsAdded": [
+    "prescan-iac.test.mjs: fixture resources and modules, reference edges, variables and outputs by name with no value, other Terraform and Bicep forms, evidence/order/determinism, caps, detection, no-execution and prescan integration"
+  ],
+  "casesAdded": [
+    [
+      "iac1",
+      "iac2",
+      "iac3",
+      "iac4",
+      "iac5",
+      "iac6",
+      "iac7",
+      "iac8",
+      "iac9"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:fe946c4ed7e704c8adfa0254c7f52de64990f32803465b780fe1a5d6984541a4\",\"dirtyDigest\":\"sha256:4d4ecef7f54b0fd83b0b83b0eb331182fdc5632ef8cfd0c23408fe3aa6066b44\",\"dirtyPaths\":{\"scripts/lib/prescan/iac.mjs\":\"0f7a1fc6e2acd28d\",\"scripts/lib/prescan/stacks/iac.mjs\":\"a1b06a977e50dbde\",\"skills/architecture-map/references/stack-iac.md\":\"2207386159817f82\",\"tests/fixtures/repos/iac/bicep/main.bicep\":\"7a9d116f708efec8\",\"tests/fixtures/repos/iac/terraform/main.tf\":\"857b94d2b4b31be8\",\"tests/fixtures/repos/iac/terraform/modules.tf\":\"9eaacd42c1620bbe\",\"tests/fixtures/repos/iac/terraform/modules/cache/main.tf\":\"836f0ffb732979e0\",\"tests/fixtures/repos/iac/terraform/modules/database/main.tf\":\"b7f0049b56a70a7a\",\"tests/fixtures/repos/iac/terraform/outputs.tf\":\"7e2e68ed3c9a8126\",\"tests/fixtures/repos/iac/terraform/variables.tf\":\"cdee2c701b0d84d3\",\"tests/prescan-iac.test.mjs\":\"2025483ceaac22c8\"},\"head\":\"dfdaf36\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/iac.mjs\",\"scripts/lib/prescan/stacks/iac.mjs\",\"skills/architecture-map/references/stack-iac.md\",\"tests/fixtures/repos/iac\",\"tests/prescan-iac.test.mjs\"],\"scopeDigest\":\"sha256:f090f71c8ac2ce3ca4cb52e053265c2a4e5d1c8ce3fe3aebc1a4fde832c64159\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
