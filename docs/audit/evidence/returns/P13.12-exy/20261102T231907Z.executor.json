@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/prescan-wiring.test.mjs tests/pipeline.test.mjs tests/prescan-core.test.mjs": "pass",
+    "node --test (full suite, extra check)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-02T23:26:44Z",
+    "basis": "`node --test tests/prescan-wiring.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "scripts/prescan.mjs: new platformStacksIn(plugins, paths, read) runs each platform plug-in's detect() over the area's own files in fixed order containers, pipelines, iac, data-platform; area stacks = detectStacks (code, existing order) then those. partition.mjs untouched (area .paths already carry the files). scripts/pipeline.mjs: new exported stackRefsFor(stacks) returns every reference of the area in the area's order, deduped, discovery-generic.md only when none; stackRefFor is now its ', '-joined string; plan passes join(REFS, f) for each to explorerBrief's existing stackRef line (no template text change, summary budget and brief cap untouched). Tests: pw8 (prescan-wiring) builds a repo with python and ts areas plus infra/terraform, deploy compose, .github workflows, a dbt project and a Dockerfile in the web area, and pins terraform-only=[iac], compose-only=[containers], workflow-only=[pipelines], dbt-only=[data-platform], web=[ts-frontend, containers], api=[python]. p42 (pipeline) runs plan on a node-api copy with terraform, compose and a root Dockerfile and checks the iac and containers area briefs name stack-iac.md / stack-containers.md and not discovery-generic.md, the root area brief names stack-node-backend.md and stack-containers.md, and stackRefFor joins them. Updated existing pins: pc3 (api/ holds a Dockerfile so its stacks are [python, containers]; reason in a comment), pw7 (the 'area stacks stay code stacks' assertion now allows only the fixture's own platform stack), p41 (first-wins assertion replaced by every-reference-in-order and dedupe/unknown cases). Runs: node --test on the three files = 68 pass 0 fail; full node --test = 574 pass 0 fail. Dependants: tests/merge.test.mjs, evals, skill, commands tests and docs/architecture files that name prescan.mjs or pipeline.mjs still pass in the full suite (area stacks unchanged for areas with no platform file; committed maps not touched). usage.mjs only names pipeline.mjs by path, unaffected. discovery-generic.md reference still used for areas with no recognised stack.",
+    "descriptive": "A platform-only area (Terraform, compose, workflows, dbt) is now briefed with its own stack reference, and a mixed area names every reference of its stacks."
+  },
+  "testsAdded": [
+    "pw8: platform-only areas carry their platform stack, a code area with a Dockerfile carries code stack then containers, an area without platform files keeps code stacks only",
+    "p42: explorer briefs of platform-only areas name their stack reference instead of discovery-generic.md; a mixed area names every reference"
+  ],
+  "casesAdded": [
+    [
+      "pw8"
+    ],
+    [
+      "p42"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:235cdadba5515f80038830fa42df4e3de2f8759b94107031710e0a55cdb4f0da\",\"dirtyDigest\":\"sha256:4f11ffc79a1ed4a351e25ceead11a7229c107817aaa2317d38166af3375b994d\",\"dirtyPaths\":{\"scripts/pipeline.mjs\":\"b981f05fcbeea7f5\",\"scripts/prescan.mjs\":\"791308d4c3e0df50\",\"tests/pipeline.test.mjs\":\"cf8ef5adbdb208a4\",\"tests/prescan-core.test.mjs\":\"01faa9c62cdf0ff6\",\"tests/prescan-wiring.test.mjs\":\"7e9fdb09618cd600\"},\"head\":\"57b4173\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/partition.mjs\",\"scripts/pipeline.mjs\",\"scripts/prescan.mjs\",\"tests/pipeline.test.mjs\",\"tests/prescan-core.test.mjs\",\"tests/prescan-wiring.test.mjs\"],\"scopeDigest\":\"sha256:da428f80fe18a4ed13a4f4a23fc3fc4e887f4d1615939ed0f920c617a79e5a11\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -10076,7 +10076,7 @@
         {
           "id": "P13.7",
           "title": "Close the P12 re-review findings R5, R6 and R7",
-          "status": "in_progress",
+          "status": "done",
           "description": "R5: BENCHMARK.md and PROTOCOL.md cite where the owner's confirmation of the rubric scores is recorded (the P12 sign-off summary in docs/audit/audit-plan.json, dated 2026-11-02) instead of asserting it bare. R6: scripts/cost-profile.mjs redacts the description-derived fallback label: a description holding a path-like token, a quoted string or more than a few words is replaced by task:<n>-words or a short hash, so no repository text lands in a tracked profile; c22 and c23 updated. R7: the tracked grader skills/architecture-map/evals/benchmark/grade-benchmark.mjs is run over every real benchmark cell and the per-cell result compared with the recorded grading, recorded as counts only (cells compared, cells equal, expectations compared, expectations equal) in skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json, which BENCHMARK.md cites in place of the 9-cell claim; tests/benchmark.test.mjs checks the file's shape and that the report's sentence matches it. No repository name, client or machine path anywhere.",
           "files": [
             "skills/architecture-map/evals/BENCHMARK.md",
@@ -10105,14 +10105,17 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "57b41737e3d0",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "R6: scripts/cost-profile.mjs describe() now labels a description holding a path-like token (/ \\ ~ @, a leading dot, a file name with a letter extension), a quoted string (\" ' ` and curly quotes) or more than 4 words as task:<n>-words-<6 hex of sha256>, none of its text; a short plain description keeps its bounded slug (v1.1 audit stays task:v1-1-audit). The 13 tracked benchmark profiles are untouched (labels archmap:* and Explore) and b-tests over them pass. Tests: c22 rewritten (plain slug and 40-char cut kept, a long multi-line description now redacted, text report carries none of it); c24 added (path, Windows path, tilde, filename, three quote kinds, 5 words and a long sentence all redacted with the word count, none of the words in label or text report, distinct labels, deterministic, short descriptions keep slug); c23 (reserved/empty names to unknown-subagent) needed no change and still passes. R7: grader-equivalence.json holds date 2026-11-03, a method sentence and the orchestrator's counts only: cellsCompared 12, cellsEqual 12, expectationsCompared 60, expectationsEqual 60 (I did not run the grader over any real cell). BENCHMARK.md (Grader section of Metrics) states the four counts and links the record; PROTOCOL.md points to it. b32 checks shape (exact keys, integers, equal <= compared, compared = 12 comparison cells and 60 graded expectations from summary.json, date and path in report, BENCHMARK.md sentence matches); runFiles in b15-style helpers excludes the record. R5: BENCHMARK.md (results caption, Limits, Rubric metric) and PROTOCOL.md (Rubric metric, Runs Rubric) cite the sign-off summary of phase P12 in docs/audit/audit-plan.json dated 2026-11-02 (recorded there: Potvrdjujem moje ocene kao tvoje); b33 reads that summary and checks both documents cite it. Full gate: node --test, 572 tests, 572 pass, 0 fail, 0 skipped; first red before the fix: 4 failing (b32, b33, c22, c24). Dependants: BENCHMARK.md and PROTOCOL.md dependants (model, viewer, CHANGELOG, README, roadmap, readme.test, evals README) cite figures and links that are unchanged, still correct; cost-profile.mjs dependants (pipeline, usage, evals tests) use profile() output whose labels change only for redacted descriptions, still correct as tests pass; benchmark.test.mjs and cost-profile.test.mjs dependants unaffected; grader-equivalence.json has no dependants. No git add beyond git add -N of the new file.",
+            "descriptive": "Closes P12 re-review findings R5 (owner confirmation cited), R6 (no repository text in a fallback label) and R7 (grader equivalence recorded as counts and cited)."
           },
           "startedAt": "2026-11-02T23:09:33Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T23:17:33Z",
+          "verifiedBy": [
+            "c24 redaction of path, quoted and long descriptions plus slug kept for short plain ones; c22 rewritten for the new rule",
+            "b32 grader-equivalence.json shape, count relations and BENCHMARK.md sentence; b33 citation of the P12 sign-off summary in both documents"
+          ],
           "reviewPerTask": "phase",
           "notes": [
             {
@@ -10124,12 +10127,23 @@
             "runId": "2026-11-02T23:17:32Z.9b0941",
             "status": "passed",
             "at": "2026-11-02T23:17:32Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "57b41737e3d0",
+            "at": "2026-11-02T23:17:33Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T23:14:52Z",
+            "basis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.8",
           "title": "Mixed fixture build: the no-LLM chain, one headless build and its tracked cost profile",
-          "status": "pending",
+          "status": "blocked",
           "description": "Add tests/fixtures/repos/mixed-platform combining a small API, a compose file, a GitHub workflow, a Terraform module and a dbt project, run the no-LLM chain on it in tests/e2e.test.mjs (prescan, merge, validate, layout, render), and run one headless /archmap:build of it (balanced, no issues) whose cost profile is tracked as skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json with a row in the evals README build table and in the README cost table; tests/readme.test.mjs r2 re-derives the figures from the profile.",
           "files": [
             "tests/fixtures/repos/mixed-platform",
@@ -10160,16 +10174,18 @@
             "P13.5",
             "P13.6"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T23:17:34Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "blockedReason": "Waits on P13.12-exy: the headless mixed build and its tracked profile must run against the final area-stack briefing, so the platform-only areas of the fixture are briefed with their own stack references"
         },
         {
           "id": "P13.9",
@@ -10369,7 +10385,7 @@
         {
           "id": "P13.12-exy",
           "title": "Area stacks include the platform stacks detected inside the area, so a platform-only area brief names its stack reference",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Gap left by P13.5: an area's stacks stay the code stacks (pc3 pins them), so a platform-only area (an infra directory of .tf files, a compose-only deploy directory, a dbt project) is briefed with discovery-generic.md and never sees stack-iac.md, stack-containers.md, stack-pipelines.md or stack-data-platform.md, although the top-level stacks list the plug-ins. Make the area stacks the union of the code stacks and the platform stacks whose plug-in detect() fires on files inside the area globs (scripts/prescan.mjs areaExtracts / partition.mjs), keep the order deterministic, update pc3 to the new rule with the reason, and let stackRefFor in scripts/pipeline.mjs hand every stack reference of the area to its explorer brief. No agent prompt changes; the summary budget stays.",
           "files": [
             "scripts/prescan.mjs",
@@ -10398,16 +10414,22 @@
           "dependsOn": [
             "P13.5"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T23:19:07Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T23:27:41Z.103d0e",
+            "status": "passed",
+            "at": "2026-11-02T23:27:41Z"
+          }
         }
       ],
       "request": "Zatim predloži fazu v1.1 iz docs/roadmap.md (/audit:phase add), bez pokretanja.",

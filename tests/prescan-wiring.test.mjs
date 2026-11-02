@@ -185,7 +185,8 @@ test('pw7 each platform fixture is detected as its stack, its slices and summari
           assert.equal(sum[k] !== undefined, !COUNT_ONLY.includes(k), `${repo}/${area.id}: summary rows of ${k}`);
         }
         assert.ok(sumText.length <= 4200, `${repo}/${area.id}: summary ${sumText.length} characters`);
-        assert.ok(!area.stacks.some((s) => PLATFORM_STACKS.includes(s)), `${repo}/${area.id}: an area's stacks stay the code stacks`);
+        // P13.12: an area's stacks are the code stacks plus the platform stacks found inside it (pw8 pins the rule)
+        assert.ok(area.stacks.every((s) => PLATFORM_STACKS.includes(s) ? s === stack : true), `${repo}/${area.id}: only this fixture's platform stack: ${area.stacks}`);
       }
       for (const [k, n] of Object.entries(kinds)) assert.equal(sumKind(run, k), n, `${repo}: ${k} rows over the areas`);
       for (const other of PLATFORM_STACKS.filter((s) => s !== stack)) assert.ok(!run.pre.stacks.includes(other), `${repo}: no ${other}`);
@@ -206,5 +207,57 @@ test('pw7 each platform fixture is detected as its stack, its slices and summari
     } finally {
       rmSync(run.work, { recursive: true, force: true });
     }
+  }
+});
+
+// pw8: an area's stacks are the union of the code stacks and the platform stacks whose plug-in fires on files inside
+// the area's globs (code first, then platform in a fixed order), so a platform-only area is briefed with its reference.
+test('pw8 an area of only Terraform, compose, workflow or dbt files carries that platform stack, a code area with an added Dockerfile carries both, and an area with none keeps its code stacks only', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { dirname } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const globRe = (g) =>
+    new RegExp('^' + g.split('**').map((p) => p.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')).join('.*') + '$');
+  const work = mkdtempSync(join(tmpdir(), 'archmap-pw8-'));
+  try {
+    const put = (rel, body) => {
+      mkdirSync(dirname(join(work, rel)), { recursive: true });
+      writeFileSync(join(work, rel), body);
+    };
+    const copy = (from, to) => cpSync(join(REPOS, from), join(work, to), { recursive: true });
+    cpSync(join(REPOS, 'python-api'), join(work, 'api'), { recursive: true });
+    cpSync(join(REPOS, 'ts-web'), join(work, 'web'), { recursive: true });
+    put('web/Dockerfile', 'FROM node:20-alpine\nWORKDIR /app\nCOPY . .\nCMD ["node", "server.js"]\n');
+    copy('iac/terraform', 'infra/terraform');
+    copy('containers/docker-compose.yml', 'deploy/docker-compose.yml');
+    copy('pipelines/.github', '.github');
+    copy('data-platform', 'analytics');
+    // enough files in each platform directory that the partition keeps it as its own area
+    for (const n of ['a', 'b', 'c']) {
+      copy('containers/docker-compose.yml', `deploy/docker-compose.${n}.yml`);
+      copy('pipelines/.github/workflows/release.yml', `.github/workflows/${n}.yml`);
+    }
+    const git = (...a) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd: work, encoding: 'utf8' });
+    git('init', '-q');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'fixture');
+    const r = spawnSync(process.execPath, [PRESCAN, work], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const out = JSON.parse(r.stdout);
+    const owners = (f) => out.areas.filter((a) => a.globs.some((g) => globRe(g).test(f)));
+    const own = (f) => {
+      const hit = owners(f);
+      assert.equal(hit.length, 1, `${f} owned by ${JSON.stringify(hit.map((a) => a.id))}`);
+      return hit[0];
+    };
+    assert.deepEqual(own('infra/terraform/main.tf').stacks, ['iac'], 'terraform only');
+    assert.deepEqual(own('deploy/docker-compose.yml').stacks, ['containers'], 'compose only');
+    assert.deepEqual(own('.github/workflows/release.yml').stacks, ['pipelines'], 'workflow only');
+    assert.deepEqual(own('analytics/dbt_project.yml').stacks, ['data-platform'], 'dbt only');
+    assert.deepEqual(own('web/Dockerfile').stacks, ['ts-frontend', 'containers'], 'a code area with a Dockerfile: code stacks first, then the platform stack');
+    assert.deepEqual(own('api/app/main.py').stacks, ['python'], 'an area with no platform files keeps its code stacks only');
+  } finally {
+    rmSync(work, { recursive: true, force: true });
   }
 });

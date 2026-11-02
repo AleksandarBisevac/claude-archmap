@@ -1468,7 +1468,8 @@ test('p41 an explorer brief for an area with a container, pipeline, iac or data 
   assert.equal(stackRefFor(['python']), 'stack-python-backend.md');
   assert.equal(stackRefFor(['ts-frontend']), 'stack-ts-frontend.md');
   assert.equal(stackRefFor(['node-backend']), 'stack-node-backend.md');
-  assert.equal(stackRefFor(['iac', 'python']), 'stack-iac.md', 'the first recognised stack in the area\'s order wins');
+  assert.equal(stackRefFor(['python', 'iac']), 'stack-python-backend.md, stack-iac.md', 'every recognised stack of the area, in the area\'s order');
+  assert.equal(stackRefFor(['iac', 'cobol', 'iac']), 'stack-iac.md', 'an unknown stack adds nothing and a repeat names a reference once');
   assert.equal(stackRefFor(['cobol']), 'discovery-generic.md');
   assert.equal(stackRefFor([]), 'discovery-generic.md');
   assert.equal(stackRefFor(undefined), 'discovery-generic.md');
@@ -1482,4 +1483,38 @@ test('p41 an explorer brief for an area with a container, pipeline, iac or data 
   });
   assert.match(brief, /references\/stack-iac\.md/);
   assert.ok(brief.length <= BRIEF_CAP, `${brief.length} characters`);
+});
+
+test('p42 the explorer brief of a platform-only area names the platform stack reference instead of discovery-generic.md, and a mixed area names every reference of its stacks', async () => {
+  const { stackRefFor } = await import('../scripts/pipeline.mjs');
+  const repo42 = join(tmp, 'repo-p42');
+  cpSync(REPO_SRC, repo42, { recursive: true });
+  cpSync(join(ROOT, 'tests/fixtures/repos/iac/terraform'), join(repo42, 'infra/terraform'), { recursive: true });
+  mkdirSync(join(repo42, 'deploy'), { recursive: true });
+  cpSync(join(ROOT, 'tests/fixtures/repos/containers/docker-compose.yml'), join(repo42, 'deploy/docker-compose.yml'));
+  writeFileSync(join(repo42, 'Dockerfile'), 'FROM node:20-alpine\nWORKDIR /app\nCOPY . .\nCMD ["node", "server.js"]\n');
+  git(repo42, 'init', '-q');
+  git(repo42, 'add', '-A');
+  git(repo42, 'commit', '-q', '-m', 'initial');
+  const w = join(tmp, 'work-p42');
+  const r = step(['plan', repo42, '--work', w, '--out', join(tmp, 'out-p42'), '--project', 'node-api', '--generated-at', GENERATED_AT]);
+  assert.equal(r.status, 0, r.stdout);
+  const areas = readJson(join(w, 'prescan.json')).areas;
+  const owner = (f) => areas.find((a) => a.globs.some((g) => new RegExp('^' + g.split('**').map((p) => p.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')).join('.*') + '$').test(f)));
+  const briefOf = (a) => readFileSync(join(w, 'briefs', `${a.id}.md`), 'utf8');
+  const infra = owner('infra/terraform/main.tf');
+  assert.deepEqual(infra.stacks, ['iac']);
+  assert.match(briefOf(infra), /references\/stack-iac\.md/);
+  assert.doesNotMatch(briefOf(infra), /discovery-generic\.md/);
+  const deploy = owner('deploy/docker-compose.yml');
+  assert.deepEqual(deploy.stacks, ['containers']);
+  assert.match(briefOf(deploy), /references\/stack-containers\.md/);
+  assert.doesNotMatch(briefOf(deploy), /discovery-generic\.md/);
+  const src = owner('Dockerfile'); // the repository root: a code area (node-backend) with a Dockerfile added
+  assert.deepEqual(src.stacks, ['node-backend', 'containers']);
+  const mixed = briefOf(src);
+  assert.match(mixed, /references\/stack-node-backend\.md/);
+  assert.match(mixed, /references\/stack-containers\.md/);
+  assert.ok(mixed.length <= BRIEF_CAP, `${mixed.length} characters`);
+  assert.equal(stackRefFor(['node-backend', 'containers']), 'stack-node-backend.md, stack-containers.md', 'every reference of the area, in the area\'s order');
 });

@@ -47,8 +47,10 @@ const STACKS_DIR = fileURLToPath(new URL('./lib/prescan/stacks/', import.meta.ur
 // The platform stacks (containers, pipelines, iac, data-platform): the extract kinds each slice carries, as
 // [stack, kind in extracts[stack], key in the slice]. The slice keys are distinct from the generic ones (`containers` and
 // `ci` stay the lists of file paths, `modules` stays python's), and they print in this order, after `stores`. The stack
-// names reach the output through the plug-ins' `detect` (`stacks`); an area's own `stacks` stay the code stacks the
-// generic detection finds, so an area's brief line does not change.
+// names reach the output through the plug-ins' `detect` (`stacks`). An area's own `stacks` are the code stacks the
+// generic detection finds, then the platform stacks (in PLATFORM_ORDER) whose `detect` fires on the files inside the
+// area's globs, so a platform-only area is briefed with its stack reference; an area with no platform file keeps
+// exactly its code stacks.
 const PLATFORM_KINDS = [
   ['containers', 'dockerfiles', 'images'], ['containers', 'services', 'services'],
   ['pipelines', 'pipelines', 'pipelines'], ['pipelines', 'jobs', 'jobs'], ['pipelines', 'artifacts', 'artifacts'],
@@ -59,6 +61,13 @@ const PLATFORM_KINDS = [
   ['data-platform', 'lineage', 'lineage'],
 ];
 const PLATFORM_KEYS = PLATFORM_KINDS.map(([, , key]) => key);
+const PLATFORM_ORDER = ['containers', 'pipelines', 'iac', 'data-platform'];
+
+/** The platform stacks whose plug-in `detect` fires on `paths` (an area's files), in the fixed PLATFORM_ORDER. */
+function platformStacksIn(plugins, paths, read) {
+  const view = { files: paths, read };
+  return PLATFORM_ORDER.filter((id) => plugins.some((p) => p.id === id && p.detect(view)));
+}
 
 /** Load the plug-in extractors from scripts/lib/prescan/stacks (none yet is fine). */
 export async function loadExtractors(dir = STACKS_DIR) {
@@ -116,7 +125,7 @@ export async function prescan(repoDir, { scope = '', extractors } = {}) {
     title: a.title,
     globs: a.globs.map((g) => pre + g),
     files: a.paths.length,
-    stacks: detectStacks(a.paths, relRead),
+    stacks: [...detectStacks(a.paths, relRead), ...platformStacksIn(plugins, a.paths, relRead)],
     extract: `extracts/${a.id}.json`,
     summary: `extracts/${a.id}.summary.json`,
   }));

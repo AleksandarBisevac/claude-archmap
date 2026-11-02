@@ -140,7 +140,9 @@ test('pc3 partitions into at most 8 areas with disjoint globs covering every sou
     assert.equal(hit.length, 1, `${f} matched by ${JSON.stringify(hit)}`);
   }
   const owner = (f) => res.find((x) => x.res.some((r) => r.test(f))).a;
-  assert.deepEqual(owner('api/app/main.py').stacks, ['python']);
+  // P13.12: an area's stacks are the code stacks plus the platform stacks found inside it; api/ holds a Dockerfile, so it
+  // carries containers after python. The web and gateway areas hold no platform file and keep their code stacks only.
+  assert.deepEqual(owner('api/app/main.py').stacks, ['python', 'containers']);
   assert.deepEqual(owner('web/src/App.tsx').stacks, ['ts-frontend']);
   assert.deepEqual(owner('services/gateway/src/server.js').stacks, ['node-backend']);
   assert.notEqual(owner('api/app/main.py').id, owner('web/src/App.tsx').id, 'backend and frontend are separate areas');
