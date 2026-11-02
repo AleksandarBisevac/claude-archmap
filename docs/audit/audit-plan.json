@@ -9485,7 +9485,7 @@
     {
       "id": "BF2",
       "title": "Bugfix batch 2",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "BUG-5-6o1 is fixed: an edge written to an area whose evidence lines name a file that exactly one node of that area owns targets that node, not the area hub, so the SessionStart hook edge in the plugin map reaches the node owning scripts/staleness.mjs.",
       "testGate": [
@@ -9494,7 +9494,7 @@
       "blockedBy": [],
       "baseRef": "77aa2af61d4bed6e829bfc17e13386ad3cc47695",
       "branch": "audit/bf2-bugfix-batch-2",
-      "mergedAt": null,
+      "mergedAt": "2026-11-02T09:57:46Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -9654,7 +9654,8 @@
         "runId": "2026-11-02T09:57:43Z.c05b98",
         "status": "passed",
         "at": "2026-11-02T09:57:43Z"
-      }
+      },
+      "mergedHead": "00e73d4056c81e09ddecfac916305c8ecd37649c"
     }
   ],
   "fileIndex": {
