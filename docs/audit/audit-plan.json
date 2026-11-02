@@ -9656,6 +9656,417 @@
         "at": "2026-11-02T09:57:43Z"
       },
       "mergedHead": "00e73d4056c81e09ddecfac916305c8ecd37649c"
+    },
+    {
+      "id": "P13",
+      "title": "v1.1: data platforms, pipelines and infrastructure",
+      "status": "pending",
+      "description": "The v1.1 item of docs/roadmap.md, in the roadmap's order, plus two follow-ups recorded at the P12 sign-off: the weak spot the benchmark showed on repository A (13 entities, 4 with fields, because the database file is not in the checkout) and the P12 re-review's low findings R5 (the owner's confirmation of the rubric scores is attested only in the sign-off record), R6 (the cost-profile fallback label is bounded but not redacted) and R7 (the tracked grader's equivalence to the private one rests on a 9-cell synthetic comparison). Each extractor follows the pattern of scripts/lib/prescan/{node-backend,python,ts-frontend}.mjs with a stacks/ re-export, a stack reference under skills/architecture-map/references/, a fixture repository under tests/fixtures/repos/ and a prescan test; the scanned code is only ever read as text. Node kinds and edge types the new elements need are added to relation-taxonomy.md and the model schema additively, so every committed map keeps validating. The phase does not start until the owner says so.",
+      "desiredOutcome": "Prescan extracts containers (Docker, compose), pipelines (GitHub Actions, Azure Pipelines), infrastructure as code (Terraform, Bicep) and data platform projects (dbt models, sources, tests and lineage) with file:line evidence, confidence and provenance like every other node; entities keep declared fields when no database file is in the checkout; the three low findings P12-R5 to P12-R7 are closed; a fixture repository per kind, a prescan test per extractor, a mixed-fixture build with a tracked cost profile and every committed map still validating close it.",
+      "testGate": [
+        "test"
+      ],
+      "blockedBy": [],
+      "baseRef": null,
+      "branch": null,
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [
+        {
+          "id": "P13.1",
+          "title": "Prescan extractor for containers: Dockerfiles and compose files",
+          "status": "pending",
+          "description": "Add scripts/lib/prescan/containers.mjs (re-exported from stacks/containers.mjs) detected from Dockerfile*, compose*.y(a)ml and docker-compose*.y(a)ml: one item per compose service (image or build context, ports, volumes, depends_on, env keys by name only) and per Dockerfile (base image, exposed ports, the entrypoint file), each with evidence {path, lines}, sorted and capped per kind with truncated counts. Write skills/architecture-map/references/stack-containers.md in the shape of stack-ts-frontend.md (what prescan extracts, what the explorer must still read, how services map to nodes and depends_on and ports to edges). Add the fixture tests/fixtures/repos/containers (a compose file with three services, two Dockerfiles, one .env.example; no real secrets).",
+          "files": [
+            "scripts/lib/prescan/containers.mjs",
+            "scripts/lib/prescan/stacks/containers.mjs",
+            "skills/architecture-map/references/stack-containers.md",
+            "tests/fixtures/repos/containers",
+            "tests/prescan-containers.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-containers.test.mjs: the fixture yields one service per compose entry with image, ports, depends_on and evidence lines, one Dockerfile item per Dockerfile with its base image and exposed ports, env keys by name only, deterministic order, caps honoured, and nothing is executed"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.2",
+          "title": "Prescan extractor for pipelines: GitHub Actions and Azure Pipelines",
+          "status": "pending",
+          "description": "Add scripts/lib/prescan/pipelines.mjs (and stacks/pipelines.mjs) detected from .github/workflows/*.y(a)ml and azure-pipelines*.y(a)ml or *.pipeline.yml: one item per workflow or pipeline with its triggers, one per job or stage with needs/dependsOn, the artefacts uploaded and downloaded (actions/upload-artifact, PublishPipelineArtifact and their download counterparts) and the deploy targets named as string literals, each with evidence. Write skills/architecture-map/references/stack-pipelines.md and the fixture tests/fixtures/repos/pipelines (one GitHub workflow with three jobs passing an artefact, one Azure pipeline with two stages).",
+          "files": [
+            "scripts/lib/prescan/pipelines.mjs",
+            "scripts/lib/prescan/stacks/pipelines.mjs",
+            "skills/architecture-map/references/stack-pipelines.md",
+            "tests/fixtures/repos/pipelines",
+            "tests/prescan-pipelines.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-pipelines.test.mjs: the fixture yields the workflow and pipeline items with triggers, jobs and stages with their dependencies, artefact pass-on edges with evidence at the upload and download lines, deterministic order and caps"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.3",
+          "title": "Prescan extractor for infrastructure as code: Terraform and Bicep",
+          "status": "pending",
+          "description": "Add scripts/lib/prescan/iac.mjs (and stacks/iac.mjs) detected from *.tf and *.bicep: one item per resource and module (type, name, the file and lines), references between them read from attribute expressions (module.x, resource_type.name.attr, Bicep symbolic names) as edges with evidence, variables and outputs by name only, never a value. Write skills/architecture-map/references/stack-iac.md and the fixture tests/fixtures/repos/iac (a Terraform root with two modules and four resources referencing each other, one Bicep file with three resources).",
+          "files": [
+            "scripts/lib/prescan/iac.mjs",
+            "scripts/lib/prescan/stacks/iac.mjs",
+            "skills/architecture-map/references/stack-iac.md",
+            "tests/fixtures/repos/iac",
+            "tests/prescan-iac.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-iac.test.mjs: the fixture yields every resource and module with its type and evidence, the reference edges between them, variables and outputs by name with no value, deterministic order and caps"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.4",
+          "title": "Prescan extractor for data platform projects: dbt models, sources, tests and lineage",
+          "status": "pending",
+          "description": "Add scripts/lib/prescan/data-platform.mjs (and stacks/data-platform.mjs) detected from dbt_project.yml: one item per model (models/**/*.sql with its materialization from config), per source and per test declared in schema .yml files, and lineage edges from ref() and source() calls, each with evidence at the call line. The vocabulary in the model is generic (model, source, test, lineage); no product-specific term. Write skills/architecture-map/references/stack-data-platform.md and the fixture tests/fixtures/repos/data-platform (one dbt project with two sources, four models in two layers and three tests).",
+          "files": [
+            "scripts/lib/prescan/data-platform.mjs",
+            "scripts/lib/prescan/stacks/data-platform.mjs",
+            "skills/architecture-map/references/stack-data-platform.md",
+            "tests/fixtures/repos/data-platform",
+            "tests/prescan-data-platform.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-data-platform.test.mjs: the fixture yields the models with materialization, the sources and tests from the schema files, lineage edges from every ref() and source() with evidence at the call line, generic kind names only, deterministic order and caps"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.5",
+          "title": "Wire the four extractors into detection, partition, summaries, merge, the taxonomy and the schema",
+          "status": "pending",
+          "description": "Register the four stacks in prescan detection and the extract and summary key order (scripts/prescan.mjs, scripts/lib/prescan/partition.mjs), derive their nodes and edges in scripts/merge.mjs from the extracts where no agent judgement is needed (compose services and dbt models as nodes with paths, depends_on, lineage, artefact pass-on and IaC references as edges), add the node kinds and edge types to skills/architecture-map/references/relation-taxonomy.md and model-schema.md and to the schema files additively, name the four references in the skill and the explorer agent, and keep every committed and fixture map validating.",
+          "files": [
+            "scripts/prescan.mjs",
+            "scripts/lib/prescan/partition.mjs",
+            "scripts/merge.mjs",
+            "scripts/validate.mjs",
+            "schema",
+            "skills/architecture-map/references/relation-taxonomy.md",
+            "skills/architecture-map/references/model-schema.md",
+            "skills/architecture-map/SKILL.md",
+            "agents/archmap-explorer.md",
+            "tests/prescan-wiring.test.mjs",
+            "tests/schema.test.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-wiring.test.mjs: each of the four fixture repositories is detected as its stack, its extract and summary carry the new keys in the documented order, and a repository without them is unchanged",
+              "tests/schema.test.mjs: the schema accepts the new kinds and types, refuses an unknown one, and every committed map under docs/architecture and tests/fixtures still validates",
+              "tests/merge.test.mjs: merge derives compose service nodes with depends_on edges and dbt model nodes with lineage edges from the extracts, deterministically, with evidence"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P13.1",
+            "P13.2",
+            "P13.3",
+            "P13.4"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.6",
+          "title": "Entity fields without a database file: declared fields from static schema sources",
+          "status": "pending",
+          "description": "On repository A of the benchmark the map had 13 entities but only 4 with fields because the database file is not in the checkout. Make the static sources the first-class path: the python extractor reads SQLAlchemy, SQLModel and Pydantic models, Alembic migrations and SQL DDL (CREATE TABLE in .sql files and in string literals) into table rows with fields and provenance declared, the node-backend extractor does the same for Prisma, Drizzle, TypeORM and Knex migrations where it does not yet, merge.mjs unions declared fields into the entity when introspection is skipped, and schema-introspection.md says introspection adds observed fields to declared ones rather than replacing a missing database. Measure on the python-api fixture.",
+          "files": [
+            "scripts/lib/prescan/python.mjs",
+            "scripts/lib/prescan/node-backend.mjs",
+            "scripts/merge.mjs",
+            "skills/architecture-map/references/schema-introspection.md",
+            "skills/architecture-map/references/stack-python-backend.md",
+            "tests/fixtures/repos/python-api",
+            "tests/prescan-python.test.mjs",
+            "tests/prescan-node-backend.test.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-python.test.mjs: a fixture with SQLAlchemy models, an Alembic migration and a CREATE TABLE string literal and no database file yields every table with its declared fields and evidence",
+              "tests/merge.test.mjs: an entity whose introspection is recorded as skipped in meta.sources keeps its declared fields and gains none marked observed"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.7",
+          "title": "Close the P12 re-review findings R5, R6 and R7",
+          "status": "pending",
+          "description": "R5: BENCHMARK.md and PROTOCOL.md cite where the owner's confirmation of the rubric scores is recorded (the P12 sign-off summary in docs/audit/audit-plan.json, dated 2026-11-02) instead of asserting it bare. R6: scripts/cost-profile.mjs redacts the description-derived fallback label: a description holding a path-like token, a quoted string or more than a few words is replaced by task:<n>-words or a short hash, so no repository text lands in a tracked profile; c22 and c23 updated. R7: the tracked grader skills/architecture-map/evals/benchmark/grade-benchmark.mjs is run over every real benchmark cell and the per-cell result compared with the recorded grading, recorded as counts only (cells compared, cells equal, expectations compared, expectations equal) in skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json, which BENCHMARK.md cites in place of the 9-cell claim; tests/benchmark.test.mjs checks the file's shape and that the report's sentence matches it. No repository name, client or machine path anywhere.",
+          "files": [
+            "skills/architecture-map/evals/BENCHMARK.md",
+            "skills/architecture-map/evals/benchmark/PROTOCOL.md",
+            "scripts/cost-profile.mjs",
+            "tests/cost-profile.test.mjs",
+            "skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json",
+            "tests/benchmark.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/cost-profile.test.mjs: a description holding a path, a quoted string or a long sentence yields a redacted label that carries none of its words, and a plain short description keeps its slug",
+              "tests/benchmark.test.mjs: grader-equivalence.json carries the four counts, equal counts are not above compared counts, and BENCHMARK.md states the same counts"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.8",
+          "title": "Mixed fixture build: the no-LLM chain, one headless build and its tracked cost profile",
+          "status": "pending",
+          "description": "Add tests/fixtures/repos/mixed-platform combining a small API, a compose file, a GitHub workflow, a Terraform module and a dbt project, run the no-LLM chain on it in tests/e2e.test.mjs (prescan, merge, validate, layout, render), and run one headless /archmap:build of it (balanced, no issues) whose cost profile is tracked as skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json with a row in the evals README build table and in the README cost table; tests/readme.test.mjs r2 re-derives the figures from the profile.",
+          "files": [
+            "tests/fixtures/repos/mixed-platform",
+            "tests/e2e.test.mjs",
+            "skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json",
+            "skills/architecture-map/evals/README.md",
+            "skills/architecture-map/evals/evals.json",
+            "README.md",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/e2e.test.mjs: the mixed fixture goes through prescan, merge, validate --repo, layout and render with nodes of all four new kinds and the API, every element with evidence, byte-identical on a second run",
+              "tests/readme.test.mjs: the mixed-build rows of both READMEs equal the tracked profile's cost, turns and context"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P13.5",
+            "P13.6"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.9",
+          "title": "Roadmap, CHANGELOG and README for the v1.1 extraction",
+          "status": "pending",
+          "description": "Close the v1.1 item of docs/roadmap.md the way the benchmark item is closed (close date and the evidence that closes it: the four fixture repositories, the prescan tests, the schema test over every committed map, the tracked mixed-build profile), add the Unreleased CHANGELOG lines for the four extractors, the entity-fields change and the three findings, and name the new kinds in README.md What a build delivers and in the skill description. The version bump and tag are left to the owner's decision in openChoices.",
+          "files": [
+            "docs/roadmap.md",
+            "CHANGELOG.md",
+            "README.md",
+            "skills/architecture-map/SKILL.md",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/readme.test.mjs: r6 sees the v1.1 item closed with a close date and the evidence paragraph, and the README names the four new kinds"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P13.8",
+            "P13.7"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
+      "request": "Zatim predloži fazu v1.1 iz docs/roadmap.md (/audit:phase add), bez pokretanja.",
+      "openChoices": [
+        "Whether the 1.1.0 version bump, CHANGELOG release heading and tag happen inside this phase or in a separate release phase as 1.0.0 did (P9)",
+        "Whether Bicep is in the first cut beside Terraform, or Terraform only with Bicep following",
+        "Whether the R7 follow-up (running the tracked grader over the real private benchmark cells) is an owner-run step, since the cells live only on the owner's machine",
+        "Whether the mixed-fixture headless build is run by the orchestrator or by the owner, as the self-build runs were"
+      ]
     }
   ],
   "fileIndex": {
@@ -9673,12 +10084,14 @@
     "tests/schema.test.mjs": [
       "P1.1",
       "P1.5-hma",
-      "BF1.1"
+      "BF1.1",
+      "P13.5"
     ],
     "scripts/validate.mjs": [
       "P1.2",
       "P1.4-hma",
-      "BF1.1"
+      "BF1.1",
+      "P13.5"
     ],
     "scripts/lib/jsonschema.mjs": [
       "P1.2"
@@ -9766,7 +10179,8 @@
       "P10.13-6rm",
       "P10.15-6rm",
       "P10.17-6rm",
-      "P8.9"
+      "P8.9",
+      "P13.5"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
@@ -9782,7 +10196,8 @@
       "P10.2-2xj",
       "P10.6-6rm",
       "P10.14-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P13.5"
     ],
     "scripts/lib/prescan/generic.mjs": [
       "P3.1",
@@ -9811,7 +10226,8 @@
       "P10.10-6rm",
       "P10.11-6rm",
       "P10.13-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P13.6"
     ],
     "tests/fixtures/repos/python-api/README.md": [
       "P3.2",
@@ -9825,7 +10241,8 @@
       "P10.13-6rm",
       "P10.15-6rm",
       "P10.18-6rm",
-      "P10.20-6rm"
+      "P10.20-6rm",
+      "P13.6"
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
@@ -9847,7 +10264,8 @@
       "P10.13-6rm",
       "P10.14-6rm",
       "P10.18-6rm",
-      "P10.20-6rm"
+      "P10.20-6rm",
+      "P13.6"
     ],
     "tests/fixtures/repos/node-api/README.md": [
       "P3.4",
@@ -9859,7 +10277,8 @@
       "P10.10-6rm",
       "P10.14-6rm",
       "P10.13-6rm",
-      "P10.18-6rm"
+      "P10.18-6rm",
+      "P13.6"
     ],
     "tests/fixtures/repos/python-api/pyproject.toml": [
       "P3.2"
@@ -10029,7 +10448,8 @@
     "tests/prescan-wiring.test.mjs": [
       "P3.5-cdj",
       "P10.15-6rm",
-      "P10.17-6rm"
+      "P10.17-6rm",
+      "P13.5"
     ],
     "skills/architecture-map/references/model-schema.md": [
       "P4.1",
@@ -10040,10 +10460,12 @@
       "P10.11-6rm",
       "P10.13-6rm",
       "P10.17-6rm",
-      "P8.7"
+      "P8.7",
+      "P13.5"
     ],
     "skills/architecture-map/references/relation-taxonomy.md": [
-      "P4.1"
+      "P4.1",
+      "P13.5"
     ],
     "skills/architecture-map/references/sequences.md": [
       "P4.1",
@@ -10058,7 +10480,8 @@
       "P10.11-6rm"
     ],
     "skills/architecture-map/references/stack-python-backend.md": [
-      "P4.2"
+      "P4.2",
+      "P13.6"
     ],
     "skills/architecture-map/references/stack-ts-frontend.md": [
       "P4.2"
@@ -10068,7 +10491,8 @@
     ],
     "skills/architecture-map/references/schema-introspection.md": [
       "P4.2",
-      "P4.9-w15"
+      "P4.9-w15",
+      "P13.6"
     ],
     "tests/skill-discovery-refs.test.mjs": [
       "P4.2"
@@ -10107,7 +10531,9 @@
       "P8.9",
       "P11.1",
       "P11.8-6o1",
-      "P9.6"
+      "P9.6",
+      "P13.5",
+      "P13.9"
     ],
     "tests/skill.test.mjs": [
       "P4.4",
@@ -10134,7 +10560,8 @@
       "P10.10-6rm",
       "P10.13-6rm",
       "P10.19-6rm",
-      "P8.5"
+      "P8.5",
+      "P13.5"
     ],
     "agents/archmap-synthesizer.md": [
       "P4.5",
@@ -10177,7 +10604,9 @@
       "P10.17-6rm",
       "P8.7",
       "P8.9",
-      "BF2.1"
+      "BF2.1",
+      "P13.5",
+      "P13.6"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -10196,7 +10625,9 @@
       "P10.17-6rm",
       "P8.7",
       "P8.9",
-      "BF2.1"
+      "BF2.1",
+      "P13.5",
+      "P13.6"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -10247,7 +10678,8 @@
       "P5.5",
       "P5.6-2zy",
       "P5.7-2zy",
-      "P10.4-2xj"
+      "P10.4-2xj",
+      "P13.8"
     ],
     "tests/fixtures/e2e/": [
       "P5.5",
@@ -10327,19 +10759,23 @@
       "P9.4",
       "P9.7",
       "P12.5",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.8",
+      "P13.9"
     ],
     "CHANGELOG.md": [
       "P7.6",
       "P9.2",
       "P9.8",
       "P12.5",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.9"
     ],
     "skills/architecture-map/evals/evals.json": [
       "P8.1",
       "P8.3",
-      "P11.2"
+      "P11.2",
+      "P13.8"
     ],
     "skills/architecture-map/evals/README.md": [
       "P8.1",
@@ -10356,7 +10792,8 @@
       "P11.9-6o1",
       "P9.7",
       "P12.5",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.8"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -10391,7 +10828,8 @@
       "P8.8",
       "P11.3",
       "P12.3",
-      "P12.9-m8w"
+      "P12.9-m8w",
+      "P13.7"
     ],
     "tests/cost-profile.test.mjs": [
       "P10.1-2xj",
@@ -10400,7 +10838,8 @@
       "P8.8",
       "P11.3",
       "P12.3",
-      "P12.9-m8w"
+      "P12.9-m8w",
+      "P13.7"
     ],
     "tests/fixtures/cost/stream-sample.jsonl": [
       "P10.1-2xj",
@@ -10480,7 +10919,8 @@
     "tests/fixtures/repos/python-api": [
       "P10.11-6rm",
       "P10.13-6rm",
-      "P10.15-6rm"
+      "P10.15-6rm",
+      "P13.6"
     ],
     "skills/architecture-map/evals/evidence": [
       "P11.3",
@@ -10495,7 +10935,9 @@
       "P9.4",
       "P9.7",
       "P12.5",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.8",
+      "P13.9"
     ],
     "docs/architecture": [
       "P11.6",
@@ -10515,7 +10957,8 @@
     "docs/roadmap.md": [
       "P9.4",
       "P12.5",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.9"
     ],
     "docs/release/marketplace-entry.json": [
       "P9.5"
@@ -10533,7 +10976,8 @@
       "P12.4",
       "P12.5",
       "P12.6-m8w",
-      "P12.8-m8w"
+      "P12.8-m8w",
+      "P13.7"
     ],
     "skills/architecture-map/evals/benchmark/PROTOCOL.md": [
       "P12.2",
@@ -10541,7 +10985,8 @@
       "P12.4",
       "P12.6-m8w",
       "P12.7-m8w",
-      "P12.8-m8w"
+      "P12.8-m8w",
+      "P13.7"
     ],
     "skills/architecture-map/evals/benchmark/prompt.md": [
       "P12.2"
@@ -10562,7 +11007,8 @@
     "skills/architecture-map/evals/BENCHMARK.md": [
       "P12.5",
       "P12.8-m8w",
-      "P12.6-m8w"
+      "P12.6-m8w",
+      "P13.7"
     ],
     "skills/architecture-map/evals/benchmark/grade-benchmark.mjs": [
       "P12.8-m8w"
@@ -10581,6 +11027,78 @@
     ],
     "docs/architecture/archmap.html": [
       "BF2.2-8q4"
+    ],
+    "scripts/lib/prescan/containers.mjs": [
+      "P13.1"
+    ],
+    "scripts/lib/prescan/stacks/containers.mjs": [
+      "P13.1"
+    ],
+    "skills/architecture-map/references/stack-containers.md": [
+      "P13.1"
+    ],
+    "tests/fixtures/repos/containers": [
+      "P13.1"
+    ],
+    "tests/prescan-containers.test.mjs": [
+      "P13.1"
+    ],
+    "scripts/lib/prescan/pipelines.mjs": [
+      "P13.2"
+    ],
+    "scripts/lib/prescan/stacks/pipelines.mjs": [
+      "P13.2"
+    ],
+    "skills/architecture-map/references/stack-pipelines.md": [
+      "P13.2"
+    ],
+    "tests/fixtures/repos/pipelines": [
+      "P13.2"
+    ],
+    "tests/prescan-pipelines.test.mjs": [
+      "P13.2"
+    ],
+    "scripts/lib/prescan/iac.mjs": [
+      "P13.3"
+    ],
+    "scripts/lib/prescan/stacks/iac.mjs": [
+      "P13.3"
+    ],
+    "skills/architecture-map/references/stack-iac.md": [
+      "P13.3"
+    ],
+    "tests/fixtures/repos/iac": [
+      "P13.3"
+    ],
+    "tests/prescan-iac.test.mjs": [
+      "P13.3"
+    ],
+    "scripts/lib/prescan/data-platform.mjs": [
+      "P13.4"
+    ],
+    "scripts/lib/prescan/stacks/data-platform.mjs": [
+      "P13.4"
+    ],
+    "skills/architecture-map/references/stack-data-platform.md": [
+      "P13.4"
+    ],
+    "tests/fixtures/repos/data-platform": [
+      "P13.4"
+    ],
+    "tests/prescan-data-platform.test.mjs": [
+      "P13.4"
+    ],
+    "schema": [
+      "P13.5"
+    ],
+    "skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json": [
+      "P13.7"
+    ],
+    "tests/fixtures/repos/mixed-platform": [
+      "P13.8"
+    ],
+    "skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json": [
+      "P13.8"
     ]
   },
   "bugs": [
