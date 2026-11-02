@@ -1,0 +1,55 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/BENCHMARK.md:58-59",
+      "issue": "The fix for P12-R1 turns 'provisional' into an attestation that the owner confirmed all 12 rubric scores as their own on 2026-11-02 (BENCHMARK.md:58-59, :69-70, :79; PROTOCOL.md:92-94, :104-105; summary.json scoredBy x12). Nothing in the record I was handed carries that confirmation. The task description allowed it ('have the owner score... or leave the item open') but the filed outcome and the manifest do not quote an owner statement. A public benchmark page now states a human act that the diff cannot show.",
+      "resolution": "Before sign-off, record the owner's confirmation verbatim (a task note or the phase sign-off message). If the owner has not confirmed, revert scoredBy and the three prose spots to the provisional wording and reopen the roadmap/CHANGELOG item."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "scripts/cost-profile.mjs:1342",
+      "issue": "describe() bounds the fallback label to task: plus 40 slug characters but does not redact: the first 40 characters of a description that quotes repository text or a path still land in tracked profiles (c22 itself shows a description beginning with an absolute-looking path surfacing as task:read-users-someone-secret-repo-src-and-r). The reserved-name guard is applied to the slug before the task: prefix, so it only fires for the unprefixed case and can never collide with the orchestrator row. A subagent_type of 'orchestrator' still merges (unchanged by the diff, out of the finding's scope). The 13 tracked profiles are unaffected.",
+      "resolution": "Carry: either drop the free-text fallback to a constant such as task:unnamed plus an index, or document in cost-profile.mjs and the evals README that a description-derived label can carry up to 40 characters of the author's text and must be reviewed before a profile is tracked."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/BENCHMARK.md:421-422",
+      "issue": "'The tracked script reproduces the private grader the cells were graded with' (and PROTOCOL.md Runs, 'graded with this grader's rules') rests on a differential check on 9 synthetic cells run in the executor's scratchpad (not tracked). The tracked grader was never run on the real, private cells, and tests b24-b31 only exercise synthetic fixtures, so the equivalence claim cannot be re-checked from the repository. A third party can now re-run grading but cannot confirm it equals the grading behind the recorded counts.",
+      "resolution": "Carry: soften the sentence to 'ports the grader's rules; equivalence on the recorded cells was checked privately', or have the owner re-grade the 13 private cells with the tracked script and note that the 13 summaries are identical."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "Re-review of the four fix commits. P12-R1 (5c0d0ee): scoredBy x12, BENCHMARK.md and PROTOCOL.md now consistently say proposed by the orchestrator and confirmed by the owner; no 'provisional' remains outside test assertions that check its absence (git grep); README, evals README, roadmap and CHANGELOG make no contrary claim. Resolved, subject to finding 1 (the confirmation itself is not in the record). P12-R2 (d1847cf): the Deviation-on-C bullet no longer names settings files, hooks, plugin or guard mode; it is generic and the facts a reader needs (run 1 discarded, run 2 on fresh clones, <tool>-C-2.json) stay. Resolved. P12-R3 (b8f0a1e): chose the 'track a repo-free grader' branch; grade-benchmark.mjs (422 lines) is Node 18, zero deps, spawnSync with argument arrays (git status; python3 -I only for the opt-in --draw-c4-plot), deterministic, never executes the mapped repo's code; PROTOCOL.md and BENCHMARK.md now name the grader and its command, and point headless flags at run-candidate.sh. It also corrects the 'path exists' wording to 'a file or folder path', which matches the code (PATHLIKE never checks existence). Resolved, subject to finding 3. P12-R4 (2e3b7a2): describe() slugs to [a-z0-9-], cut to 40, prefixed task:, empty or reserved becomes unknown-subagent; c20 updated, c22/c23 added; I checked c22's expected string by hand (40 characters). Resolved for the cap and the orchestrator-merge risk, subject to finding 2. Scanner (base 3433c8b, head 2e3b7a2): 17 files, 1483 added lines, 14 denylist terms checked, no leads; a grep of added lines finds no home path, host or personal name (the absolute-path literals are test inputs and negative patterns; the .private mention is documentation). Claims of the four filed outcomes describe their diffs. Gate runs passed (node --test exit 0 for each).",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase-level review: intent.redFirst is not-attempted. For the fix tasks: P12.6 and P12.7 filed not-attempted (gate-only, expectRedFirst false); P12.8 and P12.9 filed could-not-prove (red-first helper exited 1 with no test tally, so no collected test or assertion was shown), which holds as the refusal reason given verbatim. I saw no red myself.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "Every fix task's tests.gate is the single command `node --test`, which runs the whole project, so no selection bounded the question."
+  },
+  "verdict": "findings",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P12.6-m8w",
+      "commit": "5c0d0ee0c777"
+    },
+    {
+      "id": "P12.7-m8w",
+      "commit": "d1847cf8a275"
+    },
+    {
+      "id": "P12.8-m8w",
+      "commit": "b8f0a1e0d227"
+    },
+    {
+      "id": "P12.9-m8w",
+      "commit": "2e3b7a29860a"
+    }
+  ]
+}

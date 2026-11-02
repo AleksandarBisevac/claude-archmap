@@ -8757,7 +8757,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P12-R1",
@@ -8794,13 +8794,52 @@
             "severity": "low",
             "file": "scripts/cost-profile.mjs:110",
             "issue": "An Agent or Task call with no subagent_type is now labelled by its free-text description, trimmed but unbounded. The label lands verbatim in the tracked evidence profiles and the text report, so a description that quotes repository content would put it in a public file, and a description equal to 'orchestrator' would merge into the orchestrator row. This phase's 13 profiles are clean (labels are archmap:* names and Explore), so it is a latent risk of the new fallback.",
-            "resolution": "Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20.",
-            "fixTask": "P12.9-m8w"
+            "resolution": "fixed in P12.9-m8w (2e3b7a29860a): Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20.",
+            "fixTask": "P12.9-m8w",
+            "commit": "2e3b7a29860a",
+            "status": "fixed"
+          },
+          {
+            "id": "P12-R5",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/BENCHMARK.md:58-59",
+            "issue": "The fix for P12-R1 turns 'provisional' into an attestation that the owner confirmed all 12 rubric scores as their own on 2026-11-02 (BENCHMARK.md:58-59, :69-70, :79; PROTOCOL.md:92-94, :104-105; summary.json scoredBy x12). Nothing in the record I was handed carries that confirmation. The task description allowed it ('have the owner score... or leave the item open') but the filed outcome and the manifest do not quote an owner statement. A public benchmark page now states a human act that the diff cannot show.",
+            "resolution": "Before sign-off, record the owner's confirmation verbatim (a task note or the phase sign-off message). If the owner has not confirmed, revert scoredBy and the three prose spots to the provisional wording and reopen the roadmap/CHANGELOG item.",
+            "status": "accepted-open",
+            "acceptedReason": "P12 delivered the 1.0.0 benchmark: three candidates chosen on stated criteria (CANDIDATES.md), a repo-free protocol with one tool-neutral prompt (PROTOCOL.md, prompt.md, rubric.md), a tracked harness (run-candidate.sh, grade-benchmark.mjs, cost-profile.mjs hardened for foreign streams), 13 run profiles and a summary under evidence/benchmark, and BENCHMARK.md whose every figure a test derives from them; both READMEs link it, the roadmap item is closed, CHANGELOG has the line. Result: this plugin 4.43 USD over A, B and C against 4.95, 5.62 and 9.13 for the candidates, the only tool under 90 K orchestrator context in every run, 5 of 5 expectations on all three repositories, issue recall 0.933. Owner decisions on 2026-11-02: the rubric scores proposed by the orchestrator are confirmed as the owner's own (their words: Potvrdjujem moje ocene kao tvoje), the three intent divergences accepted (Prihvatam sva tri), fix tasks for R1 to R4 done and re-reviewed. The re-review's three low findings (R5 the confirmation is attested here in the sign-off record; R6 the fallback label is bounded but not redacted; R7 the equivalence of the tracked grader to the private one rests on the 9-cell comparison) are left recorded for the v1.1 phase. Reviewer answers accepted: Prihvatam sva tri"
+          },
+          {
+            "id": "P12-R6",
+            "severity": "low",
+            "file": "scripts/cost-profile.mjs:1342",
+            "issue": "describe() bounds the fallback label to task: plus 40 slug characters but does not redact: the first 40 characters of a description that quotes repository text or a path still land in tracked profiles (c22 itself shows a description beginning with an absolute-looking path surfacing as task:read-users-someone-secret-repo-src-and-r). The reserved-name guard is applied to the slug before the task: prefix, so it only fires for the unprefixed case and can never collide with the orchestrator row. A subagent_type of 'orchestrator' still merges (unchanged by the diff, out of the finding's scope). The 13 tracked profiles are unaffected.",
+            "resolution": "Carry: either drop the free-text fallback to a constant such as task:unnamed plus an index, or document in cost-profile.mjs and the evals README that a description-derived label can carry up to 40 characters of the author's text and must be reviewed before a profile is tracked.",
+            "status": "accepted-open",
+            "acceptedReason": "P12 delivered the 1.0.0 benchmark: three candidates chosen on stated criteria (CANDIDATES.md), a repo-free protocol with one tool-neutral prompt (PROTOCOL.md, prompt.md, rubric.md), a tracked harness (run-candidate.sh, grade-benchmark.mjs, cost-profile.mjs hardened for foreign streams), 13 run profiles and a summary under evidence/benchmark, and BENCHMARK.md whose every figure a test derives from them; both READMEs link it, the roadmap item is closed, CHANGELOG has the line. Result: this plugin 4.43 USD over A, B and C against 4.95, 5.62 and 9.13 for the candidates, the only tool under 90 K orchestrator context in every run, 5 of 5 expectations on all three repositories, issue recall 0.933. Owner decisions on 2026-11-02: the rubric scores proposed by the orchestrator are confirmed as the owner's own (their words: Potvrdjujem moje ocene kao tvoje), the three intent divergences accepted (Prihvatam sva tri), fix tasks for R1 to R4 done and re-reviewed. The re-review's three low findings (R5 the confirmation is attested here in the sign-off record; R6 the fallback label is bounded but not redacted; R7 the equivalence of the tracked grader to the private one rests on the 9-cell comparison) are left recorded for the v1.1 phase. Reviewer answers accepted: Prihvatam sva tri"
+          },
+          {
+            "id": "P12-R7",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/BENCHMARK.md:421-422",
+            "issue": "'The tracked script reproduces the private grader the cells were graded with' (and PROTOCOL.md Runs, 'graded with this grader's rules') rests on a differential check on 9 synthetic cells run in the executor's scratchpad (not tracked). The tracked grader was never run on the real, private cells, and tests b24-b31 only exercise synthetic fixtures, so the equivalence claim cannot be re-checked from the repository. A third party can now re-run grading but cannot confirm it equals the grading behind the recorded counts.",
+            "resolution": "Carry: soften the sentence to 'ports the grader's rules; equivalence on the recorded cells was checked privately', or have the owner re-grade the 13 private cells with the tracked script and note that the 13 summaries are identical.",
+            "status": "accepted-open",
+            "acceptedReason": "P12 delivered the 1.0.0 benchmark: three candidates chosen on stated criteria (CANDIDATES.md), a repo-free protocol with one tool-neutral prompt (PROTOCOL.md, prompt.md, rubric.md), a tracked harness (run-candidate.sh, grade-benchmark.mjs, cost-profile.mjs hardened for foreign streams), 13 run profiles and a summary under evidence/benchmark, and BENCHMARK.md whose every figure a test derives from them; both READMEs link it, the roadmap item is closed, CHANGELOG has the line. Result: this plugin 4.43 USD over A, B and C against 4.95, 5.62 and 9.13 for the candidates, the only tool under 90 K orchestrator context in every run, 5 of 5 expectations on all three repositories, issue recall 0.933. Owner decisions on 2026-11-02: the rubric scores proposed by the orchestrator are confirmed as the owner's own (their words: Potvrdjujem moje ocene kao tvoje), the three intent divergences accepted (Prihvatam sva tri), fix tasks for R1 to R4 done and re-reviewed. The re-review's three low findings (R5 the confirmation is attested here in the sign-off record; R6 the fallback label is bounded but not redacted; R7 the equivalence of the tracked grader to the private one rests on the 9-cell comparison) are left recorded for the v1.1 phase. Reviewer answers accepted: Prihvatam sva tri"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 3 with a recorded fix commit]"
+        "outcome": "phase review filed at head 2e3b7a29860a [findings: 7 - 0 high, 1 med, 6 low; 4 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P12/2e3b7a29860ae89872051f786ee66a1e8e6b1c26.reviewer.json",
+            "sha256": "1bdc8b7c00a612652d73a66410fca8c86ad99c6a20700357bce51928772c6e5a"
+          },
+          {
+            "return": "returns/P12/3433c8b3a982e2a82d7bc23e94badb2f3a101507.reviewer.json",
+            "sha256": "5b0fe51116266e05470c902ab89bf9c8000d8f044bfbe1e3367a281dce34c9c3"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P12 delivered the 1.0.0 benchmark: three candidates chosen on stated criteria (CANDIDATES.md), a repo-free protocol with one tool-neutral prompt (PROTOCOL.md, prompt.md, rubric.md), a tracked harness (run-candidate.sh, grade-benchmark.mjs, cost-profile.mjs hardened for foreign streams), 13 run profiles and a summary under evidence/benchmark, and BENCHMARK.md whose every figure a test derives from them; both READMEs link it, the roadmap item is closed, CHANGELOG has the line. Result: this plugin 4.43 USD over A, B and C against 4.95, 5.62 and 9.13 for the candidates, the only tool under 90 K orchestrator context in every run, 5 of 5 expectations on all three repositories, issue recall 0.933. Owner decisions on 2026-11-02: the rubric scores proposed by the orchestrator are confirmed as the owner's own (their words: Potvrdjujem moje ocene kao tvoje), the three intent divergences accepted (Prihvatam sva tri), fix tasks for R1 to R4 done and re-reviewed. The re-review's three low findings (R5 the confirmation is attested here in the sign-off record; R6 the fallback label is bounded but not redacted; R7 the equivalence of the tracked grader to the private one rests on the 9-cell comparison) are left recorded for the v1.1 phase. Reviewer answers accepted: Prihvatam sva tri",
       "tasks": [
         {
           "id": "P12.1",
@@ -8846,9 +8885,14 @@
             "at": "2026-11-01T22:12:58Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "adbaf8315b48",
-            "at": "2026-11-01T22:12:59Z"
+            "at": "2026-11-02T08:53:26Z",
+            "return": "returns/P12/3433c8b3a982e2a82d7bc23e94badb2f3a101507.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.1/20261101T220812Z.executor.json, at 2026-11-01T22:11:22Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-01T22:11:22Z",
@@ -8905,9 +8949,14 @@
             "at": "2026-11-01T22:17:59Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "7ba3e1b06bb8",
-            "at": "2026-11-01T22:18:01Z"
+            "at": "2026-11-02T08:53:26Z",
+            "return": "returns/P12/3433c8b3a982e2a82d7bc23e94badb2f3a101507.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.2/20261101T221259Z.executor.json, at 2026-11-01T22:16:53Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-01T22:16:53Z",
@@ -8974,9 +9023,14 @@
             "at": "2026-11-01T22:27:51Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "e9466077f2a1",
-            "at": "2026-11-01T22:27:52Z"
+            "at": "2026-11-02T08:53:26Z",
+            "return": "returns/P12/3433c8b3a982e2a82d7bc23e94badb2f3a101507.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.3/20261101T221801Z.executor.json, at 2026-11-01T22:26:27Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-01T22:26:27Z",
@@ -9038,9 +9092,14 @@
             "at": "2026-11-02T08:05:58Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2030f2ac0fa7",
-            "at": "2026-11-02T08:05:59Z"
+            "at": "2026-11-02T08:53:26Z",
+            "return": "returns/P12/3433c8b3a982e2a82d7bc23e94badb2f3a101507.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P12.4/20261102T075726Z.executor.json, at 2026-11-02T08:02:41Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T08:02:41Z",
@@ -9105,9 +9164,14 @@
             "at": "2026-11-02T08:16:53Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "3433c8b3a982",
-            "at": "2026-11-02T08:16:07Z"
+            "at": "2026-11-02T08:53:26Z",
+            "return": "returns/P12/3433c8b3a982e2a82d7bc23e94badb2f3a101507.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Executor basis, verbatim: '`node --test tests/benchmark.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected'. The reason holds; I did not re-run it.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T08:14:23Z",
@@ -9340,7 +9404,7 @@
         {
           "id": "P12.9-m8w",
           "title": "fix P12-R4: An Agent or Task call with no subagent_type is now labelled by it...",
-          "status": "in_progress",
+          "status": "done",
           "description": "An Agent or Task call with no subagent_type is now labelled by its free-text description, trimmed but unbounded. The label lands verbatim in the tracked evidence profiles and the text report, so a description that quotes repository content would put it in a public file, and a description equal to 'orchestrator' would merge into the orchestrator row. This phase's 13 profiles are clean (labels are archmap:* names and Explore), so it is a latent risk of the new fallback.\n\nResolution asked: Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20.",
           "files": [
             "scripts/cost-profile.mjs",
@@ -9364,14 +9428,18 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2e3b7a29860a",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/cost-profile.mjs: a description-derived label is now describe(): lowercase, runs of non [a-z0-9-] collapsed to one hyphen, leading hyphens trimmed, cut to 40 characters, trailing hyphens trimmed, prefixed 'task:'; an empty slug or a reserved name (orchestrator, unknown-subagent, total) gives 'unknown-subagent'. subagent_type labels are unchanged (out of the finding's scope). tests/cost-profile.test.mjs: c20 updated to the new label 'task:survey-the-routes' (all other expectations unchanged); added c22 (long multi-line description with a path-like text bounded to task: + 40 chars of [a-z0-9-], exact cut value, text report carries no later words, cut landing on a hyphen is trimmed) and c23 (descriptions 'orchestrator', 'Orchestrator!', 'total', 'unknown-subagent', blank, '!!!' and empty all become unknown-subagent with exactly one orchestrator row keeping its 3 turns). tests/fixtures/cost/expected.json untouched and c3 passes (no subagent_type-less call there); benchmark.test.mjs passes so the 13 tracked profiles are unaffected. node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs: 55 pass, 0 fail; full node --test: 498 pass, 0 fail. Dependants (pipeline.mjs, usage.mjs, architecture model/html, benchmark/evals/readme tests): still correct, the CLI output shape and every non-description label are unchanged; only the label text of a subagent_type-less call changes.",
+            "descriptive": "Description-derived cost-profile labels are bounded to task: plus 40 slug characters and can no longer merge into the orchestrator row or carry repository text."
           },
           "startedAt": "2026-11-02T08:45:37Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T08:49:34Z",
+          "verifiedBy": [
+            "c22: long multi-line description bounded and slugged",
+            "c23: reserved or empty descriptions become unknown-subagent, orchestrator row not merged",
+            "c20 updated to the task:<slug> label"
+          ],
           "notes": [
             {
               "at": "2026-11-02T08:23:16Z",
@@ -9390,11 +9458,28 @@
             "runId": "2026-11-02T08:49:33Z.0e4984",
             "status": "passed",
             "at": "2026-11-02T08:49:33Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "2e3b7a29860a",
+            "at": "2026-11-02T08:49:34Z",
+            "basis": "a fix task for P12-R4, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-11-02T08:48:23Z",
+            "basis": "`node --test tests/cost-profile.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-11-01T22:08:12Z"
+      "startedAt": "2026-11-01T22:08:12Z",
+      "testEvidence": {
+        "runId": "2026-11-02T08:53:25Z.d53fd0",
+        "status": "passed",
+        "at": "2026-11-02T08:53:25Z"
+      }
     }
   ],
   "fileIndex": {
