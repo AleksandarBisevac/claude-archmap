@@ -9687,8 +9687,10 @@
             "severity": "low",
             "file": "schema/archmap-model.schema.json:79",
             "issue": "The edge type enum gains depends, lineage and artifact, but docs/design.md section 5 (line 107, 'The types come from the artifact (api, static, ... deploy) plus event/queue') is not touched by the phase, so it no longer matches the schema. The model-contract rule asks schema, validate.mjs and design section 5 to agree, and test s3 is titled 'model enums match design section 5' while its expected list was widened without the design text. Severity is low because the enum change is additive, relation-taxonomy.md and model-schema.md were updated, and the change is documentation drift only.",
-            "resolution": "Add depends, lineage and artifact to docs/design.md line 107 (one phrase, e.g. 'plus event/queue and, from v1.1, depends/lineage/artifact') and the new node kinds pipeline, job, resource, module, model, source where section 5 lists kinds.",
-            "fixTask": "P13.13-exy"
+            "resolution": "fixed in P13.13-exy (d166aae5b11f): Add depends, lineage and artifact to docs/design.md line 107 (one phrase, e.g. 'plus event/queue and, from v1.1, depends/lineage/artifact') and the new node kinds pipeline, job, resource, module, model, source where section 5 lists kinds.",
+            "fixTask": "P13.13-exy",
+            "commit": "d166aae5b11f",
+            "status": "fixed"
           },
           {
             "id": "P13-R3",
@@ -9731,7 +9733,7 @@
             "fixTask": "P13.18-exy"
           }
         ],
-        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 0 with a recorded fix commit]"
+        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 1 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -10543,7 +10545,7 @@
         {
           "id": "P13.13-exy",
           "title": "fix P13-R2: The edge type enum gains depends, lineage and artifact, but docs/...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The edge type enum gains depends, lineage and artifact, but docs/design.md section 5 (line 107, 'The types come from the artifact (api, static, ... deploy) plus event/queue') is not touched by the phase, so it no longer matches the schema. The model-contract rule asks schema, validate.mjs and design section 5 to agree, and test s3 is titled 'model enums match design section 5' while its expected list was widened without the design text. Severity is low because the enum change is additive, relation-taxonomy.md and model-schema.md were updated, and the change is documentation drift only.\n\nResolution asked: Add depends, lineage and artifact to docs/design.md line 107 (one phrase, e.g. 'plus event/queue and, from v1.1, depends/lineage/artifact') and the new node kinds pipeline, job, resource, module, model, source where section 5 lists kinds.",
           "files": [
             "schema/archmap-model.schema.json",
@@ -10566,14 +10568,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "d166aae5b11f",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Edited docs/design.md section 5: node kinds now list pipeline|resource|model|source (module and job were already there), and the edges bullet adds depends, lineage and artifact with one phrase each. Rewrote tests/schema.test.mjs s3 to read zone kind, edge type, confidence, entity kind, relation cardinality and relation kind from the design text (a designBullet helper slices the section 5 bullet, alternatives()/ticked() parse the lists) instead of literal lists; s3 also checks every design node kind is in the relation-taxonomy.md kind table and that pipeline, job, resource, module, model and source are listed. Full run: node --test, 575 tests, 575 pass, 0 fail (counts read from the TAP summary; the exit code was lost behind a grep pipe). tests/schema.test.mjs alone: 15 pass. Scope: the brief's files list only schema/archmap-model.schema.json, which I did not change (the node kind in the schema is an open string, the edge enum already had the three types). docs/design.md and tests/schema.test.mjs are outside that list; the plan gate allowed both edits without refusal. Dependants: architecture.model.json, archmap.html, merge.mjs, viewer.test.mjs, skill-references.test.mjs, README.md, model-schema.md and relation-taxonomy.md are still correct because the schema is unchanged and the design text now matches the enum those files already follow; relation-taxonomy.md is now also read by s3 (unchanged).",
+            "descriptive": "Design section 5 agrees with the schema enums again, and test s3 now parses the design text so future drift fails the suite."
           },
           "startedAt": "2026-11-02T23:51:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T23:55:00Z",
+          "verifiedBy": [
+            "s3 now derives expected enums from docs/design.md section 5 and checks node kinds against the taxonomy table (no new case; tests.add was none)"
+          ],
           "notes": [
             {
               "at": "2026-11-02T23:51:49Z",
@@ -10596,12 +10600,23 @@
             "runId": "2026-11-02T23:54:59Z.e8e3f5",
             "status": "passed",
             "at": "2026-11-02T23:54:59Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "d166aae5b11f",
+            "at": "2026-11-02T23:55:00Z",
+            "basis": "a fix task for P13-R2, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "tests.expectRedFirst is false on this tdd task: it names no case to prove a red by, so no red-first proof is owed",
+            "at": "2026-11-02T23:53:44Z"
           }
         },
         {
           "id": "P13.14-exy",
           "title": "fix P13-R3: P13.5 made merge.mjs create a node per Terraform or Bicep resourc...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "P13.5 made merge.mjs create a node per Terraform or Bicep resource and module, per pipeline file and job, and per dbt model and source (150 per stack), and the Edges item of each stack reference was updated to say so. The Nodes item of the same references still tells the explorer the opposite: stack-iac.md:28 'A resource is not an architecture node by itself ... Networks, subnets, security groups ... are plumbing: they belong in notes ... not as nodes'; stack-pipelines.md:24 'A pipeline is not an architecture node by itself'; stack-data-platform.md:29 'a repo of fifty models is not fifty nodes ... a layer is a group, not a node'. The explorer therefore does not know that merge already made the plumbing nodes. Its own system-component nodes are deduplicated only when they share an id or title slug, the same paths, or the same cited line range, so duplicates beside the merge nodes are likely.\n\nResolution asked: In the Nodes item of stack-iac.md, stack-pipelines.md and stack-data-platform.md, say that merge already makes the level-3 resource, module, pipeline, job, model and source nodes. Then tell the explorer to add only the grouped system-level nodes (service, store, queue) and to cite the same block, so find() reuses the existing node.",
           "files": [
             "skills/architecture-map/references/stack-iac.md",
@@ -10624,14 +10639,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T23:55:01Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -10650,7 +10665,13 @@
           ],
           "fixes": [
             "P13-R3"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T23:58:34Z.4dd120",
+            "status": "passed",
+            "at": "2026-11-02T23:58:34Z"
+          }
         },
         {
           "id": "P13.15-exy",

@@ -26,11 +26,12 @@ edge only when the package is the project itself.
 
 ## What you must still read yourself
 
-1. **Nodes.** A model is not an architecture node by itself, and a repo of fifty models is not fifty nodes. Group the
-   models by `layer` and by what they hold: a source table the project reads is the border of the system (a `store` node
-   or an external system, cited at the `sources` evidence), the warehouse the models build into is one `store` node, and
-   a layer (`staging`, `intermediate`, `marts`) is a group, not a node. Name the few models that are an output others
-   consume (the ones that no other model reads, or that an exposure, a dashboard or a job names) and cite the file lines.
+1. **Nodes.** The merge script already makes a level-3 node for every model and source table, so do not emit one per
+   model. Add only the grouped system-level nodes: a source table it reads is the border of the system (a
+   `store` node or an external system, cited at the `sources` evidence), the warehouse the models build into is one
+   `store` node, and a layer is a group for `notes`. Name the few output models others consume
+   (read by no other model, or named by an exposure). Cite the exact lines of any model or source
+   you stand for, so `find()` reuses your node and merge makes no twin.
 2. **Edges.** `lineage` is data flow, not a call, and the taxonomy has the `lineage` type for it: the merge script draws
    one from each upstream model or source to the model that reads it, cited at the line of the `ref()` or `source()`
    call, so do not repeat them. Use `sql` only for an edge you read yourself between a service and the warehouse.
@@ -47,7 +48,7 @@ edge only when the package is the project itself.
    them when the path goes through them.
 5. **Not followed.** Macros (`macros/`), `{% set %}` and `{% for %}` that build names, `var()` and `env_var()` values,
    `seeds/`, `snapshots/`, Python models, `packages.yml` and the compiled `target/` output are not read. A model built
-   from a macro call can hide a `ref`; read the macro when a model has no lineage and plainly must have an input.
+   from a macro call can hide a `ref`; read the macro when a model has no lineage and must have an input.
 6. **Credentials.** The warehouse, schema and account come from `profiles.yml` or the environment and are outside the
    checkout. Never write a host, account, user, password, token or key; name the platform only when a cited file says so.
 

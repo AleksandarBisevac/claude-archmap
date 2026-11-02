@@ -21,15 +21,14 @@ All items carry `evidence: [{path, lines}]`, sorted by path then line, capped pe
 
 ## What you must still read yourself
 
-1. **Nodes.** A pipeline is not an architecture node by itself. The things it builds and deploys are: an Azure
-   `deployTargets` app or a workflow's `environment` is the runtime of a `service` node you already found in the code,
-   and a pipeline that ships it is evidence for the deploy edge or for `notes`, not a node of its own. Emit a node for
-   a pipeline only when the pipeline is the system (a data or release pipeline whose jobs are the steps of the
-   product): then one `service` node per stage or job that does work, in a `data` zone, citing the job block.
-2. **Edges.** `passes` is a real hand-off (the download runs on what the upload produced) and is the best evidence a
-   pipeline gives. The merge script draws it as an `artifact` edge from the producing job to the consuming one, citing
-   the upload and the download lines, and draws `needs` and `dependsOn` as `depends` edges (the job depends on what it
-   needs): do not repeat either. Draw an edge of your own only for what the extract cannot say, typed from what the
+1. **Nodes.** The merge script already makes a node for every pipeline file and a level-3 node for every job and
+   stage, so do not emit one for them. Add only the grouped system-level nodes: an Azure `deployTargets` app or a
+   workflow's `environment` is the runtime of a `service` node, and the pipeline that
+   ships it is evidence for the deploy edge or `notes`. When the pipeline is the system (a data or release pipeline
+   whose jobs are the steps of the product), add one `service` node per job that does work, in a `data` zone. Cite the
+   exact block of any job or stage you stand for, so `find()` reuses your node and merge makes no twin.
+2. **Edges.** `passes` is a real hand-off (the download runs on what the upload produced). The merge script draws it as an `artifact` edge from the producing job to the consuming one, citing
+   the upload and the download lines, and draws `needs` and `dependsOn` as `depends` edges: do not repeat either. Draw an edge of your own only for what the extract cannot say, typed from what the
    artefact is (a build output the next job packages, or data the next job reads). `needs` and `dependsOn` are order,
    not a data flow: they are `confidence: inferred` for any edge you draw from them. A job with an `environment` and no artefact is a deploy, so the edge is from the code unit
    it builds to the runtime the environment names; read the build and deploy steps (`run:`, `script:`, `with:`) to see

@@ -72,3 +72,16 @@ test('r5 the four platform stack references describe the edge types the taxonomy
     assert.deepEqual(missing(text, mentions[stack]), [], `${stack}: edge types not described`);
   }
 });
+
+test('r6 the Nodes item of the four platform stack references says merge already makes the level-3 nodes and tells the explorer to cite the same block', () => {
+  const refs = ['containers', 'pipelines', 'iac', 'data-platform'];
+  for (const stack of refs) {
+    const text = read(`skills/architecture-map/references/stack-${stack}.md`);
+    const nodes = text.match(/^1\. \*\*Nodes\.\*\*[\s\S]*?(?=^2\. \*\*Edges)/m)?.[0] ?? '';
+    assert.notEqual(nodes, '', `${stack}: no Nodes item`);
+    assert.match(nodes, /merge script already makes/i, `${stack}: does not say merge already makes the nodes`);
+    assert.match(nodes, /find\(\)/, `${stack}: does not name find() as the reuse`);
+    assert.match(nodes, /cite/i, `${stack}: does not tell the explorer to cite the same block`);
+    assert.doesNotMatch(nodes, /is not an architecture node by itself|is not fifty nodes|a group, not a node|not as nodes of their own/i, `${stack}: still tells the explorer the opposite`);
+  }
+});

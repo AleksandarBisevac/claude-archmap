@@ -20,12 +20,12 @@ image, port or path stays as written.
 
 ## What you must still read yourself
 
-1. **Nodes.** Each compose service that you run yourself (`build:`) is a `service` node; a service that only pulls an
-   `image:` of a database, cache or broker (`postgres`, `mysql`, `redis`, `rabbitmq`, `kafka`, `minio`) is a `store` or
-   `queue` node, in a `data` zone. A reverse proxy (`nginx`, `traefik`, `caddy`) in front is an `edge` zone node. Do not
-   emit a node per Dockerfile: a Dockerfile describes how a node is built, so cite it as evidence of the `service` node
-   its compose `build.dockerfile` points at (the `dockerfile` path joins the two). A Dockerfile no compose service
-   builds is a deploy unit of its own: one `service` node, `paths` the directory holding it.
+1. **Nodes.** The merge script already makes a node for each compose service (a `service`, or a `store` or `queue`
+   in a `data` zone for a database, cache or broker `image:`) with its Dockerfile cited, and one for each Dockerfile
+   no service builds, so do not emit them again. Add what it cannot tell: a reverse proxy (`nginx`, `traefik`,
+   `caddy`) in front is an `edge` zone node, and a service's role is yours to write. For a
+   compose service, use its name as id or title and cite its compose block, so `find()` reuses your node and merge
+   makes no twin.
 2. **Edges.** `dependsOn` is start order, not a call. The merge script already draws each one as a `depends` edge
    (`confidence: verified` as a declared fact, cited at the compose line), so do not repeat it. Add the edge that says
    what the service really talks to: read the service's code or config (the `*_URL` and `*_HOST`
@@ -52,7 +52,7 @@ image, port or path stays as written.
 ## Fictional example
 
 `docker-compose.yml:14-27` declares `api` with `build: ./api`, port `8000:8000` and `dependsOn: ['db']`; `db` runs
-`postgres:16-alpine`. `api/Dockerfile:1-8` exposes 8000 and runs `docker-entrypoint.sh`. You emit a `service` node `api`
-(evidence the compose block and the Dockerfile range) and a `store` node `db` in a `data` zone, read
+`postgres:16-alpine`. `api/Dockerfile:1-8` exposes 8000 and runs `docker-entrypoint.sh`. Merge makes the `service` node `api`
+(evidence the compose block and the Dockerfile range) and the `store` node `db` in a `data` zone; you read
 `api/app/db.py:5` and find the engine built from `DATABASE_URL`, and emit `api -> db` of type `sql` with
 `confidence: verified`, citing the compose `environment` line and `db.py:5`.

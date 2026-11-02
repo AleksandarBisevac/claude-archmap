@@ -25,14 +25,14 @@ provider is never guessed. Comments, string text and heredoc text hold no refere
 
 ## What you must still read yourself
 
-1. **Nodes.** A resource is not an architecture node by itself. Turn the ones that are a system component into nodes:
-   a compute resource (`aws_instance`, `aws_lambda_function`, `azurerm_linux_web_app`, `Microsoft.Web/sites`, a
-   container app or cluster) is a `service` node, a database, cache, bucket or storage account
-   (`aws_db_instance`, `aws_s3_bucket`, `Microsoft.Storage/storageAccounts`, `Microsoft.Sql/servers`) a `store` node, a
-   queue or topic (`aws_sqs_queue`, `Microsoft.ServiceBus/namespaces`) a `queue` node, all in a `data` zone when they
-   hold data and an `edge` zone when they sit in front (load balancer, gateway, CDN). Networks, subnets, security
-   groups, IAM roles, DNS records and `blobServices`-style children are plumbing: they belong in `notes` or as evidence
-   of the node they serve, not as nodes of their own. Cite the block lines.
+1. **Nodes.** The merge script already makes a level-3 node for every resource and module, networks, subnets, security
+   groups and IAM roles included, so do not emit one per block. Add only the grouped system-level nodes: a compute
+   resource (`aws_instance`, `Microsoft.Web/sites`, a container app or
+   cluster) is a `service` node, a database, cache, bucket or storage account (`aws_db_instance`, `aws_s3_bucket`,
+   `Microsoft.Storage/storageAccounts`, `Microsoft.Sql/servers`) a `store` node, a queue or topic (`aws_sqs_queue`,
+   `Microsoft.ServiceBus/namespaces`) a `queue` node, in a `data` zone when they hold data and an `edge` zone when they
+   sit in front (load balancer, CDN). Plumbing goes in `notes`. Cite the exact block of any resource or module
+   you stand for, so `find()` reuses your node and merge makes no twin.
 2. **Edges.** `references` are wiring, not traffic. The merge script draws each one between the resource and module
    nodes it makes as a `depends` edge (the referencing block depends on the referenced one), cited at the lines that
    hold the reference, so do not repeat them. A `parent` edge or a subnet or security group an instance attaches
@@ -62,11 +62,11 @@ provider is never guessed. Comments, string text and heredoc text hold no refere
 `terraform/main.tf:10-15` is `aws_vpc.main`, `:17-20` the `aws_subnet.app` that reads `aws_vpc.main.id` at `:18`, and
 `:28-38` the `aws_instance.web`, which reads `aws_subnet.app.id` at `:31`, the `database` module's `endpoint` at `:33`
 and lists `module.database` in `depends_on` at `:36`. `terraform/modules.tf:1-5` is `module.database`, whose `target` is
-`terraform/modules/database`. You emit a `service` node for the instance and a `store` node for what the `database`
+`terraform/modules/database`. You emit a `service` node for the instance (citing `:28-38`) and a `store` node for what the `database`
 module builds (its directory shows the resources), with an edge from the first to the second typed from what the
 instance does with the endpoint, `confidence: inferred` unless the start-up code that reads it is cited as well, citing
 `terraform/main.tf:33` and `terraform/modules.tf:1-5`. The network resources go in the `notes` of the service node.
 
 In `bicep/main.bicep` the `exports` container (`:22-33`) has `parent: blobService` at `:23` and `blobService`
 (`:16-19`) has `parent: storage` at `:17`: that chain is one storage account, so a single `store` node cites `:7-14`
-and the others are evidence for it.
+and the other two stay the merge's resource nodes.

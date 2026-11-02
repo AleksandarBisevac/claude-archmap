@@ -1,0 +1,21 @@
+{
+  "gates": {
+    "test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task with tests.expectRedFirst false; no red owed",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Rewrote the Nodes item of stack-iac.md, stack-pipelines.md, stack-data-platform.md and stack-containers.md (read merge.mjs makePlatformNodes: it makes compose service and orphan Dockerfile nodes at level 2, pipeline at level 2, job/stage at level 3, module at level 2, resource at level 3, model and source at level 3; find() reuses an explorer node on kind plus id/title slug, the same cited evidence path and lines, or identical paths). Each Nodes item now says merge already makes those nodes, the explorer adds only grouped system-level nodes (service, store, queue, edge, external) and notes, and cites the exact block of any merge-made element so find() reuses its node. Edges items untouched (already consistent). Two fictional examples adjusted to match (containers: merge makes api and db nodes; iac: service node cites :28-38, bicep chain says the other two stay merge resource nodes). Byte sizes are now at or below the originals: containers 5163 (was 5272), data-platform 6550 (was 6554), iac 6980 (was 6981), pipelines 5740 (was 5741). Added test r6 to tests/skill-references.test.mjs pinning the new wording (merge script already makes, find(), cite) and the absence of the old phrases in the Nodes item of all four references. Gate: node --test, exit 0, 576 tests, 576 pass, 0 fail (tests/skill-references.test.mjs alone 6/6). No file outside the task files was edited. A stray git add -N on the already tracked test file was a no-op.",
+    "descriptive": "The explorer is now told that merge already makes the resource, module, pipeline, job, model, source and compose-service nodes and to cite the same block, so find() reuses nodes instead of duplicating them; reference sizes did not grow."
+  },
+  "testsAdded": [
+    "r6 reads the Nodes item of the four platform stack references and asserts it says the merge script already makes the nodes, names find(), tells the explorer to cite, and no longer carries the old 'not an architecture node by itself' wording"
+  ],
+  "casesAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:1c4d47d5aa8cf84d5a53b00ec990d4d256a83ca9e81ecae5874b8a06e36fc6cb\",\"dirtyDigest\":\"sha256:53b572698638889c1677c745f9bf2d739bcfef528ed9fa37a6e726e452f76415\",\"dirtyPaths\":{\"skills/architecture-map/references/stack-containers.md\":\"3f9b6b8cc7f0bbd7\",\"skills/architecture-map/references/stack-data-platform.md\":\"960a4ca3ef507618\",\"skills/architecture-map/references/stack-iac.md\":\"ba7c8b9f90940d9c\",\"skills/architecture-map/references/stack-pipelines.md\":\"b129e71955a71667\",\"tests/skill-references.test.mjs\":\"ca5d2c41950a882f\"},\"head\":\"d166aae\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/references/stack-containers.md\",\"skills/architecture-map/references/stack-data-platform.md\",\"skills/architecture-map/references/stack-iac.md\",\"skills/architecture-map/references/stack-pipelines.md\",\"tests/skill-references.test.mjs\"],\"scopeDigest\":\"sha256:a192f444106f73611ebd1c15173e36b887b2ffcac3c325e48cfd23b1c84087a0\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
