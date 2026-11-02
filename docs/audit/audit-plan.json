@@ -8879,7 +8879,7 @@
         {
           "id": "P12.3",
           "title": "Harness: a tracked run script for a foreign plugin (plugin dir or isolated marketplace install) and a cost profiler robust to foreign agent names and streams without subagents, tested on a synthetic stream",
-          "status": "in_progress",
+          "status": "done",
           "description": "The harness must run a foreign plugin under the same conditions as this one and profile its stream. Add a tracked script skills/architecture-map/evals/benchmark/run-candidate.sh (zsh or POSIX sh, no machine path inside): usage `run-candidate.sh <run-dir> <ENV_NAME> <prompt-file> (--plugin-dir <dir> | --plugin <name@marketplace> --marketplace <url-or-path>) [--model <model>] [-- <extra claude args>]`. It runs `claude -p` from <run-dir>/repo with the environment variable set to that path, `--output-format stream-json --verbose --setting-sources project --permission-mode auto --permission-prompts none`, writes <run-dir>/stream.jsonl, stderr.log, exit-code and timing.json (started, finished and seconds as numbers), and unsets CLAUDECODE. With --plugin it installs the plugin into an isolated settings directory (a CLAUDE_CONFIG_DIR under <run-dir>/config) so the user's own plugins never load, by running `claude plugin marketplace add` and `claude plugin install` there before the session, and records the installed version in <run-dir>/plugin-version.txt; with --plugin-dir it passes that directory through. Document the usage in PROTOCOL.md's Configurations section. For the profiler, scripts/cost-profile.mjs must stay correct on a stream produced by another plugin: a stream with no Agent or Task tool calls yields one orchestrator row and no unknown-subagent row; a stream whose subagent_type values are foreign names keeps them as row labels; a stream whose Task tool call uses a `description` but no subagent_type falls back to that description; a result event without modelUsage does not throw but marks the reconciliation as missing. Write tests/fixtures/cost/foreign-stream.jsonl, a synthetic stream of a few messages with foreign agent names, a Task call without subagent_type, two models and a final result event, with made-up token counts, and tests in tests/cost-profile.test.mjs for the four behaviours, red-first where the current code fails them; keep tests/fixtures/cost/expected.json unchanged. tests/benchmark.test.mjs gets a test that run-candidate.sh parses under `sh -n` or `zsh -n`, prints usage and exits 2 without arguments, and contains none of the three forbidden things: an absolute home path, a denylist term, or the word CLAUDECODE outside an `env -u`.",
           "files": [
             "skills/architecture-map/evals/benchmark/run-candidate.sh",
@@ -8909,30 +8909,52 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "e9466077f2a1",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "New skills/architecture-map/evals/benchmark/run-candidate.sh (POSIX sh, #!/bin/sh, executable, staged). Usage: run-candidate.sh <run-dir> <ENV_NAME> <prompt-file> (--plugin-dir <dir> | --plugin <name@marketplace> --marketplace <url-or-path>) [--model <model>] [--path-prepend <dir>] [-- <extra claude args>]. It validates the arguments (exit 2 with usage on stderr), makes every path absolute, cds into <run-dir>/repo, replaces <ENV_NAME> in the prompt with the variable name via sed, exports <ENV_NAME>=<run-dir>/repo and runs `env -u CLAUDECODE claude -p <prompt> [--plugin-dir d] [--model m] --output-format stream-json --verbose --setting-sources project --permission-mode auto --permission-prompts none <extras>`. It writes stream.jsonl, stderr.log, exit-code, timing.json {started, finished, total_duration_seconds} (epoch seconds from date +%s) and command.txt, a replayable shell line (cd, the env assignments, the prompt as \"$(sed ... <prompt-file>)\"); I replayed command.txt with sh -c and got the same argv. The script exits with the session's status. --plugin: CLAUDE_CONFIG_DIR=<run-dir>/config, prints a one-line warning that the directory must be logged in once (CLAUDE_CONFIG_DIR=<dir> claude /login), runs `claude plugin marketplace add <mkt> --scope project` and `claude plugin install <plugin> --scope project` from the repo copy (project scope because the session reads only the project setting source; user-scope enablement would not load under --setting-sources project), output to install.log, and reads the version from `claude plugin list --json` through node into plugin-version.txt ('unknown' as fallback). --path-prepend puts the directory first on PATH for the session only, not for the install commands. Nothing is written outside <run-dir>. The script parses under sh -n, zsh -n and dash -n. scripts/cost-profile.mjs: an Agent/Task call is labelled subagent_type, else description, else unknown-subagent; when result events exist but none carries modelUsage, the reconciliation file entry gets modelUsage:'missing' (and stays matchesModelUsage:null) and the text report adds a line 'reconciliation missing: the result events carry no modelUsage in <file>'; header comment documents both. Output for the existing fixtures is byte-identical to HEAD's script: cmp over text, --json and --json --basename on stream-sample.jsonl, and over text on the same stream with its result events removed. tests/fixtures/cost/expected.json is unchanged (git diff --quiet exit 0). PROTOCOL.md Configurations section now documents the run-candidate.sh usage, its outputs, both modes, --path-prepend and the one-sentence login requirement; the Duration bullet in Metrics now says timing.json is the clock read around the session, not the result event. New fixture tests/fixtures/cost/foreign-stream.jsonl: 12 synthetic events with Task subagent_type code-cartographer, a Task with only a description, an Agent diagram-drafter, opus and sonnet, and a final result whose input and cache classes reconcile. Tests: c18-c21 in tests/cost-profile.test.mjs and b10-b14 in tests/benchmark.test.mjs (b13/b14 drive the script against a stub claude on PATH). Before the fix c19, c20 and c21 failed and c18 passed; c18 locks behaviour the current code already had. b10-b14 all failed before the script existed. Commands: `node --test tests/denylist.test.mjs tests/benchmark.test.mjs tests/cost-profile.test.mjs` exit 0, 37/37 pass, 0 skipped. Full `node --test` exit 0, 476/476 pass. Dependents: docs/architecture/architecture.model.json and archmap.html name the path only (unchanged); scripts/pipeline.mjs:1277 and scripts/usage.mjs:191 mention it in prose (still correct); tests/readme.test.mjs and tests/evals.test.mjs check the documented `--json --basename` command (unchanged CLI); tests/skill.test.mjs s17 runs it over orchestrator turns (green in the full run); tests/cost-profile.test.mjs and tests/benchmark.test.mjs are this task's. PROTOCOL.md's dependant tests/benchmark.test.mjs b6/b7/b9 pass after the edit. Not committed.",
+            "descriptive": "The benchmark now has a tracked, path-free script that runs one cell, and the cost profiler labels another plugin's agents correctly and survives a result event without modelUsage."
           },
           "startedAt": "2026-11-01T22:18:01Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-01T22:27:52Z",
+          "verifiedBy": [
+            "c18 a stream with no Agent/Task call yields only the orchestrator row and still reconciles",
+            "c19 foreign subagent_type values from Task and Agent calls label the rows; foreign fixture is synthetic and reconciles",
+            "c20 a Task call with only a description is labelled by that description",
+            "c21 a result event without modelUsage exits 0, falls back to the stream and marks reconciliation modelUsage:'missing'",
+            "b10 run-candidate.sh has a /bin/sh shebang and parses under sh -n",
+            "b11 no arguments or a wrong mode prints usage and exits 2, and no session runs",
+            "b12 no home path, no denylist term (skipped if absent), no CLAUDECODE outside env -u",
+            "b13 --plugin-dir run against a stub claude: cwd, variable, CLAUDECODE unset, substituted prompt, flag order, timing.json, command.txt redaction, nothing written outside run-dir",
+            "b14 --plugin run against a stub claude: project-scope marketplace add/install under run-dir/config, plugin-version.txt, one-line login warning, session under that CLAUDE_CONFIG_DIR"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-01T22:27:51Z.3a9102",
             "status": "passed",
             "at": "2026-11-01T22:27:51Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "e9466077f2a1",
+            "at": "2026-11-01T22:27:52Z"
+          },
+          "redFirst": {
+            "at": "2026-11-01T22:26:27Z",
+            "basis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P12.4",
           "title": "Owner-run: this plugin at 1.0.0 and every candidate on the same prompt over the same three repositories, plus the issue-overlay recall run; profiles tracked under evidence/benchmark, raw results private",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Owner-run with the orchestrator driving. Run the benchmark cells of PROTOCOL.md: this plugin from its 1.0.0 tag checkout and each candidate from CANDIDATES.md, over repositories A, B and C with the prompt in prompt.md, one run per cell with the same orchestrator model, through run-candidate.sh in fresh detached clones under the workspace the evals README names; plus the issue-overlay run of this plugin on repository A for recall. No executor runs while a cell runs, and at most two or three cells run in parallel. After every cell check that the three original repositories are untouched. For each completed cell save `node scripts/cost-profile.mjs <stream.jsonl> --json --basename` as skills/architecture-map/evals/evidence/benchmark/<tool>-<repo-letter>-<run>.json where <tool> is `archmap` or the candidate's short name from CANDIDATES.md, grade the tool-neutral expectations with the harness and record pass, fail or not graded per expectation, record duration from timing.json, and record the owner's rubric scores; the raw streams, transcripts, gradings and rubric notes go to the private results log, never into a tracked file. A cell that the usage limit cuts is reset and rerun; a candidate that fails to install or exits non-zero in two attempts is recorded as such in the private log and the cell is reported as failed in the evidence summary. Append to PROTOCOL.md a `## Runs` section with the date, the plugin and candidate versions used, the orchestrator model, the Claude Code version and the rate table date. The evidence directory may hold a summary.json with per cell: tool, repo letter, run, evidence file, exit code, seconds, expectations {passed, failed, notGraded}, recall (archmap on A only), rubric {coverage, relations, flows, readability}; no path or denylist term inside. Extend tests/benchmark.test.mjs: every evidence file under evidence/benchmark/ matches the naming rule, every summary.json cell names an evidence file that exists and whose orchestrator row exists, and no evidence file carries a path component of a home directory.",
           "files": [
             "skills/architecture-map/evals/evidence/benchmark",
             "skills/architecture-map/evals/benchmark/PROTOCOL.md",
-            "tests/benchmark.test.mjs"
+            "tests/benchmark.test.mjs",
+            "tests/evals.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
@@ -8952,16 +8974,22 @@
           "dependsOn": [
             "P12.3"
           ],
-          "attempts": 0,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T07:57:26Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T08:05:58Z.5cd85a",
+            "status": "passed",
+            "at": "2026-11-02T08:05:58Z"
+          }
         },
         {
           "id": "P12.5",
@@ -9716,7 +9744,8 @@
       "P11.4",
       "P11.7-6o1",
       "P11.6",
-      "P9.7"
+      "P9.7",
+      "P12.4"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"

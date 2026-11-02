@@ -451,7 +451,9 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
 // The check reads a README text and an evidence reader, so e20 can feed it a tampered README or a tampered profile.
 const evidenceDir = new URL('evidence/', evalsDir);
 const readEvidence = (rel) => JSON.parse(readFileSync(new URL(rel.replace(/^evidence\//, ''), evidenceDir), 'utf8'));
-const evidenceFiles = () => readdirSync(evidenceDir, { recursive: true }).filter((f) => f.endsWith('.json')).map((f) => `evidence/${f.split(/[\\/]/).join('/')}`).sort();
+// evidence/benchmark/ holds the release benchmark's profiles, which tests/benchmark.test.mjs checks against its own
+// summary.json; the README's cost section reports the evals only.
+const evidenceFiles = () => readdirSync(evidenceDir, { recursive: true }).filter((f) => f.endsWith('.json')).map((f) => `evidence/${f.split(/[\\/]/).join('/')}`).filter((f) => !f.startsWith('evidence/benchmark/')).sort();
 const orchestratorOf = (j) => j.byAgent.find((a) => a.agent === 'orchestrator');
 const usd2 = (j) => `${(Math.round(j.total.costUsd * 100) / 100).toFixed(2)} USD`;
 

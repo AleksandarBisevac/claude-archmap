@@ -136,7 +136,48 @@ the evidence file says why, and the owner's rubric still covers the artifact.
 
 One JSON file per run, tracked, under `skills/architecture-map/evals/evidence/benchmark/`, named
 `<tool>-<repo-letter>-<run>.json` (for example `cc-codemaps-B-1.json`; the issues run is `archmap-issues-A-1.json`).
-Each holds the profile exactly as `cost-profile.mjs --json --basename` printed it, the duration from `timing.json`, the
-exit status, the result of each expectation (`pass`, `fail` or `not graded` with the reason), the recall where it
-applies and the owner's rubric scores. The raw `stream-json` transcripts, the produced artifacts and the key-component
+Each per-run file is the profile exactly as `cost-profile.mjs --json --basename` printed it, with nothing added.
+`summary.json` beside them holds one record per cell naming its evidence file, with the duration from `timing.json`,
+the exit status, the result of each expectation (`pass`, `fail` or `not graded` with the reason), the recall where it
+applies and the rubric scores. The raw `stream-json` transcripts, the produced artifacts and the key-component
 checklists stay private and are not tracked.
+
+## Runs
+
+- **Dates**: the run-1 cells on 2026-11-01 (evening, CET); the cells the owner started and the run-2 cells on
+  repository C on 2026-11-02 (morning).
+- **Claude Code**: Claude Code 2.1.316. **Orchestrator model**: `opus` for every cell (`--model opus`); subagents
+  used whatever model each tool chose.
+- **Rate table**: the `RATES` table of `scripts/cost-profile.mjs` dated 2026-10-31, the `rates.date` of every evidence
+  file.
+- **Versions**, all as `CANDIDATES.md` pins them:
+  - `archmap`: this plugin at the tag v1.0.0 (commit bee1b5a).
+  - `draw-c4`: 0.2.0 at commit 90eea87.
+  - `oh-my-mermaid`: 0.2.0 at commit 38ccdb6, with its `omm` command line tool 0.2.0 installed locally under the
+    workspace.
+  - `cc-codemaps`: 1.1.0 at commit 0cf4b14.
+- **Who launched which cells**: the orchestrating session ran this plugin's cells, the issues-overlay run, and
+  `cc-codemaps` and `oh-my-mermaid` on A and B. The Claude Code auto-mode permission classifier refused to launch the
+  other third-party cells from that session ("code from an external source"), so the owner started them from a
+  terminal with the same `run-candidate.sh` command line: `draw-c4` on A, B and C, and `cc-codemaps` and
+  `oh-my-mermaid` on C.
+- **Deviation on repository C**: that repository carries its own Claude Code project configuration (a
+  `.claude/settings.json` with hooks and an enabled plugin whose write guard was in deny mode). In run 1 it stopped two
+  tools from writing their result into the repository while two others wrote under `docs/` unimpeded, so run 1 on C
+  was discarded for every tool, and run 2 was made for all four tools on fresh clones with that repository's
+  `.claude/settings.json` and `.claude/audit.config.json` removed (from the clone only). The C evidence files are
+  therefore `<tool>-C-2.json`; the discarded run-1 profiles stay private.
+- **Expectations**: none is recorded as not graded; every expectation of every tool was graded mechanically. The file
+  reference check ("every component carries a file reference") leaves out the elements a tool marks as external
+  systems, actors or the system boundary.
+- **Rubric**: the scores in `summary.json` were given by the orchestrator and are provisional, marked so in each
+  cell's `scoredBy`; the owner confirms or replaces them at sign-off.
+- **Recall**: the `archmap-issues` run on A (`archmap-issues-A-1.json`, outside the comparison table) has a recall of
+  0.933, 14 of the 15 counted reference issues with one miss, and reported 23 issues.
+- **Side effects observed**: two candidates edited an existing README of the repository they mapped (a project
+  instruction asked for new documents to be listed there); one candidate ran project code to confirm a bug it found;
+  one candidate wrote a generator script into the repository; one candidate wrote its tree twice, under
+  `docs/architecture` and at the repository root. This plugin wrote only under `docs/architecture`, and wrote its
+  issues overlay outside the repository.
+- **Originals**: the three source repositories were compared with a snapshot taken before the benchmark after every
+  wave of cells, and were unchanged.

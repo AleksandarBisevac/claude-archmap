@@ -1,0 +1,78 @@
+{
+  "rates": {
+    "date": "2026-10-31",
+    "perMillion": {
+      "claude-fable-5-1": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      },
+      "claude-opus-5-5": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      },
+      "claude-sonnet-5-5": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      },
+      "claude-haiku-5-5": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    }
+  },
+  "basis": {
+    "byModel": "result-event",
+    "byAgentOutput": "stream-lower-bound"
+  },
+  "byModel": [
+    {
+      "model": "claude-opus-5-5",
+      "turns": 24,
+      "input": 48,
+      "output": 20776,
+      "cacheRead": 2078883,
+      "cacheWrite": 111418,
+      "costUsd": 1.388579
+    }
+  ],
+  "byAgent": [
+    {
+      "agent": "orchestrator",
+      "turns": 24,
+      "input": 48,
+      "output": 331,
+      "cacheRead": 2078883,
+      "cacheWrite": 111418,
+      "medianContext": 99616,
+      "maxContext": 122686,
+      "costUsd": 0.979679
+    }
+  ],
+  "total": {
+    "turns": 24,
+    "input": 48,
+    "output": 20776,
+    "cacheRead": 2078883,
+    "cacheWrite": 111418,
+    "costUsd": 1.388579
+  },
+  "reconciliation": {
+    "files": [
+      {
+        "file": "stream.jsonl",
+        "resultEvents": 1,
+        "matchesModelUsage": true,
+        "mismatches": []
+      }
+    ],
+    "matchesModelUsage": true
+  }
+}

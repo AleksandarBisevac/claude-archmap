@@ -1,0 +1,131 @@
+{
+  "rates": {
+    "date": "2026-10-31",
+    "perMillion": {
+      "claude-fable-5-1": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      },
+      "claude-opus-5-5": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      },
+      "claude-sonnet-5-5": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      },
+      "claude-haiku-5-5": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    }
+  },
+  "basis": {
+    "byModel": "result-event",
+    "byAgentOutput": "stream-lower-bound"
+  },
+  "byModel": [
+    {
+      "model": "claude-opus-5-5",
+      "turns": 9,
+      "input": 26,
+      "output": 4489,
+      "cacheRead": 423452,
+      "cacheWrite": 56564,
+      "costUsd": 0.457394
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "turns": 48,
+      "input": 100,
+      "output": 29658,
+      "cacheRead": 1050034,
+      "cacheWrite": 230510,
+      "costUsd": 0.978058
+    }
+  ],
+  "byAgent": [
+    {
+      "agent": "orchestrator",
+      "turns": 9,
+      "input": 26,
+      "output": 170,
+      "cacheRead": 423452,
+      "cacheWrite": 56564,
+      "medianContext": 54760,
+      "maxContext": 67832,
+      "costUsd": 0.371014
+    },
+    {
+      "agent": "archmap:archmap-explorer",
+      "turns": 42,
+      "input": 86,
+      "output": 717,
+      "cacheRead": 864834,
+      "cacheWrite": 191430,
+      "medianContext": 25358.5,
+      "maxContext": 34524,
+      "costUsd": 0.5724
+    },
+    {
+      "agent": "archmap:archmap-synthesizer",
+      "turns": 6,
+      "input": 12,
+      "output": 86,
+      "cacheRead": 156755,
+      "cacheWrite": 36750,
+      "medianContext": 36188,
+      "maxContext": 41805,
+      "costUsd": 0.108434
+    }
+  ],
+  "total": {
+    "turns": 57,
+    "input": 126,
+    "output": 34147,
+    "cacheRead": 1473486,
+    "cacheWrite": 287074,
+    "costUsd": 1.435453
+  },
+  "reconciliation": {
+    "files": [
+      {
+        "file": "stream.jsonl",
+        "resultEvents": 1,
+        "matchesModelUsage": false,
+        "mismatches": [
+          {
+            "model": "claude-sonnet-5-5",
+            "class": "input",
+            "stream": 98,
+            "result": 100,
+            "difference": 2
+          },
+          {
+            "model": "claude-sonnet-5-5",
+            "class": "cacheRead",
+            "stream": 1021589,
+            "result": 1050034,
+            "difference": 28445
+          },
+          {
+            "model": "claude-sonnet-5-5",
+            "class": "cacheWrite",
+            "stream": 228180,
+            "result": 230510,
+            "difference": 2330
+          }
+        ]
+      }
+    ],
+    "matchesModelUsage": false
+  }
+}

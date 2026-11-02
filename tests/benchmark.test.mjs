@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, chmodSync, readdirSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
@@ -343,4 +343,116 @@ test('b14 --plugin: installs into an isolated CLAUDE_CONFIG_DIR under <run-dir>/
   assert.deepEqual(argv.slice(2), HEADLESS);
   assert.ok(readFileSync(join(c.run, 'command.txt'), 'utf8').includes(`CLAUDE_CONFIG_DIR=`));
   assert.deepEqual(readdirSync(join(c.base, 'cell')), ['run'], 'nothing is written beside <run-dir>');
+});
+
+// ---- P12.4: the tracked evidence of the benchmark runs (evidence/benchmark/) ----
+// Each run file is `cost-profile.mjs --json --basename` exactly as printed; summary.json beside them names one per cell.
+const EVALS = join(ROOT, 'skills', 'architecture-map', 'evals');
+const BENCH = join(EVALS, 'evidence', 'benchmark');
+const SUMMARY = join(BENCH, 'summary.json');
+const EVIDENCE_NAME = /^([a-z0-9]+(?:-[a-z0-9]+)*)-([ABC])-([1-9]\d*)\.json$/;
+const benchFiles = () => {
+  assert.ok(existsSync(BENCH), 'evidence/benchmark/ is missing');
+  return readdirSync(BENCH).sort();
+};
+const runFiles = () => benchFiles().filter((f) => f !== 'summary.json');
+const loadJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
+const cells = () => {
+  assert.ok(existsSync(SUMMARY), 'evidence/benchmark/summary.json is missing');
+  const s = loadJson(SUMMARY);
+  assert.ok(Array.isArray(s.cells), 'summary.json has no cells array');
+  return s.cells;
+};
+const orchestratorRow = (profile) => (profile.byAgent ?? []).find((r) => r.agent === 'orchestrator');
+const TOOLS = () => ['archmap', ...candidateNames()];
+
+test('b15 every file under evidence/benchmark/ is summary.json or <tool>-<repo-letter>-<run>.json for a known tool, and each one is a summary cell', () => {
+  const files = runFiles();
+  assert.ok(files.length >= 1, 'no evidence file');
+  const known = [...TOOLS(), 'archmap-issues'];
+  for (const f of files) {
+    const m = f.match(EVIDENCE_NAME);
+    assert.ok(m, `${f} does not match <tool>-<repo-letter>-<run>.json`);
+    assert.ok(known.includes(m[1]), `${f}: tool ${m[1]} is none of ${known.join(', ')}`);
+  }
+  const named = cells().map((c) => c.evidence);
+  for (const f of files) assert.ok(named.includes(`evidence/benchmark/${f}`), `${f} is not named by any summary.json cell`);
+});
+
+test('b16 every summary.json cell names an existing evidence file for its own tool, repository and run, with an orchestrator row', () => {
+  for (const c of cells()) {
+    const label = `${c.tool} ${c.repo} ${c.run}`;
+    assert.equal(c.evidence, `evidence/benchmark/${c.tool}-${c.repo}-${c.run}.json`, `${label}: evidence ${c.evidence}`);
+    const file = join(EVALS, c.evidence);
+    assert.ok(existsSync(file), `${label}: ${c.evidence} does not exist`);
+    const row = orchestratorRow(loadJson(file));
+    assert.ok(row, `${label}: ${c.evidence} has no orchestrator row`);
+    assert.ok(row.turns >= 1, `${label}: the orchestrator row has no turn`);
+  }
+});
+
+test('b17 no evidence file carries a home-directory path component or a denylist term (denylist skipped when absent)', (t) => {
+  const home = homedir();
+  for (const f of benchFiles()) {
+    const text = readFileSync(join(BENCH, f), 'utf8');
+    for (const re of [/\/Users\/\S/, /\/home\/\S/, /\/private\/\S/, /\/tmp\/\S/, /\/root\//, /[A-Za-z]:\\\\?\S/, /~\//, /\.private\b/]) {
+      assert.doesNotMatch(text, re, `${f} matches ${re}`);
+    }
+    if (home && home !== '/') assert.ok(!text.includes(home), `${f} carries the home directory`);
+  }
+  if (!existsSync(DENYLIST)) {
+    t.skip('denylist not checked: .private/anonymise-denylist.txt is absent');
+    return;
+  }
+  for (const f of benchFiles()) assert.deepEqual(denylistHits(readFileSync(join(BENCH, f), 'utf8')), [], `${f} carries a denylist term`);
+});
+
+test('b18 summary.json has 13 cells: each of the four tools once on A, B and C, and one archmap-issues cell on A with a recall', () => {
+  const all = cells();
+  assert.equal(all.length, 13, `expected 13 cells, saw ${all.length}`);
+  const compared = all.filter((c) => c.tool !== 'archmap-issues');
+  const tools = TOOLS();
+  assert.equal(tools.length, 4, `expected this plugin and three candidates, saw ${tools.join(', ')}`);
+  assert.deepEqual(
+    compared.map((c) => `${c.tool}/${c.repo}`).sort(),
+    tools.flatMap((t) => ['A', 'B', 'C'].map((r) => `${t}/${r}`)).sort(),
+  );
+  for (const c of compared) assert.equal(c.recall, undefined, `${c.tool} ${c.repo}: recall belongs to the issues cell only`);
+  const issues = all.filter((c) => c.tool === 'archmap-issues');
+  assert.equal(issues.length, 1, 'one archmap-issues cell');
+  assert.equal(issues[0].repo, 'A');
+  assert.equal(typeof issues[0].recall, 'number');
+  assert.ok(issues[0].recall >= 0 && issues[0].recall <= 1, `recall ${issues[0].recall}`);
+});
+
+test('b19 each cell\'s costUsd is its evidence file\'s total.costUsd to the cent, and its orchestratorTurns and maxContext are the orchestrator row\'s', () => {
+  for (const c of cells()) {
+    const label = `${c.tool} ${c.repo} ${c.run}`;
+    const profile = loadJson(join(EVALS, c.evidence));
+    assert.equal(c.costUsd, Math.round(profile.total.costUsd * 100) / 100, `${label}: costUsd`);
+    const row = orchestratorRow(profile);
+    assert.equal(c.orchestratorTurns, row.turns, `${label}: orchestratorTurns`);
+    assert.equal(c.maxContext, row.maxContext, `${label}: maxContext`);
+  }
+});
+
+test('b20 PROTOCOL.md has a Runs section naming the Claude Code version, the model, v1.0.0 and each candidate\'s version and commit, and every profile\'s rates.date is the rate table date it states', () => {
+  const body = section(loadDoc('PROTOCOL.md'), 'Runs');
+  assert.notEqual(body, null, 'no "## Runs" section');
+  assert.match(body, /Claude Code \d+\.\d+\.\d+/, 'no Claude Code version');
+  assert.match(body, /`opus`/, 'no orchestrator model');
+  assert.match(body, /\bv1\.0\.0\b/, 'no plugin version');
+  const t = table(section(load(), 'Candidates'));
+  column(t, 'Name').forEach((raw, i) => {
+    const name = raw.replace(/`/g, '').trim();
+    const version = column(t, 'Version')[i];
+    const semver = version.match(/\b\d+\.\d+\.\d+\b/)[0];
+    const commit = version.match(/commit ([0-9a-f]{7})/)[1];
+    assert.ok(body.includes(name), `Runs does not name ${name}`);
+    assert.match(body, new RegExp(`${name.replace(/-/g, '\\-')}\\W[^\\n]*?${semver.replace(/\./g, '\\.')}`), `Runs does not give ${name} ${semver}`);
+    assert.ok(body.includes(commit), `Runs does not give ${name}'s commit ${commit}`);
+  });
+  const m = body.match(/rate table[^\n]*?(\d{4}-\d{2}-\d{2})/i);
+  assert.ok(m, 'Runs states no rate table date');
+  for (const f of runFiles()) assert.equal(loadJson(join(BENCH, f)).rates?.date, m[1], `${f}: rates.date`);
 });

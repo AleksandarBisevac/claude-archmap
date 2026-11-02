@@ -1,0 +1,627 @@
+{
+  "protocol": "skills/architecture-map/evals/benchmark/PROTOCOL.md",
+  "dates": [
+    "2026-11-01",
+    "2026-11-02"
+  ],
+  "cells": [
+    {
+      "tool": "archmap",
+      "repo": "A",
+      "run": 1,
+      "evidence": "evidence/benchmark/archmap-A-1.json",
+      "exitCode": 0,
+      "seconds": 238,
+      "costUsd": 1.61,
+      "orchestratorTurns": 25,
+      "maxContext": 85136,
+      "subagentRows": 2,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 4
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 46,
+          "listed": 46
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 16,
+      "artifactBytes": 296981,
+      "rubric": {
+        "coverage": 5,
+        "relations": 4,
+        "flows": 4,
+        "readability": 5,
+        "total": 18,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "archmap",
+      "repo": "B",
+      "run": 1,
+      "evidence": "evidence/benchmark/archmap-B-1.json",
+      "exitCode": 0,
+      "seconds": 151,
+      "costUsd": 1.44,
+      "orchestratorTurns": 9,
+      "maxContext": 67832,
+      "subagentRows": 2,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 12,
+          "listed": 12
+        },
+        "flows": {
+          "result": "pass",
+          "count": 4
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 148,
+          "listed": 148
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 3,
+      "artifactBytes": 977170,
+      "rubric": {
+        "coverage": 5,
+        "relations": 3,
+        "flows": 4,
+        "readability": 4,
+        "total": 16,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "archmap",
+      "repo": "C",
+      "run": 2,
+      "evidence": "evidence/benchmark/archmap-C-2.json",
+      "exitCode": 0,
+      "seconds": 171,
+      "costUsd": 1.38,
+      "orchestratorTurns": 10,
+      "maxContext": 64800,
+      "subagentRows": 2,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 4
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 119,
+          "listed": 119
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 16,
+      "artifactBytes": 637238,
+      "rubric": {
+        "coverage": 5,
+        "relations": 4,
+        "flows": 4,
+        "readability": 4,
+        "total": 17,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "draw-c4",
+      "repo": "A",
+      "run": 1,
+      "evidence": "evidence/benchmark/draw-c4-A-1.json",
+      "exitCode": 0,
+      "seconds": 259,
+      "costUsd": 1.39,
+      "orchestratorTurns": 24,
+      "maxContext": 122686,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 7
+        },
+        "fileReferences": {
+          "result": "fail",
+          "found": 24,
+          "listed": 28
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 4,
+      "notGraded": 0,
+      "artifactFiles": 3,
+      "artifactBytes": 152409,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 5,
+        "readability": 5,
+        "total": 18,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "draw-c4",
+      "repo": "B",
+      "run": 1,
+      "evidence": "evidence/benchmark/draw-c4-B-1.json",
+      "exitCode": 0,
+      "seconds": 432,
+      "costUsd": 2.75,
+      "orchestratorTurns": 24,
+      "maxContext": 100181,
+      "subagentRows": 1,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 12,
+          "listed": 12
+        },
+        "flows": {
+          "result": "pass",
+          "count": 6
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 22,
+          "listed": 22
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 5,
+      "artifactBytes": 215079,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 4,
+        "readability": 5,
+        "total": 17,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "draw-c4",
+      "repo": "C",
+      "run": 2,
+      "evidence": "evidence/benchmark/draw-c4-C-2.json",
+      "exitCode": 0,
+      "seconds": 327,
+      "costUsd": 1.48,
+      "orchestratorTurns": 27,
+      "maxContext": 114089,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 8
+        },
+        "fileReferences": {
+          "result": "fail",
+          "found": 22,
+          "listed": 23
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 4,
+      "notGraded": 0,
+      "artifactFiles": 4,
+      "artifactBytes": 183721,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 5,
+        "readability": 5,
+        "total": 18,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "oh-my-mermaid",
+      "repo": "A",
+      "run": 1,
+      "evidence": "evidence/benchmark/oh-my-mermaid-A-1.json",
+      "exitCode": 0,
+      "seconds": 421,
+      "costUsd": 1.94,
+      "orchestratorTurns": 30,
+      "maxContext": 131699,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 19
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 38,
+          "listed": 38
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 103,
+      "artifactBytes": 83145,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 4,
+        "readability": 4,
+        "total": 16,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "oh-my-mermaid",
+      "repo": "B",
+      "run": 1,
+      "evidence": "evidence/benchmark/oh-my-mermaid-B-1.json",
+      "exitCode": 0,
+      "seconds": 1030,
+      "costUsd": 5.42,
+      "orchestratorTurns": 84,
+      "maxContext": 158724,
+      "subagentRows": 1,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 12,
+          "listed": 12
+        },
+        "flows": {
+          "result": "pass",
+          "count": 8
+        },
+        "fileReferences": {
+          "result": "fail",
+          "found": 71,
+          "listed": 76
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 4,
+      "notGraded": 0,
+      "artifactFiles": 200,
+      "artifactBytes": 269918,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 4,
+        "readability": 3,
+        "total": 15,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "oh-my-mermaid",
+      "repo": "C",
+      "run": 2,
+      "evidence": "evidence/benchmark/oh-my-mermaid-C-2.json",
+      "exitCode": 0,
+      "seconds": 321,
+      "costUsd": 1.77,
+      "orchestratorTurns": 43,
+      "maxContext": 106118,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 3
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 34,
+          "listed": 34
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 175,
+      "artifactBytes": 160554,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 3,
+        "readability": 3,
+        "total": 14,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "cc-codemaps",
+      "repo": "A",
+      "run": 1,
+      "evidence": "evidence/benchmark/cc-codemaps-A-1.json",
+      "exitCode": 0,
+      "seconds": 243,
+      "costUsd": 1.39,
+      "orchestratorTurns": 25,
+      "maxContext": 120802,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 6
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 26,
+          "listed": 26
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 5,
+      "artifactBytes": 32765,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 4,
+        "readability": 3,
+        "total": 15,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "cc-codemaps",
+      "repo": "B",
+      "run": 1,
+      "evidence": "evidence/benchmark/cc-codemaps-B-1.json",
+      "exitCode": 0,
+      "seconds": 483,
+      "costUsd": 2.16,
+      "orchestratorTurns": 58,
+      "maxContext": 121548,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 12,
+          "listed": 12
+        },
+        "flows": {
+          "result": "pass",
+          "count": 5
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 36,
+          "listed": 36
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 5,
+      "artifactBytes": 72964,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 4,
+        "readability": 3,
+        "total": 15,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "cc-codemaps",
+      "repo": "C",
+      "run": 2,
+      "evidence": "evidence/benchmark/cc-codemaps-C-2.json",
+      "exitCode": 0,
+      "seconds": 285,
+      "costUsd": 1.39,
+      "orchestratorTurns": 34,
+      "maxContext": 101083,
+      "subagentRows": 0,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 7
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 34,
+          "listed": 34
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 3,
+      "artifactBytes": 29001,
+      "rubric": {
+        "coverage": 4,
+        "relations": 4,
+        "flows": 4,
+        "readability": 3,
+        "total": 15,
+        "scoredBy": "orchestrator, provisional; the owner confirms or replaces the scores at sign-off"
+      }
+    },
+    {
+      "tool": "archmap-issues",
+      "repo": "A",
+      "run": 1,
+      "evidence": "evidence/benchmark/archmap-issues-A-1.json",
+      "exitCode": 0,
+      "seconds": 419,
+      "costUsd": 2.38,
+      "orchestratorTurns": 11,
+      "maxContext": 66116,
+      "subagentRows": 3,
+      "expectations": {
+        "keyComponents": {
+          "result": "pass",
+          "found": 10,
+          "listed": 10
+        },
+        "flows": {
+          "result": "pass",
+          "count": 4
+        },
+        "fileReferences": {
+          "result": "pass",
+          "found": 47,
+          "listed": 47
+        },
+        "artifactOnDisk": {
+          "result": "pass",
+          "location": "docs/architecture"
+        },
+        "exitZero": {
+          "result": "pass"
+        }
+      },
+      "graded": 5,
+      "passed": 5,
+      "notGraded": 0,
+      "artifactFiles": 3,
+      "artifactBytes": 236545,
+      "recall": 0.933,
+      "issuesReported": 23
+    }
+  ]
+}
