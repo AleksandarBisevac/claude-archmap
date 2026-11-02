@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: shop
+    description: Operational tables of the fictional shop.
+    tables:
+      - name: orders
+        description: One row per order.
+      - name: customers
+        columns:
+          - name: customer_id
+            data_tests:
+              - not_null

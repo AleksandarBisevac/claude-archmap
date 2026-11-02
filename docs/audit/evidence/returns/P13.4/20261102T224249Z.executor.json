@@ -1,0 +1,35 @@
+{
+  "gates": {
+    "node --test tests/prescan-data-platform.test.mjs": "pass",
+    "node --test (full suite)": "fail"
+  },
+  "redFirst": {
+    "at": "2026-11-02T22:49:21Z",
+    "basis": "`node --test tests/prescan-data-platform.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added scripts/lib/prescan/data-platform.mjs (extractDataPlatform, plug-in id data-platform, detect = a file named dbt_project.yml) and the stacks/data-platform.mjs re-export; reuses parseYaml/textOf/valueOf from containers.mjs. Items: models (name, project, scope, layer, materialization with dbt precedence config() > schema config > dbt_project.yml folders > view), sources (one per table), tests (tests:/data_tests: on model, source table, columns), lineage (ref()/source() edges, evidence at call line, comments and non-Jinja text ignored, unresolved targets counted in skipped). Caps MAX_ITEMS/MAX_NESTED, sorted deterministic output. Wrote skills/architecture-map/references/stack-data-platform.md, the fixture tests/fixtures/repos/data-platform (one dbt project: 2 sources, 4 models in staging and marts, 3 tests, placeholder profile name only) and tests/prescan-data-platform.test.mjs (dp1..dp9, 9 cases). All new files git add -N. `node --test tests/prescan-data-platform.test.mjs`: 9 pass 0 fail. Full `node --test`: 559 tests, 558 pass, 1 fail = s2 of tests/skill.test.mjs ('every file in references/ is linked from SKILL.md'), which fails only because skills/architecture-map/SKILL.md (outside my files, not edited) has no row for stack-data-platform.md. ORCHESTRATOR TO ADD to the references table in skills/architecture-map/SKILL.md after the stack-iac row: | [references/stack-data-platform.md](references/stack-data-platform.md) | The `data-platform` stack: dbt models with materialization, sources, tests and lineage from ref() and source() calls. | . tests/prescan-core.test.mjs pc2 is unchanged and still passes (its MIXED fixture holds no dbt_project.yml). Note: the auto-mode classifier refused one Bash python edit of the source file, so I redid those edits with the Edit tool; no work-around was used.",
+    "descriptive": "Prescan now extracts dbt models, sources, tests and ref()/source() lineage with file:line evidence from dbt_project.yml projects."
+  },
+  "testsAdded": [
+    "prescan-data-platform.test.mjs: models with layer and materialization, sources and tests from schema files, lineage with call-line evidence, precedence/comments/package refs/several projects, evidence and determinism, caps, no values leaked, detect, no-execution and prescan wiring"
+  ],
+  "casesAdded": [
+    [
+      "dp1",
+      "dp2",
+      "dp3",
+      "dp4",
+      "dp5",
+      "dp6",
+      "dp7",
+      "dp8",
+      "dp9"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:0d5dd974e424f5150db615b58dc5cd2a28c8ef151fb473e428459e41078e7b19\",\"dirtyDigest\":\"sha256:cf69510226a14ae488facb4bf576975d2a250b75c8c0496997b98654fbb6f7a2\",\"dirtyPaths\":{\"scripts/lib/prescan/data-platform.mjs\":\"763c4cbdd5fe7f63\",\"scripts/lib/prescan/stacks/data-platform.mjs\":\"01873cc7f738f6c9\",\"skills/architecture-map/references/stack-data-platform.md\":\"ba562959d4cc55a4\",\"tests/fixtures/repos/data-platform/dbt_project.yml\":\"358ea0b40b6bebe0\",\"tests/fixtures/repos/data-platform/models/marts/customer_summary.sql\":\"ed533e9c7cacdb30\",\"tests/fixtures/repos/data-platform/models/marts/orders_enriched.sql\":\"296c462ab2f63e34\",\"tests/fixtures/repos/data-platform/models/staging/_models.yml\":\"9a2879d3bb97fa88\",\"tests/fixtures/repos/data-platform/models/staging/_sources.yml\":\"b11c84656811d0a1\",\"tests/fixtures/repos/data-platform/models/staging/stg_customers.sql\":\"c83e3dc2188561b2\",\"tests/fixtures/repos/data-platform/models/staging/stg_orders.sql\":\"a416baa76992fce3\",\"tests/prescan-data-platform.test.mjs\":\"231caf5a9483e022\"},\"head\":\"0e34ce1\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/data-platform.mjs\",\"scripts/lib/prescan/stacks/data-platform.mjs\",\"skills/architecture-map/references/stack-data-platform.md\",\"tests/fixtures/repos/data-platform\",\"tests/prescan-data-platform.test.mjs\"],\"scopeDigest\":\"sha256:c58b9195324027e2c9f40f58040973ed564667e347d3083e8d37cec733e9ca6a\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -9802,7 +9802,7 @@
         {
           "id": "P13.3",
           "title": "Prescan extractor for infrastructure as code: Terraform and Bicep",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add scripts/lib/prescan/iac.mjs (and stacks/iac.mjs) detected from *.tf and *.bicep: one item per resource and module (type, name, the file and lines), references between them read from attribute expressions (module.x, resource_type.name.attr, Bicep symbolic names) as edges with evidence, variables and outputs by name only, never a value. Write skills/architecture-map/references/stack-iac.md and the fixture tests/fixtures/repos/iac (a Terraform root with two modules and four resources referencing each other, one Bicep file with three resources).",
           "files": [
             "scripts/lib/prescan/iac.mjs",
@@ -9830,30 +9830,44 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "0e34ce10bb35",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/iac.mjs (Terraform and Bicep plug-in id 'iac', mask-then-parse reader: comments, string and heredoc text blanked, interpolations kept; resources, modules with source and local target, variables and outputs by name only, references with via attribute/depends_on/parent and attributes, evidence per line, caps MAX_ITEMS/MAX_NESTED, skipped.blocks), stacks/iac.mjs re-export, references/stack-iac.md, fixture tests/fixtures/repos/iac (Terraform root with 4 resources, 2 local modules, variables and outputs; one Bicep file with 3 resources), tests/prescan-iac.test.mjs (9 cases iac1..iac9). First red: import error, module absent. Own test: node --test tests/prescan-iac.test.mjs -> 9 pass. Full node --test: 550 tests, 549 pass, 1 fail: s2 of tests/skill.test.mjs (references/stack-iac.md not linked from SKILL.md; SKILL.md is outside my files and was not edited). tests/prescan-core.test.mjs pc2 passes unchanged (its inline MIXED repo holds no .tf or .bicep). All new files git add -N. SKILL.md table row the orchestrator must add, after the stack-pipelines row: | [references/stack-iac.md](references/stack-iac.md) | The `iac` stack: Terraform and Bicep resources, modules, variables and outputs by name, references between them. | Dependants: tests/fixtures/repos/iac is named only by assets/viewer/elk.bundled.js by basename (an unrelated bundled-library match); still correct, the fixture is a new directory and no existing file changed. The other four files have no dependants.",
+            "descriptive": "Prescan now extracts Terraform and Bicep resources, modules, variables, outputs and the references between them with file:line evidence."
           },
           "startedAt": "2026-11-02T22:33:43Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T22:42:49Z",
+          "verifiedBy": [
+            "prescan-iac.test.mjs: fixture resources and modules, reference edges, variables and outputs by name with no value, other Terraform and Bicep forms, evidence/order/determinism, caps, detection, no-execution and prescan integration"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T22:42:47Z.2ef673",
             "status": "passed",
             "at": "2026-11-02T22:42:47Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "0e34ce10bb35",
+            "at": "2026-11-02T22:42:49Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T22:41:25Z",
+            "basis": "`node --test tests/prescan-iac.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.4",
           "title": "Prescan extractor for data platform projects: dbt models, sources, tests and lineage",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Add scripts/lib/prescan/data-platform.mjs (and stacks/data-platform.mjs) detected from dbt_project.yml: one item per model (models/**/*.sql with its materialization from config), per source and per test declared in schema .yml files, and lineage edges from ref() and source() calls, each with evidence at the call line. The vocabulary in the model is generic (model, source, test, lineage); no product-specific term. Write skills/architecture-map/references/stack-data-platform.md and the fixture tests/fixtures/repos/data-platform (one dbt project with two sources, four models in two layers and three tests).",
           "files": [
             "scripts/lib/prescan/data-platform.mjs",
             "scripts/lib/prescan/stacks/data-platform.mjs",
             "skills/architecture-map/references/stack-data-platform.md",
+            "skills/architecture-map/SKILL.md",
             "tests/fixtures/repos/data-platform",
             "tests/prescan-data-platform.test.mjs"
           ],
@@ -9873,16 +9887,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T22:42:49Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T22:50:41Z.e31611",
+            "status": "passed",
+            "at": "2026-11-02T22:50:41Z"
+          }
         },
         {
           "id": "P13.5",
@@ -10776,7 +10796,8 @@
       "P13.9",
       "P13.1",
       "P13.2",
-      "P13.3"
+      "P13.3",
+      "P13.4"
     ],
     "tests/skill.test.mjs": [
       "P4.4",

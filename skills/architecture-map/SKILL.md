@@ -52,6 +52,7 @@ flow; read one only at the step that names it.
 | [references/stack-containers.md](references/stack-containers.md) | The `containers` stack: Dockerfiles and Docker Compose services, ports, volumes, depends_on. |
 | [references/stack-pipelines.md](references/stack-pipelines.md) | The `pipelines` stack: GitHub Actions workflows and Azure Pipelines, jobs and stages, artefact hand-offs, deploy targets. |
 | [references/stack-iac.md](references/stack-iac.md) | The `iac` stack: Terraform and Bicep resources, modules, variables and outputs by name, references between them. |
+| [references/stack-data-platform.md](references/stack-data-platform.md) | The `data-platform` stack: dbt models with materialization, sources, tests and lineage from ref() and source() calls. |
 | [references/schema-introspection.md](references/schema-introspection.md) | The read-only introspection rules the driver follows; read it only for `--db <dsn>`. |
 | [references/issues-catalog.md](references/issues-catalog.md) | Only with `--issues`: the `archmap-reviewer` reads it; you read it to word the hand-off. |
 
