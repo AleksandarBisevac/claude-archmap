@@ -163,12 +163,10 @@ checklists stay private and are not tracked.
   other third-party cells from that session ("code from an external source"), so the owner started them from a
   terminal with the same `run-candidate.sh` command line: `draw-c4` on A, B and C, and `cc-codemaps` and
   `oh-my-mermaid` on C.
-- **Deviation on repository C**: that repository carries its own Claude Code project configuration (a
-  `.claude/settings.json` with hooks and an enabled plugin whose write guard was in deny mode). In run 1 it stopped two
-  tools from writing their result into the repository while two others wrote under `docs/` unimpeded, so run 1 on C
-  was discarded for every tool, and run 2 was made for all four tools on fresh clones with that repository's
-  `.claude/settings.json` and `.claude/audit.config.json` removed (from the clone only). The C evidence files are
-  therefore `<tool>-C-2.json`; the discarded run-1 profiles stay private.
+- **Deviation on repository C**: in run 1 project-level tooling of that repository interfered with the writes of two
+  tools (and left two unaffected), so run 1 on C was discarded for every tool, and run 2 was made for all four tools on
+  fresh clones with the repository's project-level Claude Code configuration removed (from the clone only). The C
+  evidence files are therefore `<tool>-C-2.json`; the discarded run-1 profiles stay private.
 - **Expectations**: none is recorded as not graded; every expectation of every tool was graded mechanically. The file
   reference check ("every component carries a file reference") leaves out the elements a tool marks as external
   systems, actors or the system boundary.

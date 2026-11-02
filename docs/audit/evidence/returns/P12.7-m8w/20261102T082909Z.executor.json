@@ -1,0 +1,19 @@
+{
+  "gates": {
+    "node --test tests/denylist.test.mjs tests/benchmark.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, tests.expectRedFirst false; no test added",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Rewrote the 'Deviation on repository C' bullet in the Runs section of skills/architecture-map/evals/benchmark/PROTOCOL.md generically: run 1 on C had project-level tooling of that repository interfere with two tools' writes (two unaffected), so run 1 on C was discarded for every tool; run 2 ran all four on fresh clones with the repository's project-level Claude Code configuration removed (clone only); C evidence files are <tool>-C-2.json, run-1 profiles stay private. Dropped the file names, the hooks mention, the plugin and the guard mode. Ran node --test tests/denylist.test.mjs tests/benchmark.test.mjs (26 pass, 0 fail) and full node --test (488 pass, 0 fail); b20 passes. Dependants (summary.json, run-candidate.sh, benchmark.test.mjs, readme.test.mjs, BENCHMARK.md, evals/README.md): still correct, since no path, basename, evidence file name (<tool>-C-2.json unchanged) or Runs-section fact that they read changed, and the full suite is green.",
+    "descriptive": "The public PROTOCOL.md no longer describes private repository C's own Claude Code setup; the facts a reader needs stay."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:e17f99c5fb740b2a83fbf220dbae245c6166780245025b0115bdb0e4003fe9c5\",\"dirtyDigest\":\"sha256:8b133df7f98135f6e68f94fd87dce94960413b39c984fd6c1cdc6e3c32300376\",\"dirtyPaths\":{\"skills/architecture-map/evals/benchmark/PROTOCOL.md\":\"75f1836bf4bd0eaf\"},\"head\":\"5c0d0ee\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/benchmark/PROTOCOL.md\"],\"scopeDigest\":\"sha256:64a7e28b58f56fefda7eb28e1b59b35b92ba10138e1b7a20c7fb5a3ee0730611\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
