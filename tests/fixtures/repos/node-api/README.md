@@ -21,9 +21,11 @@ One realistic example of each pattern the Node backend extractor looks for:
 | Drizzle tables and relations | `src/db/schema.ts` |
 | OpenAPI document | `openapi.yaml` |
 | BullMQ queue, producer and worker | `src/queues/` |
+| ORM query calls: Drizzle, Prisma and TypeORM (`ormCalls`) | `src/data/` |
 | Environment variables and SDK clients | `src/config.ts` |
 | A service that imports the config and a queue producer | `src/books/books.service.ts` |
 
 The Express, Hono and NestJS apps sit side by side only so one fixture covers all three; a real project would
 pick one. The unresolvable names in `src/books/books.controller.ts`, `src/express/orders.router.ts`,
-`src/hono/app.ts`, `src/db/schema.ts` and `src/queues/email.producer.ts` exist to exercise the `skipped` tally.
+`src/hono/app.ts`, `src/db/schema.ts`, `src/queues/email.producer.ts` and `src/data/` (a table passed in, a model
+Prisma does not have, an entity nobody declares) exist to exercise the `skipped` tally.

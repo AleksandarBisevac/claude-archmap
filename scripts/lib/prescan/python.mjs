@@ -1,11 +1,12 @@
 // python.mjs - the python stack plug-in of prescan: static, regex/lightweight-parse extraction.
 //
 // extractPython(files, read) -> fragment
-//   { scanned, routes[], entities[], schemas[], migrations[], sqlTables[], httpCalls[], envKeys[],
+//   { scanned, routes[], entities[], schemas[], migrations[], ormCalls[], sqlTables[], httpCalls[], envKeys[],
 //     clients[], queues[], stores[], middleware[], modules[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (FastAPI/Flask decorators, Django urls), SQLAlchemy/SQLModel/Django entities with fields (a table only an
 // Alembic migration declares is an entity too, framework 'alembic', from its replayed upgrade ops), Pydantic and
-// SQLModel schemas, Alembic migration ops, raw SQL table names (string literals and .sql files, a CREATE TABLE with
+// SQLModel schemas, Alembic migration ops, ORM query calls (ormCalls: {orm, target, ops, evidence}, the model a
+// SQLAlchemy or SQLModel session call touches with the CRUD letters of the call), raw SQL table names (string literals and .sql files, a CREATE TABLE with
 // its columns), outbound HTTP calls, environment variables
 // read (names only), SDK clients and base URLs, and task queues (Celery, Dramatiq, RQ, pika) with
 // their producers and consumers, and file databases opened by path (duckdb.connect, sqlite3.connect: a store
@@ -26,7 +27,7 @@
 import { byCodeUnit } from './inventory.mjs';
 import { genericRecipe, scanClients, scanDatabases, scanEnvKeys, sqlStatements } from './generic.mjs';
 
-export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'queues', 'routes', 'schemas', 'sqlTables', 'stores'];
+export const KINDS = ['clients', 'entities', 'envKeys', 'httpCalls', 'migrations', 'ormCalls', 'queues', 'routes', 'schemas', 'sqlTables', 'stores'];
 export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_FIELDS = 60; // per entity, schema or migration op
 const MAX_TEXT = 200; // longest type / path / url string kept
@@ -764,6 +765,139 @@ function extractHttp(f, acc) {
 const lineNo = (item) => Number(item.evidence[0].lines.split('-')[0]);
 
 // ---------------------------------------------------------------------------------------------
+// ORM calls (P13.10): which model a SQLAlchemy or SQLModel session call touches and the CRUD letters of the call, read as
+// text. `session.query(X)` (R; `.update(` or `.delete(` further down its chain U or D), `select(X)` R, `insert(X)` C,
+// `update(X)` U, `delete(X)` D, `session.add(X(...))` and `add_all` C, `session.merge` CU, `session.get(X, id)` R and
+// `session.delete(obj)` D. A row is {orm, target, ops, evidence}: the target is the model class the call names (or the
+// class an object was built from or annotated with, the nearest assignment or annotation above the call). A target that is
+// not a model class of the scan is counted in `skipped.ormCalls`, never guessed. Only files that import sqlalchemy or
+// sqlmodel, or a model class itself, are read.
+
+const CRUD = 'CRUD';
+const crud = (ops) => [...CRUD].filter((c) => ops.includes(c)).join('');
+const SA_IMPORT = /^[ \t]*(?:from|import)[ \t]+(?:sqlalchemy|sqlmodel|flask_sqlalchemy)\b/m;
+
+/** The links `.name(...)` that follow position `pos`, each {name, close}. */
+function callChain(f, pos) {
+  const out = [];
+  for (;;) {
+    const m = /^\s*\.\s*([A-Za-z_]\w*)\s*(?=\()/.exec(f.masked.slice(pos));
+    if (!m) return out;
+    const call = callArgs(f, pos + m[0].length);
+    if (!call) return out;
+    out.push({ name: m[1], close: call.close });
+    pos = call.close + 1;
+  }
+}
+
+function extractOrmCalls(parsed, acc) {
+  const models = new Set(acc.entities.filter((e) => e.framework === 'sqlalchemy' || e.framework === 'sqlmodel').map((e) => e.name));
+  if (models.size === 0) return;
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const modelRe = new RegExp(`^[ \\t]*from[ \\t]+[\\w.]+[ \\t]+import[ \\t]+[^\\n]*\\b(?:${[...models].sort(byCodeUnit).map(esc).join('|')})\\b`, 'm');
+  const row = (f, orm, model, ops, a, b) => acc.ormCalls.push({ orm, target: model, ops: crud(ops), evidence: evidence(f, a, b) });
+
+  for (const f of parsed) {
+    if (!SA_IMPORT.test(f.masked) && !modelRe.test(f.masked)) continue;
+    const orm = /^[ \t]*(?:from|import)[ \t]+sqlmodel\b/m.test(f.masked) ? 'sqlmodel' : 'sqlalchemy';
+    const emit = (names, ops, a, b) => {
+      for (const m of new Set(names)) row(f, orm, m, ops, a, b);
+    };
+
+    /** Models named by call arguments: `X`, `X.col`, `pkg.X`; a bare identifier that is no model is unresolved. */
+    const argModels = (args) => {
+      const found = [];
+      let unresolved = false;
+      for (const p of args) {
+        const t = f.masked.slice(p.a, p.b).replace(/\s+/g, '');
+        if (!/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(t)) continue;
+        const hit = t.split('.').find((s) => models.has(s));
+        if (hit) found.push(hit);
+        else if (!t.includes('.')) unresolved = true;
+      }
+      return { found, unresolved };
+    };
+    /** The model an object variable holds: the nearest assignment from X(...) or session.get(X, ...), or annotation `: X`, above `at`. */
+    const modelOfVar = (name, at) => {
+      let best = null;
+      const keep = (idx, model) => {
+        if (idx < at && models.has(model) && (best === null || idx > best.idx)) best = { idx, model };
+      };
+      const e = esc(name);
+      for (const m of f.masked.matchAll(new RegExp(`(?<![\\w.])${e}\\s*=\\s*(?:await\\s+)?([A-Za-z_]\\w*)\\s*\\(`, 'g'))) keep(m.index, m[1]);
+      for (const m of f.masked.matchAll(new RegExp(`(?<![\\w.])${e}\\s*=\\s*(?:await\\s+)?[\\w.]+\\.get\\s*\\(\\s*([A-Za-z_]\\w*)\\s*,`, 'g'))) keep(m.index, m[1]);
+      for (const m of f.masked.matchAll(new RegExp(`(?<![\\w.])${e}\\s*:\\s*(?:Optional\\[\\s*)?['"]?([A-Za-z_]\\w*)`, 'g'))) keep(m.index, m[1]);
+      return best === null ? null : best.model;
+    };
+    /** Models of the argument of add/merge/delete: a constructor call, a list of them, or a variable. */
+    const objectModels = (arg, at) => {
+      if (!arg) return null;
+      const t = f.masked.slice(arg.a, arg.b).trim();
+      const ctor = /^([A-Za-z_]\w*)\s*\(/.exec(t);
+      if (ctor) return models.has(ctor[1]) ? [ctor[1]] : null;
+      if (/^[A-Za-z_]\w*$/.test(t)) {
+        const m = modelOfVar(t, at);
+        return m === null ? null : [m];
+      }
+      return null;
+    };
+
+    // select(X) R, insert(X) C, update(X) U, delete(X) D (sqlalchemy.select(...) too); a bare name must be imported
+    const imported = new Set();
+    for (const m of f.masked.matchAll(/^[ \t]*from[ \t]+(?:sqlalchemy|sqlmodel)[\w.]*[ \t]+import[ \t]+(\([^)]*\)|[^\n]*)/gm)) {
+      for (const n of m[1].replace(/[()]/g, ' ').split(',')) imported.add(n.trim().split(/\s+/)[0]);
+    }
+    for (const [name, ops] of [['select', 'R'], ['insert', 'C'], ['update', 'U'], ['delete', 'D']]) {
+      for (const d of f.masked.matchAll(new RegExp(`(?<![\\w.])((?:(?:sa|sqlalchemy)\\s*\\.\\s*)?)${name}\\s*(?=\\()`, 'g'))) {
+        if (d[1] === '' && !imported.has(name)) continue;
+        const call = callArgs(f, d.index + d[0].length);
+        if (!call) continue;
+        const { found, unresolved } = argModels(call.args);
+        if (found.length) emit(found, ops, d.index, call.close + 1);
+        else if (unresolved) acc.skipped.ormCalls++;
+      }
+    }
+
+    // session-like receivers: a name holding "session", db, sess, or a parameter annotated Session
+    const annotated = [...f.masked.matchAll(/(?<![\w.])([A-Za-z_]\w*)\s*:\s*(?:Session|AsyncSession|scoped_session|async_scoped_session)\b/g)].map((m) => m[1]);
+    const recv = `(?<![\\w.])(?:[A-Za-z_]\\w*\\s*\\.\\s*)*(?:\\w*[sS]ession\\w*|db|sess${annotated.map((n) => `|${esc(n)}`).join('')})\\s*\\.\\s*`;
+    for (const d of f.masked.matchAll(new RegExp(`${recv}query\\s*(?=\\()`, 'g'))) {
+      const call = callArgs(f, d.index + d[0].length);
+      if (!call) continue;
+      const { found, unresolved } = argModels(call.args);
+      if (!found.length) {
+        if (unresolved) acc.skipped.ormCalls++;
+        continue;
+      }
+      const chain = callChain(f, call.close + 1);
+      const end = chain.find((l) => l.name === 'delete' || l.name === 'update');
+      emit(found, end ? (end.name === 'delete' ? 'D' : 'U') : 'R', d.index, (end ? end.close : call.close) + 1);
+    }
+    for (const [method, ops] of [['add_all', 'C'], ['add', 'C'], ['merge', 'CU'], ['delete', 'D']]) {
+      for (const d of f.masked.matchAll(new RegExp(`${recv}${method}\\s*(?=\\()`, 'g'))) {
+        const call = callArgs(f, d.index + d[0].length);
+        if (!call || !call.args[0]) continue;
+        let found = null;
+        if (method === 'add_all') {
+          const t = f.masked.slice(call.args[0].a, call.args[0].b);
+          if (t.startsWith('[') && t.endsWith(']')) {
+            found = splitTop(f.masked, call.args[0].a + 1, call.args[0].b - 1).flatMap((p) => objectModels(p, d.index) ?? []);
+            if (!found.length) found = null;
+          }
+        } else found = objectModels(call.args[0], d.index);
+        if (found === null) acc.skipped.ormCalls++;
+        else emit(found, ops, d.index, call.close + 1);
+      }
+    }
+    for (const d of f.masked.matchAll(new RegExp(`${recv}get\\s*(?=\\()`, 'g'))) {
+      const call = callArgs(f, d.index + d[0].length);
+      const t = call && call.args[0] ? f.masked.slice(call.args[0].a, call.args[0].b).trim() : '';
+      if (models.has(t)) emit([t], 'R', d.index, call.close + 1); // session.get(key) of a dict-like session is none of this
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Task queues. Consumers: Celery / Dramatiq task decorators, rq Worker(...), pika basic_consume.
 // Producers: <task>.delay / .apply_async / .send / .s, send_task("name"), rq Queue(...).enqueue(fn),
 // pika basic_publish. Rows are grouped by queue name: {name, producers[], workers[], evidence}.
@@ -950,6 +1084,7 @@ export function extractPython(files, read) {
   }
   extractEntitiesAndSchemas(parsed, acc);
   foldMigrations(acc);
+  extractOrmCalls(parsed, acc);
   extractQueues(parsed, acc);
   const pyFiles = files.filter((p) => /\.py$/.test(p));
   acc.envKeys.push(...scanEnvKeys(pyFiles, read, 'py'));

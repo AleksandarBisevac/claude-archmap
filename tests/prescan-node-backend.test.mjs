@@ -25,7 +25,7 @@ const fixtureRead = (p) => readFileSync(join(FIXTURE, p), 'utf8');
 const frag = extractNodeBackend(fixtureFiles, fixtureRead);
 const memFrag = (files) => extractNodeBackend(Object.keys(files).sort(), (p) => files[p] ?? null);
 
-const KINDS = ['entities', 'openapi', 'queues', 'routes'];
+const KINDS = ['entities', 'openapi', 'ormCalls', 'queues', 'routes'];
 const pick = (items, keys) => items.map((i) => Object.fromEntries(keys.map((k) => [k, i[k]])));
 const ev = (i) => `${i.evidence[0].path}:${i.evidence[0].lines}`;
 const routeRows = (f) => f.routes.map((r) => `${r.framework} ${r.method} ${r.url} ${r.handler} ${ev(r)}`);
@@ -190,8 +190,8 @@ test('nb5 every item carries {path, lines} evidence inside the file, output sort
 test('nb6 unknown patterns are skipped and counted, never guessed; a large file keeps every route', () => {
   // Fixture tally: @Get(CONST), get(CONST), express .route(path) chain, a template path in Hono,
   // a pgTable whose name is not a literal, a queue.add whose job name is a variable.
-  assert.deepEqual(frag.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 0, queues: 1, routes: 4, sqlTables: 0 });
-  assert.deepEqual(frag.truncated, { clients: 0, entities: 0, envKeys: 0, openapi: 0, queues: 0, routes: 0, sqlTables: 0 });
+  assert.deepEqual(frag.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 0, ormCalls: 3, queues: 1, routes: 4, sqlTables: 0 });
+  assert.deepEqual(frag.truncated, { clients: 0, entities: 0, envKeys: 0, openapi: 0, ormCalls: 0, queues: 0, routes: 0, sqlTables: 0 });
 
   const odd = memFrag({
     'svc/odd.ts':
@@ -204,7 +204,7 @@ test('nb6 unknown patterns are skipped and counted, never guessed; a large file 
     'docs/openapi-broken.yaml': 'just: text\n',
   });
   // P10.14: a Worker named by an identifier is a queue row named for the identifier; a call as the name is still skipped
-  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, queues: 1, routes: 1, sqlTables: 0 });
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, openapi: 2, ormCalls: 0, queues: 1, routes: 1, sqlTables: 0 });
   for (const k of KINDS.filter((x) => x !== 'queues')) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
   assert.deepEqual(odd.queues.map((q) => `${q.name} ${ev(q)}`), ['NAME svc/odd.ts:10'], 'the identifier text names the queue');
 
@@ -568,4 +568,79 @@ test('nb16 Knex migrations: createTable (chained or not) gives a knex table with
     'teams | id uuid pk | name text | owner_id integer fk=users.id | created_at timestamp | updated_at timestamp @db/migrations/20240101_init.js:8-13',
   ], 'badges is the drizzle table\'s, not repeated; a computed table name is skipped');
   assert.equal(f.skipped.entities, 1);
+});
+
+// P13.10: ORM query calls read as text - which entity or table a call touches and the CRUD letters of the method.
+const ormRows = (f) => f.ormCalls.map((c) => `${c.orm} ${c.target} ${c.ops} ${ev(c)}`);
+
+test('nb17 ormCalls: Drizzle, Prisma and TypeORM calls give {orm, target, ops, evidence} rows with the CRUD letters of the method; a target that is not a literal or a known table, model or entity is skipped and counted', () => {
+  assert.deepEqual(ormRows(frag), [
+    // Drizzle: db.select().from(x) R, insert C, update U, delete D, db.query.x.findMany R; a table passed in is unresolved
+    'drizzle editions R src/data/drizzle.queries.ts:6',
+    'drizzle publishers C src/data/drizzle.queries.ts:10',
+    'drizzle publishers U src/data/drizzle.queries.ts:14',
+    'drizzle editions D src/data/drizzle.queries.ts:18',
+    'drizzle publishers R src/data/drizzle.queries.ts:22',
+    'drizzle editions R src/data/drizzle.queries.ts:30-32',
+    // Prisma: the delegate names the model; findMany/findUnique R, create/createMany C, update U, upsert CU, delete/deleteMany D
+    'prisma Customer R src/data/prisma.queries.ts:6',
+    'prisma Order R src/data/prisma.queries.ts:10',
+    'prisma Order C src/data/prisma.queries.ts:14',
+    'prisma OrderLine C src/data/prisma.queries.ts:18',
+    'prisma Customer U src/data/prisma.queries.ts:22',
+    'prisma Customer CU src/data/prisma.queries.ts:26',
+    'prisma Order D src/data/prisma.queries.ts:30',
+    'prisma OrderLine D src/data/prisma.queries.ts:34',
+    // TypeORM: an injected or typed Repository<X>, getRepository(X) inline or assigned
+    'typeorm Book R src/data/typeorm.queries.ts:15',
+    'typeorm Book R src/data/typeorm.queries.ts:19',
+    'typeorm Book CU src/data/typeorm.queries.ts:23',
+    'typeorm Book C src/data/typeorm.queries.ts:27',
+    'typeorm Book U src/data/typeorm.queries.ts:31',
+    'typeorm Book D src/data/typeorm.queries.ts:35',
+    'typeorm Author R src/data/typeorm.queries.ts:39',
+    'typeorm Author CU src/data/typeorm.queries.ts:49',
+  ]);
+  // fromAnywhere(table), prisma.ghostTable (no such model), getRepository(Mystery) (no such entity)
+  assert.equal(frag.skipped.ormCalls, 3);
+  assert.deepEqual(Object.keys(frag.ormCalls[0]).sort(), ['evidence', 'ops', 'orm', 'target']);
+});
+
+test('nb18 ormCalls: only receivers that are ORM handles count; a lookalike method on an array, a map or a Redis client is not a row; $-methods and Prisma without its schema in the checkout', () => {
+  const f = memFrag({
+    'src/other.ts':
+      "import { db } from './client';\nimport { orders } from './schema';\nimport { createClient } from 'redis';\n" +
+      "const redis = createClient();\nconst list = [1, 2];\nconst cache = new Map();\n" +
+      'export const a = list.find((x) => x > 1);\nexport const b = cache.delete(1);\nexport const c = redis.update(1);\n' +
+      'export const d = list.filter(Boolean).delete;\n',
+    'src/shop.ts':
+      "import { PrismaClient } from '@prisma/client';\nconst prisma = new PrismaClient();\n" +
+      'export const one = prisma.user.findFirst();\nexport const raw = prisma.$queryRaw`select 1`;\n' +
+      'export const tx = prisma.$transaction([]);\nexport const two = prisma.blogPost.deleteMany();\n',
+  });
+  assert.deepEqual(ormRows(f), [
+    'prisma User R src/shop.ts:3',
+    'prisma BlogPost D src/shop.ts:6',
+  ], 'no schema.prisma in the checkout: the delegate name is the model name with its first letter up, as Prisma generates it');
+  assert.equal(f.skipped.ormCalls, 0);
+});
+
+test('nb20 ormCalls reach the area extract as {orm, target, ops, file, line, lines} rows for merge.mjs, and the explorer summary only counts them: no rows, no new text beyond the count', () => {
+  const { work, full } = prescanInto(FIXTURE);
+  try {
+    const rows = full.src.ormCalls;
+    assert.equal(rows.length, frag.ormCalls.length);
+    assert.deepEqual(rows[0], { orm: 'drizzle', target: 'editions', ops: 'R', file: 'src/data/drizzle.queries.ts', line: 6, lines: '6' });
+    const sum = JSON.parse(readFileSync(join(work, 'extracts', 'src.summary.json'), 'utf8'));
+    assert.equal(sum.counts.ormCalls, rows.length);
+    assert.equal('ormCalls' in sum, false, 'the summary lists no ORM call row');
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('nb19 ormCalls: output is deterministic and no timestamp or file content outside the evidence is carried', () => {
+  const again = extractNodeBackend(fixtureFiles.slice().reverse(), fixtureRead);
+  assert.equal(JSON.stringify(again.ormCalls), JSON.stringify(frag.ormCalls));
+  for (const c of frag.ormCalls) assert.match(c.ops, /^[CRUD]{1,4}$/);
 });

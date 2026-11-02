@@ -170,7 +170,7 @@ const sameMethod = (a, b) => !a || !b || a === 'ANY' || b === 'ANY' || a === b;
 
 const KEY_ORDER = [
   'area', 'title', 'globs', 'stacks', 'files', 'workspaceApps', 'entryPoints', 'manifests', 'containers', 'ci', 'sources', 'routes',
-  'middleware', 'modules', 'tables', 'schemas', 'migrations', 'sqlTables', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
+  'middleware', 'modules', 'tables', 'schemas', 'migrations', 'sqlTables', 'ormCalls', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
   'imports', 'links', 'truncated',
 ];
 const ALWAYS = new Set(['area', 'title', 'globs', 'stacks', 'files', 'routes', 'tables', 'envKeys', 'queues', 'imports', 'links', 'truncated']);
@@ -204,7 +204,7 @@ export function areaExtracts(out) {
       a.id,
       {
         area: a.id, title: a.title, globs: a.globs, stacks: a.stacks, files: a.files,
-        routes: [], tables: [], schemas: [], migrations: [], sqlTables: [], openapi: [], envKeys: [], queues: [],
+        routes: [], tables: [], schemas: [], migrations: [], sqlTables: [], ormCalls: [], openapi: [], envKeys: [], queues: [],
         clients: [], httpCalls: [], stores: [], imports: [], links: [], truncated: {},
       },
     ]),
@@ -239,6 +239,11 @@ export function areaExtracts(out) {
     if (t.op === 'ddl' && Array.isArray(t.columns)) {
       put(t, 'tables', { name: t.table, table: t.table, orm: 'sql', fields: t.columns.map(fieldStr), ...where(t), lines: at(t).lines });
     }
+  }
+  // ORM query calls: merge.mjs turns each into an access row and the pair node > store into a sql edge. The rows live in
+  // the full extract; the explorer summary only counts them (COUNT_ONLY: the script reads the rows, not the agent).
+  for (const c of [...(py.ormCalls ?? []), ...(nb.ormCalls ?? [])]) {
+    put(c, 'ormCalls', { orm: c.orm, target: c.target, ops: c.ops, ...where(c), lines: at(c).lines });
   }
   for (const d of nb.openapi ?? []) {
     put(d, 'openapi', compact({ title: d.title, servers: d.servers?.length ? d.servers : null, operations: (d.operations ?? []).length, ...where(d) }));
@@ -396,6 +401,8 @@ const SUMMARY_KEYS = ['area', 'title', 'globs', 'stacks', 'files', 'extract', 'n
 /** The kinds a slice lists, in the order its file prints them. */
 const kindsOf = (slice) =>
   KEY_ORDER.filter((k) => Array.isArray(slice[k]) && k !== 'globs' && k !== 'stacks' && (ALWAYS.has(k) || slice[k].length));
+// Kinds the summary only counts: merge.mjs reads their rows from the full extract, the explorer never needs them.
+const COUNT_ONLY = new Set(['ormCalls']);
 
 /**
  * How many tables the area's queries (select, insert, update, delete) name that nothing in the area declares: no
@@ -425,13 +432,13 @@ export function areaSummary(slice) {
   };
   const inferred = inferredTables(slice);
   if (inferred > 0) sum.counts.inferredTables = inferred;
-  for (const k of kinds) sum[k] = slice[k].slice(0, SUMMARY_ROWS);
+  for (const k of kinds) if (!COUNT_ONLY.has(k)) sum[k] = slice[k].slice(0, SUMMARY_ROWS);
   let text = summaryText(sum);
   while (text.length > SUMMARY_BUDGET) {
     let best = null;
     let bestScore = 0;
     for (const k of kinds) {
-      if (!sum[k].length) continue;
+      if (!sum[k]?.length) continue;
       const score = JSON.stringify(sum[k]).length / (SUMMARY_WEIGHT[k] ?? 2);
       if (score > bestScore) {
         best = k;

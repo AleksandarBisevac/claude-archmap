@@ -1780,3 +1780,160 @@ test('m32b the same fragments with introspection recorded as run keep the observ
   const none = merge({ fragments: staticFrags('skipped').slice(0, 1), extracts: staticExtracts(), meta: META }).model;
   assert.deepEqual(fieldsOf(none).users, ['id:declared', 'email:declared', 'lastSeen:observed'], 'no record of a skip, so no claim about it');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P13.10: richer relations from the script side. ORM query calls (the prescan `ormCalls` rows) become access rows and one
+// sql edge from the node to the store, import edges are typed by the node they reach and never `link`, and a queue
+// with only one side in the code is named in a meta.sources row.
+
+const ormFrags = () => [
+  frag('api', {
+    nodes: [node('orders-api', { zone: 'svc', paths: ['api/**'], evidence: ev('api/orders.ts') })],
+    // the explorer drew the orders-api > orders-db sql edge itself
+    edges: [{ id: 'api-reads-db', from: 'orders-api', to: 'orders-db', type: 'sql', desc: 'The explorer drew this.', evidence: ev('api/orders.ts', '5'), confidence: 'verified' }],
+  }),
+  frag('db', { nodes: [node('orders-db', { zone: 'data', kind: 'store', paths: ['db/**'], evidence: ev('db/schema.prisma') })] }),
+  frag('audit', { nodes: [node('audit-svc', { zone: 'svc', paths: ['audit/**'], evidence: ev('audit/log.ts') })] }),
+  frag('lone', { nodes: [node('lone-svc', { zone: 'svc', paths: ['lone/**'], evidence: ev('lone/main.ts') })] }),
+];
+const ormCall = (orm, target, ops, file, line) => ({ orm, target, ops, file, line, lines: String(line) });
+const ormExtracts = () => [
+  {
+    area: 'api', stacks: ['node-backend'], links: [], queues: [],
+    tables: [
+      { name: 'Order', table: 'orders', orm: 'prisma', fields: ['id Int pk'], file: 'db/schema.prisma', line: 1, lines: '1-4' },
+      { name: 'Customer', table: 'customers', orm: 'prisma', fields: ['id Int pk'], file: 'db/schema.prisma', line: 6, lines: '6-9' },
+    ],
+    ormCalls: [
+      ormCall('prisma', 'Order', 'R', 'api/orders.ts', 5),
+      ormCall('prisma', 'Order', 'C', 'api/orders.ts', 9),
+      ormCall('prisma', 'Customer', 'U', 'api/orders.ts', 14),
+      ormCall('prisma', 'Ghost', 'R', 'api/orders.ts', 20),
+      ormCall('prisma', 'Order', 'R', 'misc/loose.ts', 1),
+    ],
+  },
+  {
+    area: 'audit', stacks: ['node-backend'], links: [], queues: [],
+    tables: [{ name: 'auditLog', table: 'audit_log', orm: 'drizzle', fields: ['id serial pk'], file: 'db/audit.ts', line: 1, lines: '1-3' }],
+    ormCalls: [ormCall('drizzle', 'audit_log', 'C', 'audit/log.ts', 3)],
+  },
+];
+const ormMerged = (frags = ormFrags(), extracts = ormExtracts()) => merge({ fragments: frags, extracts, meta: META });
+
+test('m33 ormCalls become access rows (node of the file, entity by table or model name, ops unioned) and one sql edge to the entity\'s store, deduplicated with the explorer\'s edge; a target no entity models and a file no node owns are skipped with a reason', () => {
+  const { model } = ormMerged();
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual((model.access ?? []).map(rowOf(model)), [
+    'audit-svc audit_log C audit/log.ts:3',
+    'orders-api customers U api/orders.ts:14',
+    'orders-api orders CR api/orders.ts:5,api/orders.ts:9',
+  ]);
+  const sql = model.edges.filter((e) => e.type === 'sql');
+  assert.deepEqual(sql.map((e) => `${e.from}>${e.to}`).sort(), ['audit-svc>orders-db', 'orders-api>orders-db'], 'one sql edge per node and store');
+  const mine = sql.find((e) => e.id === 'api-reads-db');
+  assert.equal(mine.desc, 'The explorer drew this.', 'the explorer\'s edge is kept as it is, not repeated');
+  assert.deepEqual(mine.evidence, ev('api/orders.ts', '5'));
+  const made = sql.find((e) => e.from === 'audit-svc');
+  assert.deepEqual(made.evidence, [{ path: 'audit/log.ts', lines: '3' }], 'the call line is the evidence');
+  assert.equal(made.foundBy, 'static');
+  assert.equal(made.confidence, 'verified');
+  const row = model.meta.sources.find((s) => s.type === 'derivation');
+  const why = row.skipped.reasons.join('\n');
+  assert.match(why, /Ghost.*api\/orders\.ts:20.*no entity/, why);
+  assert.match(why, /misc\/loose\.ts:1.*no node owns/, why);
+  // a second sql edge is drawn when the explorer drew none
+  const bare = ormFrags();
+  bare[0].edges = [];
+  const m2 = ormMerged(bare).model;
+  const two = m2.edges.filter((e) => e.type === 'sql' && e.from === 'orders-api');
+  assert.equal(two.length, 1);
+  assert.deepEqual(two[0].evidence, [{ path: 'api/orders.ts', lines: '5' }, { path: 'api/orders.ts', lines: '9' }, { path: 'api/orders.ts', lines: '14' }]);
+  assert.equal(validate(m2).ok, true, JSON.stringify(validate(m2).findings));
+});
+
+test('m33b an import edge is typed by the node it reaches: sql to a store, queue to a queue, call to anything else, never link; an explorer-written link edge stays a link', () => {
+  const repo = tmp();
+  mkdirSync(join(repo, 'api'), { recursive: true });
+  writeFileSync(
+    join(repo, 'api', 'orders.ts'),
+    "import { db } from '../db/client';\nimport { mailQueue } from '../queues/mail';\nimport { slug } from '../lib/util';\nexport const x = 1;\n",
+  );
+  const frags = [
+    frag('api', {
+      nodes: [node('orders-api', { zone: 'svc', paths: ['api/**'], evidence: ev('api/orders.ts') })],
+      edges: [{ id: 'lib-see-api', from: 'lib-svc', to: 'orders-api', type: 'link', desc: 'Navigational.', evidence: ev('lib/util.ts', '1'), confidence: 'verified' }],
+    }),
+    frag('db', { nodes: [node('orders-db', { zone: 'data', kind: 'store', paths: ['db/**'], evidence: ev('db/client.ts') })] }),
+    frag('queues', { nodes: [node('mail-queue', { zone: 'data', kind: 'queue', title: 'Mail queue', paths: ['queues/**'], evidence: ev('queues/mail.ts') })] }),
+    frag('lib', { nodes: [node('lib-svc', { zone: 'svc', paths: ['lib/**'], evidence: ev('lib/util.ts') })] }),
+  ];
+  const imp = (to, other) => ({ kind: 'import', dir: 'out', from: 'api/orders.ts', to, other });
+  const extracts = [{ area: 'api', stacks: ['node-backend'], queues: [], links: [imp('db/client.ts', 'db'), imp('queues/mail.ts', 'queues'), imp('lib/util.ts', 'lib')] }];
+  const { model } = merge({ fragments: frags, extracts, repo, meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  const from = model.edges.filter((e) => e.from === 'orders-api').map((e) => `${e.type}>${e.to} ${e.evidence.map(locText).join(',')}`).sort();
+  assert.deepEqual(from, ['call>lib-svc api/orders.ts:3', 'queue>mail-queue api/orders.ts:2', 'sql>orders-db api/orders.ts:1']);
+  assert.equal(model.edges.find((e) => e.id === 'lib-see-api').type, 'link', 'the explorer\'s navigational link is not retyped');
+  assert.deepEqual(model.edges.filter((e) => e.type === 'link').map((e) => e.id), ['lib-see-api'], 'no derived edge is a link');
+  rmSync(repo, { recursive: true, force: true });
+});
+const locText = (e) => `${e.path}:${e.lines}`;
+
+const queueFrags = (extra = {}) => [
+  frag('prod', { nodes: [node('producer-svc', { zone: 'svc', paths: ['prod/**'], evidence: ev('prod/send.ts') })], ...extra.prod }),
+  frag('work', { nodes: [node('worker-svc', { zone: 'svc', paths: ['work/**'], evidence: ev('work/mail.ts') })], ...extra.work }),
+];
+const queueExtracts = () => [
+  {
+    area: 'prod', stacks: ['node-backend'], links: [], tables: [],
+    queues: [
+      { name: 'mail', file: 'prod/q.ts', line: 1, producers: [{ file: 'prod/send.ts', line: 3 }], consumers: [] },
+      { name: 'audit', file: 'prod/q.ts', line: 2, producers: [{ file: 'prod/send.ts', line: 4 }], consumers: [] },
+    ],
+  },
+  {
+    area: 'work', stacks: ['node-backend'], links: [], tables: [],
+    queues: [
+      { name: 'mail', producers: [], consumers: [{ handler: 'h', file: 'work/mail.ts', line: 2 }] },
+      { name: 'reports', file: 'work/r.ts', line: 1, producers: [], consumers: [{ handler: 'r', file: 'work/r.ts', line: 5 }] },
+    ],
+  },
+];
+const unpaired = (model) => model.meta.sources.filter((s) => s.type === 'queue-unpaired').map((s) => `${s.queue} ${s.node} missing ${s.missing}`).sort();
+
+test('m33c a queue node with a producer and no consumer, or the reverse, gets one queue-unpaired meta.sources row naming it; a paired queue and one the explorer drew the other side of get none; nothing is added to the model for it', () => {
+  const { model } = merge({ fragments: queueFrags(), extracts: queueExtracts(), meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.deepEqual(unpaired(model), ['audit audit-queue missing consumer', 'reports reports-queue missing producer']);
+  for (const s of model.meta.sources.filter((x) => x.type === 'queue-unpaired')) assert.match(s.note, new RegExp(s.queue), s.note);
+  assert.deepEqual(ids(model.nodes.filter((n) => n.kind === 'queue')), ['audit-queue', 'mail-queue', 'reports-queue'], 'no queue or edge is invented for the gap');
+  assert.equal(model.edges.filter((e) => e.type === 'queue').length, 4, 'one edge per side seen in the code');
+  // the explorer drew the consumer of audit (an edge from the queue node to the worker): that side is known
+  const drawn = queueFrags({
+    work: {
+      nodes: [
+        node('worker-svc', { zone: 'svc', paths: ['work/**'], evidence: ev('work/mail.ts') }),
+        node('audit-queue', { zone: 'data', kind: 'queue', title: 'audit', paths: ['work/audit-queue.ts'], evidence: ev('work/audit-queue.ts', '1') }),
+      ],
+      edges: [{ id: 'audit-to-worker', from: 'audit-queue', to: 'worker-svc', type: 'queue', desc: 'Takes jobs.', evidence: ev('work/mail.ts', '9'), confidence: 'verified', async: true }],
+    },
+  });
+  assert.deepEqual(unpaired(merge({ fragments: drawn, extracts: queueExtracts(), meta: META }).model), ['reports reports-queue missing producer']);
+  // without extracts nothing is checked
+  assert.deepEqual(unpaired(merge({ fragments: queueFrags(), meta: META }).model), []);
+});
+
+test('m33d the digest counts the nodes with no edge; two runs, and either input order, are byte-identical', () => {
+  const a = ormMerged();
+  assert.equal(a.digest.counts.nodesWithoutEdges, 1, 'lone-svc has no edge, the others have one');
+  assert.equal(a.digest.counts.nodes, 4);
+  const noEdges = (m) => m.nodes.filter((n) => !m.edges.some((e) => e.from === n.id || e.to === n.id)).length;
+  assert.equal(a.digest.counts.nodesWithoutEdges, noEdges(a.model));
+  const fwd = JSON.stringify([a.model, a.digest]);
+  assert.equal(JSON.stringify([ormMerged().model, ormMerged().digest]), fwd, 'two runs are identical');
+  const rev = ormMerged(ormFrags().reverse(), ormExtracts().map((x) => ({ ...x, ormCalls: x.ormCalls.slice().reverse() })).reverse());
+  assert.equal(JSON.stringify([rev.model, rev.digest]), fwd, 'neither the fragment order nor the order of the call rows matters');
+  const q1 = merge({ fragments: queueFrags(), extracts: queueExtracts(), meta: META });
+  const q2 = merge({ fragments: queueFrags().reverse(), extracts: queueExtracts().reverse(), meta: META });
+  assert.equal(JSON.stringify(q2.model), JSON.stringify(q1.model), 'the unpaired rows do not depend on the order either');
+});

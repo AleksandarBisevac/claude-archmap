@@ -378,6 +378,7 @@ const SYNTH_REFUSED = {
 const MAX_EDGE_EVIDENCE = 4;
 const MAX_REASONS = 20;
 const SQL_OPS = { select: 'R', insert: 'C', update: 'U', delete: 'D' };
+const SQL_TARGETS = new Set(['store', 'database', 'db', 'datastore']); // node kinds an import or an ORM call reaches over sql
 const PROVENANCES = new Set(['declared', 'observed', 'inferred']);
 const byLoc = (a, b) => cmp(a.path, b.path) || Number(String(a.lines).split('-')[0]) - Number(String(b.lines).split('-')[0]) || cmp(a.lines, b.lines);
 const splitLoc = (loc) => {
@@ -769,15 +770,42 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       }
     }
   }
+  // --- entity lookup: id, name, and the ORM class and table names the slices map to an entity
+  const entityOf = new Map();
+  const nameIt = (name, id) => {
+    if (typeof name === 'string' && name && !entityOf.has(name.toLowerCase())) entityOf.set(name.toLowerCase(), id);
+  };
+  const ents = [...entities.values()].sort(byId);
+  for (const e of ents) nameIt(e.id, e.id);
+  for (const e of ents) nameIt(e.name, e.id);
+  const tableRows = slices.flatMap((s) => list(s.tables).filter(isObj));
+  const lookup = (name) => {
+    if (typeof name !== 'string' || !name) return null;
+    const n = name.toLowerCase();
+    return entityOf.get(n) ?? entityOf.get(n.split('.').pop()) ?? null;
+  };
+  for (const t of tableRows) {
+    const id = lookup(t.table) ?? lookup(t.name);
+    if (id !== null) nameIt(t.name, id);
+  }
+
   const queueNodes = [...nodes.values()].filter((n) => kindOf(n) === 'queue').sort(byId);
   const queueNode = (name) => queueNodes.find((n) => isQueueOf(n, name))?.id ?? null;
+  // the explorers' own edges, read before anything is derived: which queue nodes they gave a producer or a consumer
+  const drawn = { producer: new Set(), consumer: new Set() };
+  for (const e of edges.values()) {
+    if (queueNodes.some((n) => n.id === e.to) && e.from !== e.to) drawn.producer.add(e.to);
+    if (queueNodes.some((n) => n.id === e.from) && e.from !== e.to) drawn.consumer.add(e.from);
+  }
   const groups = new Map();
   // `guess` is what makes a link inferred (a route matched through a wildcard segment, an import line found by its
-  // file name only); a pair of nodes is verified as soon as one of its links is exact
-  const add = (from, type, to, evidence, via, extra = {}, guess = null) => {
+  // file name only); a pair of nodes is verified as soon as one of its links is exact. `src` says what drew the
+  // pair: a prescan row ('row', the default), an import ('import') or an ORM call ('orm').
+  const add = (from, type, to, evidence, via, extra = {}, guess = null, src = 'row') => {
     const key = `${from}\u0000${type}\u0000${to}`;
-    if (!groups.has(key)) groups.set(key, { from, type, to, evidence: [], vias: [], exact: false, guesses: [], ...extra });
+    if (!groups.has(key)) groups.set(key, { from, type, to, evidence: [], vias: [], exact: false, guesses: [], srcs: new Set(), ...extra });
     const g = groups.get(key);
+    g.srcs.add(src);
     g.evidence = unionEvidence(g.evidence, evidence);
     if (via && !g.vias.includes(via)) g.vias.push(via);
     if (guess === null) g.exact = true;
@@ -837,17 +865,55 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
         continue;
       }
       const guess = found.exact ? null : `the import line names ${basename(b.path).replace(/\.[^.]+$/, '')} by its file name only`;
-      add(from, 'call', to, [{ path: a.path, lines: found.line }], b.path, {}, guess);
+      // typed by the node the import reaches: a store is sql, a queue is queue, anything else a call. Never `link`:
+      // that stays for the navigational links an explorer writes.
+      const reach = kindOf(nodes.get(to));
+      const type = SQL_TARGETS.has(reach) ? 'sql' : reach === 'queue' ? 'queue' : 'call';
+      add(from, type, to, [{ path: a.path, lines: found.line }], b.path, {}, guess, 'import');
     } else skipped.push(`${what}: unknown link kind`);
+  }
+
+  // --- ORM calls the slices list ({orm, target, ops, file, line}): the node that owns the file, the entity the target
+  // names (by table, model or id), and the entity's store. Each call is one access row (applied below, with the other
+  // access rows) and the pair node > store is one sql edge, the call lines its evidence.
+  const ormUses = [];
+  const ormRows = [];
+  for (const s of slices) {
+    for (const r of list(s.ormCalls)) {
+      if (isObj(r) && typeof r.target === 'string' && typeof r.file === 'string' && Number.isInteger(r.line) && r.line > 0 && typeof r.ops === 'string') ormRows.push(r);
+    }
+  }
+  ormRows.sort((p, q) => cmp(p.file, q.file) || p.line - q.line || cmp(p.target, q.target) || cmp(p.ops, q.ops) || cmp(String(p.orm), String(q.orm)));
+  for (const r of ormRows) {
+    const entity = lookup(r.target);
+    const node = owner(r.file);
+    const where = `${r.file}:${r.line}`;
+    if (entity === null || node === null) {
+      skipped.push(`orm ${r.orm ?? ''} ${r.target} at ${where}: ${entity === null ? `no entity models ${r.target}` : `no node owns ${r.file}`}`.replace(/\s{2,}/g, ' '));
+      continue;
+    }
+    const ops = unionOps('', r.ops.toUpperCase());
+    if (ops === '') continue; // no CRUD letter: nothing to record
+    const at = [{ path: r.file, lines: typeof r.lines === 'string' && /^\d+(-\d+)?$/.test(r.lines) ? r.lines : String(r.line) }];
+    ormUses.push({ node, entity, ops, evidence: at });
+    const store = entities.get(entity)?.store;
+    if (typeof store === 'string' && nodes.has(store) && store !== node) {
+      add(node, 'sql', store, at, null, {}, null, 'orm');
+      const g = groups.get(`${node}\u0000sql\u0000${store}`);
+      g.tables ??= [];
+      if (!g.tables.includes(entities.get(entity).name)) g.tables.push(entities.get(entity).name);
+    }
   }
   const mapped = new Set([...edges.values()].map((e) => `${e.from}\u0000${e.type}\u0000${e.to}`));
   for (const [key, g] of [...groups].sort((p, q) => cmp(p[0], q[0]))) {
     if (mapped.has(key)) continue; // the explorer already drew it
     const more = g.vias.length > 1 ? ` and ${g.vias.length - 1} more` : '';
+    const imported = g.srcs.size === 1 && g.srcs.has('import');
     const desc =
       g.type === 'api' ? `Calls ${g.vias[0]}${more} over HTTP.`
+      : g.srcs.has('orm') ? `Queries ${g.tables.slice(0, 3).join(', ')}${g.tables.length > 3 ? ` and ${g.tables.length - 3} more` : ''} through the ORM.`
       : g.type === 'queue' && g.consume ? `Takes ${g.vias[0]}${more} jobs off the queue and works them.`
-      : g.type === 'queue' ? `Enqueues ${g.vias[0]}${more}; the sender does not wait.`
+      : g.type === 'queue' && !imported ? `Enqueues ${g.vias[0]}${more}; the sender does not wait.`
       : `Imports ${g.vias[0]}${more}.`;
     const inferred = !g.exact && g.guesses.length > 0;
     let id = slug(`${g.from}-${g.type}-${g.to}`);
@@ -858,29 +924,10 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       // the caller's side first: update mode gives an edge to the area of its first evidence path, its source
       evidence: g.evidence.slice(0, MAX_EDGE_EVIDENCE), confidence: inferred ? 'inferred' : 'verified', foundBy: 'static',
     };
-    if (g.vias.length === 1 && g.type !== 'call') edge.label = g.vias[0];
+    if (g.vias.length === 1 && g.type !== 'call' && !imported) edge.label = g.vias[0];
     if (g.async) edge.async = true;
     edges.set(id, edge);
     count.edges++;
-  }
-
-  // --- entity lookup: id, name, and the ORM class and table names the slices map to an entity
-  const entityOf = new Map();
-  const nameIt = (name, id) => {
-    if (typeof name === 'string' && name && !entityOf.has(name.toLowerCase())) entityOf.set(name.toLowerCase(), id);
-  };
-  const ents = [...entities.values()].sort(byId);
-  for (const e of ents) nameIt(e.id, e.id);
-  for (const e of ents) nameIt(e.name, e.id);
-  const tableRows = slices.flatMap((s) => list(s.tables).filter(isObj));
-  const lookup = (name) => {
-    if (typeof name !== 'string' || !name) return null;
-    const n = name.toLowerCase();
-    return entityOf.get(n) ?? entityOf.get(n.split('.').pop()) ?? null;
-  };
-  for (const t of tableRows) {
-    const id = lookup(t.table) ?? lookup(t.name);
-    if (id !== null) nameIt(t.name, id);
   }
 
   // --- access rows from the SQL the slices list ("<table> <op> <path>:<line>"), in file and line order so the evidence
@@ -903,6 +950,12 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       continue;
     }
     addAccess(access, { node, entity, ops, evidence: [{ path, lines: line }] });
+    count.access++;
+  }
+
+  // --- access rows from the ORM calls (resolved above, in file and line order): ops unioned per node and entity
+  for (const u of ormUses) {
+    addAccess(access, u);
     count.access++;
   }
 
@@ -979,6 +1032,36 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     }
   }
 
+  // --- a queue the code feeds but nothing in it works, or the reverse, is named in one queue-unpaired source row so the
+  // gap is visible; nothing is added to the model for it. A side the explorers drew (an edge into the queue node is a
+  // producer, an edge out of it a consumer) is known, whatever the prescan rows say.
+  const sides = new Map(); // queue name -> {producers: [loc], consumers: [loc]}
+  for (const s of slices) {
+    for (const q of list(s.queues)) {
+      if (!isObj(q) || typeof q.name !== 'string' || !q.name) continue;
+      if (!sides.has(q.name)) sides.set(q.name, { producers: [], consumers: [] });
+      const g = sides.get(q.name);
+      for (const [key, rows] of [['producers', q.producers], ['consumers', q.consumers]]) {
+        for (const r of list(rows)) if (isObj(r) && typeof r.file === 'string' && Number.isInteger(r.line) && r.line > 0) g[key].push({ path: r.file, lines: String(r.line) });
+      }
+    }
+  }
+  const unpaired = [];
+  for (const name of [...sides.keys()].sort(cmp)) {
+    const g = sides.get(name);
+    const id = queueNode(name);
+    if (id === null) continue;
+    const producers = g.producers.length > 0 || drawn.producer.has(id);
+    const consumers = g.consumers.length > 0 || drawn.consumer.has(id);
+    if (producers === consumers) continue; // paired, or no side seen at all: nothing to say
+    const present = (producers ? g.producers : g.consumers).slice().sort(byLoc).map(locText);
+    unpaired.push({
+      type: 'queue-unpaired', queue: name, node: id, missing: producers ? 'consumer' : 'producer',
+      note: `queue ${name} (node ${id}) has a ${producers ? 'producer' : 'consumer'}${present.length ? ` (${present.slice(0, 3).join(', ')})` : ''} in the code and no ${producers ? 'consumer' : 'producer'}: ` +
+        `the other side is not in the checkout, or the queue is fed or worked from elsewhere`,
+    });
+  }
+
   const reasons = [...new Set(skipped)].sort(cmp);
   const tally = made ?? { entities: 0, merged: 0, inferred: 0, stores: 0, queues: 0 };
   const source = {
@@ -997,7 +1080,7 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       `${skipped.length} link(s) or statement(s) could not be cited or resolved` +
       (carried !== null ? `; ${carriedText(carried)}` : ''),
   };
-  return { source, flows };
+  return { source, flows, unpaired };
 }
 
 /** The update-mode carry-over, said in the derivation row's note. */
@@ -1112,6 +1195,16 @@ export function digestText(d) {
   return `{\n${keys.filter((k) => d[k] !== undefined).map(line).join(',\n')}\n}\n`;
 }
 
+/** How many nodes no edge starts or ends at: the gaps a build report shows. */
+function nodesWithoutEdges(model) {
+  const touched = new Set();
+  for (const e of list(model.edges)) {
+    touched.add(e?.from);
+    touched.add(e?.to);
+  }
+  return list(model.nodes).filter((n) => !touched.has(n?.id)).length;
+}
+
 /** The compact digest of a merged model, cut to DIGEST_CAP characters; what the cut drops is counted in `truncated`. */
 export function buildDigest(model, { drafts = [] } = {}) {
   const d = compact({
@@ -1121,6 +1214,7 @@ export function buildDigest(model, { drafts = [] } = {}) {
     counts: {
       nodes: list(model.nodes).length, edges: list(model.edges).length, entities: list(model.entities).length,
       access: list(model.access).length, sequences: list(model.sequences).length, drafts: drafts.length,
+      nodesWithoutEdges: nodesWithoutEdges(model),
     },
     zones: list(model.zones).map((z) => compact({ id: z.id, kind: z.kind })),
     nodes: list(model.nodes).map((n) => compact({ id: n.id, kind: n.kind, zone: n.zone, level: n.level, title: clip(n.title, 80), role: clip(n.role, 140) })),
@@ -1808,6 +1902,11 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     sources.push(extracts !== undefined ? derived.source : {
       type: 'derivation', derived: { carried: carriedCount.total }, skipped: { count: 0, reasons: [] }, note: carriedText(carriedCount),
     });
+  }
+  // the unpaired-queue rows are recomputed with the extracts, so those of an earlier run go when fresh ones come
+  if (extracts !== undefined) {
+    for (let i = sources.length - 1; i >= 0; i--) if (isObj(sources[i]) && sources[i].type === 'queue-unpaired') sources.splice(i, 1);
+    sources.push(...derived.unpaired);
   }
 
   // --- synthesizer: sequences and views only; the structure is the script's

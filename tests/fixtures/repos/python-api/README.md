@@ -21,6 +21,7 @@ One realistic example of each pattern the Python extractor looks for:
 | SQLModel table and schema classes | `shop/members.py` |
 | `CREATE TABLE` in a `.sql` file | `app/schema.sql` |
 | Raw SQL table names | `app/reports.py` |
+| ORM query calls: SQLAlchemy sessions and SQLModel (`ormCalls`) | `shop/repository.py`, `shop/queries.py` |
 | Outbound HTTP calls | `app/clients.py` |
 | Environment variables and shared clients | `app/config.py` |
 | Celery tasks (consumers) | `app/tasks.py` |

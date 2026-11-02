@@ -1,12 +1,13 @@
 // node-backend.mjs - the node-backend stack plug-in of prescan: static, regex/lightweight-parse extraction.
 //
 // extractNodeBackend(files, read) -> fragment
-//   { scanned, routes[], entities[], openapi[], queues[], envKeys[], clients[], sqlTables[], skipped{<kind>: n}, truncated{<kind>: n} }
+//   { scanned, routes[], entities[], openapi[], ormCalls[], queues[], envKeys[], clients[], sqlTables[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (NestJS controllers, Express and Hono routers, with router mounts resolved), ORM entities
 // (Prisma models, TypeORM entities, Drizzle tables, and Knex migration tables nobody else declares) with fields, PK/FK and relations, OpenAPI
 // documents (YAML or JSON), BullMQ queues with their producers and workers, environment variables read
 // (names only), SDK clients / base URLs, and SQL statements in string and template literals (sqlTables: {table, op,
-// evidence}, a CREATE TABLE with its columns). Every item carries
+// evidence}, a CREATE TABLE with its columns), and ORM query calls (ormCalls: {orm, target, ops, evidence}, the table, model or
+// entity a Drizzle, Prisma or TypeORM call touches with the CRUD letters of its method). Every item carries
 // evidence: [{path, lines}] ("12" or "12-14"). Items are sorted by path then line; each kind has a
 // ceiling (MAX_ITEMS, far above a real repo: the extract is the full record), and what it drops is
 // counted in `truncated`. A recognised shape whose arguments cannot be resolved statically (a computed
@@ -26,7 +27,7 @@
 import { byCodeUnit } from './inventory.mjs';
 import { detectStacks, scanClients, scanEnvKeys, scanJsSql } from './generic.mjs';
 
-export const KINDS = ['clients', 'entities', 'envKeys', 'openapi', 'queues', 'routes', 'sqlTables'];
+export const KINDS = ['clients', 'entities', 'envKeys', 'openapi', 'ormCalls', 'queues', 'routes', 'sqlTables'];
 export const MAX_ITEMS = 20000; // per kind: a ceiling against a pathological repo, not a budget (the explorer reads a summary)
 const MAX_FIELDS = 60; // per entity
 const MAX_NESTED = 2000; // producers / workers per queue, operations per OpenAPI document
@@ -1094,6 +1095,168 @@ function extractQueues(ctx, acc) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// ORM calls (P13.10): which entity or table a query call touches and the CRUD letters of its method, read as text.
+// Drizzle `db.select().from(x)`, `db.insert(x)`, `db.update(x)`, `db.delete(x)`, `db.query.x.findMany()`; Prisma
+// `prisma.x.findMany()` and the other delegate methods; TypeORM `repo.find()`/`save()`/`insert()`/`update()`/`delete()` on
+// an injected or typed `Repository<X>` or on `getRepository(X)`. A row is {orm, target, ops, evidence}: the target is the
+// table (Drizzle), the model (Prisma) or the entity class (TypeORM) the call names, and only a literal or an
+// identifier the scan resolved to a declared table, model or entity makes a row; any other target is counted in
+// `skipped.ormCalls`. A receiver is an ORM handle by how it was declared or typed, never by its method name alone.
+
+const CRUD = 'CRUD';
+const crud = (ops) => [...CRUD].filter((c) => ops.includes(c)).join('');
+const PRISMA_OPS = {
+  findMany: 'R', findFirst: 'R', findUnique: 'R', findFirstOrThrow: 'R', findUniqueOrThrow: 'R', count: 'R', aggregate: 'R', groupBy: 'R',
+  create: 'C', createMany: 'C', createManyAndReturn: 'C',
+  update: 'U', updateMany: 'U', updateManyAndReturn: 'U', upsert: 'CU',
+  delete: 'D', deleteMany: 'D',
+};
+const TYPEORM_OPS = {
+  find: 'R', findOne: 'R', findBy: 'R', findOneBy: 'R', findOneOrFail: 'R', findOneByOrFail: 'R', findAndCount: 'R', findAndCountBy: 'R',
+  count: 'R', countBy: 'R', exist: 'R', exists: 'R', existsBy: 'R', sum: 'R', average: 'R', minimum: 'R', maximum: 'R',
+  insert: 'C', save: 'CU', upsert: 'CU', update: 'U', increment: 'U', decrement: 'U', restore: 'U',
+  delete: 'D', remove: 'D', softDelete: 'D', softRemove: 'D',
+};
+const DRIZZLE_RECEIVERS = '(?:db|database|tx|trx)';
+const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+const upperFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const lastSegment = (t) => t.slice(t.lastIndexOf('.') + 1);
+
+/** The row of one recognised call, or a skip: `target` null counts in skipped.ormCalls. */
+function ormRow(acc, f, orm, target, ops, a, b) {
+  if (target === null || target === undefined) {
+    acc.skipped.ormCalls++;
+    return;
+  }
+  acc.ormCalls.push({ orm, target: clip(target), ops: crud(ops), evidence: evidence(f, a, b) });
+}
+
+function extractOrmCalls(ctx, acc, drizzle) {
+  const models = new Map(acc.entities.filter((e) => e.orm === 'prisma').map((e) => [lowerFirst(e.name), e.name]));
+  const classes = new Map(acc.entities.filter((e) => e.orm === 'typeorm').map((e) => [e.name, e]));
+  const tablesByVar = new Map();
+  for (const t of drizzle) {
+    if (!tablesByVar.has(t.item.name)) tablesByVar.set(t.item.name, []);
+    tablesByVar.get(t.item.name).push(t);
+  }
+  const inDrizzle = drizzle.length > 0;
+
+  // names the scan knows hold a PrismaClient anywhere in the repository: `db` in lib/db.ts is imported as `db` elsewhere
+  const prismaVars = new Set(['prisma', 'prismaClient']);
+  for (const f of ctx.files) {
+    for (const m of f.masked.matchAll(new RegExp(`\\b(?:const|let|var)\\s+(${ID})\\s*(?::[^=\\n]+)?=\\s*new\\s+PrismaClient\\b`, 'g'))) prismaVars.add(m[1]);
+    for (const m of f.masked.matchAll(new RegExp(`(${ID})\\s*[?!]?\\s*:\\s*(?:Prisma(?:Client|Service)|PrismaClient)\\b`, 'g'))) prismaVars.add(m[1]);
+  }
+
+  /** The Drizzle table a table argument names (an identifier or schema.name member), or null. */
+  const drizzleTable = (f, arg) => {
+    const t = arg ? identText(f, arg) : null;
+    if (t === null) return null;
+    const name = lastSegment(t);
+    const o = t.includes('.') ? null : origin(ctx, f, t);
+    const exact = o ? (tablesByVar.get(o.name) ?? []).find((x) => x.f === o.file) : undefined;
+    const hits = exact ? [exact] : tablesByVar.get(name) ?? [];
+    return hits.length === 1 ? hits[0].item.table : null;
+  };
+
+  for (const f of ctx.files) {
+    const drizzleHere = inDrizzle || /\bdrizzle-orm\b/.test(f.src);
+
+    // --- Drizzle
+    if (drizzleHere) {
+      const recv = `(?<![\\w$.])(?:this\\s*\\.\\s*)?${DRIZZLE_RECEIVERS}\\s*\\.\\s*`;
+      for (const d of f.masked.matchAll(new RegExp(`${recv}(select|selectDistinct|selectDistinctOn)\\s*(?=\\()`, 'g'))) {
+        const head = callAt(f, d.index + d[0].length);
+        if (!head) continue;
+        // the table is the argument of the `.from(...)` that follows in the same chain
+        let pos = head.close + 1;
+        let from = null;
+        for (;;) {
+          const link = /^\s*\.\s*([A-Za-z_$][\w$]*)\s*(?=\()/.exec(f.masked.slice(pos));
+          if (!link) break;
+          const call = callAt(f, pos + link[0].length);
+          if (!call) break;
+          if (link[1] === 'from') {
+            from = call;
+            break;
+          }
+          pos = call.close + 1;
+        }
+        if (from === null) continue; // a select with no from: not a table read this scan can name
+        ormRow(acc, f, 'drizzle', drizzleTable(f, from.args[0]), 'R', d.index, from.close + 1);
+      }
+      for (const [method, ops] of [['insert', 'C'], ['update', 'U'], ['delete', 'D']]) {
+        for (const d of f.masked.matchAll(new RegExp(`${recv}${method}\\s*(?=\\()`, 'g'))) {
+          const call = callAt(f, d.index + d[0].length);
+          if (!call) continue;
+          ormRow(acc, f, 'drizzle', drizzleTable(f, call.args[0]), ops, d.index, call.close + 1);
+        }
+      }
+      for (const d of f.masked.matchAll(new RegExp(`${recv}query\\s*\\.\\s*(${ID})\\s*\\.\\s*(findMany|findFirst)\\s*(?=\\()`, 'g'))) {
+        const call = callAt(f, d.index + d[0].length);
+        if (!call) continue;
+        const hits = tablesByVar.get(d[1]) ?? [];
+        ormRow(acc, f, 'drizzle', hits.length === 1 ? hits[0].item.table : null, 'R', d.index, call.close + 1);
+      }
+    }
+
+    // --- Prisma: prisma.<model>.<method>(...); a name starting with $ is a client method, not a model
+    const recvNames = new Set(prismaVars);
+    if (/\$transaction\s*\(/.test(f.masked)) recvNames.add('tx');
+    const prismaRe = new RegExp(`(?<![\\w$.])(?:this\\s*\\.\\s*)?(${[...recvNames].sort(byCodeUnit).join('|')})\\s*\\.\\s*([A-Za-z_]\\w*)\\s*\\.\\s*(${Object.keys(PRISMA_OPS).join('|')})\\s*(?=\\()`, 'g');
+    for (const d of f.masked.matchAll(prismaRe)) {
+      const call = callAt(f, d.index + d[0].length);
+      if (!call) continue;
+      // with the schema in the checkout the delegate must name one of its models; without it Prisma's own rule
+      // (model User is prisma.user) names the model
+      const target = models.size ? models.get(d[2]) ?? null : upperFirst(d[2]);
+      ormRow(acc, f, 'prisma', target, PRISMA_OPS[d[3]], d.index, call.close + 1);
+    }
+
+    // --- TypeORM: handles by declaration, then calls on them; getRepository(X).method() inline
+    const entityOf = (a) => {
+      if (!a) return null;
+      const lit = f.strAt.get(a.a);
+      const name = lit ? (lit.closed && !lit.tpl && lit.end === a.b ? lit.value : null) : identText(f, a);
+      if (name === null) return null;
+      const hit = classes.get(name) ?? [...classes.values()].find((e) => typeof e.table === 'string' && e.table.toLowerCase() === name.toLowerCase());
+      return hit ? hit.name : null;
+    };
+    const handles = new Map(); // variable or property name -> entity class, or null when unresolved
+    const note = (name, target) => handles.set(name, handles.has(name) && handles.get(name) !== target ? null : target);
+    for (const d of f.masked.matchAll(new RegExp(`@InjectRepository\\s*(?=\\()`, 'g'))) {
+      const call = callAt(f, d.index + d[0].length);
+      if (!call) continue;
+      const name = new RegExp(`^\\s*(?:(?:private|public|protected|readonly)\\s+)*(${ID})\\s*[?!]?\\s*:`).exec(f.masked.slice(call.close + 1, call.close + 120));
+      if (name) note(name[1], entityOf(call.args[0]));
+    }
+    for (const m of f.masked.matchAll(new RegExp(`(${ID})\\s*[?!]?\\s*:\\s*Repository\\s*<\\s*(${ID})\\s*>`, 'g'))) {
+      if (!handles.has(m[1])) note(m[1], classes.has(m[2]) ? m[2] : null);
+    }
+    for (const m of f.masked.matchAll(new RegExp(`\\b(?:const|let|var)\\s+(${ID})\\s*(?::[^=\\n]+)?=\\s*(?:await\\s+)?(?:[\\w$.\\s]*?\\.\\s*)?getRepository\\s*(?=\\()`, 'g'))) {
+      const call = callAt(f, m.index + m[0].length);
+      if (call) note(m[1], entityOf(call.args[0]));
+    }
+    if (handles.size) {
+      const names = [...handles.keys()].sort(byCodeUnit).join('|');
+      const re = new RegExp(`(?<![\\w$.])(?:this\\s*\\.\\s*)?(${names})\\s*\\.\\s*(${Object.keys(TYPEORM_OPS).join('|')})\\s*(?=\\()`, 'g');
+      for (const d of f.masked.matchAll(re)) {
+        const call = callAt(f, d.index + d[0].length);
+        if (call) ormRow(acc, f, 'typeorm', handles.get(d[1]), TYPEORM_OPS[d[2]], d.index, call.close + 1);
+      }
+    }
+    for (const d of f.masked.matchAll(new RegExp(`(?<![\\w$])getRepository\\s*(?=\\()`, 'g'))) {
+      const open = callAt(f, d.index + d[0].length);
+      if (!open) continue;
+      const m = new RegExp(`^\\s*\\.\\s*(${Object.keys(TYPEORM_OPS).join('|')})\\s*(?=\\()`).exec(f.masked.slice(open.close + 1));
+      if (!m) continue;
+      const call = callAt(f, open.close + 1 + m[0].length);
+      if (call) ormRow(acc, f, 'typeorm', entityOf(open.args[0]), TYPEORM_OPS[m[1]], d.index, call.close + 1);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 
 const lineNo = (item) => Number(item.evidence[0].lines.split('-')[0]);
 
@@ -1152,6 +1315,7 @@ export function extractNodeBackend(files, read) {
   for (const r of found) {
     for (const p of prefixesOf(r.key, mounts)) acc.routes.push({ framework: r.framework, method: r.method, url: joinUrl(p, r.sub), handler: r.handler, evidence: r.ev });
   }
+  extractOrmCalls(ctx, acc, drizzle);
   extractQueues(ctx, acc);
   acc.envKeys.push(...scanEnvKeys(sorted, read, 'js'));
   acc.clients.push(...scanClients(sorted, read, 'js'));

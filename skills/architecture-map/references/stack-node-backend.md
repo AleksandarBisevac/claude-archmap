@@ -15,6 +15,7 @@ All items carry `evidence: [{path, lines}]`, sorted, capped per kind (see `trunc
 | `entities` | Prisma models, TypeORM entities and Drizzle tables, with fields, PK, FK and relations. |
 | `openapi` | OpenAPI/Swagger documents (YAML or JSON): operations, capped. |
 | `queues` | BullMQ queues with their producers (`queue.add`) and workers (`new Worker`). |
+| `ormCalls` | Drizzle, Prisma and TypeORM query calls: `{orm, target, ops}`, the table, model or entity and the CRUD letters of the method. merge.mjs makes the access rows and the `sql` edge to the store from them; do not repeat them. |
 | `skipped`, `truncated` | Computed paths, variable queue names, and items dropped by the cap. |
 
 ## What you must still read yourself

@@ -1,0 +1,42 @@
+{
+  "gates": {
+    "node --test tests/prescan-node-backend.test.mjs tests/prescan-python.test.mjs tests/merge.test.mjs": "pass",
+    "node --test (full suite, 513 tests)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-02T22:03:07Z",
+    "basis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-python.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "node-backend.mjs: new kind ormCalls ({orm,target,ops,evidence}) for Drizzle (select().from, insert, update, delete, db.query.x.findMany/findFirst; table resolved through imports or unique var name), Prisma (delegate methods; model resolved against schema.prisma models, else Prisma's own first-letter rule; $-methods ignored; receivers are names holding a PrismaClient) and TypeORM (InjectRepository(X), Repository<X> typed handles, getRepository(X) assigned or inline; entity class or table name resolved against declared entities); unresolved targets counted in skipped.ormCalls; capped through KINDS like the others. python.mjs: ormCalls for SQLAlchemy and SQLModel (session.query(X) with .delete/.update chain, select/insert/update/delete(X), session.add/add_all/merge/delete/get with the model from a constructor call, session.get or annotation above the call), gated on files importing sqlalchemy/sqlmodel or a model class; unknown targets skipped. merge.mjs: ormCalls resolved by entityLookup (table/model/id) and owner node into access rows (ops unioned) and one sql edge node to the entity's store (evidence = call lines, deduplicated against explorer edges by from/type/to; node==store gets no edge); skipped rows reasoned in the derivation row; import-derived edges typed sql (store/database/db/datastore), queue (queue node) or call, never link (explorer link edges untouched; import-only edges carry no label); queue-unpaired meta.sources rows ({queue,node,missing,note}) for a queue with producer-only or consumer-only in the prescan queue rows and explorer edges, recomputed with extracts, nothing added to the model; digest counts.nodesWithoutEdges. The entity-lookup block of deriveLayer moved above the edge emission so ORM edges join the same groups. Fixtures: node-api src/data/{drizzle,prisma,typeorm}.queries.ts, python-api shop/repository.py and shop/queries.py (put under shop/ so the pw5 sibling-module list of app/ is unchanged), READMEs, both stack reference docs one table row each. Tests: nb17-nb20, py18-py19, m33-m33d added; existing KINDS/skipped/truncated expectations in nb5/nb6 and py6/py7 and the py10 import-link list updated. Full node --test: 513 pass, 0 fail.",
+    "descriptive": "Prescan now reads ORM query calls (Drizzle, Prisma, TypeORM, SQLAlchemy, SQLModel) and merge turns them into access rows and sql edges to the store, types import edges by their target (never link), names half-paired queues, and the digest counts edgeless nodes, all by script with no prompt text added."
+  },
+  "testsAdded": [
+    "nb17 ormCalls rows for Drizzle, Prisma and TypeORM with CRUD letters and line evidence, 3 unresolved counted in skipped; nb18 lookalike receivers and Prisma without schema; nb19 determinism; nb20 prescan slice carries rows, summary only counts",
+    "py18 SQLAlchemy and SQLModel ormCalls rows with 1 skipped; py19 lookalike calls and ORM-free files",
+    "m33 ormCalls to access rows and deduplicated sql edge; m33b typed import edges never link; m33c queue-unpaired rows; m33d nodesWithoutEdges and byte-identical runs"
+  ],
+  "casesAdded": [
+    [
+      "nb17",
+      "nb18",
+      "nb19",
+      "nb20"
+    ],
+    [
+      "py18",
+      "py19"
+    ],
+    [
+      "m33",
+      "m33b",
+      "m33c",
+      "m33d"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:e337b716719bc24b4b41bad4ba5a6b6d90deab3686cf2ad7cde8d081f969b383\",\"dirtyDigest\":\"sha256:4870b57d22cd8eba144283e981bfc4d7cc630645c65086cec1a5d2e9bb64fe56\",\"dirtyPaths\":{\"scripts/lib/prescan/node-backend.mjs\":\"04e85084db43fee6\",\"scripts/lib/prescan/python.mjs\":\"d08d1eaaca31d421\",\"scripts/merge.mjs\":\"18b771d2a91747a2\",\"scripts/prescan.mjs\":\"2aa9ccd2ecb1483a\",\"skills/architecture-map/references/stack-node-backend.md\":\"52dfa2b341e5946b\",\"skills/architecture-map/references/stack-python-backend.md\":\"f7b8b7bf21314a7c\",\"tests/fixtures/repos/node-api/README.md\":\"e74a0ee27f9c8083\",\"tests/fixtures/repos/node-api/src/data/drizzle.queries.ts\":\"fa82fc77df546198\",\"tests/fixtures/repos/node-api/src/data/prisma.queries.ts\":\"0a647998d8cb7a3d\",\"tests/fixtures/repos/node-api/src/data/typeorm.queries.ts\":\"a21e8858a44adf32\",\"tests/fixtures/repos/python-api/README.md\":\"13eff2311a09b104\",\"tests/fixtures/repos/python-api/shop/queries.py\":\"9b6acc59a09e5781\",\"tests/fixtures/repos/python-api/shop/repository.py\":\"9d3d952886b539f2\",\"tests/merge.test.mjs\":\"1aa4ebf0fc254c37\",\"tests/prescan-node-backend.test.mjs\":\"30ab7d95a751f98d\",\"tests/prescan-python.test.mjs\":\"479e33e9863c61a5\"},\"head\":\"997b6ae\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/lib/prescan/node-backend.mjs\",\"scripts/lib/prescan/python.mjs\",\"scripts/merge.mjs\",\"skills/architecture-map/references/stack-node-backend.md\",\"skills/architecture-map/references/stack-python-backend.md\",\"tests/fixtures/repos/node-api\",\"tests/fixtures/repos/python-api\",\"tests/merge.test.mjs\",\"tests/prescan-node-backend.test.mjs\",\"tests/prescan-python.test.mjs\"],\"scopeDigest\":\"sha256:69f4b1cc8bcb7594420eb4b9ffdd7def2a9dde5d4234b081aaa35622639f2637\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

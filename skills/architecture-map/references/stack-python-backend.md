@@ -16,6 +16,7 @@ All items carry `evidence: [{path, lines}]`, sorted by path then line, capped pe
 | `schemas` | Pydantic models with bases and fields. |
 | `migrations` | Alembic migration operations (create/drop table, add column, foreign keys). |
 | `sqlTables` | Table names found in raw SQL strings. |
+| `ormCalls` | SQLAlchemy and SQLModel session calls (`query`, `select`, `add`, `delete`, `get`): `{orm, target, ops}`, the model and the CRUD letters of the call. merge.mjs makes the access rows and the `sql` edge to the store from them; do not repeat them. |
 | `httpCalls` | Outbound `requests`, `httpx` and `urllib` calls with URL where it is a literal. |
 | `skipped`, `truncated` | Counts of recognised shapes it could not resolve statically (a computed path, a dynamic table name) and of items dropped by the cap. |
 

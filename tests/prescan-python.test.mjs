@@ -25,7 +25,7 @@ const fixtureRead = (p) => readFileSync(join(FIXTURE, p), 'utf8');
 const frag = extractPython(fixtureFiles, fixtureRead);
 const memFrag = (files) => extractPython(Object.keys(files).sort(), (p) => files[p] ?? null);
 
-const KINDS = ['entities', 'httpCalls', 'migrations', 'routes', 'schemas', 'sqlTables', 'stores'];
+const KINDS = ['entities', 'httpCalls', 'migrations', 'ormCalls', 'routes', 'schemas', 'sqlTables', 'stores'];
 const pick = (items, keys) => items.map((i) => Object.fromEntries(keys.map((k) => [k, i[k]])));
 const ev = (i) => `${i.evidence[0].path}:${i.evidence[0].lines}`;
 
@@ -203,7 +203,7 @@ test('py6 every item carries {path, lines} evidence inside the file, output sort
 
 test('py7 unknown patterns are skipped and counted, never guessed; a large repo keeps every route', () => {
   // Fixture tally: Django include(), a bulk_insert whose table is not a literal, an f-string table.
-  assert.deepEqual(frag.skipped, { clients: 0, entities: 0, envKeys: 0, httpCalls: 0, migrations: 1, queues: 0, routes: 1, schemas: 0, sqlTables: 1, stores: 0 });
+  assert.deepEqual(frag.skipped, { clients: 0, entities: 0, envKeys: 0, httpCalls: 0, migrations: 1, ormCalls: 1, queues: 0, routes: 1, schemas: 0, sqlTables: 1, stores: 0 });
 
   const odd = memFrag({
     'svc/odd.py':
@@ -213,7 +213,7 @@ test('py7 unknown patterns are skipped and counted, never guessed; a large repo 
       'def go(u):\n    requests.get(build_url(u))\n    requests.get(f"{BASE}/x")\n\n' +
       'class T(Base):\n    __tablename__ = compute()\n    id = Column(Integer, primary_key=True)\n',
   });
-  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, httpCalls: 2, migrations: 0, queues: 0, routes: 2, schemas: 0, sqlTables: 0, stores: 0 });
+  assert.deepEqual(odd.skipped, { clients: 0, entities: 1, envKeys: 0, httpCalls: 2, migrations: 0, ormCalls: 0, queues: 0, routes: 2, schemas: 0, sqlTables: 0, stores: 0 });
   for (const k of KINDS) assert.deepEqual(odd[k], [], `${k}: nothing is guessed from unknown shapes`);
 
   const many = {};
@@ -331,6 +331,8 @@ test('py10 prescan writes one extracts/<area>.json (and its summary) per area wi
     assert.deepEqual(shop.tables.map((t) => t.name), ['Member', 'Publisher', 'Edition']);
     assert.ok(!('queues' in shop) || shop.queues.length === 0, 'rows are kept in the area that owns their file');
     assert.deepEqual(app.links.filter((l) => l.kind === 'import' && l.other === 'shop'), [
+      // P13.10: shop/repository.py reads the SQLAlchemy models of app/
+      { kind: 'import', dir: 'in', from: 'shop/repository.py', to: 'app/models.py', other: 'shop' },
       { kind: 'import', dir: 'out', from: 'app/jobs.py', to: 'shop/models.py', other: 'shop' },
     ]);
   } finally {
@@ -605,4 +607,44 @@ test('py17 a repository with SQLAlchemy and SQLModel models, an Alembic migratio
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// P13.10: ORM query calls read as text - the model a session call touches and the CRUD letters of the call.
+const ormRows = (f) => f.ormCalls.map((c) => `${c.orm} ${c.target} ${c.ops} ${ev(c)}`);
+
+test('py18 ormCalls: SQLAlchemy session.query/select/insert/update/delete/add and SQLModel session.exec/add/get/delete give {orm, target, ops, evidence} rows; a target that is not a known model is skipped and counted', () => {
+  assert.deepEqual(ormRows(frag), [
+    'sqlmodel Member R shop/queries.py:8',
+    'sqlmodel Member C shop/queries.py:13',
+    'sqlmodel Member R shop/queries.py:18',
+    'sqlmodel Member D shop/queries.py:19',
+    'sqlalchemy Book R shop/repository.py:8',
+    'sqlalchemy Book R shop/repository.py:12',
+    'sqlalchemy Author C shop/repository.py:16',
+    'sqlalchemy Author U shop/repository.py:21',
+    'sqlalchemy Book D shop/repository.py:25',
+    'sqlalchemy Author D shop/repository.py:29',
+    'sqlalchemy Book C shop/repository.py:33',
+    'sqlalchemy Author D shop/repository.py:37',
+  ]);
+  assert.equal(frag.skipped.ormCalls, 1, 'session.query(model) names no known class');
+  for (const c of frag.ormCalls) assert.match(c.ops, /^[CRUD]{1,4}$/);
+  const again = extractPython(fixtureFiles.slice().reverse(), fixtureRead);
+  assert.equal(JSON.stringify(again.ormCalls), JSON.stringify(frag.ormCalls), 'input order does not change the rows');
+});
+
+test('py19 ormCalls: a lookalike call on a list, a dict or a requests session is not a row, and a file that imports no ORM yields none', () => {
+  const f = memFrag({
+    'svc/plain.py':
+      'import requests\n\nitems = [1, 2]\nseen = {}\n\n' +
+      'def go(session, Book):\n    session.get("http://x")\n    items.add(1)\n    seen.delete(2)\n    return session.query(Book)\n',
+    'svc/model.py':
+      'from sqlalchemy import Column, Integer\nfrom sqlalchemy.orm import declarative_base\nBase = declarative_base()\n\n' +
+      'class Item(Base):\n    __tablename__ = "items"\n    id = Column(Integer, primary_key=True)\n',
+    'svc/use.py':
+      'from sqlalchemy import select\nfrom svc.model import Item\n\n' +
+      'def one(db):\n    return db.scalars(select(Item)).all()\n',
+  });
+  assert.deepEqual(ormRows(f), ['sqlalchemy Item R svc/use.py:5']);
+  assert.equal(f.skipped.ormCalls, 0, 'svc/plain.py imports no ORM, so session.query(Book) is not counted either');
 });
