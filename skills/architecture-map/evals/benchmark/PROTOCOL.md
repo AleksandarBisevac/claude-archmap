@@ -20,10 +20,10 @@ Three repositories, referred to everywhere in tracked files by letter and by the
 
 They are private. Each one is a local checkout, and its location is given to the session in an environment variable
 that no tracked file fills in: `ARCHMAP_EVAL_REPO_A`, `ARCHMAP_EVAL_REPO_B` and `ARCHMAP_EVAL_REPO_C`, the variables
-the evals README sets up. `prompt.md` carries the placeholder `<ENV_NAME>` where the variable's name belongs; the
-harness replaces it with the variable of the repository of the cell (`ARCHMAP_EVAL_REPO_A` for a run on repository
-A, and so on) before it hands the prompt to the session, and changes nothing else. Every cell runs on a fresh copy of
-the repository at the same commit, so no cell reads the output of another.
+the evals README sets up. `prompt.md` carries the placeholder `<ENV_NAME>` where the variable's name belongs;
+`run-candidate.sh` (below) replaces it with the variable of the repository of the cell (`ARCHMAP_EVAL_REPO_A` for a
+run on repository A, and so on) before it hands the prompt to the session, and changes nothing else. Every cell runs
+on a fresh copy of the repository at the same commit, so no cell reads the output of another.
 
 The key components of each repository are listed in a checklist kept private under `.private/reference/` of the
 archmap checkout (one file per repository) and never tracked. The issue ground truth of repository A is there too.
@@ -36,7 +36,7 @@ at the commit that `CANDIDATES.md` pins (for this plugin, a clone at the tag `v1
 isolated Claude Code configuration directory was tried instead and is not logged in, so the benchmark uses plugin
 directories of clones.
 
-The session is the one headless invocation of the evals harness, the same for every tool:
+The session is one headless invocation, the same for every tool, made by `run-candidate.sh` (below):
 
 ```sh
 env -u CLAUDECODE claude -p "<prompt>" --plugin-dir <clone> --model opus \
@@ -45,10 +45,11 @@ env -u CLAUDECODE claude -p "<prompt>" --plugin-dir <clone> --model opus \
 ```
 
 run from the root of the fresh copy of the repository, with the variable of the cell exported and pointing at that
-copy. The flags other than `--plugin-dir` and `--model` are those the evals harness passes for the evals of the
-evals README; the README records the transcript format (`stream-json`) and the variables, and the harness script
-holds the rest. The orchestrator model is Opus for every cell (`--model opus`), so that a difference in cost is not a
-difference in model. Subagents use whatever model the tool itself chooses; that is part of what is measured.
+copy. The flags other than `--plugin-dir` and `--model` are those the evals of the evals README run with; the README
+records the transcript format (`stream-json`) and the variables, and `run-candidate.sh`, tracked beside this
+document, passes every one of them (b13 of `tests/benchmark.test.mjs` checks them and their order). The orchestrator
+model is Opus for every cell (`--model opus`), so that a difference in cost is not a difference in model. Subagents
+use whatever model the tool itself chooses; that is part of what is measured.
 
 Each cell is run by `run-candidate.sh`, beside this document, which takes every location as an argument:
 
@@ -93,26 +94,46 @@ Every figure comes from a file the run left, never from the model's own report o
   turns only; subagent turns are in their own rows and in the cost.
 - **Context**: the `maxContext` of the same `orchestrator` row, in tokens (cache read, cache write and input of the
   largest turn).
-- **Pass rate**: the share of the tool-neutral expectations below that the run meets, graded by the harness against
-  the artifact on disk. It is passed over graded, and an expectation recorded as not graded counts in neither.
+- **Pass rate**: the share of the tool-neutral expectations below that the run meets, graded against the artifact on
+  disk by the tracked grader `grade-benchmark.mjs` beside this document,
+  `node skills/architecture-map/evals/benchmark/grade-benchmark.mjs <run-dir> <A|B|C> <tool> <checklist.json>`
+  (Expectations, below). It is passed over graded, and an expectation recorded as not graded counts in neither.
 - **Recall**: the issue recall of this plugin only, on the issues-overlay run, with
   `node skills/architecture-map/evals/score-recall.mjs <issues.json> <ground-truth.json> --json` against the private
   ground truth of repository A. The candidates do not produce an issues layer, so their recall is not applicable.
 - **Rubric**: the owner's score from `rubric.md`, four axes of 1 to 5, proposed by the orchestrator of the
   benchmark session and confirmed by the owner as their own after reading each artifact (on 2026-11-02 for the
   recorded runs).
-  It is the only judgement in the table and the only figure the harness does not produce.
+  It is the only judgement in the table and the only figure no tracked script produces.
 
 ## Expectations
 
-The same checks for every tool, stated in terms that need no archmap file. A check is graded by the harness when it can
-be done mechanically from the artifact; otherwise it is recorded as not graded.
+The same checks for every tool, stated in terms that need no archmap file, graded by `grade-benchmark.mjs`, tracked
+beside this document (Node 18, no dependencies):
+
+```sh
+node skills/architecture-map/evals/benchmark/grade-benchmark.mjs <run-dir> <A|B|C> <tool> <checklist.json> \
+  [--draw-c4-plot <plot.py>]
+```
+
+It reads the cell `run-candidate.sh` left: `<run-dir>/repo`, whose artifacts are the files `git status` reports new
+or changed by the run, and `<run-dir>/exit-code`. It writes `<run-dir>/grading.json` and prints the summary line. The
+checklist is the repository's key-component checklist, a JSON file
+`{"A": [{"component": "<name>", "terms": ["<substring>", ...]}, ...], "B": [...], "C": [...]}` passed by its path;
+the benchmark's own checklists stay private under `.private/reference/` and none is tracked. `--draw-c4-plot` names
+`draw-c4`'s own `plot.py`, which extracts the model from its HTML page when the run left no `model.json`; without
+either, the flows and file references of `draw-c4` are not graded. The script's header states how each check reads
+each tool's output, and `tests/benchmark.test.mjs` (b24 to b31) runs it on synthetic cells. A check is graded when it
+can be done mechanically from the artifact; otherwise it is recorded as not graded, with the reason.
 
 - **Key components**: each key component of the repository's private checklist is named in the produced artifact,
   matched by its name or by its path. The result is reported as found over listed, and the expectation passes only
   when every one is found.
 - **Flows**: the artifact describes at least three flows (request or data flows as steps between components).
-- **File references**: every component in the artifact carries a file reference, a path that exists in the repository.
+- **File references**: every component in the artifact carries a file reference, a file or folder path (for this
+  plugin, the evidence of each node of its model). Elements a tool marks as external systems, actors or the system
+  boundary are left out, and a route table is not a component table. The check is that a reference is there; whether
+  its path exists in the repository is not checked.
 - **Artifact on disk**: the artifact is one or more files under `docs/architecture` of the repository, not only text in
   the chat answer. For a tool that writes to a fixed location of its own, the location its README documents counts, and
   the evidence file records that location.
@@ -167,9 +188,11 @@ checklists stay private and are not tracked.
   tools (and left two unaffected), so run 1 on C was discarded for every tool, and run 2 was made for all four tools on
   fresh clones with the repository's project-level Claude Code configuration removed (from the clone only). The C
   evidence files are therefore `<tool>-C-2.json`; the discarded run-1 profiles stay private.
-- **Expectations**: none is recorded as not graded; every expectation of every tool was graded mechanically. The file
-  reference check ("every component carries a file reference") leaves out the elements a tool marks as external
-  systems, actors or the system boundary.
+- **Expectations**: the 13 cells were graded with the rules of `grade-benchmark.mjs`: the tracked script reproduces
+  the private grader used on 2026-11-01/02 rule for rule, giving the same results and the same summary line on the
+  same cell (only the evidence text of a check not graded now states its reason). None is recorded as not graded;
+  every expectation of every tool was graded mechanically. The file reference check ("every component carries a file
+  reference") leaves out the elements a tool marks as external systems, actors or the system boundary.
 - **Rubric**: the scores in `summary.json` were proposed by the orchestrator and confirmed by the owner as their own
   on 2026-11-02, after reading the artifacts, as each cell's `scoredBy` records.
 - **Recall**: the `archmap-issues` run on A (`archmap-issues-A-1.json`, outside the comparison table) has a recall of

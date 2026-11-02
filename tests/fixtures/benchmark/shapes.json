@@ -1,0 +1,90 @@
+{
+  "_comment": "Synthetic benchmark cells for grade-benchmark.mjs (tests/benchmark.test.mjs). `repo` is committed in a fresh git repository; each shape's `files` are then written over it as the run's artifacts (an object value is written as JSON). Every component name is made up.",
+  "repo": {
+    "README.md": "# Sample service\n",
+    "services/ledger/app.py": "def post_entry():\n    return 1\n",
+    "services/widgets/store.ts": "export const store = new Map();\n",
+    "workers/courier/main.go": "package main\n\nfunc main() {}\n"
+  },
+  "shapes": {
+    "archmap": {
+      "tool": "archmap",
+      "exitCode": 0,
+      "files": {
+        "README.md": "# Sample service\n\nSee docs/architecture.\n",
+        "docs/architecture/architecture.model.json": {
+          "nodes": [
+            { "id": "ledger", "name": "Ledger API", "evidence": [{ "file": "services/ledger/app.py" }] },
+            { "id": "widgets", "name": "Widget Store", "evidence": [{ "file": "services/widgets/store.ts" }] },
+            { "id": "courier", "name": "Courier Worker", "evidence": [{ "file": "workers/courier/main.go" }] }
+          ],
+          "sequences": [
+            { "id": "post", "steps": [{ "from": "ledger", "to": "widgets" }, { "from": "widgets", "to": "ledger" }] },
+            { "id": "deliver", "steps": [{ "from": "courier", "to": "ledger" }, { "from": "ledger", "to": "courier" }] },
+            { "id": "restock", "steps": [{ "from": "widgets", "to": "courier" }, { "from": "courier", "to": "widgets" }, { "from": "widgets", "to": "ledger" }] },
+            { "id": "ping", "steps": [{ "from": "ledger", "to": "ledger" }] }
+          ]
+        },
+        "docs/architecture/architecture.html": "<!doctype html><title>Architecture</title>\n"
+      }
+    },
+    "markdown": {
+      "tool": "cc-codemaps",
+      "exitCode": 0,
+      "files": {
+        "codemaps/overview.md": "# Overview\n\n| Component | Responsibility | Evidence |\n| --- | --- | --- |\n| Ledger API | posts entries | `services/ledger/` |\n| Widget Store | keeps widgets | store.ts |\n| Courier Worker | delivers jobs | workers/courier/main.go |\n\n## Routes\n\n| Route | Component | File |\n| --- | --- | --- |\n| /api/ledger | Ledger API | none |\n| /api/widgets | Widget Store | none |\n",
+        "codemaps/flows.md": "# Request flows\n\n## Posting an entry\n\nLedger API to Widget Store.\n\n## Listing widgets\n\nWidget Store to Ledger API.\n\n## Courier delivery\n\nCourier Worker to Ledger API.\n"
+      }
+    },
+    "missing": {
+      "tool": "cc-codemaps",
+      "exitCode": 0,
+      "files": {
+        "codemaps/overview.md": "# Overview\n\n| Component | Responsibility | Evidence |\n| --- | --- | --- |\n| Ledger API | posts entries | services/ledger/app.py |\n| Widget Store | keeps widgets | services/widgets/store.ts |\n"
+      }
+    },
+    "draw-c4-html": {
+      "tool": "draw-c4",
+      "exitCode": 0,
+      "files": {
+        "docs/architecture/c4-diagram.html": "<!doctype html><title>C4</title><p>Ledger API, Widget Store and Courier Worker.</p>\n"
+      }
+    },
+    "draw-c4-model": {
+      "tool": "draw-c4",
+      "exitCode": 0,
+      "files": {
+        "docs/architecture/model.json": {
+          "levels": {
+            "context": {
+              "nodes": [
+                { "id": "clerk", "name": "Clerk", "kind": "person" },
+                { "id": "gateway", "name": "Payment Gateway", "kind": "external" },
+                { "id": "system", "name": "Sample service", "kind": "focus" }
+              ]
+            },
+            "container": {
+              "nodes": [
+                { "id": "ledger", "name": "Ledger API", "kind": "container", "tech": "Python", "path": "services/ledger/app.py" },
+                { "id": "widgets", "name": "Widget Store", "kind": "container", "desc": "keeps widgets in services/widgets/" },
+                { "id": "courier", "name": "Courier Worker", "kind": "container", "tech": "Go", "file": "main.go" }
+              ]
+            }
+          },
+          "flows": [{ "id": "post" }, { "id": "list" }, { "id": "deliver" }]
+        }
+      }
+    },
+    "omm": {
+      "tool": "oh-my-mermaid",
+      "exitCode": 3,
+      "files": {
+        "maps/.omm/overall-architecture/description.md": "# Overall architecture\n\nLedger API, Widget Store and Courier Worker, under services/ and workers/.\n",
+        "maps/.omm/overall-architecture/payment-gateway/description.md": "External payment provider, outside the repository.\n",
+        "maps/.omm/request-lifecycle/description.md": "# Request lifecycle\n\nThe Ledger API receives a request in services/ledger/app.py.\n",
+        "maps/.omm/data-pipeline/description.md": "# Data pipeline\n\nThe Widget Store keeps widgets in services/widgets/store.ts.\n",
+        "maps/.omm/job-flow/description.md": "# Job flow\n\nThe Courier Worker runs workers/courier/main.go.\n"
+      }
+    }
+  }
+}

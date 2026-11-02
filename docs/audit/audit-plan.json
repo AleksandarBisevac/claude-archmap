@@ -8774,8 +8774,10 @@
             "severity": "low",
             "file": "skills/architecture-map/evals/benchmark/PROTOCOL.md:164-168",
             "issue": "The Runs section describes a private repository's own Claude Code setup: a .claude/settings.json with hooks, an enabled plugin whose write guard was in deny mode, and a .claude/audit.config.json removed from the clone. That is environment-specific detail about a private repository (which tooling it runs) in a public tracked file. No denylist term, name or path is present (scan clean, 14 terms), so this is a tightening, not a leak.",
-            "resolution": "Generalise to 'the repository carries its own Claude Code project configuration whose write guard blocked two tools; run 2 used fresh clones without that configuration' and drop the file names and the plugin description.",
-            "fixTask": "P12.7-m8w"
+            "resolution": "fixed in P12.7-m8w (d1847cf8a275): Generalise to 'the repository carries its own Claude Code project configuration whose write guard blocked two tools; run 2 used fresh clones without that configuration' and drop the file names and the plugin description.",
+            "fixTask": "P12.7-m8w",
+            "commit": "d1847cf8a275",
+            "status": "fixed"
           },
           {
             "id": "P12-R3",
@@ -8794,7 +8796,7 @@
             "fixTask": "P12.9-m8w"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 1 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 2 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -9188,7 +9190,7 @@
         {
           "id": "P12.7-m8w",
           "title": "fix P12-R2: The Runs section describes a private repository's own Claude Code...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The Runs section describes a private repository's own Claude Code setup: a .claude/settings.json with hooks, an enabled plugin whose write guard was in deny mode, and a .claude/audit.config.json removed from the clone. That is environment-specific detail about a private repository (which tooling it runs) in a public tracked file. No denylist term, name or path is present (scan clean, 14 terms), so this is a tightening, not a leak.\n\nResolution asked: Generalise to 'the repository carries its own Claude Code project configuration whose write guard blocked two tools; run 2 used fresh clones without that configuration' and drop the file names and the plugin description.",
           "files": [
             "skills/architecture-map/evals/benchmark/PROTOCOL.md"
@@ -9209,13 +9211,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "d1847cf8a275",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Rewrote the 'Deviation on repository C' bullet in the Runs section of skills/architecture-map/evals/benchmark/PROTOCOL.md generically: run 1 on C had project-level tooling of that repository interfere with two tools' writes (two unaffected), so run 1 on C was discarded for every tool; run 2 ran all four on fresh clones with the repository's project-level Claude Code configuration removed (clone only); C evidence files are <tool>-C-2.json, run-1 profiles stay private. Dropped the file names, the hooks mention, the plugin and the guard mode. Ran node --test tests/denylist.test.mjs tests/benchmark.test.mjs (26 pass, 0 fail) and full node --test (488 pass, 0 fail); b20 passes. Dependants (summary.json, run-candidate.sh, benchmark.test.mjs, readme.test.mjs, BENCHMARK.md, evals/README.md): still correct, since no path, basename, evidence file name (<tool>-C-2.json unchanged) or Runs-section fact that they read changed, and the full suite is green.",
+            "descriptive": "The public PROTOCOL.md no longer describes private repository C's own Claude Code setup; the facts a reader needs stay."
           },
           "startedAt": "2026-11-02T08:29:09Z",
-          "completedAt": null,
+          "completedAt": "2026-11-02T08:31:55Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -9239,12 +9241,23 @@
             "runId": "2026-11-02T08:31:54Z.db8a41",
             "status": "passed",
             "at": "2026-11-02T08:31:54Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "d1847cf8a275",
+            "at": "2026-11-02T08:31:55Z",
+            "basis": "a fix task for P12-R2, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task, tests.expectRedFirst false; no test added",
+            "at": "n/a"
           }
         },
         {
           "id": "P12.8-m8w",
           "title": "fix P12-R3: The expectation pass counts (and the 'file references failed, 24 ...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The expectation pass counts (and the 'file references failed, 24 of 28' notes) come from 'the harness', but no grader is tracked: PROTOCOL.md:39-49 also sends the reader to 'the harness script' for the headless flags, and the only tracked check on these cells is b21 comparing the page to summary.json, which is itself unverifiable. A third party can re-run the method but not the grading.\n\nResolution asked: State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture).",
           "files": [
             "skills/architecture-map/evals/BENCHMARK.md",
@@ -9267,14 +9280,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T08:31:56Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -9293,7 +9306,13 @@
           ],
           "fixes": [
             "P12-R3"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T08:45:35Z.7c5059",
+            "status": "passed",
+            "at": "2026-11-02T08:45:35Z"
+          }
         },
         {
           "id": "P12.9-m8w",

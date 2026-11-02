@@ -1,0 +1,11 @@
+{
+  "A": [
+    { "component": "Ledger API", "terms": ["ledger api", "services/ledger"] },
+    { "component": "Widget Store", "terms": ["widget store", "services/widgets"] },
+    { "component": "Courier Worker", "terms": ["courier worker", "workers/courier"] }
+  ],
+  "B": [
+    { "component": "Ledger API", "terms": ["ledger api"] }
+  ],
+  "C": []
+}

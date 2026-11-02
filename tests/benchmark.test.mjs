@@ -4,7 +4,7 @@ import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, chmodS
 import { spawnSync } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 // Case ids (b1..b4) lead every title so the suite prints them first.
 // The benchmark document records which comparable plugins the release-1.0.0 benchmark runs against.
@@ -683,4 +683,163 @@ test('b23 the report check fails on a tampered cost, seconds, turn, context, exp
   assert.throws(() => checkReport(text, readBench, summary((c) => { c.seconds += 1; })), /seconds are summary/, 'a tampered summary duration');
   assert.throws(() => checkReport(text, readBench, summary((c) => { c.passed -= 1; })), /expectations are summary/, 'a tampered summary grade');
   assert.throws(() => checkReport(text, readBench, summary((c) => { c.rubric.flows -= 1; })), /rubric is summary/, 'a tampered summary rubric');
+});
+
+// ---- P12.8: the tracked grader of the five expectations (grade-benchmark.mjs) ----
+// Each case builds a synthetic cell in a temp directory: <run>/repo is a git repository with the fixture's base files
+// committed, the shape's artifacts are written over it uncommitted (as a run leaves them), and <run>/exit-code holds
+// the session's status. The checklist is a fixture of made-up components; the real checklists are private.
+const GRADER = join(DIR, 'grade-benchmark.mjs');
+const GFIX = join(ROOT, 'tests', 'fixtures', 'benchmark');
+const GCHECKLIST = join(GFIX, 'checklist.json');
+const SHAPES = () => loadJson(join(GFIX, 'shapes.json'));
+// The caller's environment without the git variables a hook or a worktree may have set.
+const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
+const writeTree = (dir, files) => {
+  for (const [rel, v] of Object.entries(files)) {
+    const f = join(dir, rel);
+    mkdirSync(dirname(f), { recursive: true });
+    writeFileSync(f, typeof v === 'string' ? v : `${JSON.stringify(v, null, 2)}\n`);
+  }
+};
+const git = (cwd, ...args) => {
+  const r = spawnSync('git', ['-c', 'user.name=bench', '-c', 'user.email=bench@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8', env: cleanEnv() });
+  assert.equal(r.status, 0, `git ${args.join(' ')}: ${r.stderr}`);
+};
+const runGrader = (args) => spawnSync(process.execPath, [GRADER, ...args], { encoding: 'utf8', env: cleanEnv() });
+function gradeCell(name, extra = []) {
+  const s = SHAPES().shapes[name];
+  assert.ok(s, `shape ${name}`);
+  const run = realpathSync(mkdtempSync(join(tmpdir(), 'archmap-grade-')));
+  const repo = join(run, 'repo');
+  mkdirSync(repo);
+  writeTree(repo, SHAPES().repo);
+  git(repo, 'init', '-q');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-q', '--no-verify', '-m', 'base');
+  writeTree(repo, s.files);
+  writeFileSync(join(run, 'exit-code'), `${s.exitCode}\n`);
+  const r = runGrader([run, 'A', s.tool, GCHECKLIST, ...extra]);
+  assert.equal(r.status, 0, `grade-benchmark.mjs exits 0 on ${name}: ${r.stderr}`);
+  const grading = loadJson(join(run, 'grading.json'));
+  const e = Object.fromEntries(grading.expectations.map((x) => [x.key, x]));
+  return { run, repo, r, grading, e, s };
+}
+const summaryLine = (sum, missing) =>
+  `{"passed": ${sum.passed}, "failed": ${sum.failed}, "notGraded": ${sum.notGraded}, "total": ${sum.total}} missing: ${missing}\n`;
+
+test('b24 grade-benchmark.mjs prints its usage and exits 2 without arguments, on a wrong repository letter, an unreadable checklist or a run directory without repo', () => {
+  assert.ok(existsSync(GRADER), 'grade-benchmark.mjs is missing');
+  const r = runGrader([]);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /usage: grade-benchmark\.mjs <run-dir> <A\|B\|C> <tool> <checklist\.json> \[--draw-c4-plot <plot\.py>\]/);
+  assert.equal(r.stdout, '');
+  const run = realpathSync(mkdtempSync(join(tmpdir(), 'archmap-grade-')));
+  mkdirSync(join(run, 'repo'));
+  for (const args of [
+    [run, 'D', 'archmap', GCHECKLIST],
+    [run, 'A', 'archmap', join(run, 'missing.json')],
+    [join(run, 'repo'), 'A', 'archmap', GCHECKLIST],
+    [run, 'A', 'archmap', GCHECKLIST, '--draw-c4-plot'],
+    [run, 'A', 'archmap', GCHECKLIST, '--wat'],
+  ]) {
+    const e = runGrader(args);
+    assert.equal(e.status, 2, args.join(' '));
+    assert.match(e.stderr, /usage: grade-benchmark\.mjs/, args.join(' '));
+  }
+  assert.ok(!existsSync(join(run, 'grading.json')), 'nothing is graded on a usage error');
+});
+
+test('b25 an archmap-style cell (model with sequences and evidence) passes all five, writes grading.json deterministically and prints the summary line', () => {
+  const { run, repo, r, grading, e } = gradeCell('archmap');
+  assert.deepEqual(grading.expectations.map((x) => x.key), ['E1', 'E2', 'E3', 'E4', 'E5']);
+  for (const x of grading.expectations) {
+    assert.deepEqual(Object.keys(x), ['key', 'text', 'passed', 'notGraded', 'evidence']);
+    assert.equal(x.passed, true, `${x.key}: ${x.evidence}`);
+    assert.equal(x.notGraded, false);
+  }
+  assert.equal(e.E1.evidence, '3/3 found; missing []; corpus files 3');
+  assert.equal(e.E2.evidence, '3 (model sequences with >=2 steps)', 'a one-step sequence is no flow');
+  assert.equal(e.E3.evidence, '3/3 (nodes with evidence[])');
+  assert.equal(e.E5.evidence, 'exit-code 0');
+  assert.deepEqual(grading.summary, { passed: 5, failed: 0, notGraded: 0, total: 5 });
+  assert.equal(grading.tool, 'archmap');
+  assert.equal(grading.repo, 'A');
+  const artifacts = ['README.md', 'docs/architecture/architecture.html', 'docs/architecture/architecture.model.json'];
+  assert.deepEqual(grading.artifacts, artifacts, 'a modified tracked file and the untracked files are the artifacts');
+  assert.equal(grading.artifactBytes, artifacts.reduce((n, f) => n + readFileSync(join(repo, f)).length, 0));
+  assert.equal(r.stdout, summaryLine(grading.summary, '[]'));
+  const first = readFileSync(join(run, 'grading.json'), 'utf8');
+  assert.equal(runGrader([run, 'A', 'archmap', GCHECKLIST]).status, 0);
+  assert.equal(readFileSync(join(run, 'grading.json'), 'utf8'), first, 'a second grading of the same cell is byte-identical');
+});
+
+test('b26 a Markdown cell grades flows from the headings of a flows file and file references from component-table rows, skipping a route table and accepting a folder path', () => {
+  const { e, grading } = gradeCell('markdown');
+  assert.equal(e.E2.passed, true, e.E2.evidence);
+  assert.equal(e.E2.evidence, '3 (sequenceDiagram blocks 0 + headings in flow files or flow-named headings 3 + flow-like perspectives 0)');
+  assert.equal(e.E3.passed, true, e.E3.evidence);
+  assert.equal(e.E3.evidence, '3/3 (rows of component tables with a path-like token in the evidence column)', 'the route table is not a component table');
+  assert.equal(e.E4.passed, true, 'codemaps/ is the location cc-codemaps documents');
+  assert.match(e.E4.evidence, /documented codemaps: \['codemaps\/flows\.md', 'codemaps\/overview\.md'\]/);
+  assert.deepEqual(grading.summary, { passed: 5, failed: 0, notGraded: 0, total: 5 });
+});
+
+test('b27 a cell missing a key component and describing no flow fails E1 and E2, and the summary line names the missing component', () => {
+  const { e, r, grading } = gradeCell('missing');
+  assert.equal(e.E1.passed, false);
+  assert.equal(e.E1.evidence, "2/3 found; missing ['Courier Worker']; corpus files 1");
+  assert.equal(e.E2.passed, false);
+  assert.match(e.E2.evidence, /^0 \(/);
+  assert.equal(e.E3.passed, true, e.E3.evidence);
+  assert.deepEqual(grading.summary, { passed: 3, failed: 2, notGraded: 0, total: 5 });
+  assert.equal(r.stdout, summaryLine(grading.summary, "['Courier Worker']"));
+});
+
+test('b28 a draw-c4 cell with no model.json and no --draw-c4-plot leaves E2 and E3 not graded, with the reason, and counts them in neither', () => {
+  const { run, e, grading } = gradeCell('draw-c4-html');
+  for (const k of ['E2', 'E3']) {
+    assert.equal(e[k].passed, null, k);
+    assert.equal(e[k].notGraded, true, k);
+    assert.match(e[k].evidence, /not graded/, k);
+    assert.match(e[k].evidence, /--draw-c4-plot/, `${k} names the missing argument`);
+  }
+  assert.equal(e.E1.passed, true, 'the HTML page is in the artifact corpus');
+  assert.deepEqual(grading.summary, { passed: 3, failed: 0, notGraded: 2, total: 5 });
+  assert.ok(!existsSync(join(run, 'draw-c4-model.json')), 'no model was extracted');
+});
+
+test('b29 a draw-c4 cell with a model.json counts its flows and leaves actors, external systems and the system boundary out of the file references', () => {
+  const { run, e, s } = gradeCell('draw-c4-model');
+  assert.equal(e.E2.evidence, '3 (model.json flows)');
+  assert.equal(e.E2.passed, true);
+  assert.equal(e.E3.evidence, '3/3 (nodes whose text holds a path-like token (kind external excluded))');
+  assert.equal(e.E3.passed, true);
+  assert.deepEqual(loadJson(join(run, 'draw-c4-model.json')), s.files['docs/architecture/model.json'], 'the graded model is kept beside the cell');
+});
+
+test('b30 an oh-my-mermaid cell is graded wherever its .omm tree sits: flow-like perspectives count, an External element is left out, and a non-zero exit fails E5', () => {
+  const { e, grading } = gradeCell('omm');
+  assert.equal(e.E2.passed, true, e.E2.evidence);
+  assert.match(e.E2.evidence, /\+ flow-like perspectives 3\)$/);
+  assert.equal(e.E3.evidence, '4/4 (element description.md files with a path-like token (elements described as External excluded))');
+  assert.equal(e.E4.passed, true, 'maps/.omm/ is the tool\'s documented tree');
+  assert.match(e.E4.evidence, /^docs\/architecture: \[\]; documented \.omm: \['maps\/\.omm\//);
+  assert.equal(e.E5.passed, false);
+  assert.equal(e.E5.evidence, 'exit-code 3');
+  assert.deepEqual(grading.summary, { passed: 4, failed: 1, notGraded: 0, total: 5 });
+});
+
+test('b31 the grader and its fixtures are public: no machine path, home directory, private location or denylist term (denylist skipped when absent)', (t) => {
+  const texts = [GRADER, GCHECKLIST, join(GFIX, 'shapes.json')].map((f) => [f, readFileSync(f, 'utf8')]);
+  for (const [f, text] of texts) {
+    for (const re of [/\/Users\/\S/, /\/home\/\S/, /\/private\/\S/, /\/tmp\/\S/, /[A-Za-z]:\\\\?\S/, /~\//, /\.private\b/]) {
+      assert.doesNotMatch(text, re, `${f} matches ${re}`);
+    }
+  }
+  if (!existsSync(DENYLIST)) {
+    t.skip('denylist not checked: .private/anonymise-denylist.txt is absent');
+    return;
+  }
+  for (const [f, text] of texts) assert.deepEqual(denylistHits(text), [], `${f} carries a denylist term`);
 });

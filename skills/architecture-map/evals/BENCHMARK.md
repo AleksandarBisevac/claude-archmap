@@ -138,9 +138,10 @@ edited an existing README on one repository. It renders no diagram and ships no 
 
 ## How each number was produced
 
-Each cell was run by [benchmark/run-candidate.sh](benchmark/run-candidate.sh), which runs one headless `claude -p`
-session from a fresh copy of the repository and writes its `stream-json` transcript and a `timing.json`. The
-transcript was profiled with:
+Each cell was run by [benchmark/run-candidate.sh](benchmark/run-candidate.sh), tracked, which runs one headless
+`claude -p` session from a fresh copy of the repository, with the headless flags the script itself passes (listed in
+PROTOCOL.md, Configurations), and writes its `stream-json` transcript and a `timing.json`. The transcript was
+profiled with:
 
 ```sh
 node scripts/cost-profile.mjs <stream.jsonl> --json --basename
@@ -154,11 +155,15 @@ and the profile saved exactly as it printed, one file per run, under `evidence/b
 - **Orchestrator turns** and **max context**: the `turns` and the `maxContext` of the `orchestrator` row of the
   profile's `byAgent` (the context is the cache read, cache write and input of the largest turn).
 - **Seconds**: `total_duration_seconds` of the run's `timing.json`, recorded as `seconds` in `summary.json`.
-- **Expectations**: `passed` of `graded` in `summary.json`. The harness grades the five checks of PROTOCOL.md against
-  the artifact on disk: key components (every key component of the repository's private checklist is named, by name
-  or path), flows (at least three), file references (every component carries a path that exists, leaving out external
-  systems, actors and the system boundary), artifact on disk (files under `docs/architecture`, or the tool's own
-  documented location) and exit status (the run exits 0). None was recorded as not graded.
+- **Expectations**: `passed` of `graded` in `summary.json`. Each cell was graded with
+  `node skills/architecture-map/evals/benchmark/grade-benchmark.mjs <run-dir> <A|B|C> <tool> <checklist.json>`
+  ([benchmark/grade-benchmark.mjs](benchmark/grade-benchmark.mjs), tracked; the checklists stay private), which
+  grades the five checks of PROTOCOL.md against the artifact on disk: key components (every key component of the
+  repository's private checklist is named, by name or path), flows (at least three), file references (every
+  component carries a file or folder path, leaving out external systems, actors and the system boundary), artifact on
+  disk (files under `docs/architecture`, or the tool's own documented location) and exit status (the run exits 0).
+  The tracked script reproduces the private grader the cells were graded with on 2026-11-01/02. None was recorded as
+  not graded.
 - **Rubric**: the four axes and the total of the `rubric` block in `summary.json`, proposed by the orchestrator and confirmed by the owner as stated above.
 - **Recall** and **issues reported**: `recall` and `issuesReported` of the issues cell in `summary.json`, from
   `node skills/architecture-map/evals/score-recall.mjs <issues.json> <ground-truth.json> --json` against the private
