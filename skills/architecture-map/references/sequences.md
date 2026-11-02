@@ -67,11 +67,20 @@ Participants: `web` (browser), `api`, `db`, `mailer`.
 
 ## Drafts from the merge
 
-`merge.mjs` writes `drafts` into `<work>/digest.json`: one sequence per HTTP entry point it could follow, built from
-the cross-area links and access rows it computed. A draft starts with the client's call to the route, then each access
-row cited in the handler's file (`k: sql`, to the entity's store), then each queue hop that file starts (`k: queue`)
-with the consumer's own access rows. Participants are node ids (at most 7), every message cites its `path:line` in
-`r`, and the id starts with `draft-`. A draft is a proposal: confirm its cited lines, then keep it under a plain id,
+`merge.mjs` writes `drafts` into `<work>/digest.json`: at most 12 sequences, taken in id order, built from the
+cross-area links and access rows it computed. Three kinds:
+
+- **One per HTTP entry point** it could follow: the client's call to the route, then each access row cited in the
+  handler's file (`k: sql`, to the entity's store), then each queue hop that file starts (`k: queue`) with the
+  consumer's own access rows, and last a `response` step (with `ret`) from the handler back to the caller.
+- **One per queue** whose producer and consumer are both known and that no HTTP draft already shows as a hop (id
+  `draft-queue-<name>`): the producer enqueues, the consumer handles the message, then the consumer's access rows.
+- **One per scheduled entry**, a `cron` or `hook` link in the prescan extracts (id `draft-pull-<name>`): the trigger
+  reaching its handler (`k: pull` for a schedule, `k: event` for a hook), then the handler's first access row. A
+  trigger with no access row in the handler's file makes no draft.
+
+Participants are node ids (at most 7), every message cites its `path:line` in `r`, and the id starts with `draft-`.
+Because every participant carries its `node`, a kept draft can be played on the architecture graph in the viewer. A draft is a proposal: confirm its cited lines, then keep it under a plain id,
 edit it (add the decision fragments, returns and notes a script cannot see) or drop it. A draft never needs a node or
 edge the digest lacks; if the code shows one, report it in `conflicts`.
 

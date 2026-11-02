@@ -1937,3 +1937,107 @@ test('m33d the digest counts the nodes with no edge; two runs, and either input 
   const q2 = merge({ fragments: queueFrags().reverse(), extracts: queueExtracts().reverse(), meta: META });
   assert.equal(JSON.stringify(q2.model), JSON.stringify(q1.model), 'the unpaired rows do not depend on the order either');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P13.11: flows by script. Beside the HTTP drafts: one draft per queue whose producer and consumer are known and no HTTP
+// draft covers, one per scheduled entry (a cron or hook link), and a return step on each HTTP draft. The cap holds.
+
+const flowExtracts = () => {
+  const xs = crossExtracts();
+  const api = xs.find((x) => x.area === 'api');
+  const worker = xs.find((x) => x.area === 'worker');
+  // a second queue, produced in a file the POST /orders handler does not own, so no HTTP draft covers it
+  api.queues.push({ name: 'send_sms', producers: [{ file: 'api/jobs.py', line: 5 }], consumers: [] });
+  worker.queues.push({ name: 'send_sms', producers: [], consumers: [{ handler: 'send_sms', file: 'worker/tasks.py', line: 20 }] });
+  const sms = { kind: 'queue', from: 'api/jobs.py:5', to: 'worker/tasks.py:20', via: 'send_sms' };
+  api.links.push({ ...sms, dir: 'out', other: 'worker' });
+  worker.links.push({ ...sms, dir: 'in', other: 'api' });
+  // a nightly schedule inside the worker, and a hook the API fires into the worker's handler
+  worker.links.push({ kind: 'cron', dir: 'out', from: 'worker/beat.py:3', to: 'worker/tasks.py:8', other: 'worker', via: 'nightly receipts' });
+  api.links.push({ kind: 'hook', dir: 'out', from: 'api/hooks.py:4', to: 'worker/tasks.py:8', other: 'worker', via: 'orders webhook' });
+  return xs;
+};
+const flowed = (extra = {}) => merge({ fragments: crossFrags(), extracts: flowExtracts(), meta: META, ...extra });
+const steps = (d) => d.steps.filter((s) => Array.isArray(s.m));
+
+test('m34 a queue with a known producer and consumer that no HTTP draft covers gets its own flow: enqueue, handle, then the consumer\'s access rows; a queue an HTTP draft covers gets none', () => {
+  const { digest, model } = flowed();
+  const sms = digest.drafts.find((d) => /send_sms/.test(d.title));
+  assert.ok(sms, JSON.stringify(digest.drafts.map((d) => d.title)));
+  assert.deepEqual(sms.participants.map((p) => p.node), ['orders-api', 'mailer-worker', 'orders-db']);
+  const s = steps(sms);
+  assert.equal(s[0].k, 'queue');
+  assert.deepEqual(s[0].m, ['orders-api', 'mailer-worker']);
+  assert.deepEqual(s[0].r, ['api/jobs.py:5', 'worker/tasks.py:20']);
+  assert.deepEqual(s[1].m, ['mailer-worker', 'mailer-worker'], 'the consumer handles the message');
+  assert.deepEqual(s[1].r, ['worker/tasks.py:20']);
+  assert.ok(s.slice(2).some((x) => x.k === 'sql' && x.m[0] === 'mailer-worker' && x.m[1] === 'orders-db'), 'the consumer\'s access rows follow');
+  for (const x of s) assert.ok(x.r.length >= 1 && x.t && x.d, `step ${x.t} is complete`);
+  // send_receipt is the hop of the POST /orders draft already: no flow of its own
+  assert.equal(digest.drafts.filter((d) => /send_receipt/.test(d.title)).length, 0, JSON.stringify(digest.drafts.map((d) => d.title)));
+  assert.ok(digest.drafts.find((d) => /POST \/orders/.test(d.title)).steps.some((x) => x.k === 'queue' && x.t === 'send_receipt'));
+  const withDrafts = { ...model, sequences: digest.drafts };
+  assert.equal(validate(withDrafts).ok, true, JSON.stringify(validate(withDrafts).findings));
+});
+
+test('m34b a cron or hook link becomes a pull flow from the schedule to its first data step; a lone call with no data step is no flow', () => {
+  const { digest, model } = flowed();
+  const cron = digest.drafts.find((d) => /nightly receipts/.test(d.title));
+  assert.ok(cron, JSON.stringify(digest.drafts.map((d) => d.title)));
+  assert.deepEqual(cron.participants.map((p) => p.node), ['mailer-worker', 'orders-db']);
+  const c = steps(cron);
+  assert.equal(c.length, 2, 'the schedule fires, then the first data step only');
+  assert.deepEqual(c[0].m, ['mailer-worker', 'mailer-worker']);
+  assert.equal(c[0].k, 'pull');
+  assert.deepEqual(c[0].r, ['worker/beat.py:3', 'worker/tasks.py:8']);
+  assert.equal(c[1].k, 'sql');
+  assert.deepEqual(c[1].m, ['mailer-worker', 'orders-db']);
+  const hook = digest.drafts.find((d) => /orders webhook/.test(d.title));
+  assert.ok(hook, 'a hook link into another node is a flow too');
+  assert.deepEqual(hook.participants.map((p) => p.node), ['orders-api', 'mailer-worker', 'orders-db']);
+  assert.deepEqual(steps(hook)[0].m, ['orders-api', 'mailer-worker']);
+  const withDrafts = { ...model, sequences: digest.drafts };
+  assert.equal(validate(withDrafts).ok, true, JSON.stringify(validate(withDrafts).findings));
+  // a schedule whose handler has no access row in its file has no data step: not a flow
+  const bare = flowExtracts();
+  for (const x of bare) x.links = x.links.map((l) => (l.kind === 'cron' ? { ...l, to: 'worker/other.py:2' } : l));
+  const { digest: d2 } = merge({ fragments: crossFrags(), extracts: bare, meta: META });
+  assert.equal(d2.drafts.filter((d) => /nightly receipts/.test(d.title)).length, 0);
+  // and no unknown-link-kind row for either kind
+  assert.ok(!(model.meta.sources ?? []).some((s) => /unknown link kind/.test(JSON.stringify(s))), 'cron and hook are known link kinds');
+});
+
+test('m34c every HTTP draft ends with a return step from the route\'s handler back to the caller, citing the handler line and carrying ret', () => {
+  const { digest } = flowed();
+  const http = digest.drafts.find((d) => /POST \/orders/.test(d.title));
+  const last = steps(http).at(-1);
+  assert.deepEqual(last.m, ['orders-api', 'web-app']);
+  assert.equal(last.k, 'api');
+  assert.ok(typeof last.ret === 'string' && last.ret !== '');
+  assert.deepEqual(last.r, ['api/main.py:20']);
+  assert.equal(steps(http).filter((s) => s.ret !== undefined).length, 1, 'one return step');
+  // queue and pull flows are not HTTP drafts: they carry no return step
+  for (const d of digest.drafts.filter((x) => !/POST|GET|PUT|DELETE|PATCH/.test(x.title))) assert.equal(steps(d).filter((s) => s.ret !== undefined).length, 0, d.title);
+});
+
+test('m34d the drafts stay at the cap of 12, the digest stays under its cap, and two runs and either input order are byte-identical', async () => {
+  const { draftSequences, buildDigest, digestText, DIGEST_CAP } = await import('../scripts/merge.mjs');
+  const nodes = [node('client', { zone: 'z' }), node('server', { zone: 'z', kind: 'service' }), node('store', { zone: 'z', kind: 'store' })];
+  const flows = Array.from({ length: 15 }, (_, i) => ({
+    kind: 'http', from: 'client', to: 'server', a: { path: 'x/c.js', lines: String(i + 1) }, b: { path: 'x/s.js', lines: String(i + 1) }, via: `GET /r${pad(i, 2)}`,
+  }));
+  for (const q of ['alpha', 'beta', 'gamma']) flows.push({ kind: 'queue', from: 'server', to: 'store', a: { path: 'x/other.js', lines: '3' }, b: { path: 'x/q.js', lines: '4' }, via: q });
+  const entities = [{ id: 'e1', store: 'store', name: 'things', kind: 'table', fields: [{ name: 'id', type: 'int', pk: true, provenance: 'declared' }] }];
+  const access = [{ node: 'server', entity: 'e1', ops: 'R', evidence: ev('x/s.js', '9') }, { node: 'store', entity: 'e1', ops: 'R', evidence: ev('x/q.js', '4') }];
+  const model = { meta: META, zones: [{ id: 'z', kind: 'service', label: 'z' }], nodes, edges: [], entities, access };
+  const drafts = draftSequences({ flows, model });
+  assert.equal(flowed().digest.drafts.length, 4, 'POST /orders, the sms queue, the cron and the hook: the drafts the extracts earn');
+  assert.equal(drafts.length, 12, 'capped at MAX_DRAFTS, never more than the 12 of before');
+  assert.deepEqual(drafts.map((d) => d.id), drafts.map((d) => d.id).slice().sort(), 'the order stays by id');
+  const d = buildDigest(model, { drafts });
+  assert.ok(digestText(d).length <= DIGEST_CAP, `${digestText(d).length} > ${DIGEST_CAP}`);
+  assert.deepEqual(draftSequences({ flows: flows.slice().reverse(), model }), drafts, 'the input order does not matter');
+  assert.equal(JSON.stringify(flowed().digest), JSON.stringify(flowed().digest), 'two runs are identical');
+  const rev = merge({ fragments: crossFrags().reverse(), extracts: flowExtracts().reverse(), meta: META });
+  assert.equal(JSON.stringify(rev.digest), JSON.stringify(flowed().digest), 'either input order gives the same digest');
+});

@@ -166,6 +166,15 @@ svg text{font-family:var(--font-body)}
 .elabel{pointer-events:none;transition:opacity .15s}
 svg.focusing .node:not(.hl),svg.focusing .edge:not(.hl),svg.focusing .elabel:not(.hl){opacity:.16}
 svg.focusing .edge.hl .ln{stroke-width:calc(var(--w,2px) + 1px)}
+/* flow player: the nodes and the edge of the current message stay lit, everything else steps back */
+svg.flowing .node:not(.flow-hot),svg.flowing .edge:not(.flow-hot),svg.flowing .elabel:not(.flow-hot){opacity:.16}
+svg.flowing .node.flow-hot .nb{stroke:var(--zc);stroke-width:2.6}
+svg.flowing .edge.flow-hot .ln{stroke-width:calc(var(--w,2px) + 1.6px)}
+.flowbar{border-bottom:1px solid var(--line);background:var(--surface)}
+.flowbar[hidden]{display:none}
+.flowbar .flowctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
+.flowbar .flowname{font-size:12.5px;overflow-wrap:anywhere}
+.flowbar .stepbox{min-height:96px}
 
 /* detail panel */
 .detail{display:grid;gap:14px;padding:16px 16px 18px;border-top:1px solid var(--line)}

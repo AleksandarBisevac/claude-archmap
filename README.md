@@ -59,7 +59,9 @@ One model, `docs/architecture/architecture.model.json`, checked against `schema/
   `inferred` from queries in code);
 - **relations** between entities with cardinality, and **access**: which component creates, reads, updates or
   deletes which entity, the CRUD matrix and the data lineage;
-- **sequences**: step-through request and job flows;
+- **sequences**: step-through request and job flows, which a sequence whose participants name graph nodes can also
+  play on the architecture graph (Play on graph: previous, next, play and the arrow keys light each message's two
+  components and the relation between them and dim the rest);
 - **views**: the application graph and the deployment and trust-boundary views.
 
 The viewer, `docs/architecture/archmap.html`, is one self-contained file that works offline: the application graph

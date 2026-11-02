@@ -747,7 +747,7 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId, carried
 
 /**
  * Add the derived edges, access rows and relations to the maps in place. Returns the meta.sources row and the
- * flows (http and queue hops with their node ends) the sequence drafts are built from.
+ * flows (http and queue hops, and scheduled entries, with their node ends) the sequence drafts are built from.
  */
 function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues = [], made = null, carried = null }) {
   const owner = nodeResolver(nodes);
@@ -833,6 +833,15 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     const what = `${l.kind} ${l.from} > ${l.to}`;
     if (from === null || to === null) {
       skipped.push(`${what}: no node owns ${from === null ? a.path : b.path}`);
+      continue;
+    }
+    if (l.kind === 'cron' || l.kind === 'hook') {
+      // a scheduled entry: no edge (the schedule and its handler are often one node), only a flow for the drafts
+      if (a.lines === null || b.lines === null) {
+        skipped.push(`${what}: no line to cite`);
+        continue;
+      }
+      flows.push({ kind: 'pull', trigger: l.kind, from, to, a, b, via: l.via ?? `${l.kind} ${from} > ${to}` });
       continue;
     }
     if (from === to) continue; // inside one node: not a cross-node edge
@@ -1097,9 +1106,12 @@ const MAX_PARTICIPANTS = 7;
 const OPS_WORD = { C: 'insert', R: 'read', U: 'update', D: 'delete' };
 
 /**
- * One draft per HTTP entry point: the call to the route, the access rows cited in the handler's file, and each queue
- * hop that file starts with the consumer's own access rows. A draft is a sequence in the step grammar, every step citing
- * its lines; the synthesizer confirms, edits or drops it.
+ * The flows merge drafts, each a sequence in the step grammar with every message citing its lines; the synthesizer
+ * confirms, edits or drops them. One per HTTP entry point: the call to the route, the access rows cited in the handler's
+ * file, each queue hop that file starts with the consumer's own access rows, and the response back to the caller. One per
+ * queue whose producer and consumer are both known and no HTTP draft already shows as a hop: the producer enqueues, the
+ * consumer handles, then the consumer's access rows. One per scheduled entry (a `cron` or `hook` link): the trigger
+ * reaching its handler, then the handler's first access row. At most MAX_DRAFTS, taken in id order.
  */
 export function draftSequences({ flows, model }) {
   const nodes = new Map(list(model.nodes).map((n) => [n.id, n]));
@@ -1107,12 +1119,14 @@ export function draftSequences({ flows, model }) {
   const access = list(model.access);
   const title = (id) => nodes.get(id)?.title ?? id;
   const drafts = new Map();
-  for (const h of flows.filter((f) => f.kind === 'http').sort((p, q) => cmp(p.via, q.via) || cmp(p.from, q.from))) {
-    const id = `draft-${slug(h.via) || slug(`${h.from}-${h.to}`)}`;
-    if (drafts.has(id)) continue;
+  const covered = new Set(); // queue hops an HTTP draft already shows: producer, consumer and queue name
+  const hopKey = (q) => `${q.from}\u0000${q.to}\u0000${q.via}`;
+  // A draft under construction: msg adds a message (and the lanes it needs, within MAX_PARTICIPANTS), dataSteps the
+  // access rows of a node cited in a file, `limit` of them at most.
+  const flow = () => {
     const parts = new Map();
     const steps = [];
-    const msg = (from, to, k, t, d, r) => {
+    const msg = (from, to, k, t, d, r, ret) => {
       const fresh = [from, to].filter((x) => !parts.has(x));
       if (parts.size + new Set(fresh).size > MAX_PARTICIPANTS) return;
       for (const x of [from, to]) {
@@ -1120,32 +1134,66 @@ export function draftSequences({ flows, model }) {
         const n = nodes.get(x);
         parts.set(x, { id: x, label: title(x), node: x, ...(typeof n?.zone === 'string' ? { zone: n.zone } : {}) });
       }
-      steps.push({ m: [from, to], k, t, d, r });
+      steps.push({ m: [from, to], k, t, d, r, ...(ret === undefined ? {} : { ret }) });
     };
-    const dataSteps = (nodeId, file) => {
+    const dataSteps = (nodeId, file, limit = Infinity) => {
+      let made = 0;
       for (const a of access.filter((x) => x.node === nodeId).sort((p, q) => cmp(accessKey(p), accessKey(q)))) {
+        if (made >= limit) break;
         const at = list(a.evidence).filter((e) => isObj(e) && e.path === file);
         const ent = entities.get(a.entity);
         if (!at.length || !ent || !nodes.has(ent.store) || ent.store === nodeId) continue;
         const verb = [...a.ops].map((c) => OPS_WORD[c]).join('/');
+        const before = steps.length;
         msg(nodeId, ent.store, 'sql', `${verb} ${ent.name}`, `${title(nodeId)} runs ${verb} on ${ent.name} (ops ${a.ops}).`, at.sort(byLoc).map(locText));
+        if (steps.length > before) made++;
       }
     };
-    msg(h.from, h.to, 'api', h.via, `${title(h.from)} calls ${h.via}.`, [locText(h.a), locText(h.b)]);
-    dataSteps(h.to, h.b.path);
+    return { parts, steps, msg, dataSteps };
+  };
+  const keep = (id, flowTitle, summary, f) => {
+    drafts.set(id, { id, title: flowTitle, summary, participants: [...f.parts.values()], steps: f.steps });
+  };
+  const byVia = (p, q) => cmp(p.via, q.via) || cmp(p.from, q.from) || cmp(p.to, q.to);
+
+  for (const h of flows.filter((x) => x.kind === 'http').sort((p, q) => cmp(p.via, q.via) || cmp(p.from, q.from))) {
+    const id = `draft-${slug(h.via) || slug(`${h.from}-${h.to}`)}`;
+    if (drafts.has(id)) continue;
+    const f = flow();
+    f.msg(h.from, h.to, 'api', h.via, `${title(h.from)} calls ${h.via}.`, [locText(h.a), locText(h.b)]);
+    f.dataSteps(h.to, h.b.path);
     const hops = flows.filter((q) => q.kind === 'queue' && q.from === h.to && q.a.path === h.b.path).sort((p, q) => cmp(p.via, q.via) || cmp(p.to, q.to));
     for (const q of hops) {
-      msg(h.to, q.to, 'queue', q.via, `${title(h.to)} enqueues ${q.via} for ${title(q.to)}; it does not wait.`, [locText(q.a), locText(q.b)]);
-      dataSteps(q.to, q.b.path);
+      f.msg(h.to, q.to, 'queue', q.via, `${title(h.to)} enqueues ${q.via} for ${title(q.to)}; it does not wait.`, [locText(q.a), locText(q.b)]);
+      f.dataSteps(q.to, q.b.path);
     }
-    if (steps.length < 2) continue; // a lone call is an edge, not a flow
-    drafts.set(id, {
-      id,
-      title: h.via,
-      summary: `Drafted by merge.mjs from the prescan links and access rows: ${title(h.from)} to ${title(h.to)}${hops.length ? ' and its queue hops' : ''}. Confirm against the code.`,
-      participants: [...parts.values()],
-      steps,
-    });
+    if (f.steps.length < 2) continue; // a lone call is an edge, not a flow
+    f.msg(h.to, h.from, 'api', 'response', `${title(h.to)} answers ${title(h.from)}.`, [locText(h.b)], 'response');
+    for (const q of hops) covered.add(hopKey(q));
+    keep(id, h.via, `Drafted by merge.mjs from the prescan links and access rows: ${title(h.from)} to ${title(h.to)}${hops.length ? ' and its queue hops' : ''}. Confirm against the code.`, f);
+  }
+
+  for (const q of flows.filter((x) => x.kind === 'queue' && !covered.has(hopKey(x))).sort(byVia)) {
+    let id = `draft-queue-${slug(q.via) || slug(`${q.from}-${q.to}`)}`;
+    if (drafts.has(id)) id = `${id}-${slug(`${q.from}-${q.to}`)}`;
+    if (drafts.has(id)) continue;
+    const f = flow();
+    f.msg(q.from, q.to, 'queue', q.via, `${title(q.from)} enqueues ${q.via} for ${title(q.to)}; it does not wait.`, [locText(q.a), locText(q.b)]);
+    f.msg(q.to, q.to, 'call', `handle ${q.via}`, `${title(q.to)} takes the message off ${q.via} and handles it.`, [locText(q.b)]);
+    f.dataSteps(q.to, q.b.path);
+    keep(id, `queue ${q.via}`, `Drafted by merge.mjs from the prescan queue links and access rows: ${title(q.from)} enqueues, ${title(q.to)} handles. Confirm against the code.`, f);
+  }
+
+  for (const p of flows.filter((x) => x.kind === 'pull').sort(byVia)) {
+    let id = `draft-pull-${slug(p.via) || slug(`${p.from}-${p.to}`)}`;
+    if (drafts.has(id)) id = `${id}-${slug(`${p.from}-${p.to}`)}`;
+    if (drafts.has(id)) continue;
+    const f = flow();
+    const cron = p.trigger === 'cron';
+    f.msg(p.from, p.to, cron ? 'pull' : 'event', p.via, `${cron ? 'The schedule' : 'The hook'} ${p.via} starts ${title(p.to)}.`, [locText(p.a), locText(p.b)]);
+    f.dataSteps(p.to, p.b.path, 1);
+    if (f.steps.length < 2) continue; // a trigger with no data step shows nothing the graph does not
+    keep(id, `${cron ? 'scheduled' : 'hook'} ${p.via}`, `Drafted by merge.mjs from a ${p.trigger} link and the access rows of its handler's file: ${title(p.from)} to ${title(p.to)} and its first data step. Confirm against the code.`, f);
   }
   return [...drafts.values()].sort(byId).slice(0, MAX_DRAFTS);
 }

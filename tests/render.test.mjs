@@ -211,3 +211,24 @@ test('r7 inputs are validated first: an invalid model, issues or theme is refuse
 test('r8 rendering is deterministic: the same inputs give byte-identical HTML', () => {
   for (const mode of MODES) assert.equal(renderMode(mode), renderMode(mode), `${mode} differs between runs`);
 });
+
+// P13.11: the player lives in the script only. The static HTML around the script, style and data blocks is the same
+// for a model with node-linked sequences and one without, so a model without any renders as it always did.
+const staticShell = (html) => html.replace(/<script\b[\s\S]*?<\/script>/g, '<script/>').replace(/<style\b[\s\S]*?<\/style>/g, '<style/>');
+
+test('r9 a model without a node-linked sequence renders the same static shell as the golden, and its viewer script is the one shipped (no model-dependent player markup)', () => {
+  const plain = clone(model);
+  for (const s of plain.sequences) for (const p of s.participants) delete p.node;
+  assert.ok(model.sequences.some((s) => s.participants.some((p) => p.node)), 'the golden has a node-linked sequence');
+  const PM = join(tmp, 'plain.model.json');
+  writeFileSync(PM, JSON.stringify(plain));
+  const golden = render([MODEL, '--layout', LAYOUT]).html;
+  const bare = render([PM, '--layout', LAYOUT]).html;
+  assert.equal(staticShell(bare).replace(/<script type="application\/json"[^>]*>[\s\S]*?<\/script>/g, ''), staticShell(golden).replace(/<script type="application\/json"[^>]*>[\s\S]*?<\/script>/g, ''));
+  const viewerScript = (h) => [...h.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].filter((m) => !/application\/json/.test(m[1])).map((m) => m[2]);
+  assert.deepEqual(viewerScript(bare), viewerScript(golden), 'the script does not depend on the model');
+  assert.match(viewerScript(bare).join('\n'), /Play on graph/, 'the player ships in the script, built there when a sequence is node-linked');
+  // the clean render carries no player overlay text outside the script
+  assert.doesNotMatch(staticShell(golden), /Play on graph|flowbar/);
+  assert.equal(render([PM, '--layout', LAYOUT]).html, bare, 'and it is deterministic');
+});

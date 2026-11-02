@@ -10083,7 +10083,7 @@
         {
           "id": "P13.10",
           "title": "Richer script-derived relations: ORM call access rows, typed import edges, unpaired queues",
-          "status": "in_progress",
+          "status": "done",
           "description": "Benchmark weak spot (rubric relations 3 of 5 on repository B, a TypeScript monorepo with a Node API, an ORM and a job queue): 148 nodes but 74 edges, 66 nodes with no edge, 13 queue nodes with only 11 edges touching queues and stores, 162 entities with only 5 access rows, and a third of the edges typed `link`. Everything here is script work in prescan and merge; no agent prompt changes and no new reads for the explorers, so the build cost does not move.\n\nDo: (1) scripts/lib/prescan/node-backend.mjs gains a kind `ormCalls`: ORM query calls read as text with the entity or table they touch and the CRUD letters of the method - Drizzle (`db.select().from(x)`, `db.insert(x)`, `db.update(x)`, `db.delete(x)`, `db.query.x.findMany`), Prisma (`prisma.x.findMany/findUnique/create/createMany/update/updateMany/upsert/delete/deleteMany`), TypeORM (`repository.find/save/insert/update/delete`, `getRepository(X)`) - each row {orm, target, ops, evidence}, string literals and resolved identifiers only, unresolved ones counted in skipped, capped like the other kinds; scripts/lib/prescan/python.mjs does the same for SQLAlchemy sessions and SQLModel (`session.query(X)`, `select(X)`, `session.add`, `.delete`). (2) scripts/merge.mjs turns ormCalls into access rows (node owning the file, entity resolved by table or model name through entityResolver, ops unioned per node and entity) and into one `sql` edge from that node to the entity's store node with the call lines as evidence, deduplicated with the edges the explorers wrote. (3) Import-derived edges get a type from the target node's kind - `sql` to a store, `queue` to a queue, `call` otherwise - and never `link`; `link` stays for explorer-written navigational links. (4) A queue node with a producer but no consumer, or the reverse, gets one meta.sources row of type `queue-unpaired` naming the queue so the gap is visible, nothing invented. (5) Document ormCalls in skills/architecture-map/references/stack-node-backend.md and stack-python-backend.md (what prescan extracts). Fixtures tests/fixtures/repos/node-api and python-api gain the calls needed to exercise every pattern; a nodes-without-edges count is added to the merge digest `counts` so a build report shows it.",
           "files": [
             "scripts/prescan.mjs",
@@ -10118,25 +10118,40 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "29ddf775f165",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "node-backend.mjs: new kind ormCalls ({orm,target,ops,evidence}) for Drizzle (select().from, insert, update, delete, db.query.x.findMany/findFirst; table resolved through imports or unique var name), Prisma (delegate methods; model resolved against schema.prisma models, else Prisma's own first-letter rule; $-methods ignored; receivers are names holding a PrismaClient) and TypeORM (InjectRepository(X), Repository<X> typed handles, getRepository(X) assigned or inline; entity class or table name resolved against declared entities); unresolved targets counted in skipped.ormCalls; capped through KINDS like the others. python.mjs: ormCalls for SQLAlchemy and SQLModel (session.query(X) with .delete/.update chain, select/insert/update/delete(X), session.add/add_all/merge/delete/get with the model from a constructor call, session.get or annotation above the call), gated on files importing sqlalchemy/sqlmodel or a model class; unknown targets skipped. merge.mjs: ormCalls resolved by entityLookup (table/model/id) and owner node into access rows (ops unioned) and one sql edge node to the entity's store (evidence = call lines, deduplicated against explorer edges by from/type/to; node==store gets no edge); skipped rows reasoned in the derivation row; import-derived edges typed sql (store/database/db/datastore), queue (queue node) or call, never link (explorer link edges untouched; import-only edges carry no label); queue-unpaired meta.sources rows ({queue,node,missing,note}) for a queue with producer-only or consumer-only in the prescan queue rows and explorer edges, recomputed with extracts, nothing added to the model; digest counts.nodesWithoutEdges. The entity-lookup block of deriveLayer moved above the edge emission so ORM edges join the same groups. Fixtures: node-api src/data/{drizzle,prisma,typeorm}.queries.ts, python-api shop/repository.py and shop/queries.py (put under shop/ so the pw5 sibling-module list of app/ is unchanged), READMEs, both stack reference docs one table row each. Tests: nb17-nb20, py18-py19, m33-m33d added; existing KINDS/skipped/truncated expectations in nb5/nb6 and py6/py7 and the py10 import-link list updated. Full node --test: 513 pass, 0 fail.",
+            "descriptive": "Prescan now reads ORM query calls (Drizzle, Prisma, TypeORM, SQLAlchemy, SQLModel) and merge turns them into access rows and sql edges to the store, types import edges by their target (never link), names half-paired queues, and the digest counts edgeless nodes, all by script with no prompt text added."
           },
           "startedAt": "2026-11-02T21:47:51Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T22:04:37Z",
+          "verifiedBy": [
+            "nb17 ormCalls rows for Drizzle, Prisma and TypeORM with CRUD letters and line evidence, 3 unresolved counted in skipped; nb18 lookalike receivers and Prisma without schema; nb19 determinism; nb20 prescan slice carries rows, summary only counts",
+            "py18 SQLAlchemy and SQLModel ormCalls rows with 1 skipped; py19 lookalike calls and ORM-free files",
+            "m33 ormCalls to access rows and deduplicated sql edge; m33b typed import edges never link; m33c queue-unpaired rows; m33d nodesWithoutEdges and byte-identical runs"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T22:04:35Z.baa066",
             "status": "passed",
             "at": "2026-11-02T22:04:35Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "29ddf775f165",
+            "at": "2026-11-02T22:04:37Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T22:03:07Z",
+            "basis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-python.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.11",
           "title": "Flows: play a sequence on the architecture graph and draft queue, pull and return flows by script",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Benchmark weak spot (rubric flows and readability level with or below draw-c4 on all three repositories; its interactive flow player and seven flows read better than our four sequences). Both parts are free at build time: the viewer is static JavaScript and the drafts are made by merge.mjs from prescan links, with the digest cap and the synthesizer brief unchanged.\n\nDo: (1) assets/viewer/viewer.js and viewer.css: a \"play on graph\" mode for the selected sequence - the architecture graph highlights, step by step, the participant nodes (through `participants[].node`) and the edge between the two participants of the current message when the model has one, dims the rest, shows the step title and detail in the existing stepbox, with previous/next/play controls (play advances on a timer, stops at the end) and keyboard arrows; the sequence diagram view keeps working as it is; no overlay text in the clean render and nothing executed from the model (strings escaped as the viewer already does). (2) scripts/merge.mjs draftSequences: beside the one draft per HTTP entry point, draft one flow per queue whose producer and consumer are both known and no HTTP draft already covers (producer enqueues, consumer handles, consumer's access rows), one per `pull` or scheduled entry (a cron or hook link in the extracts) to its first data step, and append a return step (`ret`) to each HTTP draft from the route's handler back to the caller; MAX_DRAFTS stays 12 and the digest trim order stays, so the synthesizer reads no more than today. (3) Golden fixtures under tests/fixtures/golden gain a sequence whose participants carry `node` so the viewer test can drive the player; the render stays byte-identical for a model without such a sequence. (4) Document the player in README.md (one sentence under What a build delivers) and the drafting rule in skills/architecture-map/references/sequences.md.",
           "files": [
             "assets/viewer/viewer.js",
@@ -10179,16 +10194,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T22:04:38Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T22:14:05Z.453075",
+            "status": "passed",
+            "at": "2026-11-02T22:14:05Z"
+          }
         }
       ],
       "request": "Zatim predloži fazu v1.1 iz docs/roadmap.md (/audit:phase add), bez pokretanja.",

@@ -349,11 +349,69 @@ function crossesTrust(zoneA, zoneB, zoneById){
   return trusted(ra) !== trusted(rb);
 }
 
+/* Flow player (pure): a sequence whose participants carry `node` can be played on the architecture graph, one frame per
+   message. A frame names the nodes its two participants point at and the model edge between them (the arrow's own direction
+   first, else the reverse, which is how a response finds the call's edge); a node the model lacks is never lit. */
+const FLOW_TICK_MS = 1800;
+function flowEdgeId(edges, a, b){
+  let back = null;
+  for (let i = 0; i < edges.length; i++){
+    const e = edges[i];
+    if (e.from === a && e.to === b) return e.id;
+    if (back === null && e.from === b && e.to === a) back = e.id;
+  }
+  return back;
+}
+function flowFrames(model, seq){
+  const nodeIds = new Set((model.nodes || []).map(n => n.id));
+  const nodeOf = {}; let linked = false;
+  ((seq && seq.participants) || []).forEach(p => { nodeOf[p.id] = p; if (typeof p.node === "string" && nodeIds.has(p.node)) linked = true; });
+  if (!linked) return null;
+  const frames = [];
+  ((seq && seq.steps) || []).forEach((st, idx) => {
+    if (!Array.isArray(st.m) || !nodeOf[st.m[0]] || !nodeOf[st.m[1]]) return;
+    const a = nodeOf[st.m[0]], b = nodeOf[st.m[1]];
+    const ids = [a, b].map(p => (typeof p.node === "string" && nodeIds.has(p.node)) ? p.node : null);
+    const nodes = ids.filter((id, i) => id !== null && ids.indexOf(id) === i);
+    const edge = ids[0] !== null && ids[1] !== null && ids[0] !== ids[1] ? flowEdgeId(model.edges || [], ids[0], ids[1]) : null;
+    frames.push({step:idx, no:frames.length + 1, title:st.t || "", detail:st.d || "", kind:st.k, ret:!!st.ret, from:a.label, to:b.label, refs:st.r || [], nodes:nodes, edge:edge});
+  });
+  return frames.length ? frames : null;
+}
+function flowMarks(model, frame){
+  const hotNodes = frame.nodes.slice(), hotEdges = frame.edge === null ? [] : [frame.edge];
+  return {hotNodes:hotNodes, hotEdges:hotEdges,
+    dimNodes:(model.nodes || []).map(n => n.id).filter(id => hotNodes.indexOf(id) < 0),
+    dimEdges:(model.edges || []).map(e => e.id).filter(id => hotEdges.indexOf(id) < 0)};
+}
+function flowMove(i, n, action){
+  if (action === "next") return Math.min(n - 1, i + 1);
+  if (action === "prev") return Math.max(0, i - 1);
+  if (action === "first") return 0;
+  if (action === "last") return Math.max(0, n - 1);
+  return i;
+}
+function flowKeyAction(key){
+  return ({ArrowRight:"next", ArrowDown:"next", PageDown:"next", ArrowLeft:"prev", ArrowUp:"prev", PageUp:"prev", Home:"first", End:"last"})[key] || null;
+}
+// One play tick: the next frame, and whether it is the last (the player stops there).
+function flowTick(i, n){
+  const next = flowMove(i, n, "next");
+  return {i:next, done:next >= n - 1};
+}
+// The step box text of a frame: the model's strings go through esc/codeify, never raw.
+function flowStepHtml(f, i, n){
+  return '<div class="sl"><span class="sn">Step ' + (i + 1) + ' of ' + n + '</span><span class="sm">' + esc(f.title) + '</span></div>' +
+    '<p class="muted">' + esc(f.from) + (f.from === f.to ? " (internal)" : " \u2192 " + esc(f.to)) + (f.ret ? " \u00b7 response" : "") + '</p>' +
+    (f.detail ? '<p>' + codeify(f.detail) + '</p>' : '');
+}
+
 if (typeof document === "undefined"){
   if (typeof module !== "undefined" && module && typeof module === "object") {
     module.exports = {findPath:findPath, lineageOf:lineageOf, searchModel:searchModel, crudMatrix:crudMatrix, crudHtml:crudHtml,
       erScene:erScene, erMarkup:erMarkup, crowFoot:crowFoot, manyEnds:manyEnds, relationKeys:relationKeys, evidenceUrl:evidenceUrl,
-      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, MIN_FONT_PX:MIN_FONT_PX, SMALLEST_FIG_FONT:SMALLEST_FIG_FONT, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust};
+      evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, MIN_FONT_PX:MIN_FONT_PX, SMALLEST_FIG_FONT:SMALLEST_FIG_FONT, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust,
+      flowFrames:flowFrames, flowMarks:flowMarks, flowMove:flowMove, flowKeyAction:flowKeyAction, flowTick:flowTick, flowStepHtml:flowStepHtml, FLOW_TICK_MS:FLOW_TICK_MS};
   }
   return;
 }
@@ -1091,6 +1149,7 @@ function setSeq(id){
   $("seqsum").textContent = seq.summary || "";
   renderSeq(seq);
   setStep(seqState.cur[id] || 1);
+  flowSync();
 }
 $("seqtabs").innerHTML = SEQS.map(s => '<button class="tab" role="tab" data-seq="' + esc(s.id) + '" aria-selected="false">' + esc(s.title) + '</button>').join("");
 document.querySelectorAll("#seqtabs .tab").forEach(b => b.addEventListener("click", () => setSeq(b.dataset.seq)));
@@ -1105,6 +1164,116 @@ if (!SEQS.length){
   $("seqprev").disabled = true; $("seqnext").disabled = true;
 }
 DRAW.sequences = () => { if (seqState.id) setSeq(seqState.id); };
+
+/* ───────── flow player: play the selected sequence on the architecture graph ───────── */
+// The controls and the bar are built here when needed; the static page carries none of it. Marks are classes on the
+// graph's own nodes and edges (flow-hot, flow-dim), so a redraw of the view starts clean and the player re-applies them.
+const flow = {frames:null, i:0, timer:null, bar:null, seqId:null};
+const playBtn = document.createElement("button");
+playBtn.className = "btn"; playBtn.id = "seqplay"; playBtn.hidden = true;
+playBtn.textContent = "Play on graph";
+playBtn.setAttribute("aria-label", "Play this sequence on the architecture graph");
+$("seqnext").parentNode.appendChild(playBtn);
+function flowStopTimer(){ if (flow.timer !== null){ clearInterval(flow.timer); flow.timer = null; } }
+function flowSvg(){ return $("arch"); }
+function flowClear(){
+  const svg = flowSvg(); svg.classList.remove("flowing");
+  svg.querySelectorAll(".flow-hot").forEach(x => x.classList.remove("flow-hot"));
+}
+function flowApply(){
+  if (!flow.frames) return;
+  const svg = flowSvg(), f = flow.frames[flow.i], k = flowMarks(MODEL, f);
+  flowClear();
+  svg.classList.add("flowing");
+  k.hotNodes.forEach(id => { const n = svg.querySelector('.node[data-id="' + CSS.escape(id) + '"]'); if (n) n.classList.add("flow-hot"); });
+  svg.querySelectorAll(".edge").forEach(e => {
+    if (k.hotEdges.indexOf(e.dataset.id) < 0) return;
+    e.classList.add("flow-hot");
+    svg.querySelectorAll('.elabel[data-i="' + e.dataset.i + '"]').forEach(l => l.classList.add("flow-hot"));
+  });
+  const box = flow.bar.querySelector(".stepbox");
+  box.className = "stepbox t-" + relOf(f.kind);
+  box.innerHTML = flowStepHtml(f, flow.i, flow.frames.length);
+  flow.bar.querySelector('[data-act="prev"]').disabled = flow.i <= 0;
+  flow.bar.querySelector('[data-act="next"]').disabled = flow.i >= flow.frames.length - 1;
+  const play = flow.bar.querySelector('[data-act="play"]');
+  play.textContent = flow.timer !== null ? "Pause" : (flow.i >= flow.frames.length - 1 ? "Replay" : "Play");
+}
+function flowGo(action){
+  if (!flow.frames) return;
+  flow.i = flowMove(flow.i, flow.frames.length, action);
+  flowApply();
+}
+function flowTogglePlay(){
+  if (!flow.frames) return;
+  if (flow.timer !== null){ flowStopTimer(); flowApply(); return; }
+  if (flow.i >= flow.frames.length - 1) flow.i = 0;
+  flow.timer = setInterval(() => {
+    const t = flowTick(flow.i, flow.frames.length);
+    flow.i = t.i;
+    if (t.done) flowStopTimer();
+    flowApply();
+  }, FLOW_TICK_MS);
+  flowApply();
+}
+function flowBar(){
+  if (flow.bar) return flow.bar;
+  const bar = document.createElement("div");
+  bar.className = "flowbar"; bar.setAttribute("role", "group"); bar.setAttribute("aria-label", "Flow player");
+  bar.innerHTML = '<div class="flowctl"><button class="btn" data-act="prev" aria-label="Previous step">&larr; Prev</button>' +
+    '<button class="btn" data-act="play">Play</button><button class="btn" data-act="next" aria-label="Next step">Next &rarr;</button>' +
+    '<button class="btn" data-act="exit">Back to the sequence</button><span class="flowname muted"></span></div>' +
+    '<div class="stepbox" aria-live="polite"></div>';
+  bar.addEventListener("click", ev => {
+    const b = ev.target.closest("button[data-act]"); if (!b) return;
+    if (b.dataset.act === "play") flowTogglePlay(); else if (b.dataset.act === "exit") flowExit(true); else flowGo(b.dataset.act);
+  });
+  const anchorEl = $("pathbar") || $("arch").closest(".panel").firstChild;
+  anchorEl.parentNode.insertBefore(bar, anchorEl.nextSibling);
+  flow.bar = bar;
+  return bar;
+}
+function flowEnter(){
+  const seq = SEQ[seqState.id]; if (!seq) return;
+  const frames = flowFrames(MODEL, seq); if (!frames) return;
+  flowStopTimer();
+  flow.frames = frames; flow.seqId = seq.id;
+  flow.i = Math.min(frames.length - 1, Math.max(0, (seqState.cur[seq.id] || 1) - 1));
+  const bar = flowBar(); bar.hidden = false;
+  bar.querySelector(".flowname").textContent = seq.title;
+  const ids = []; frames.forEach(f => f.nodes.forEach(id => { if (ids.indexOf(id) < 0) ids.push(id); }));
+  const view = GP.bestView(ids);
+  if (view.id !== GP.st.view) GP.setView(view.id);
+  showTab("graph");
+  flowApply();
+  bar.querySelector('[data-act="play"]').focus();
+}
+function flowExit(toSequence){
+  if (!flow.frames) return;
+  flowStopTimer();
+  const at = flow.i + 1, id = flow.seqId;
+  flowClear();
+  if (flow.bar) flow.bar.hidden = true;
+  flow.frames = null;
+  if (toSequence){ showTab("sequences"); if (seqState.id === id) setStep(at); }
+}
+function flowSync(){
+  const frames = SEQ[seqState.id] ? flowFrames(MODEL, SEQ[seqState.id]) : null;
+  playBtn.hidden = !frames;
+  if (flow.frames && (!frames || seqState.id !== flow.seqId)) flowExit(false);
+}
+playBtn.addEventListener("click", flowEnter);
+// A redraw of the architecture pane (another view tab) drops the marks: put them back.
+$("arch-tabs").addEventListener("click", () => { if (flow.frames) flowApply(); });
+document.addEventListener("keydown", ev => {
+  if (!flow.frames || ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey || curTab !== "graph") return;
+  const tag = ev.target && ev.target.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  if (ev.key === "Escape"){ ev.preventDefault(); flowExit(true); return; }
+  const action = flowKeyAction(ev.key);
+  if (action){ ev.preventDefault(); flowGo(action); }
+});
+flowSync();
 
 /* ───────── issues (internal and shared builds only) ───────── */
 const findingsEl = $("findings");

@@ -257,3 +257,126 @@ test('v8 a figure that would fit below the legibility floor opens at the floor (
   assert.equal(V.figureScale(1600, 400).fit, 0.25);
   assert.match(clean, /\["fit", "Fit"\]/, 'the Fit button is still built by the viewer script');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P13.11: the flow player. A sequence whose participants carry `node` can be played on the architecture graph: one
+// frame per message, the two nodes and the edge between them lit, the rest dimmed. The pure parts are tested here;
+// the DOM glue only calls them.
+
+const seqOf = (id) => model.sequences.find((s) => s.id === id);
+const placeOrder = seqOf('place-order');
+const messages = (s) => s.steps.filter((st) => Array.isArray(st.m));
+
+test('v9 flowFrames makes one frame per message of a node-linked sequence: its title and detail, the nodes its two participants point at, and the model edge between them when there is one', () => {
+  const frames = V.flowFrames(model, placeOrder);
+  const msgs = messages(placeOrder);
+  assert.equal(frames.length, msgs.length, 'one frame per message, fragments and notes make none');
+  const nodeOf = Object.fromEntries(placeOrder.participants.map((p) => [p.id, p.node]));
+  let withEdge = 0;
+  frames.forEach((f, i) => {
+    const m = msgs[i];
+    assert.equal(f.title, m.t);
+    assert.equal(f.detail, m.d);
+    assert.equal(f.step, placeOrder.steps.indexOf(m), 'the frame knows its step, for the diagram');
+    assert.deepEqual(f.nodes, [...new Set(m.m.map((p) => nodeOf[p]))], `frame ${i}: the nodes are the participants' nodes, once each`);
+    if (f.edge === null) {
+      const joined = model.edges.some((e) => (e.from === f.nodes[0] && e.to === f.nodes[1]) || (e.to === f.nodes[0] && e.from === f.nodes[1]));
+      assert.equal(f.nodes.length < 2 || !joined, true, `frame ${i}: an edge joins ${f.nodes} but none was found`);
+    } else {
+      const e = model.edges.find((x) => x.id === f.edge);
+      assert.ok(e, `edge ${f.edge} is not in the model`);
+      assert.ok(f.nodes.includes(e.from) && f.nodes.includes(e.to), `frame ${i}: edge ${e.id} does not join ${f.nodes}`);
+      withEdge++;
+    }
+  });
+  assert.ok(withEdge >= 3, `the golden flow walks several real edges (got ${withEdge})`);
+  // a self-message lights its one node and no edge
+  const self = frames[msgs.findIndex((m) => m.m[0] === m.m[1])];
+  assert.equal(self.nodes.length, 1);
+  assert.equal(self.edge, null);
+  // a model edge drawn the other way still joins a returning message
+  const back = V.flowFrames({ ...model, sequences: [] }, { participants: [{ id: 'a', label: 'a', node: 'web-app' }, { id: 'b', label: 'b', node: 'ingress-gw' }], steps: [{ m: ['b', 'a'], k: 'api', t: 'back', d: '', r: [] }] });
+  const e = model.edges.find((x) => x.from === 'web-app' && x.to === 'ingress-gw');
+  assert.ok(e, 'the golden has web-app > ingress-gw');
+  assert.equal(back[0].edge, e.id);
+  // no participant node: nothing to play, so no player is offered
+  const plain = { participants: placeOrder.participants.map(({ node, ...p }) => p), steps: placeOrder.steps };
+  assert.equal(V.flowFrames(model, plain), null);
+  // a node that is not in the model is ignored, never lit
+  const ghost = V.flowFrames(model, { participants: [{ id: 'a', label: 'a', node: 'no-such-node' }, { id: 'b', label: 'b', node: 'web-app' }], steps: [{ m: ['a', 'b'], k: 'call', t: 't', d: 'd', r: [] }] });
+  assert.deepEqual(ghost[0].nodes, ['web-app']);
+  assert.equal(V.flowFrames(model, { participants: [{ id: 'a', label: 'a', node: 'no-such-node' }], steps: [] }), null);
+});
+
+test('v10 flowMarks lights the current frame\'s nodes and edge and dims every other node and edge', () => {
+  const frames = V.flowFrames(model, placeOrder);
+  for (const f of frames) {
+    const k = V.flowMarks(model, f);
+    assert.deepEqual([...k.hotNodes].sort(), [...f.nodes].sort());
+    assert.deepEqual(k.hotEdges, f.edge === null ? [] : [f.edge]);
+    assert.deepEqual([...k.dimNodes].sort(), model.nodes.map((n) => n.id).filter((id) => !f.nodes.includes(id)).sort());
+    assert.deepEqual([...k.dimEdges].sort(), model.edges.map((e) => e.id).filter((id) => id !== f.edge).sort());
+    for (const id of k.hotNodes) assert.ok(!k.dimNodes.includes(id), 'a lit node is not dimmed');
+  }
+});
+
+test('v11 next, previous, the arrow keys, Home and End move the frame and stop at the ends; play advances one frame and stops after the last', () => {
+  const n = 5;
+  assert.equal(V.flowMove(0, n, 'next'), 1);
+  assert.equal(V.flowMove(4, n, 'next'), 4, 'next stops at the last frame');
+  assert.equal(V.flowMove(3, n, 'prev'), 2);
+  assert.equal(V.flowMove(0, n, 'prev'), 0, 'previous stops at the first frame');
+  assert.equal(V.flowMove(2, n, 'first'), 0);
+  assert.equal(V.flowMove(2, n, 'last'), 4);
+  assert.equal(V.flowMove(2, n, 'nonsense'), 2);
+  assert.deepEqual(['ArrowRight', 'ArrowDown', 'PageDown', 'ArrowLeft', 'ArrowUp', 'PageUp', 'Home', 'End', 'a', 'Enter'].map((k) => V.flowKeyAction(k)),
+    ['next', 'next', 'next', 'prev', 'prev', 'prev', 'first', 'last', null, null]);
+  assert.deepEqual(V.flowTick(1, n), { i: 2, done: false });
+  assert.deepEqual(V.flowTick(3, n), { i: 4, done: true }, 'the tick that reaches the last frame stops the play');
+  assert.deepEqual(V.flowTick(4, n), { i: 4, done: true });
+  // a one-frame flow is already at its end
+  assert.deepEqual(V.flowTick(0, 1), { i: 0, done: true });
+  assert.ok(V.FLOW_TICK_MS >= 800 && V.FLOW_TICK_MS <= 3000, `a readable pace (${V.FLOW_TICK_MS} ms)`);
+});
+
+test('v12 the player adds nothing to the clean render before it is used: no overlay text or marker outside the script, and the script runs nothing from the model', () => {
+  const body = clean.replace(/<script\b[\s\S]*?<\/script>/g, '').replace(/<style\b[\s\S]*?<\/style>/g, '');
+  assert.doesNotMatch(body, /flow-?bar|flowbar|play on graph|class="[^"]*\bflow/i, 'player markup in the static HTML');
+  assert.doesNotMatch(body, /\bflow-(?:hot|dim)\b/, 'a flow mark in the static HTML');
+  const js = clean.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? [...clean.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].find((m) => !/application\/json/.test(m[1]))[2];
+  assert.match(js, /Play on graph/, 'the control is built by the script');
+  assert.doesNotMatch(js, /\beval\s*\(|new Function\s*\(|innerHTML\s*=\s*[a-z]*\.(?:title|detail|t|d)\b/, 'a model string is handed to the DOM raw');
+  // a string of the model reaches the stepbox escaped
+  const evil = V.flowFrames(model, { participants: [{ id: 'a', label: 'a', node: 'web-app' }, { id: 'b', label: 'b', node: 'ingress-gw' }], steps: [{ m: ['a', 'b'], k: 'api', t: '<img src=x onerror=alert(1)>', d: '</b><script>1</script>', r: [] }] });
+  const html = V.flowStepHtml(evil[0], 0, 1);
+  assert.doesNotMatch(html, /<img|<script/i, 'the step title and detail are escaped');
+  assert.match(html, /&lt;img/);
+});
+
+test('v13 interaction-state parity: every interactive selector the sheet styles has a hover (and, for entities and nodes, a focus) rule that changes visuals only, never the box it sits in', () => {
+  const css = readFileSync(fileURLToPath(new URL('../assets/viewer/viewer.css', import.meta.url)), 'utf8');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].split(',').map((s) => s.trim()), body: m[2] }));
+  const GEOMETRY = /^(?:width|height|min-width|min-height|max-width|max-height|margin(?:-[a-z]+)?|padding(?:-[a-z]+)?|border-width|font-size|line-height|display|position|top|left|right|bottom|flex(?:-[a-z]+)?)$/;
+  const stateRule = (subject, state) => rules.filter((r) => r.sel.some((s) => s === `${subject}:${state}` || s.startsWith(`${subject}:${state} `)));
+  const subjects = [
+    ['#qres li', ['hover']], ['.btn', ['hover']], ['.ent', ['focus-visible', 'hover']], ['.evchip', ['hover']], ['.fld', ['hover']],
+    ['.ilink', ['hover']], ['.lnk', ['hover']], ['.node', ['focus-visible', 'hover']], ['.opb', ['hover']], ['.tab', ['hover']],
+    ['a', ['hover']], ['nav.sections .navtab', ['hover']],
+  ];
+  for (const [subject, states] of subjects) {
+    for (const state of states) {
+      const found = stateRule(subject, state);
+      assert.ok(found.length >= 1, `${subject}:${state} has no rule`);
+      for (const r of found) {
+        const decls = r.body.split(';').map((d) => d.trim()).filter(Boolean).map((d) => d.split(':')[0].trim());
+        assert.ok(decls.length >= 1, `${subject}:${state} declares nothing`);
+        for (const d of decls) assert.ok(!GEOMETRY.test(d), `${subject}:${state} changes ${d}, which moves the box`);
+      }
+    }
+  }
+  // the entity and node cards also lose the browser outline on plain focus, so :focus-visible is the one focus cue
+  for (const s of ['.ent', '.node']) assert.ok(stateRule(s, 'focus').some((r) => /outline:none/.test(r.body)), `${s}:focus drops the outline`);
+  // the player's own controls reuse the sheet's button states
+  assert.match(css, /\.flowbar\b/, 'the player bar is styled');
+  assert.ok(stateRule('.flowbar .btn', 'hover').length + stateRule('.btn', 'hover').length >= 1);
+});
