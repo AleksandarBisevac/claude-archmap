@@ -1,0 +1,41 @@
+# Fleet tracker local stack (fictional test fixture, placeholders only).
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:3000"
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:8000
+      FEATURE_FLAGS: "maps,alerts"
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+      - "127.0.0.1:8443:8443/tcp"
+    volumes:
+      - ./api/data:/srv/data:ro
+      - uploads:/srv/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://db:5432/fleet
+      - LOG_LEVEL
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: fleet
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-placeholder}
+      POSTGRES_DB: fleet
+
+volumes:
+  pgdata:
+  uploads:
