@@ -1,0 +1,43 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-02T23:08:27Z",
+    "basis": "`node --test tests/prescan-wiring.test.mjs tests/schema.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/viewer.test.mjs tests/export.test.mjs tests/skill-references.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Continued attempt 1's tree (prescan, merge, schema 15 edge types, taxonomy, model-schema, explorer agent, pw7, s3, s15, m35-m35d kept). Added this attempt: (1) scripts/pipeline.mjs STACK_REFS now maps containers, pipelines, iac, data-platform to stack-containers.md, stack-pipelines.md, stack-iac.md, stack-data-platform.md; the lookup is the new exported stackRefFor(stacks), used by plan; test p41. Note: prescan area stacks stay the code stacks (pc3 pins them), so the mapping takes effect for any area whose stacks name a platform stack; a pure-platform area today still has no stack and gets discovery-generic. (2) assets/viewer/viewer.js REL gains depends (3 3, w1.6), lineage (12 4, w2.6), artifact (9 3 1.5 3, w2.1) so they have their own legend chip, marker and style; REL and relOf are added to the no-document module.exports; viewer.css gets --rel-depends/lineage/artifact in all three theme blocks plus .t-depends/.t-lineage/.t-artifact; scripts/export.mjs REL_STYLE mirrors the same dash and width. Tests v14 (viewer: every schema edge type has REL entry, CSS class, colour in 3 blocks, unknown still falls back to call, new types distinct) and x38 (export svg stroke, width and dash of the three types match the viewer REL and are not the call colour). (3) The four stack references no longer say the taxonomy has no relation: they say the merge draws depends / artifact / lineage edges itself and the explorer should not repeat them; test r5. (4) tests/skill-references.test.mjs r2 expects 15. validate.mjs untouched (reads enum from schema). Ran node --test whole suite: 569 tests, 569 pass, 0 fail (exit 0). Dependants: scripts/pipeline.mjs/tests/pipeline.test.mjs correct (additive export, plan behaviour unchanged for code stacks, p28/p40 pass); viewer.js/css dependants render.mjs, export.mjs, screenshots.py still correct (REL only grew; golden html tests pass); export.mjs dependants commands/export.md, CHANGELOG unaffected; docs/architecture model and html unchanged and valid (s15). Other dependants as in attempt 1. Process: red for the new cases was watched in the working tree before the fix (x38, p41, r5, v14 failed; 4 not ok of 100), all edits via Edit/Write.",
+    "descriptive": "The four platform stacks reach explorer briefs, and depends, lineage and artifact edges render with their own style and legend entry in the viewer and SVG export."
+  },
+  "testsAdded": [
+    "pw7 prescan-wiring: four platform fixtures detected, key order, budget, code repos unchanged",
+    "s3 and s15 schema: new edge types accepted, unknown refused, every committed map validates",
+    "m35 to m35d merge: compose, dbt, pipeline and IaC nodes and edges derived deterministically with evidence",
+    "p41 pipeline: stackRefFor names the four platform references and falls back to generic",
+    "v14 viewer: every schema edge type has its own style, class and colour in three themes",
+    "x38 export: svg edges of the three new types use their own palette entry, dash and width mirroring the viewer",
+    "r5 skill references: the four stack references describe the new edge types",
+    "r2 now expects 15 edge types"
+  ],
+  "casesAdded": [
+    [
+      "pw7"
+    ],
+    [
+      "s3",
+      "s15"
+    ],
+    [
+      "m35",
+      "m35b",
+      "m35c",
+      "m35d"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:c5745d80de43cc647541bc7297ac689c05e7ebf286706ea279f4ce35699ac589\",\"dirtyDigest\":\"sha256:f94748641c26215a150ec1c74c25ce6e6cdb61b63b1f8210bac1c12bd71c0ac3\",\"dirtyPaths\":{\"agents/archmap-explorer.md\":\"d60f0563c48961a8\",\"assets/viewer/viewer.css\":\"fc6b599e1f16a439\",\"assets/viewer/viewer.js\":\"c72a4a619be3011f\",\"schema/archmap-model.schema.json\":\"35d90dcb8bbd9b13\",\"scripts/export.mjs\":\"730913bb7a7b9797\",\"scripts/merge.mjs\":\"910ca95f49a31f97\",\"scripts/pipeline.mjs\":\"d70d4f77cedbb7a6\",\"scripts/prescan.mjs\":\"2246eb28e5a34781\",\"skills/architecture-map/references/model-schema.md\":\"376b416695e37965\",\"skills/architecture-map/references/relation-taxonomy.md\":\"3440c0e94a5a315f\",\"skills/architecture-map/references/stack-containers.md\":\"856261c8aae1f35e\",\"skills/architecture-map/references/stack-data-platform.md\":\"4970a02bb09515d8\",\"skills/architecture-map/references/stack-iac.md\":\"92dad35039aab33f\",\"skills/architecture-map/references/stack-pipelines.md\":\"19b94f4d604a2309\",\"tests/export.test.mjs\":\"c464675c240f8bc0\",\"tests/merge.test.mjs\":\"5c4c66f7ba0e1396\",\"tests/pipeline.test.mjs\":\"627fab254c22511e\",\"tests/prescan-wiring.test.mjs\":\"5acbb50cb4c061b5\",\"tests/schema.test.mjs\":\"7af1351a4d353dc0\",\"tests/skill-references.test.mjs\":\"60e499357dfdfa59\",\"tests/viewer.test.mjs\":\"faaa908e5ddad89c\"},\"head\":\"72cb1e9\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"agents/archmap-explorer.md\",\"assets/viewer/viewer.css\",\"assets/viewer/viewer.js\",\"schema\",\"scripts/export.mjs\",\"scripts/lib/prescan/partition.mjs\",\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"scripts/prescan.mjs\",\"scripts/validate.mjs\",\"skills/architecture-map/SKILL.md\",\"skills/architecture-map/references/model-schema.md\",\"skills/architecture-map/references/relation-taxonomy.md\",\"skills/architecture-map/references/stack-containers.md\",\"skills/architecture-map/references/stack-data-platform.md\",\"skills/architecture-map/references/stack-iac.md\",\"skills/architecture-map/references/stack-pipelines.md\",\"tests/export.test.mjs\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\",\"tests/prescan-wiring.test.mjs\",\"tests/schema.test.mjs\",\"tests/skill-references.test.mjs\",\"tests/viewer.test.mjs\"],\"scopeDigest\":\"sha256:d275b7f007f2753c6c00ade3e75b47cb11f111f5042cd158f4d1d796ed8fe515\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

@@ -42,7 +42,10 @@ const REL = {
   link:    {label:"Outbound link",          dash:"8 3 2 3", w:1.6},
   deploy:  {label:"Build and deploy",       dash:"10 5",    w:2},
   event:   {label:"Event",                  dash:"4 2 1 2", w:1.8},
-  queue:   {label:"Queue message",          dash:"6 3",     w:2.4}
+  queue:   {label:"Queue message",          dash:"6 3",     w:2.4},
+  depends: {label:"Depends on (order, wiring)", dash:"3 3",  w:1.6},
+  lineage: {label:"Data lineage",           dash:"12 4",    w:2.6},
+  artifact:{label:"Artifact pass-on",       dash:"9 3 1.5 3", w:2.1}
 };
 const relOf = k => (REL[k] ? k : "call");
 const ZK = {browser:"Browser", edge:"Edge", service:"Service", data:"Data", platform:"Platform", external:"External", delivery:"Delivery"};
@@ -411,7 +414,8 @@ if (typeof document === "undefined"){
     module.exports = {findPath:findPath, lineageOf:lineageOf, searchModel:searchModel, crudMatrix:crudMatrix, crudHtml:crudHtml,
       erScene:erScene, erMarkup:erMarkup, crowFoot:crowFoot, manyEnds:manyEnds, relationKeys:relationKeys, evidenceUrl:evidenceUrl,
       evidenceChipHtml:evidenceChipHtml, viewRole:viewRole, figureScale:figureScale, FIG_MIN_SCALE:FIG_MIN_SCALE, MIN_FONT_PX:MIN_FONT_PX, SMALLEST_FIG_FONT:SMALLEST_FIG_FONT, trustBoundaries:trustBoundaries, crossesTrust:crossesTrust,
-      flowFrames:flowFrames, flowMarks:flowMarks, flowMove:flowMove, flowKeyAction:flowKeyAction, flowTick:flowTick, flowStepHtml:flowStepHtml, FLOW_TICK_MS:FLOW_TICK_MS};
+      flowFrames:flowFrames, flowMarks:flowMarks, flowMove:flowMove, flowKeyAction:flowKeyAction, flowTick:flowTick, flowStepHtml:flowStepHtml, FLOW_TICK_MS:FLOW_TICK_MS,
+      REL:REL, relOf:relOf};
   }
   return;
 }

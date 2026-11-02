@@ -380,3 +380,21 @@ test('v13 interaction-state parity: every interactive selector the sheet styles 
   assert.match(css, /\.flowbar\b/, 'the player bar is styled');
   assert.ok(stateRule('.flowbar .btn', 'hover').length + stateRule('.btn', 'hover').length >= 1);
 });
+
+test('v14 every edge type of the schema has its own relation style, legend entry and colour in all three themes: depends, lineage and artifact do not fall back to the call style', () => {
+  const css = readFileSync(fileURLToPath(new URL('../assets/viewer/viewer.css', import.meta.url)), 'utf8');
+  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../schema/archmap-model.schema.json', import.meta.url)), 'utf8'));
+  const types = schema.$defs.edge.properties.type.enum;
+  for (const t of types) {
+    assert.ok(V.REL[t], `REL has an entry for ${t}`);
+    assert.equal(V.relOf(t), t, `${t} is not drawn as the fallback`);
+    assert.ok(V.REL[t].label && typeof V.REL[t].w === 'number', `${t} has a label and a stroke width`);
+    assert.match(css, new RegExp(`\\.t-${t}\\{--ec:var\\(--rel-${t}\\)\\}`), `${t} has its edge class`);
+    assert.equal(css.split(new RegExp(`--rel-${t}:#[0-9A-Fa-f]{6}`)).length - 1, 3, `${t} has a colour in the light, dark-by-preference and dark-by-choice blocks`);
+  }
+  assert.equal(V.relOf('nonsense'), 'call', 'an unknown type still falls back to call');
+  for (const t of ['depends', 'lineage', 'artifact']) {
+    const same = Object.keys(V.REL).filter((k) => k !== t && V.REL[k].dash === V.REL[t].dash && V.REL[k].w === V.REL[t].w);
+    assert.deepEqual(same, [], `${t} differs from every other type in dash or width`);
+  }
+});

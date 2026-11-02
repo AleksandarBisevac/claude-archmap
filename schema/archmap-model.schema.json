@@ -76,7 +76,7 @@
         "from": { "type": "string", "minLength": 1 },
         "to": { "type": "string", "minLength": 1 },
         "type": {
-          "enum": ["api", "static", "auth", "pull", "sql", "cache", "persist", "call", "link", "deploy", "event", "queue"]
+          "enum": ["api", "static", "auth", "pull", "sql", "cache", "persist", "call", "link", "deploy", "event", "queue", "depends", "lineage", "artifact"]
         },
         "label": { "type": "string" },
         "desc": { "type": "string" },

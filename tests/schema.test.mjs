@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { validateSchema } from '../scripts/lib/jsonschema.mjs';
 
 // Case ids (s1, s2, ...) lead every title so the suite prints them first.
@@ -95,7 +97,7 @@ test('s3 model enums match design section 5', () => {
   assert.deepEqual(d.zone.properties.kind.enum,
     ['browser', 'edge', 'service', 'data', 'external', 'platform', 'delivery']);
   assert.deepEqual(d.edge.properties.type.enum,
-    ['api', 'static', 'auth', 'pull', 'sql', 'cache', 'persist', 'call', 'link', 'deploy', 'event', 'queue']);
+    ['api', 'static', 'auth', 'pull', 'sql', 'cache', 'persist', 'call', 'link', 'deploy', 'event', 'queue', 'depends', 'lineage', 'artifact']);
   assert.deepEqual(d.edge.properties.confidence.enum, ['verified', 'inferred', 'external']);
   assert.deepEqual(d.edge.properties.foundBy.enum, ['static', 'llm', 'introspection']);
   assert.ok(!d.edge.required.includes('foundBy'), 'foundBy is optional');
@@ -258,4 +260,47 @@ test('s14 views[].kind is an optional enum graph|deployment|trust; a model witho
     assert.ok(validateSchema(model, m).some((e) => e.keyword === 'enum' && e.pointer === '/views/0/kind'));
   }
   assert.ok(check(model, validModel()), 'a model with no kind validates unchanged');
+});
+
+test('s15 the schema accepts the platform edge types and node kinds, refuses an unknown type, and every committed map still validates', () => {
+  const ROOT = fileURLToPath(new URL('../', import.meta.url));
+  for (const type of ['depends', 'lineage', 'artifact']) {
+    const m = validModel();
+    m.edges[0].type = type;
+    assert.ok(check(model, m), `edge type ${type} validates`);
+  }
+  const bad = validModel();
+  bad.edges[0].type = 'telepathy';
+  assert.ok(!check(model, bad), 'an unknown edge type is refused');
+  const kinds = validModel();
+  kinds.nodes = ['pipeline', 'job', 'resource', 'module', 'model', 'source'].map((kind, i) => ({
+    id: `n${i}`, zone: 'svc', kind, title: kind, paths: [], level: 2, evidence: ev,
+  }));
+  kinds.edges = [];
+  kinds.access = [];
+  assert.ok(check(model, kinds), 'node.kind stays an open string, so the new kinds need no schema change');
+
+  // every model the repository commits: the project's own map, the golden and issue fixtures, the eval evidence
+  const found = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir).sort()) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (name.endsWith('.json')) {
+        let j;
+        try {
+          j = JSON.parse(readFileSync(p, 'utf8'));
+        } catch {
+          continue;
+        }
+        if (j && typeof j === 'object' && j.meta && Array.isArray(j.zones) && Array.isArray(j.nodes) && Array.isArray(j.edges)) found.push(p);
+      }
+    }
+  };
+  for (const root of ['docs/architecture', 'tests/fixtures', 'skills/architecture-map/evals']) walk(join(ROOT, root));
+  assert.ok(found.length >= 3, `found ${found.length} committed maps`);
+  for (const p of found) {
+    const errs = validateSchema(model, JSON.parse(readFileSync(p, 'utf8')));
+    assert.deepEqual(errs, [], `${p.slice(ROOT.length)} validates`);
+  }
 });

@@ -27,9 +27,11 @@ All items carry `evidence: [{path, lines}]`, sorted by path then line, capped pe
    a pipeline only when the pipeline is the system (a data or release pipeline whose jobs are the steps of the
    product): then one `service` node per stage or job that does work, in a `data` zone, citing the job block.
 2. **Edges.** `passes` is a real hand-off (the download runs on what the upload produced) and is the best evidence a
-   pipeline gives: type it from what the artefact is (a build output the next job packages, or data the next job reads), and cite
-   the upload and the download lines. `needs` and `dependsOn` are order, not a data flow: they are `confidence: inferred` for any
-   edge you draw from them. A job with an `environment` and no artefact is a deploy, so the edge is from the code unit
+   pipeline gives. The merge script draws it as an `artifact` edge from the producing job to the consuming one, citing
+   the upload and the download lines, and draws `needs` and `dependsOn` as `depends` edges (the job depends on what it
+   needs): do not repeat either. Draw an edge of your own only for what the extract cannot say, typed from what the
+   artefact is (a build output the next job packages, or data the next job reads). `needs` and `dependsOn` are order,
+   not a data flow: they are `confidence: inferred` for any edge you draw from them. A job with an `environment` and no artefact is a deploy, so the edge is from the code unit
    it builds to the runtime the environment names; read the build and deploy steps (`run:`, `script:`, `with:`) to see
    which unit that is.
 3. **What a deploy target really is.** An `environment` is a name, often with approval rules that live in the

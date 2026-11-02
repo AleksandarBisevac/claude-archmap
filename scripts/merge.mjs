@@ -589,6 +589,263 @@ function entityResolver(entities) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// containers, pipelines, infrastructure as code and data platform projects: nodes and edges made from the slices' rows
+// (prescan's `images`, `services`, `pipelines`, `jobs`, `passes`, `resources`, `iacModules`, `iacReferences`, `dbtModels`,
+// `dbtSources`, `dbtTests`, `lineage`). Everything here is declared in a file the extractor read, so each node and edge
+// cites that block and is verified; no agent judgement is needed or asked.
+
+const PLATFORM_NODE_CAP = 150; // nodes made per stack; the rest are counted in the derivation row, never silently dropped
+const STORE_IMAGE = /(?:^|\/)(?:postgres(?:ql)?|mysql|mariadb|mongo(?:db)?|redis|valkey|memcached|mssql\/server|clickhouse[\w-]*|cassandra|couchdb|neo4j|influxdb|elasticsearch|opensearch|minio)(?:[:@]|$)/i;
+const QUEUE_IMAGE = /(?:^|\/)(?:rabbitmq|kafka|redpanda|nats|activemq|pulsar)(?:[:@]|$)/i;
+const SERVICE_LIKE = new Set(['service', 'app', 'store', 'queue', 'edge', 'external', 'database', 'db', 'datastore', 'cache']);
+const PIPELINE_LABEL = { 'github-actions': 'GitHub Actions', 'azure-pipelines': 'Azure Pipelines' };
+
+/** The places a prescan row cites: its own `evidence` when it holds several, else file and lines. */
+const rowEvidence = (r) => {
+  const own = list(r.evidence).filter((e) => isObj(e) && typeof e.path === 'string' && typeof e.lines === 'string' && /^\d+(-\d+)?$/.test(e.lines));
+  if (own.length) return own;
+  return declaredAt(r);
+};
+
+/**
+ * Add the nodes the platform rows declare to `nodes`, in place, and return the edges between them as `links`
+ * ({from, to, type, evidence, via, text}, node ids) for deriveLayer to draw, the counts in `made` and what could not be
+ * resolved in `skipped`. A node an explorer already made for the same thing (the same id or title for its kind, the same
+ * cited block, or the very paths) is used as it is, never repeated or rewritten; an update-mode carried node is such a node.
+ */
+function makePlatformNodes({ nodes, slices, zoneId }) {
+  const made = { containers: 0, pipelines: 0, iac: 0, 'data-platform': 0 };
+  const links = [];
+  const skipped = [];
+  const byRow = (a, b) => cmp(a.file, b.file) || a.line - b.line || cmp(canon(a), canon(b));
+  const rows = (key) => {
+    const seen = new Set();
+    return slices
+      .flatMap((s) => list(s[key]))
+      .filter((r) => isObj(r) && typeof r.file === 'string' && Number.isInteger(r.line) && r.line > 0 && typeof r.lines === 'string')
+      .sort(byRow)
+      .filter((r) => !seen.has(canon(r)) && seen.add(canon(r)));
+  };
+  const existing = [...nodes.values()].sort(byId);
+  const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+  /** The explorer's node for a row: kind and name match, or it cites the row's block, or it has the row's paths. */
+  const find = ({ kinds = null, names = [], row, paths = [] }) =>
+    existing.find((n) => {
+      if (kinds !== null && kinds.has(kindOf(n)) && [n.id, n.title].some((x) => typeof x === 'string' && names.includes(slug(x)))) return true;
+      if (list(n.evidence).some((e) => isObj(e) && e.path === row.file && e.lines === row.lines)) return true;
+      return paths.length > 0 && sameList(list(n.paths), paths);
+    })?.id ?? null;
+  const unique = (id) => {
+    let cand = id || 'node';
+    for (let n = 2; nodes.has(cand); n++) cand = `${id || 'node'}-${n}`;
+    return cand;
+  };
+  const place = (stack, row, spec) => {
+    if (made[stack] >= PLATFORM_NODE_CAP) {
+      skipped.push(`${stack}: more than ${PLATFORM_NODE_CAP} nodes, the rest (from ${row.file}:${row.line}) are not made`);
+      return null;
+    }
+    const { id: wanted, zone, ...rest } = spec;
+    const id = unique(wanted);
+    nodes.set(id, { id, zone: zoneId(zone), ...rest });
+    made[stack]++;
+    return id;
+  };
+  const link = (from, to, type, row, via, text) => {
+    if (from !== null && to !== null && from !== to) links.push({ from, to, type, evidence: rowEvidence(row), via, text });
+  };
+  const dirOf = (file) => posix.dirname(file);
+  const portText = (p) => (isObj(p) ? [p.host, p.container ?? p.port].filter(Boolean).join(':') : String(p));
+
+  // --- containers: a compose service is a node (its Dockerfile cited with it), a Dockerfile no service builds a node of its own
+  const images = rows('images');
+  const services = rows('services');
+  const built = new Set();
+  const serviceNode = new Map(); // `<compose dir>\0<name>` -> node id
+  for (const s of services) {
+    const key = `${dirOf(s.file)}\0${s.name}`;
+    if (typeof s.name !== 'string' || !s.name || serviceNode.has(key)) continue; // an override file repeats a base service
+    const build = isObj(s.build) ? s.build : null;
+    const context = typeof build?.context === 'string' && build.context !== '.' && !build.context.startsWith('..') ? build.context.replace(/\/+$/, '') : null;
+    const paths = context ? [`${context}/**`] : [];
+    const found = find({ kinds: SERVICE_LIKE, names: [slug(s.name)], row: s, paths });
+    if (found !== null) {
+      serviceNode.set(key, found);
+      if (typeof build?.dockerfile === 'string') built.add(build.dockerfile);
+      continue;
+    }
+    const docker = typeof build?.dockerfile === 'string' ? images.find((i) => i.file === build.dockerfile) : undefined;
+    if (typeof build?.dockerfile === 'string') built.add(build.dockerfile);
+    const image = typeof s.image === 'string' ? s.image : null;
+    const kind = build !== null ? 'service' : image !== null && STORE_IMAGE.test(image) ? 'store' : image !== null && QUEUE_IMAGE.test(image) ? 'queue' : 'service';
+    const ports = list(s.ports).map(portText).filter(Boolean);
+    const id = place('containers', s, {
+      id: slug(s.name), zone: kind === 'service' ? 'service' : 'data', kind, title: s.name, paths, level: 2,
+      role: `Compose service ${s.name}: ${build !== null ? `built from ${build.dockerfile ?? `${context ?? '.'}/Dockerfile`}` : `runs image ${image ?? 'unnamed'}`}${ports.length ? `, ports ${ports.join(', ')}` : ''}; made by merge.mjs from the prescan extract.`,
+      evidence: unionEvidence(rowEvidence(s), docker ? rowEvidence(docker) : []),
+    });
+    if (id !== null) serviceNode.set(key, id);
+  }
+  for (const i of images) {
+    if (built.has(i.file)) continue;
+    built.add(i.file);
+    const dir = dirOf(i.file);
+    const paths = dir === '.' ? [] : [`${dir}/**`];
+    if (find({ row: i, paths }) !== null) continue;
+    const ports = list(i.ports).map(portText).filter(Boolean);
+    place('containers', i, {
+      id: slug(posix.basename(dir === '.' ? 'image' : dir)), zone: 'service', kind: 'service', title: dir === '.' ? 'Container image' : posix.basename(dir), paths, level: 2,
+      role: `Container image built from ${i.file} (base ${i.base ?? 'unknown'})${ports.length ? `, exposes ${ports.join(', ')}` : ''}; no compose service builds it; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(i),
+    });
+  }
+  for (const s of services) {
+    const from = serviceNode.get(`${dirOf(s.file)}\0${s.name}`) ?? null;
+    for (const dep of list(s.dependsOn).filter((d) => typeof d === 'string')) {
+      const to = serviceNode.get(`${dirOf(s.file)}\0${dep}`) ?? null;
+      if (from !== null && to === null) skipped.push(`compose ${s.name} depends_on ${dep} at ${s.file}:${s.line}: no service of that name was made`);
+      link(from, to, 'depends', s, 'depends_on', `Starts after ${dep} (compose depends_on): start order, not a call.`);
+    }
+  }
+
+  // --- pipelines: a node per pipeline file and one per job or stage; needs and artefact hand-offs between the jobs
+  const pipeNode = new Map(); // pipeline file -> node id
+  for (const p of rows('pipelines')) {
+    if (pipeNode.has(p.file)) continue;
+    const name = typeof p.name === 'string' && p.name ? p.name : posix.basename(p.file);
+    const found = find({ kinds: new Set(['pipeline']), names: [slug(name), slug(p.file)], row: p });
+    if (found !== null) {
+      pipeNode.set(p.file, found);
+      continue;
+    }
+    const id = place('pipelines', p, {
+      id: slug(name) || slug(p.file), zone: 'delivery', kind: 'pipeline', title: name, paths: [p.file], level: 2,
+      role: `${PIPELINE_LABEL[p.kind] ?? p.kind} pipeline ${name}, ${list(p.triggers).length ? `triggered by ${list(p.triggers).join(', ')}` : 'with no declared trigger'}; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(p),
+    });
+    if (id !== null) pipeNode.set(p.file, id);
+  }
+  const jobs = rows('jobs');
+  const jobNode = new Map(); // `<pipeline file>\0<job or stage id>` -> node id
+  for (const j of jobs) {
+    const key = `${j.pipeline}\0${j.id}`;
+    if (typeof j.id !== 'string' || !j.id || typeof j.pipeline !== 'string' || jobNode.has(key)) continue;
+    const found = find({ row: j });
+    if (found !== null) {
+      jobNode.set(key, found);
+      continue;
+    }
+    const head = pipeNode.has(j.pipeline) ? pipeNode.get(j.pipeline) : slug(j.pipeline);
+    const what = j.kind === 'stage' ? 'stage' : 'job';
+    const id = place('pipelines', j, {
+      id: slug(`${head}-${j.id}`), zone: 'delivery', kind: 'job', title: j.kind === 'stage' ? `${j.id} (stage)` : String(j.id), paths: [], level: 3,
+      role: `Pipeline ${what} ${j.id} of ${j.pipeline}${j.stage ? ` (stage ${j.stage})` : ''}${list(j.needs).length ? `, after ${list(j.needs).join(', ')}` : ''}; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(j),
+    });
+    if (id !== null) jobNode.set(key, id);
+  }
+  for (const j of jobs) {
+    const from = jobNode.get(`${j.pipeline}\0${j.id}`) ?? null;
+    for (const need of list(j.needs).filter((d) => typeof d === 'string')) {
+      const to = jobNode.get(`${j.pipeline}\0${need}`) ?? null;
+      if (from !== null && to === null) skipped.push(`pipeline ${j.id} needs ${need} at ${j.file}:${j.line}: no job or stage of that name was made`);
+      link(from, to, 'depends', j, 'needs', `Runs after ${need} (needs); the pipeline orders the two, nothing is called.`);
+    }
+  }
+  for (const p of rows('passes')) {
+    const from = jobNode.get(`${p.pipeline}\0${p.from}`) ?? null;
+    const to = jobNode.get(`${p.pipeline}\0${p.to}`) ?? null;
+    if ((from === null || to === null) && typeof p.name === 'string') skipped.push(`artifact ${p.name} at ${p.file}:${p.line}: no job node for ${from === null ? p.from : p.to}`);
+    link(from, to, 'artifact', p, p.name, `Hands the ${p.name} artifact from ${p.from} to ${p.to}: uploaded by one job, downloaded by the other.`);
+  }
+
+  // --- infrastructure as code: a node per module and per resource; a reference is a depends edge, from the referrer
+  const iacNode = new Map(); // `<scope>\0<address>` -> node id
+  const flavour = (r) => (r.kind === 'bicep' ? 'Bicep' : 'Terraform');
+  for (const m of rows('iacModules')) {
+    const key = `${m.scope}\0${m.address}`;
+    if (typeof m.address !== 'string' || iacNode.has(key)) continue;
+    const paths = typeof m.target === 'string' && m.target && m.target !== '.' ? [`${m.target.replace(/\/+$/, '')}/**`] : [];
+    const found = find({ kinds: new Set(['module']), names: [slug(m.address)], row: m, paths });
+    if (found !== null) {
+      iacNode.set(key, found);
+      continue;
+    }
+    const id = place('iac', m, {
+      id: slug(m.address), zone: 'platform', kind: 'module', title: m.address, paths, level: 2,
+      role: `${flavour(m)} module ${m.name ?? m.address} from ${m.source ?? 'an unnamed source'}; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(m),
+    });
+    if (id !== null) iacNode.set(key, id);
+  }
+  for (const r of rows('resources')) {
+    const key = `${r.scope}\0${r.address}`;
+    if (typeof r.address !== 'string' || iacNode.has(key)) continue;
+    const found = find({ kinds: new Set(['resource']), names: [slug(r.address)], row: r });
+    if (found !== null) {
+      iacNode.set(key, found);
+      continue;
+    }
+    const id = place('iac', r, {
+      id: slug(r.address), zone: 'platform', kind: 'resource', title: r.address, paths: [], level: 3,
+      role: `${flavour(r)} ${r.mode ?? 'managed'} resource ${r.address}${r.type ? ` of type ${r.type}` : ''} in ${r.scope}; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(r),
+    });
+    if (id !== null) iacNode.set(key, id);
+  }
+  for (const r of rows('iacReferences')) {
+    // a reference to a variable, a local or an output names nothing the extract made a node of: no edge, and no complaint
+    const from = iacNode.get(`${r.scope}\0${r.from}`) ?? null;
+    const to = iacNode.get(`${r.scope}\0${r.to}`) ?? null;
+    const attrs = list(r.attributes).filter((a) => typeof a === 'string');
+    link(from, to, 'depends', r, r.via ?? 'reference', `References ${r.to}${attrs.length ? ` (${attrs.join(', ')})` : ''} through ${r.via ?? 'a reference'}.`);
+  }
+
+  // --- dbt: a node per model and per source table; lineage runs from the upstream to the model that reads it
+  const tests = new Map(); // `<scope>\0<kind>\0<target>` -> tests on it
+  for (const t of rows('dbtTests')) tests.set(`${t.scope}\0${t.targetKind}\0${t.target}`, (tests.get(`${t.scope}\0${t.targetKind}\0${t.target}`) ?? 0) + 1);
+  const dbtNode = new Map(); // `<scope>\0<model|source>\0<name or address>` -> node id
+  for (const m of rows('dbtModels')) {
+    const key = `${m.scope}\0model\0${m.name}`;
+    if (typeof m.name !== 'string' || dbtNode.has(key)) continue;
+    const found = find({ kinds: new Set(['model']), names: [slug(m.name)], row: m, paths: [m.file] });
+    if (found !== null) {
+      dbtNode.set(key, found);
+      continue;
+    }
+    const n = tests.get(`${m.scope}\0model\0${m.name}`) ?? 0;
+    const id = place('data-platform', m, {
+      id: slug(m.name), zone: 'data', kind: 'model', title: m.name, paths: [m.file], level: 3,
+      role: `dbt model ${m.name}${m.layer ? ` in the ${m.layer} layer` : ''}, materialized as ${m.materialization ?? 'view'}${n ? `, ${n} test${n === 1 ? '' : 's'}` : ''}; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(m),
+    });
+    if (id !== null) dbtNode.set(key, id);
+  }
+  for (const s of rows('dbtSources')) {
+    const key = `${s.scope}\0source\0${s.address}`;
+    if (typeof s.address !== 'string' || dbtNode.has(key)) continue;
+    const found = find({ kinds: new Set(['source']), names: [slug(s.address)], row: s });
+    if (found !== null) {
+      dbtNode.set(key, found);
+      continue;
+    }
+    const n = tests.get(`${s.scope}\0source\0${s.address}`) ?? 0;
+    const id = place('data-platform', s, {
+      id: slug(s.address), zone: 'data', kind: 'source', title: s.address, paths: [], level: 3,
+      role: `dbt source table ${s.address}, read by the project and loaded by something outside it${n ? `; ${n} test${n === 1 ? '' : 's'}` : ''}; made by merge.mjs from the prescan extract.`,
+      evidence: rowEvidence(s),
+    });
+    if (id !== null) dbtNode.set(key, id);
+  }
+  for (const l of rows('lineage')) {
+    const from = dbtNode.get(`${l.scope}\0${l.fromKind === 'source' ? 'source' : 'model'}\0${l.from}`) ?? null;
+    const to = dbtNode.get(`${l.scope}\0model\0${l.to}`) ?? null;
+    link(from, to, 'lineage', l, l.via ?? 'ref', `Model ${l.to} reads ${l.from} (${l.via ?? 'ref'}()): the data flows from the upstream into it.`);
+  }
+  return { made, links, skipped };
+}
+
 /**
  * Make the entities and queue nodes the extracts declare, in place. An explorer's entity of the same table (or model)
  * name is merged into: its id, store and extra fields stay, the declared fields and the declaring lines are added.
@@ -742,14 +999,18 @@ function generateFromExtracts({ nodes, entities, slices, placed, zoneId, carried
     }
     specs.push({ id, name, producers: g.producers, consumers: g.consumers });
   }
-  return { queues: specs, made };
+
+  // --- containers, pipelines, infrastructure and data platform projects
+  const platform = makePlatformNodes({ nodes, slices, zoneId });
+  made.platform = Object.values(platform.made).reduce((a, b) => a + b, 0);
+  return { queues: specs, made, platform };
 }
 
 /**
  * Add the derived edges, access rows and relations to the maps in place. Returns the meta.sources row and the
  * flows (http and queue hops, and scheduled entries, with their node ends) the sequence drafts are built from.
  */
-function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues = [], made = null, carried = null }) {
+function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues = [], platform = null, made = null, carried = null }) {
   const owner = nodeResolver(nodes);
   const skipped = [];
   const count = { edges: 0, access: 0, relations: 0 };
@@ -913,13 +1174,20 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
       if (!g.tables.includes(entities.get(entity).name)) g.tables.push(entities.get(entity).name);
     }
   }
+  // --- the edges between the nodes made from the container, pipeline, IaC and data platform rows: each cites the block
+  // that declares it, so each is verified; the same pair of nodes joined twice by one type is one edge with both places
+  for (const l of [...(platform?.links ?? [])].sort((p, q) => cmp(`${p.from}\u0000${p.type}\u0000${p.to}`, `${q.from}\u0000${q.type}\u0000${q.to}`) || cmp(String(p.via), String(q.via)))) {
+    add(l.from, l.type, l.to, l.evidence, l.via, { text: l.text }, null, 'platform');
+  }
+  skipped.push(...(platform?.skipped ?? []));
   const mapped = new Set([...edges.values()].map((e) => `${e.from}\u0000${e.type}\u0000${e.to}`));
   for (const [key, g] of [...groups].sort((p, q) => cmp(p[0], q[0]))) {
     if (mapped.has(key)) continue; // the explorer already drew it
     const more = g.vias.length > 1 ? ` and ${g.vias.length - 1} more` : '';
     const imported = g.srcs.size === 1 && g.srcs.has('import');
     const desc =
-      g.type === 'api' ? `Calls ${g.vias[0]}${more} over HTTP.`
+      g.srcs.has('platform') ? `${g.text}${g.vias.length > 1 ? ` ${g.vias.length - 1} more place${g.vias.length === 2 ? '' : 's'} join the same two.` : ''}`
+      : g.type === 'api' ? `Calls ${g.vias[0]}${more} over HTTP.`
       : g.srcs.has('orm') ? `Queries ${g.tables.slice(0, 3).join(', ')}${g.tables.length > 3 ? ` and ${g.tables.length - 3} more` : ''} through the ORM.`
       : g.type === 'queue' && g.consume ? `Takes ${g.vias[0]}${more} jobs off the queue and works them.`
       : g.type === 'queue' && !imported ? `Enqueues ${g.vias[0]}${more}; the sender does not wait.`
@@ -1078,13 +1346,15 @@ function deriveLayer({ nodes, edges, entities, access, relations, slices, repo, 
     derived: {
       ...count, entities: tally.entities, entitiesMerged: tally.merged, entitiesInferred: tally.inferred, stores: tally.stores, queues: tally.queues,
       ...(tally.apps ? { apps: tally.apps } : {}),
+      ...(tally.platform ? { platformNodes: tally.platform } : {}),
       ...(carried !== null ? { carried: carried.total } : {}),
     },
     skipped: { count: skipped.length, reasons: reasons.slice(0, MAX_REASONS) },
     note:
       `merge.mjs made ${tally.entities} entit${tally.entities === 1 ? 'y' : 'ies'}${tally.inferred ? ` (${tally.inferred} inferred from the SQL the code runs)` : ''} (and merged ${tally.merged} into the explorers'), ` +
       `${tally.stores} store node(s) and ${tally.queues} queue node(s) from the declared tables and queues, ` +
-      `${tally.apps ? `${tally.apps} app node(s) from the workspace declaration, ` : ''}and derived ` +
+      `${tally.apps ? `${tally.apps} app node(s) from the workspace declaration, ` : ''}` +
+      `${tally.platform ? `${tally.platform} node(s) from the container, pipeline, infrastructure and data platform extracts, ` : ''}and derived ` +
       `${count.edges} edge(s), ${count.access} access row(s) from the SQL, ORM models and queues and ${count.relations} fk relation(s) from the prescan extracts; ` +
       `${skipped.length} link(s) or statement(s) could not be cited or resolved` +
       (carried !== null ? `; ${carriedText(carried)}` : ''),
@@ -1889,7 +2159,7 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
     nodes: carried.nodes.size, edges: carried.edges.size, entities: carried.entities.size,
     total: carried.nodes.size + carried.edges.size + carried.entities.size, changed: changedFiles.size,
   };
-  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues: gen.queues, made: gen.made, carried: carriedCount });
+  const derived = deriveLayer({ nodes, edges, entities, access, relations, slices, repo, queues: gen.queues, platform: gen.platform, made: gen.made, carried: carriedCount });
   // what pointed at an entity that does not exist, or at a field it does not have, goes with it (one dropped-ref row
   // each). The entities are final only now, so a relation kept from --previous or written by an explorer is resolved
   // here: its entity by id, else by table name; two spellings of one relation are emitted once.

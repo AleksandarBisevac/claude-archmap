@@ -738,6 +738,9 @@ const REL_STYLE = {
   deploy: { dash: '10 5', w: 2 },
   event: { dash: '4 2 1 2', w: 1.8 },
   queue: { dash: '6 3', w: 2.4 },
+  depends: { dash: '3 3', w: 1.6 },
+  lineage: { dash: '12 4', w: 2.6 },
+  artifact: { dash: '9 3 1.5 3', w: 2.1 },
 };
 const SVG_FONT = 'system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif';
 const SVG_MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,Liberation Mono,monospace';

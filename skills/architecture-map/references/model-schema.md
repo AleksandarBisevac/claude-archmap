@@ -111,6 +111,19 @@ From the per-area prescan slices (`merge.mjs --extracts <work>/extracts --repo .
   `confidence: verified` on an exact match and `inferred` (said in `desc`) when an HTTP route matched through a
   wildcard segment or an import line names the module by its file name only (a call path of wildcards only makes no
   edge), `foundBy: static`; an edge the explorer already drew between the same nodes is not repeated;
+- nodes and edges for the container, pipeline, infrastructure and data platform stacks, from the slices' `images`,
+  `services`, `pipelines`, `jobs`, `passes`, `resources`, `iacModules`, `iacReferences`, `dbtModels`, `dbtSources` and
+  `lineage` rows, each cited at the lines the extractor read and `foundBy: static`, `confidence: verified`: a compose
+  service is a `service` node (`store` or `queue`, in the `data` zone, when it only runs a database or broker image;
+  `paths` its build context, its Dockerfile cited too), a pipeline file a `pipeline` node and each job or stage a `job`
+  node in the `delivery` zone, a Terraform or Bicep resource a `resource` node and a Terraform module a `module` node in
+  the `platform` zone, a dbt model a `model` node and a dbt source a `source` node in the `data` zone. The edges are
+  `depends` (a compose `depends_on`, a job's `needs`, an infrastructure reference: `from` depends on `to`), `artifact`
+  (a build output handed from the job that uploads it to the one that downloads it) and `lineage` (the upstream model or
+  source to the model that reads it). A node an explorer already made for the same service, pipeline, job, resource or
+  model (same id or title, or the same cited block) is used as it is, never repeated; a reference to something the
+  extract does not declare (a variable, a package model) makes no edge. At most 150 nodes are made per stack; the rest
+  are counted in the `derivation` row;
 - `access[]` rows from the SQL statements of the slices (`select` R, `insert` C, `update` U, `delete` D) for the node
   owning the file, on the entity modelling the table; from the slices' ORM models (R for the code node declaring the
   model); and from the queue producers (C) and consumers (R) where an entity models the queue;

@@ -33,7 +33,7 @@ test('r2 every edge type, zone kind and node kind appears in relation-taxonomy.m
   const edgeTypes = schema.$defs.edge.properties.type.enum;
   const zoneKinds = schema.$defs.zone.properties.kind.enum;
   const confidence = schema.$defs.edge.properties.confidence.enum;
-  assert.equal(edgeTypes.length, 12);
+  assert.equal(edgeTypes.length, 15);
   assert.deepEqual(missing(taxonomyMd, edgeTypes), [], 'edge types missing');
   assert.deepEqual(missing(taxonomyMd, zoneKinds), [], 'zone kinds missing');
   assert.deepEqual(missing(taxonomyMd, confidence), [], 'confidence values missing');
@@ -57,4 +57,18 @@ test('r4 sequences.md names every step key and frag value from the schema', () =
   const frags = d.stepFragment.properties.frag.enum;
   assert.deepEqual(missing(sequencesMd, [...keys]), [], 'step keys missing');
   assert.deepEqual(missing(sequencesMd, frags), [], 'frag values missing');
+});
+
+test('r5 the four platform stack references describe the edge types the taxonomy now has and no longer say it has none', () => {
+  const refs = {
+    containers: read('skills/architecture-map/references/stack-containers.md'),
+    pipelines: read('skills/architecture-map/references/stack-pipelines.md'),
+    iac: read('skills/architecture-map/references/stack-iac.md'),
+    'data-platform': read('skills/architecture-map/references/stack-data-platform.md'),
+  };
+  const mentions = { containers: ['depends'], pipelines: ['artifact', 'depends'], iac: ['depends'], 'data-platform': ['lineage'] };
+  for (const [stack, text] of Object.entries(refs)) {
+    assert.doesNotMatch(text, /no relation of its own/i, `${stack}: still says the taxonomy has no relation for it`);
+    assert.deepEqual(missing(text, mentions[stack]), [], `${stack}: edge types not described`);
+  }
 });

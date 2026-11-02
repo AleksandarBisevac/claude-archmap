@@ -19,6 +19,9 @@ choose the one the code itself names.
 | `deploy` | Build and release flow: CI to registry, image to platform, infrastructure to runtime. |
 | `event` | Publish or subscribe on an event bus, webhook or emitter, where the sender does not wait. |
 | `queue` | Work enqueued for a worker (job queue, task broker). The producer and the consumer each get an edge to the queue node. |
+| `depends` | A declared dependency that is not a call: a compose service's `depends_on` (start order), a pipeline job's `needs`, an infrastructure resource or module that references another (an attribute, a `depends_on`, a Bicep `parent`). `from` depends on `to`. |
+| `lineage` | Data flows from `from` into `to` with no call between them: a dbt model reading another model or a source through `ref()` or `source()`. `from` is the upstream. |
+| `artifact` | A build output handed from one pipeline job to another (uploaded by `from`, downloaded by `to`). `from` is the producer. |
 
 Optional edge fields: `label` (short text on the line), `desc` (one sentence, required), `foundBy`
 (`static` from a deterministic scan, `llm` from reading, `introspection` from a live schema), and `async`.
@@ -66,5 +69,12 @@ kind only when none fits.
 | `queue` | A message queue or broker topic. |
 | `job` | A scheduled or background job or worker. |
 | `external` | A third-party system. |
+| `pipeline` | A CI or release pipeline file (a GitHub Actions workflow, an Azure pipeline). Its jobs and stages are `job` nodes. Made by the merge from the pipelines extract. |
+| `resource` | One infrastructure resource: a Terraform `resource` or `data` block, a Bicep `resource`. A Terraform module is a `module` node whose `paths` are the directory it points at. Made by the merge from the iac extract. |
+| `model` | A dbt model (one `.sql` file), with its materialization in `role`. Made by the merge from the data-platform extract. |
+| `source` | A dbt source table (`source.table`), the border of the project. Made by the merge from the data-platform extract. |
+
+A compose service is a `service` node (a `store` or `queue` node when it only runs a database or broker image, in a
+`data` zone); the merge makes these from the containers extract too.
 
 Level guide: 1 is system context, 2 is containers (apps, services, stores), 3 is components inside a container.

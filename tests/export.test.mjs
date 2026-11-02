@@ -1019,3 +1019,32 @@ test('x37 the real browser rasterises the svg to a PNG (skipped when no Chromium
   assert.deepEqual(buf.subarray(0, 8), PNG_SIG);
   assert.ok(buf.length > 200, 'a real image, not a stub');
 });
+
+test('x38 svg draws the depends, lineage and artifact edge types in a style of their own (not the call fallback), matching the viewer relation table', async () => {
+  const css = readFileSync(join(dirname(CLI), '..', 'assets', 'viewer', 'viewer.css'), 'utf8');
+  const root = css.slice(css.indexOf(':root{'), css.indexOf('}', css.indexOf(':root{')));
+  const palette = Object.fromEntries([...root.matchAll(/--rel-([a-z]+):\s*(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2].toLowerCase()]));
+  const viewerSrc = readFileSync(join(dirname(CLI), '..', 'assets', 'viewer', 'viewer.js'), 'utf8');
+  const mod = { exports: {} };
+  new Function('module', viewerSrc)(mod);
+  const NEW = ['depends', 'lineage', 'artifact'];
+  const m = clone(model);
+  m.edges.forEach((e, i) => { e.type = NEW[i % NEW.length]; });
+  const lay = await layoutOf(m);
+  const v = m.views.find((x) => x.id === 'system-context') ?? m.views[0];
+  const svg = toSvgGraph(m, lay, v.id);
+  const paths = tagsOf(svg, 'path').map(attrs).filter((a) => a['data-edge']);
+  assert.ok(paths.length >= 3, 'the view draws edges of all three types');
+  const byEdge = new Map(m.edges.map((e) => [e.id, e]));
+  const seen = new Set();
+  for (const a of paths) {
+    const type = byEdge.get(a['data-edge']).type;
+    seen.add(type);
+    assert.equal(a.stroke.toLowerCase(), palette[type], `${a['data-edge']} (${type}) uses its own palette entry`);
+    assert.notEqual(a.stroke.toLowerCase(), palette.call, `${type} is not the call colour`);
+    const rel = mod.exports.REL[type];
+    assert.equal(a['stroke-width'], String(rel.w), `${type} stroke width mirrors the viewer`);
+    assert.equal(a['stroke-dasharray'], rel.dash ?? undefined, `${type} dash mirrors the viewer`);
+  }
+  assert.deepEqual([...seen].sort(), [...NEW].sort());
+});

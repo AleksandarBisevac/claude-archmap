@@ -96,7 +96,19 @@ const PROFILE_WORDS = {
   balanced: 'explorer Sonnet medium, synthesizer Sonnet medium, reviewer Opus high',
   economy: 'explorer Haiku, synthesizer Sonnet, reviewer Sonnet; may miss cross-area links',
 };
-const STACK_REFS = { python: 'stack-python-backend.md', 'ts-frontend': 'stack-ts-frontend.md', 'node-backend': 'stack-node-backend.md' };
+const STACK_REFS = {
+  python: 'stack-python-backend.md',
+  'ts-frontend': 'stack-ts-frontend.md',
+  'node-backend': 'stack-node-backend.md',
+  containers: 'stack-containers.md',
+  pipelines: 'stack-pipelines.md',
+  iac: 'stack-iac.md',
+  'data-platform': 'stack-data-platform.md',
+};
+/** The stack reference an area's explorer reads: the first of its stacks that has one, else generic discovery. */
+export function stackRefFor(stacks) {
+  return (Array.isArray(stacks) ? stacks : []).map((s) => STACK_REFS[s]).find(Boolean) ?? 'discovery-generic.md';
+}
 const DB_CLI = { sqlite: 'sqlite3', duckdb: 'duckdb' };
 const LEDGER_PARTS = ['plan', 'finish', 'render', 'ledger'];
 // what plan removes from <work> before a fresh build: only these names, never the directory itself
@@ -799,7 +811,7 @@ function plan(o, ctx) {
   for (const a of targets) {
     const brief = join(work, 'briefs', `${a.id}.md`);
     const fragment = join(work, 'fragments', `${a.id}.json`);
-    const stack = list(a.stacks).map((s) => STACK_REFS[s]).find(Boolean) ?? 'discovery-generic.md';
+    const stack = stackRefFor(list(a.stacks));
     const coverage = coverageFloor(a.extractPath && existsSync(a.extractPath) ? readJson(a.extractPath, 'extract') : null);
     const input = { area: a, summary: a.summaryPath, fragment, profile, previous: update ? previous : null, stackRef: join(REFS, stack), coverage };
     const fitted = fitExplorerBrief(input, a.id);

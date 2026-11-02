@@ -31,9 +31,10 @@ edge only when the package is the project itself.
    or an external system, cited at the `sources` evidence), the warehouse the models build into is one `store` node, and
    a layer (`staging`, `intermediate`, `marts`) is a group, not a node. Name the few models that are an output others
    consume (the ones that no other model reads, or that an exposure, a dashboard or a job names) and cite the file lines.
-2. **Edges.** `lineage` is data flow, not a call, and the taxonomy has no relation of its own for it. A model that reads a
-   source table or another model runs SQL against the warehouse: type the edge `sql` between the nodes that hold them,
-   and cite the line of the call. Collapse the edges of one layer into one edge between the groups when the
+2. **Edges.** `lineage` is data flow, not a call, and the taxonomy has the `lineage` type for it: the merge script draws
+   one from each upstream model or source to the model that reads it, cited at the line of the `ref()` or `source()`
+   call, so do not repeat them. Use `sql` only for an edge you read yourself between a service and the warehouse.
+   Collapse the edges of one layer into one edge between the groups when the
    individual ones add nothing, and say so in `notes`. A `source` edge crosses the project border: the producer is whatever
    loads that table, which is outside the checkout unless a job, an ingestion config or another extract names it; do not
    invent it.

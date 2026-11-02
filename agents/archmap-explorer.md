@@ -55,7 +55,7 @@ Your brief restates the contract, the caps and the vocabulary of these reference
 
 - `model-schema.md`: every key, the evidence rule, provenance, and the **explorer fragment contract**.
 - `relation-taxonomy.md`: edge types, confidence values, `async`, zone kinds and node kinds.
-- The stack reference the caller names: `stack-python-backend.md`, `stack-ts-frontend.md` or `stack-node-backend.md`.
+- The stack reference the caller names: `stack-python-backend.md`, `stack-ts-frontend.md`, `stack-node-backend.md`, `stack-containers.md`, `stack-pipelines.md`, `stack-iac.md` or `stack-data-platform.md`.
 - `discovery-generic.md`: for a stack prescan did not recognise, and for what the summary's counts say it holds.
 - `schema-introspection.md` only when asked to introspect a database file.
 

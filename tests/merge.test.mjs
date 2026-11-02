@@ -2041,3 +2041,116 @@ test('m34d the drafts stay at the cap of 12, the digest stays under its cap, and
   const rev = merge({ fragments: crossFrags().reverse(), extracts: flowExtracts().reverse(), meta: META });
   assert.equal(JSON.stringify(rev.digest), JSON.stringify(flowed().digest), 'either input order gives the same digest');
 });
+
+// ---- nodes and edges made from the container, pipeline, IaC and data platform extracts (no agent judgement needed)
+// The slices are the real prescan output of the fixture repositories under tests/fixtures/repos.
+const REPOS = fileURLToPath(new URL('./fixtures/repos/', import.meta.url));
+const platformSlices = async (repo) => {
+  const { prescan, areaExtracts } = await import('../scripts/prescan.mjs');
+  return areaExtracts(await prescan(join(REPOS, repo))).map((x) => x.slice);
+};
+const platformModel = async (repo, extra = {}) => {
+  const out = merge({ fragments: [], extracts: await platformSlices(repo), meta: META, ...extra });
+  assert.equal(validate(out.model).ok, true, JSON.stringify(validate(out.model).findings));
+  return out;
+};
+const edgeBetween = (model, from, to, type) => model.edges.find((e) => e.from === from && e.to === to && e.type === type);
+const cited = (el) => el.evidence.every((e) => typeof e.path === 'string' && /^\d+(-\d+)?$/.test(e.lines)) && el.evidence.length > 0;
+
+test('m35 compose services become nodes with paths and evidence, and depends_on becomes a depends edge; a database image is a store in the data zone', async () => {
+  const { model } = await platformModel('containers');
+  const by = Object.fromEntries(model.nodes.map((n) => [n.id, n]));
+  assert.deepEqual(Object.keys(by).sort(), ['api', 'db', 'web']);
+  assert.equal(by.web.kind, 'service');
+  assert.deepEqual(by.web.paths, ['web/**']);
+  assert.deepEqual(by.api.paths, ['api/**']);
+  assert.deepEqual(by.api.evidence.map((e) => e.path).sort(), ['api/Dockerfile', 'docker-compose.yml'], 'the compose block and the Dockerfile it builds');
+  assert.equal(by.db.kind, 'store');
+  assert.equal(model.zones.find((z) => z.id === by.db.zone).kind, 'data');
+  for (const n of model.nodes) assert.ok(cited(n), `${n.id} cites evidence`);
+  const toApi = edgeBetween(model, 'web', 'api', 'depends');
+  const toDb = edgeBetween(model, 'api', 'db', 'depends');
+  assert.ok(toApi && toDb, JSON.stringify(model.edges.map((e) => `${e.from}>${e.to}:${e.type}`)));
+  assert.equal(model.edges.length, 2);
+  for (const e of [toApi, toDb]) {
+    assert.equal(e.confidence, 'verified');
+    assert.equal(e.foundBy, 'static');
+    assert.equal(e.label, 'depends_on');
+    assert.ok(cited(e) && e.evidence[0].path === 'docker-compose.yml');
+    assert.match(e.desc, /start order|depends_on/i);
+  }
+});
+
+test('m35b dbt models and sources become nodes and ref() and source() lineage becomes lineage edges from the upstream to the model, cited at the call', async () => {
+  const { model } = await platformModel('data-platform');
+  const slices = await platformSlices('data-platform');
+  const models = slices.flatMap((s) => s.dbtModels ?? []);
+  const sources = slices.flatMap((s) => s.dbtSources ?? []);
+  const lineage = slices.flatMap((s) => s.lineage ?? []);
+  assert.equal(models.length, 4);
+  const idOf = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  for (const m of models) {
+    const n = model.nodes.find((x) => x.id === idOf(m.name));
+    assert.ok(n, `node for model ${m.name}`);
+    assert.equal(n.kind, 'model');
+    assert.deepEqual(n.paths, [m.file]);
+    assert.ok(n.evidence.some((e) => e.path === m.file), 'cites the model file');
+    assert.match(n.role, new RegExp(m.materialization));
+  }
+  for (const s of sources) assert.ok(model.nodes.find((x) => x.id === idOf(s.address) && x.kind === 'source'), `node for source ${s.address}`);
+  const lineageEdges = model.edges.filter((e) => e.type === 'lineage');
+  assert.equal(lineageEdges.length, lineage.length, 'one edge per upstream and model pair');
+  for (const l of lineage) {
+    const e = edgeBetween(model, idOf(l.from), idOf(l.to), 'lineage');
+    assert.ok(e, `${l.from} > ${l.to}`);
+    assert.equal(e.confidence, 'verified');
+    assert.equal(e.label, l.via);
+    assert.ok(e.evidence.some((x) => x.path === l.file && x.lines === String(l.line)), 'cites the line of the call');
+  }
+  assert.ok(edgeBetween(model, 'orders-enriched', 'customer-summary', 'lineage'));
+});
+
+test('m35c pipeline jobs, artefact pass-on and IaC references become nodes and edges: needs is depends, a pass is artifact from the producer, a reference is depends from the referrer', async () => {
+  const pipes = (await platformModel('pipelines')).model;
+  const job = (id) => pipes.nodes.find((n) => n.id === `release-fleet-web-${id}`);
+  assert.ok(pipes.nodes.find((n) => n.kind === 'pipeline' && n.paths.includes('.github/workflows/release.yml')));
+  for (const id of ['build', 'test', 'deploy']) assert.equal(job(id)?.kind, 'job', id);
+  assert.equal(pipes.zones.find((z) => z.id === job('build').zone).kind, 'delivery');
+  assert.ok(edgeBetween(pipes, 'release-fleet-web-test', 'release-fleet-web-build', 'depends'), 'needs: build');
+  assert.ok(edgeBetween(pipes, 'release-fleet-web-deploy', 'release-fleet-web-test', 'depends'));
+  const pass = edgeBetween(pipes, 'release-fleet-web-build', 'release-fleet-web-test', 'artifact');
+  assert.ok(pass && pass.label === 'dist' && pass.evidence.length >= 2 && cited(pass), 'the artefact the build uploads and the test downloads');
+  for (const n of pipes.nodes) assert.ok(cited(n), n.id);
+  for (const e of pipes.edges) assert.ok(cited(e) && e.confidence === 'verified' && e.foundBy === 'static', e.id);
+
+  const iac = (await platformModel('iac')).model;
+  assert.ok(iac.nodes.find((n) => n.id === 'aws-instance-web' && n.kind === 'resource'));
+  assert.ok(iac.nodes.find((n) => n.id === 'module-database' && n.kind === 'module' && n.paths.includes('terraform/modules/database/**')));
+  assert.equal(iac.zones.find((z) => z.id === iac.nodes.find((n) => n.id === 'aws-vpc-main').zone).kind, 'platform');
+  const ref = edgeBetween(iac, 'aws-instance-web', 'aws-subnet-app', 'depends');
+  assert.ok(ref && ref.evidence[0].path === 'terraform/main.tf' && ref.evidence[0].lines === '31', JSON.stringify(ref));
+  const module = edgeBetween(iac, 'aws-instance-web', 'module-database', 'depends');
+  assert.ok(module && module.evidence.length === 2, 'an attribute reference and a depends_on, both cited');
+  assert.ok(edgeBetween(iac, 'module-cache', 'module-database', 'depends'));
+  for (const e of iac.edges) assert.ok(cited(e), e.id);
+});
+
+test('m35d the derived nodes and edges are deterministic in any slice order, an explorer node of the same service is reused, not repeated, and a model with no platform extract gains none', async () => {
+  for (const repo of ['containers', 'pipelines', 'iac', 'data-platform']) {
+    const slices = await platformSlices(repo);
+    const one = merge({ fragments: [], extracts: slices, meta: META }).model;
+    const two = merge({ fragments: [], extracts: slices.slice().reverse(), meta: META }).model;
+    assert.equal(JSON.stringify(one), JSON.stringify(two), `${repo}: slice order does not matter`);
+    assert.equal(JSON.stringify(one), JSON.stringify(merge({ fragments: [], extracts: slices, meta: META }).model), `${repo}: two runs`);
+    assert.ok(one.nodes.length > 0 && one.edges.length > 0, repo);
+  }
+  const mine = node('api', { zone: 'svc', kind: 'service', title: 'API', paths: ['api/**'], evidence: ev('docker-compose.yml', '14-26') });
+  const { model } = merge({ fragments: [frag('misc', { nodes: [mine] })], extracts: await platformSlices('containers'), meta: META });
+  assert.deepEqual(model.nodes.map((n) => n.id).sort(), ['api', 'db', 'web'], 'no api-2 beside the explorer\'s node');
+  assert.equal(model.nodes.find((n) => n.id === 'api').title, 'API', 'the explorer\'s node is untouched');
+  assert.ok(edgeBetween(model, 'web', 'api', 'depends') && edgeBetween(model, 'api', 'db', 'depends'));
+  // no platform extract: nothing derived
+  const plain = merge({ fragments: [frag('misc', { nodes: [mine] })], extracts: [{ area: 'misc', title: 'misc', globs: ['*'], stacks: [], files: 1, routes: [], tables: [] }], meta: META }).model;
+  assert.deepEqual(plain.nodes.map((n) => n.id), ['api']);
+  assert.deepEqual(plain.edges, []);
+});

@@ -26,9 +26,11 @@ image, port or path stays as written.
    emit a node per Dockerfile: a Dockerfile describes how a node is built, so cite it as evidence of the `service` node
    its compose `build.dockerfile` points at (the `dockerfile` path joins the two). A Dockerfile no compose service
    builds is a deploy unit of its own: one `service` node, `paths` the directory holding it.
-2. **Edges.** `dependsOn` is start order, not a call: read the service's code or config (the `*_URL` and `*_HOST`
-   variable names in `envKeys`, then the code that reads them) to learn what it really talks to, and type the edge
-   from that (`sql` to a database service, `cache` to redis, `queue` to a broker, `api` to another service). Use
+2. **Edges.** `dependsOn` is start order, not a call. The merge script already draws each one as a `depends` edge
+   (`confidence: verified` as a declared fact, cited at the compose line), so do not repeat it. Add the edge that says
+   what the service really talks to: read the service's code or config (the `*_URL` and `*_HOST`
+   variable names in `envKeys`, then the code that reads them) and type that edge
+   from it (`sql` to a database service, `cache` to redis, `queue` to a broker, `api` to another service). Use
    `confidence: inferred` when only `dependsOn` or an `envKeys` name suggests the link, and `verified` when you read the
    client call. `ports` tell you who is reachable from outside: a `host` mapping means the service is published to the
    machine (an `edge` or a user-facing entry), a `container`-only entry stays on the compose network.

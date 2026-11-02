@@ -1458,3 +1458,28 @@ test('p40 the reviewer brief lists every catalogue pattern with its targeted rea
   assert.match(brief, /three lines/i);
   assert.ok(r.stdout.length < 6000, 'the printed step stays small: the reads are in the brief, not on stdout');
 });
+
+test('p41 an explorer brief for an area with a container, pipeline, iac or data platform stack names that stack\'s reference; the code stacks keep theirs and an unknown stack falls back to generic discovery', async () => {
+  const { stackRefFor, explorerBrief, coverageFloor } = await import('../scripts/pipeline.mjs');
+  assert.equal(stackRefFor(['containers']), 'stack-containers.md');
+  assert.equal(stackRefFor(['pipelines']), 'stack-pipelines.md');
+  assert.equal(stackRefFor(['iac']), 'stack-iac.md');
+  assert.equal(stackRefFor(['data-platform']), 'stack-data-platform.md');
+  assert.equal(stackRefFor(['python']), 'stack-python-backend.md');
+  assert.equal(stackRefFor(['ts-frontend']), 'stack-ts-frontend.md');
+  assert.equal(stackRefFor(['node-backend']), 'stack-node-backend.md');
+  assert.equal(stackRefFor(['iac', 'python']), 'stack-iac.md', 'the first recognised stack in the area\'s order wins');
+  assert.equal(stackRefFor(['cobol']), 'discovery-generic.md');
+  assert.equal(stackRefFor([]), 'discovery-generic.md');
+  assert.equal(stackRefFor(undefined), 'discovery-generic.md');
+  for (const f of ['stack-containers.md', 'stack-pipelines.md', 'stack-iac.md', 'stack-data-platform.md']) {
+    assert.ok(existsSync(join(ROOT, 'skills/architecture-map/references', f)), `${f} exists`);
+  }
+  const area = { id: 'infra', title: 'infra', files: 9, stacks: ['iac'], globs: ['infra/**'] };
+  const brief = explorerBrief({
+    area, summary: '/w/extracts/infra.summary.json', fragment: '/w/fragments/infra.json', profile: 'balanced',
+    stackRef: `/w/references/${stackRefFor(area.stacks)}`, coverage: coverageFloor({}),
+  });
+  assert.match(brief, /references\/stack-iac\.md/);
+  assert.ok(brief.length <= BRIEF_CAP, `${brief.length} characters`);
+});

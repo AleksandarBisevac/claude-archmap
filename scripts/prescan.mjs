@@ -44,6 +44,21 @@ export const SUMMARY_BUDGET = 4200; // characters per area summary: with the exp
 export const SKIPPED_CAP = 50; // files listed by name under skipped; the count and the per-directory rows hold the rest
 const MAX_IMPORT_EDGES = 20000; // a ceiling against a pathological repo, not a budget
 const STACKS_DIR = fileURLToPath(new URL('./lib/prescan/stacks/', import.meta.url));
+// The platform stacks (containers, pipelines, iac, data-platform): the extract kinds each slice carries, as
+// [stack, kind in extracts[stack], key in the slice]. The slice keys are distinct from the generic ones (`containers` and
+// `ci` stay the lists of file paths, `modules` stays python's), and they print in this order, after `stores`. The stack
+// names reach the output through the plug-ins' `detect` (`stacks`); an area's own `stacks` stay the code stacks the
+// generic detection finds, so an area's brief line does not change.
+const PLATFORM_KINDS = [
+  ['containers', 'dockerfiles', 'images'], ['containers', 'services', 'services'],
+  ['pipelines', 'pipelines', 'pipelines'], ['pipelines', 'jobs', 'jobs'], ['pipelines', 'artifacts', 'artifacts'],
+  ['pipelines', 'passes', 'passes'], ['pipelines', 'deployTargets', 'deployTargets'],
+  ['iac', 'resources', 'resources'], ['iac', 'modules', 'iacModules'], ['iac', 'references', 'iacReferences'],
+  ['iac', 'variables', 'iacVariables'], ['iac', 'outputs', 'iacOutputs'],
+  ['data-platform', 'models', 'dbtModels'], ['data-platform', 'sources', 'dbtSources'], ['data-platform', 'tests', 'dbtTests'],
+  ['data-platform', 'lineage', 'lineage'],
+];
+const PLATFORM_KEYS = PLATFORM_KINDS.map(([, , key]) => key);
 
 /** Load the plug-in extractors from scripts/lib/prescan/stacks (none yet is fine). */
 export async function loadExtractors(dir = STACKS_DIR) {
@@ -171,7 +186,7 @@ const sameMethod = (a, b) => !a || !b || a === 'ANY' || b === 'ANY' || a === b;
 const KEY_ORDER = [
   'area', 'title', 'globs', 'stacks', 'files', 'workspaceApps', 'entryPoints', 'manifests', 'containers', 'ci', 'sources', 'routes',
   'middleware', 'modules', 'tables', 'schemas', 'migrations', 'sqlTables', 'ormCalls', 'openapi', 'envKeys', 'queues', 'clients', 'httpCalls', 'stores',
-  'imports', 'links', 'truncated',
+  ...PLATFORM_KEYS, 'imports', 'links', 'truncated',
 ];
 const ALWAYS = new Set(['area', 'title', 'globs', 'stacks', 'files', 'routes', 'tables', 'envKeys', 'queues', 'imports', 'links', 'truncated']);
 
@@ -205,7 +220,7 @@ export function areaExtracts(out) {
       {
         area: a.id, title: a.title, globs: a.globs, stacks: a.stacks, files: a.files,
         routes: [], tables: [], schemas: [], migrations: [], sqlTables: [], ormCalls: [], openapi: [], envKeys: [], queues: [],
-        clients: [], httpCalls: [], stores: [], imports: [], links: [], truncated: {},
+        clients: [], httpCalls: [], stores: [], ...Object.fromEntries(PLATFORM_KEYS.map((k) => [k, []])), imports: [], links: [], truncated: {},
       },
     ]),
   );
@@ -257,6 +272,17 @@ export function areaExtracts(out) {
   // which the build's finish step looks for on disk and reads when it can, or records as skipped
   for (const s of [...(py.stores ?? []), ...(gen.stores ?? []), ...(ts.stores ?? [])]) {
     put(s, 'stores', compact({ library: s.library, kind: s.kind, name: s.name, path: s.path, ...where(s) }));
+  }
+
+  // containers, pipelines, infrastructure and data platform: every row of the extract, in the area that owns its first file.
+  // merge.mjs makes nodes and edges from them. A row keeps all its fields; `evidence` stays only where it holds several
+  // places (an artefact hand-off, a lineage edge), the first place is always file, line and lines.
+  const platformRow = (item) => {
+    const { evidence, ...rest } = item;
+    return compact({ ...rest, ...where(item), lines: at(item).lines, evidence: evidence.length > 1 ? evidence : null });
+  };
+  for (const [stack, kind, key] of PLATFORM_KINDS) {
+    for (const item of x[stack]?.[kind] ?? []) put(item, key, platformRow(item));
   }
 
   // env keys: one row per name and area, with up to four places
@@ -394,7 +420,8 @@ const SUMMARY_ROWS = 12; // rows of one kind before the budget loop starts
 const SUMMARY_WEIGHT = {
   tables: 1, imports: 1, sqlTables: 1, migrations: 1, schemas: 1, stores: 2, httpCalls: 2, envKeys: 2, openapi: 2,
   sources: 2, manifests: 2, containers: 2, ci: 2, entryPoints: 3, clients: 3, links: 3, queues: 3, middleware: 3, modules: 3, routes: 4,
-  workspaceApps: 6,
+  workspaceApps: 6, images: 2, services: 2, pipelines: 2, jobs: 3, artifacts: 3, deployTargets: 2, resources: 3, iacModules: 2,
+  dbtModels: 3, dbtSources: 2,
 };
 const SUMMARY_KEYS = ['area', 'title', 'globs', 'stacks', 'files', 'extract', 'note', 'counts'];
 
@@ -402,7 +429,7 @@ const SUMMARY_KEYS = ['area', 'title', 'globs', 'stacks', 'files', 'extract', 'n
 const kindsOf = (slice) =>
   KEY_ORDER.filter((k) => Array.isArray(slice[k]) && k !== 'globs' && k !== 'stacks' && (ALWAYS.has(k) || slice[k].length));
 // Kinds the summary only counts: merge.mjs reads their rows from the full extract, the explorer never needs them.
-const COUNT_ONLY = new Set(['ormCalls']);
+const COUNT_ONLY = new Set(['ormCalls', 'passes', 'iacReferences', 'iacVariables', 'iacOutputs', 'dbtTests', 'lineage']);
 
 /**
  * How many tables the area's queries (select, insert, update, delete) name that nothing in the area declares: no

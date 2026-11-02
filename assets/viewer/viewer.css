@@ -15,6 +15,7 @@
   --rel-api:#2257B5; --rel-static:#5F6B7A; --rel-auth:#B0306F; --rel-pull:#6A3FC9; --rel-sql:#0B7065;
   --rel-cache:#9A5F00; --rel-persist:#8A5A16; --rel-call:#4A5361; --rel-link:#5E6672; --rel-deploy:#2A7A38;
   --rel-event:#0E6F96; --rel-queue:#7A3E8F;
+  --rel-depends:#B23C17; --rel-lineage:#5B7F00; --rel-artifact:#8A6A00;
   /* zone kinds */
   --zone-browser:#3555CF; --zone-edge:#5E6A79; --zone-service:#0A7488; --zone-data:#A0650B; --zone-platform:#6A3FC4;
   --zone-external:#857462; --zone-delivery:#2E7A3C;
@@ -32,6 +33,7 @@
     --rel-api:#6EA2F5; --rel-static:#9AA5B4; --rel-auth:#F07AB5; --rel-pull:#A98BFA; --rel-sql:#3CC4B2;
     --rel-cache:#F0B23F; --rel-persist:#D9A45A; --rel-call:#AEB7C4; --rel-link:#98A0AC; --rel-deploy:#63BF75;
     --rel-event:#4FC0E8; --rel-queue:#D08AE6;
+    --rel-depends:#FF8A65; --rel-lineage:#B5D43F; --rel-artifact:#E6C14A;
     --zone-browser:#7D97F5; --zone-edge:#97A2B0; --zone-service:#3FB6CB; --zone-data:#E0A33B; --zone-platform:#A88AF5;
     --zone-external:#B9A994; --zone-delivery:#62B874;
     --sev-high:#FF6B78; --sev-med:#FF9A4D; --sev-low:#A6AEBA;
@@ -45,6 +47,7 @@
   --rel-api:#6EA2F5; --rel-static:#9AA5B4; --rel-auth:#F07AB5; --rel-pull:#A98BFA; --rel-sql:#3CC4B2;
   --rel-cache:#F0B23F; --rel-persist:#D9A45A; --rel-call:#AEB7C4; --rel-link:#98A0AC; --rel-deploy:#63BF75;
   --rel-event:#4FC0E8; --rel-queue:#D08AE6;
+  --rel-depends:#FF8A65; --rel-lineage:#B5D43F; --rel-artifact:#E6C14A;
   --zone-browser:#7D97F5; --zone-edge:#97A2B0; --zone-service:#3FB6CB; --zone-data:#E0A33B; --zone-platform:#A88AF5;
   --zone-external:#B9A994; --zone-delivery:#62B874;
   --sev-high:#FF6B78; --sev-med:#FF9A4D; --sev-low:#A6AEBA;
@@ -137,6 +140,7 @@ figcaption:empty{display:none}
 .t-api{--ec:var(--rel-api)} .t-static{--ec:var(--rel-static)} .t-auth{--ec:var(--rel-auth)} .t-pull{--ec:var(--rel-pull)} .t-sql{--ec:var(--rel-sql)}
 .t-cache{--ec:var(--rel-cache)} .t-persist{--ec:var(--rel-persist)} .t-call{--ec:var(--rel-call)} .t-link{--ec:var(--rel-link)} .t-deploy{--ec:var(--rel-deploy)}
 .t-event{--ec:var(--rel-event)} .t-queue{--ec:var(--rel-queue)}
+.t-depends{--ec:var(--rel-depends)} .t-lineage{--ec:var(--rel-lineage)} .t-artifact{--ec:var(--rel-artifact)}
 .sev-high{--sv:var(--sev-high)} .sev-med{--sv:var(--sev-med)} .sev-low{--sv:var(--sev-low)}
 
 /* SVG: graph */

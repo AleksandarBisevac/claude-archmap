@@ -33,7 +33,9 @@ provider is never guessed. Comments, string text and heredoc text hold no refere
    hold data and an `edge` zone when they sit in front (load balancer, gateway, CDN). Networks, subnets, security
    groups, IAM roles, DNS records and `blobServices`-style children are plumbing: they belong in `notes` or as evidence
    of the node they serve, not as nodes of their own. Cite the block lines.
-2. **Edges.** `references` are wiring, not traffic. A `parent` edge or a subnet or security group an instance attaches
+2. **Edges.** `references` are wiring, not traffic. The merge script draws each one between the resource and module
+   nodes it makes as a `depends` edge (the referencing block depends on the referenced one), cited at the lines that
+   hold the reference, so do not repeat them. A `parent` edge or a subnet or security group an instance attaches
    to is containment, not a call: do not draw it as `calls`. An attribute that carries a connection target (an
    endpoint, a queue URL, a bucket name, a storage `id` passed to an app setting) is evidence that the consumer talks to
    the producer: read the block to see what the value is used for, type the edge from that, and use `confidence:

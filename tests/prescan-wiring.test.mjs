@@ -125,3 +125,86 @@ test('pw6 an http link prefers a literal route; a match through a wildcard segme
     { kind: 'http', dir: 'out', from: 'web/b.ts:4', to: 'api/items.py:20', other: 'api', via: 'GET /items/{id}', match: 'wildcard', call: 'GET /items/42' },
   ]);
 });
+
+// The platform kinds each slice carries, in the order the slice and summary files print them: after `stores`, before `imports`.
+const PLATFORM_KEYS = [
+  'images', 'services', 'pipelines', 'jobs', 'artifacts', 'passes', 'deployTargets', 'resources', 'iacModules', 'iacReferences',
+  'iacVariables', 'iacOutputs', 'dbtModels', 'dbtSources', 'dbtTests', 'lineage',
+];
+const COUNT_ONLY = ['passes', 'iacReferences', 'iacVariables', 'iacOutputs', 'dbtTests', 'lineage'];
+const PLATFORM_STACKS = ['containers', 'pipelines', 'iac', 'data-platform'];
+
+async function prescanTo(repo) {
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const work = mkdtempSync(join(tmpdir(), 'archmap-pw7-'));
+  const r = spawnSync(process.execPath, [PRESCAN, join(REPOS, repo), '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const pre = JSON.parse(readFileSync(join(work, 'prescan.json'), 'utf8'));
+  const read = (p) => JSON.parse(readFileSync(join(work, p), 'utf8'));
+  return {
+    work,
+    pre,
+    slices: pre.areas.map((a) => ({ area: a, slice: read(a.extract), sum: read(a.summary), text: readFileSync(join(work, a.extract), 'utf8'), sumText: readFileSync(join(work, a.summary), 'utf8') })),
+  };
+}
+const sumKind = (run, key) => run.slices.reduce((n, s) => n + (s.slice[key]?.length ?? 0), 0);
+const orderOk = (keys) => {
+  // the platform keys appear in PLATFORM_KEYS order, all after `stores` (when present) and before `imports`
+  const at = keys.filter((k) => PLATFORM_KEYS.includes(k));
+  assert.deepEqual(at, PLATFORM_KEYS.filter((k) => at.includes(k)), `platform keys out of order: ${keys}`);
+  for (const k of at) {
+    assert.ok(keys.indexOf(k) < keys.indexOf('imports'), `${k} before imports`);
+    if (keys.includes('stores')) assert.ok(keys.indexOf(k) > keys.indexOf('stores'), `${k} after stores`);
+  }
+};
+
+test('pw7 each platform fixture is detected as its stack, its slices and summaries carry the new kinds in the documented order, and a repository without them is unchanged', async () => {
+  const { rmSync } = await import('node:fs');
+  const want = {
+    containers: { stack: 'containers', kinds: { images: 2, services: 3 } },
+    pipelines: { stack: 'pipelines', kinds: { pipelines: 2, jobs: 7, artifacts: 5, passes: 3, deployTargets: 4 } },
+    iac: { stack: 'iac', kinds: { resources: 7, iacModules: 2, iacReferences: 13, iacVariables: 9, iacOutputs: 6 } },
+    'data-platform': { stack: 'data-platform', kinds: { dbtModels: 4, dbtSources: 2, dbtTests: 3, lineage: 5 } },
+  };
+  for (const [repo, { stack, kinds }] of Object.entries(want)) {
+    const run = await prescanTo(repo);
+    try {
+      assert.ok(run.pre.stacks.includes(stack), `${repo}: stacks lists ${stack}: ${run.pre.stacks}`);
+      assert.ok(run.pre.extracts[stack] && !run.pre.extracts[stack].error, `${repo}: extracts.${stack}`);
+      for (const { area, slice, sum, text, sumText } of run.slices) {
+        orderOk(Object.keys(slice));
+        orderOk(Object.keys(sum));
+        assert.equal(JSON.stringify(JSON.parse(text)), JSON.stringify(slice));
+        for (const k of PLATFORM_KEYS) {
+          if (slice[k]) assert.ok(slice[k].every((row) => typeof row.file === 'string' && Number.isInteger(row.line) && typeof row.lines === 'string'), `${repo}/${area.id}: ${k} rows cite file, line and lines`);
+        }
+        // the summary counts every kind; the rows of a count-only kind never print, the others do (under the budget)
+        for (const k of PLATFORM_KEYS.filter((x) => slice[x]?.length)) {
+          assert.equal(sum.counts[k], slice[k].length, `${repo}/${area.id}: counts.${k}`);
+          assert.equal(sum[k] !== undefined, !COUNT_ONLY.includes(k), `${repo}/${area.id}: summary rows of ${k}`);
+        }
+        assert.ok(sumText.length <= 4200, `${repo}/${area.id}: summary ${sumText.length} characters`);
+        assert.ok(!area.stacks.some((s) => PLATFORM_STACKS.includes(s)), `${repo}/${area.id}: an area's stacks stay the code stacks`);
+      }
+      for (const [k, n] of Object.entries(kinds)) assert.equal(sumKind(run, k), n, `${repo}: ${k} rows over the areas`);
+      for (const other of PLATFORM_STACKS.filter((s) => s !== stack)) assert.ok(!run.pre.stacks.includes(other), `${repo}: no ${other}`);
+    } finally {
+      rmSync(run.work, { recursive: true, force: true });
+    }
+  }
+  for (const repo of ['python-api', 'ts-web', 'node-api']) {
+    const run = await prescanTo(repo);
+    try {
+      for (const s of PLATFORM_STACKS) assert.ok(!run.pre.stacks.includes(s), `${repo}: no ${s}`);
+      for (const { area, slice, sum } of run.slices) {
+        assert.ok(!area.stacks.some((s) => PLATFORM_STACKS.includes(s)), `${repo}/${area.id}: area stacks unchanged`);
+        for (const k of PLATFORM_KEYS) {
+          assert.ok(!(k in slice) && !(k in sum) && !(k in sum.counts), `${repo}/${area.id}: no ${k}`);
+        }
+      }
+    } finally {
+      rmSync(run.work, { recursive: true, force: true });
+    }
+  }
+});

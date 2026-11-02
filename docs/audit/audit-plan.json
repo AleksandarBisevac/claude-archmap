@@ -9861,7 +9861,7 @@
         {
           "id": "P13.4",
           "title": "Prescan extractor for data platform projects: dbt models, sources, tests and lineage",
-          "status": "in_progress",
+          "status": "done",
           "description": "Add scripts/lib/prescan/data-platform.mjs (and stacks/data-platform.mjs) detected from dbt_project.yml: one item per model (models/**/*.sql with its materialization from config), per source and per test declared in schema .yml files, and lineage edges from ref() and source() calls, each with evidence at the call line. The vocabulary in the model is generic (model, source, test, lineage); no product-specific term. Write skills/architecture-map/references/stack-data-platform.md and the fixture tests/fixtures/repos/data-platform (one dbt project with two sources, four models in two layers and three tests).",
           "files": [
             "scripts/lib/prescan/data-platform.mjs",
@@ -9889,39 +9889,64 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "72cb1e91a7d1",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added scripts/lib/prescan/data-platform.mjs (extractDataPlatform, plug-in id data-platform, detect = a file named dbt_project.yml) and the stacks/data-platform.mjs re-export; reuses parseYaml/textOf/valueOf from containers.mjs. Items: models (name, project, scope, layer, materialization with dbt precedence config() > schema config > dbt_project.yml folders > view), sources (one per table), tests (tests:/data_tests: on model, source table, columns), lineage (ref()/source() edges, evidence at call line, comments and non-Jinja text ignored, unresolved targets counted in skipped). Caps MAX_ITEMS/MAX_NESTED, sorted deterministic output. Wrote skills/architecture-map/references/stack-data-platform.md, the fixture tests/fixtures/repos/data-platform (one dbt project: 2 sources, 4 models in staging and marts, 3 tests, placeholder profile name only) and tests/prescan-data-platform.test.mjs (dp1..dp9, 9 cases). All new files git add -N. `node --test tests/prescan-data-platform.test.mjs`: 9 pass 0 fail. Full `node --test`: 559 tests, 558 pass, 1 fail = s2 of tests/skill.test.mjs ('every file in references/ is linked from SKILL.md'), which fails only because skills/architecture-map/SKILL.md (outside my files, not edited) has no row for stack-data-platform.md. ORCHESTRATOR TO ADD to the references table in skills/architecture-map/SKILL.md after the stack-iac row: | [references/stack-data-platform.md](references/stack-data-platform.md) | The `data-platform` stack: dbt models with materialization, sources, tests and lineage from ref() and source() calls. | . tests/prescan-core.test.mjs pc2 is unchanged and still passes (its MIXED fixture holds no dbt_project.yml). Note: the auto-mode classifier refused one Bash python edit of the source file, so I redid those edits with the Edit tool; no work-around was used.",
+            "descriptive": "Prescan now extracts dbt models, sources, tests and ref()/source() lineage with file:line evidence from dbt_project.yml projects."
           },
           "startedAt": "2026-11-02T22:42:49Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T22:50:42Z",
+          "verifiedBy": [
+            "prescan-data-platform.test.mjs: models with layer and materialization, sources and tests from schema files, lineage with call-line evidence, precedence/comments/package refs/several projects, evidence and determinism, caps, no values leaked, detect, no-execution and prescan wiring"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T22:50:41Z.e31611",
             "status": "passed",
             "at": "2026-11-02T22:50:41Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "72cb1e91a7d1",
+            "at": "2026-11-02T22:50:42Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T22:49:21Z",
+            "basis": "`node --test tests/prescan-data-platform.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.5",
           "title": "Wire the four extractors into detection, partition, summaries, merge, the taxonomy and the schema",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Register the four stacks in prescan detection and the extract and summary key order (scripts/prescan.mjs, scripts/lib/prescan/partition.mjs), derive their nodes and edges in scripts/merge.mjs from the extracts where no agent judgement is needed (compose services and dbt models as nodes with paths, depends_on, lineage, artefact pass-on and IaC references as edges), add the node kinds and edge types to skills/architecture-map/references/relation-taxonomy.md and model-schema.md and to the schema files additively, name the four references in the skill and the explorer agent, and keep every committed and fixture map validating.",
           "files": [
             "scripts/prescan.mjs",
             "scripts/lib/prescan/partition.mjs",
             "scripts/merge.mjs",
             "scripts/validate.mjs",
+            "scripts/pipeline.mjs",
+            "scripts/export.mjs",
+            "assets/viewer/viewer.js",
+            "assets/viewer/viewer.css",
             "schema",
             "skills/architecture-map/references/relation-taxonomy.md",
             "skills/architecture-map/references/model-schema.md",
+            "skills/architecture-map/references/stack-containers.md",
+            "skills/architecture-map/references/stack-pipelines.md",
+            "skills/architecture-map/references/stack-iac.md",
+            "skills/architecture-map/references/stack-data-platform.md",
             "skills/architecture-map/SKILL.md",
             "agents/archmap-explorer.md",
             "tests/prescan-wiring.test.mjs",
             "tests/schema.test.mjs",
-            "tests/merge.test.mjs"
+            "tests/merge.test.mjs",
+            "tests/skill-references.test.mjs",
+            "tests/pipeline.test.mjs",
+            "tests/viewer.test.mjs",
+            "tests/export.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
@@ -9946,16 +9971,22 @@
             "P13.3",
             "P13.4"
           ],
-          "attempts": 0,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T23:02:40Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T23:09:31Z.b2cd19",
+            "status": "passed",
+            "at": "2026-11-02T23:09:31Z"
+          }
         },
         {
           "id": "P13.6",
@@ -10380,7 +10411,8 @@
     "assets/viewer/viewer.css": [
       "P2.3",
       "P2.4",
-      "P13.11"
+      "P13.11",
+      "P13.5"
     ],
     "assets/viewer/viewer.js": [
       "P2.3",
@@ -10390,7 +10422,8 @@
       "BF1.1",
       "BF1.2",
       "BF1.5-4w0",
-      "P13.11"
+      "P13.11",
+      "P13.5"
     ],
     "scripts/render.mjs": [
       "P2.3"
@@ -10404,7 +10437,8 @@
       "BF1.1",
       "BF1.2",
       "BF1.5-4w0",
-      "P13.11"
+      "P13.11",
+      "P13.5"
     ],
     "tests/visual/screenshots.py": [
       "P2.5",
@@ -10730,7 +10764,8 @@
       "P13.11"
     ],
     "tests/skill-references.test.mjs": [
-      "P4.1"
+      "P4.1",
+      "P13.5"
     ],
     "skills/architecture-map/references/discovery-generic.md": [
       "P4.2",
@@ -11004,7 +11039,8 @@
       "P7.5",
       "P7.7-5ye",
       "P7.8-5ye",
-      "P7.9-5ye"
+      "P7.9-5ye",
+      "P13.5"
     ],
     "tests/export.test.mjs": [
       "P7.1",
@@ -11014,7 +11050,8 @@
       "P7.5",
       "P7.7-5ye",
       "P7.8-5ye",
-      "P7.9-5ye"
+      "P7.9-5ye",
+      "P13.5"
     ],
     "commands/export.md": [
       "P7.6"
@@ -11143,7 +11180,8 @@
       "P8.5",
       "P8.9",
       "P9.1",
-      "P11.1"
+      "P11.1",
+      "P13.5"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -11161,7 +11199,8 @@
       "P8.7",
       "P8.5",
       "P9.1",
-      "P11.1"
+      "P11.1",
+      "P13.5"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -11307,7 +11346,8 @@
       "P13.1"
     ],
     "skills/architecture-map/references/stack-containers.md": [
-      "P13.1"
+      "P13.1",
+      "P13.5"
     ],
     "tests/fixtures/repos/containers": [
       "P13.1"
@@ -11322,7 +11362,8 @@
       "P13.2"
     ],
     "skills/architecture-map/references/stack-pipelines.md": [
-      "P13.2"
+      "P13.2",
+      "P13.5"
     ],
     "tests/fixtures/repos/pipelines": [
       "P13.2"
@@ -11337,7 +11378,8 @@
       "P13.3"
     ],
     "skills/architecture-map/references/stack-iac.md": [
-      "P13.3"
+      "P13.3",
+      "P13.5"
     ],
     "tests/fixtures/repos/iac": [
       "P13.3"
@@ -11352,7 +11394,8 @@
       "P13.4"
     ],
     "skills/architecture-map/references/stack-data-platform.md": [
-      "P13.4"
+      "P13.4",
+      "P13.5"
     ],
     "tests/fixtures/repos/data-platform": [
       "P13.4"
