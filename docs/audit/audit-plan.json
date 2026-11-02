@@ -9660,15 +9660,15 @@
     {
       "id": "P13",
       "title": "v1.1: data platforms, pipelines and infrastructure",
-      "status": "pending",
+      "status": "in_progress",
       "description": "The v1.1 item of docs/roadmap.md, in the roadmap's order, plus two follow-ups recorded at the P12 sign-off: the weak spot the benchmark showed on repository A (13 entities, 4 with fields, because the database file is not in the checkout) and the P12 re-review's low findings R5 (the owner's confirmation of the rubric scores is attested only in the sign-off record), R6 (the cost-profile fallback label is bounded but not redacted) and R7 (the tracked grader's equivalence to the private one rests on a 9-cell synthetic comparison). Each extractor follows the pattern of scripts/lib/prescan/{node-backend,python,ts-frontend}.mjs with a stacks/ re-export, a stack reference under skills/architecture-map/references/, a fixture repository under tests/fixtures/repos/ and a prescan test; the scanned code is only ever read as text. Node kinds and edge types the new elements need are added to relation-taxonomy.md and the model schema additively, so every committed map keeps validating. The phase does not start until the owner says so.",
       "desiredOutcome": "Prescan extracts containers (Docker, compose), pipelines (GitHub Actions, Azure Pipelines), infrastructure as code (Terraform, Bicep) and data platform projects (dbt models, sources, tests and lineage) with file:line evidence, confidence and provenance like every other node; entities keep declared fields when no database file is in the checkout; the three low findings P12-R5 to P12-R7 are closed; a fixture repository per kind, a prescan test per extractor, a mixed-fixture build with a tracked cost profile and every committed map still validating close it.",
       "testGate": [
         "test"
       ],
       "blockedBy": [],
-      "baseRef": null,
-      "branch": null,
+      "baseRef": "640f84f9555eb3274010a8a5a1eb125c65c45e16",
+      "branch": "audit/p13-v1-1-data-platforms-pipelines",
       "mergedAt": null,
       "review": {
         "tool": null,
@@ -9890,7 +9890,7 @@
         {
           "id": "P13.6",
           "title": "Entity fields without a database file: declared fields from static schema sources",
-          "status": "pending",
+          "status": "in_progress",
           "description": "On repository A of the benchmark the map had 13 entities but only 4 with fields because the database file is not in the checkout. Make the static sources the first-class path: the python extractor reads SQLAlchemy, SQLModel and Pydantic models, Alembic migrations and SQL DDL (CREATE TABLE in .sql files and in string literals) into table rows with fields and provenance declared, the node-backend extractor does the same for Prisma, Drizzle, TypeORM and Knex migrations where it does not yet, merge.mjs unions declared fields into the entity when introspection is skipped, and schema-introspection.md says introspection adds observed fields to declared ones rather than replacing a missing database. Measure on the python-api fixture.",
           "files": [
             "scripts/lib/prescan/python.mjs",
@@ -9920,16 +9920,22 @@
           "risk": "med",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T21:32:47Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T21:47:43Z.58df90",
+            "status": "passed",
+            "at": "2026-11-02T21:47:43Z"
+          }
         },
         {
           "id": "P13.7",
@@ -10058,6 +10064,109 @@
           "startedAt": null,
           "completedAt": null,
           "verifiedBy": []
+        },
+        {
+          "id": "P13.10",
+          "title": "Richer script-derived relations: ORM call access rows, typed import edges, unpaired queues",
+          "status": "pending",
+          "description": "Benchmark weak spot (rubric relations 3 of 5 on repository B, a TypeScript monorepo with a Node API, an ORM and a job queue): 148 nodes but 74 edges, 66 nodes with no edge, 13 queue nodes with only 11 edges touching queues and stores, 162 entities with only 5 access rows, and a third of the edges typed `link`. Everything here is script work in prescan and merge; no agent prompt changes and no new reads for the explorers, so the build cost does not move.\n\nDo: (1) scripts/lib/prescan/node-backend.mjs gains a kind `ormCalls`: ORM query calls read as text with the entity or table they touch and the CRUD letters of the method - Drizzle (`db.select().from(x)`, `db.insert(x)`, `db.update(x)`, `db.delete(x)`, `db.query.x.findMany`), Prisma (`prisma.x.findMany/findUnique/create/createMany/update/updateMany/upsert/delete/deleteMany`), TypeORM (`repository.find/save/insert/update/delete`, `getRepository(X)`) - each row {orm, target, ops, evidence}, string literals and resolved identifiers only, unresolved ones counted in skipped, capped like the other kinds; scripts/lib/prescan/python.mjs does the same for SQLAlchemy sessions and SQLModel (`session.query(X)`, `select(X)`, `session.add`, `.delete`). (2) scripts/merge.mjs turns ormCalls into access rows (node owning the file, entity resolved by table or model name through entityResolver, ops unioned per node and entity) and into one `sql` edge from that node to the entity's store node with the call lines as evidence, deduplicated with the edges the explorers wrote. (3) Import-derived edges get a type from the target node's kind - `sql` to a store, `queue` to a queue, `call` otherwise - and never `link`; `link` stays for explorer-written navigational links. (4) A queue node with a producer but no consumer, or the reverse, gets one meta.sources row of type `queue-unpaired` naming the queue so the gap is visible, nothing invented. (5) Document ormCalls in skills/architecture-map/references/stack-node-backend.md and stack-python-backend.md (what prescan extracts). Fixtures tests/fixtures/repos/node-api and python-api gain the calls needed to exercise every pattern; a nodes-without-edges count is added to the merge digest `counts` so a build report shows it.",
+          "files": [
+            "scripts/lib/prescan/node-backend.mjs",
+            "scripts/lib/prescan/python.mjs",
+            "scripts/merge.mjs",
+            "skills/architecture-map/references/stack-node-backend.md",
+            "skills/architecture-map/references/stack-python-backend.md",
+            "tests/fixtures/repos/node-api",
+            "tests/fixtures/repos/python-api",
+            "tests/prescan-node-backend.test.mjs",
+            "tests/prescan-python.test.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-node-backend.test.mjs: the node-api fixture yields ormCalls rows for Drizzle, Prisma and TypeORM calls with the right CRUD letters and evidence lines, unresolved targets counted in skipped",
+              "tests/prescan-python.test.mjs: the python-api fixture yields ormCalls rows for SQLAlchemy and SQLModel calls",
+              "tests/merge.test.mjs: ormCalls become access rows and sql edges to the store deduplicated with explorer edges, an import edge to a store is sql and to a queue is queue and is never link, an unpaired queue gets a queue-unpaired row, the digest counts nodes without edges, and two runs are byte-identical"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        },
+        {
+          "id": "P13.11",
+          "title": "Flows: play a sequence on the architecture graph and draft queue, pull and return flows by script",
+          "status": "pending",
+          "description": "Benchmark weak spot (rubric flows and readability level with or below draw-c4 on all three repositories; its interactive flow player and seven flows read better than our four sequences). Both parts are free at build time: the viewer is static JavaScript and the drafts are made by merge.mjs from prescan links, with the digest cap and the synthesizer brief unchanged.\n\nDo: (1) assets/viewer/viewer.js and viewer.css: a \"play on graph\" mode for the selected sequence - the architecture graph highlights, step by step, the participant nodes (through `participants[].node`) and the edge between the two participants of the current message when the model has one, dims the rest, shows the step title and detail in the existing stepbox, with previous/next/play controls (play advances on a timer, stops at the end) and keyboard arrows; the sequence diagram view keeps working as it is; no overlay text in the clean render and nothing executed from the model (strings escaped as the viewer already does). (2) scripts/merge.mjs draftSequences: beside the one draft per HTTP entry point, draft one flow per queue whose producer and consumer are both known and no HTTP draft already covers (producer enqueues, consumer handles, consumer's access rows), one per `pull` or scheduled entry (a cron or hook link in the extracts) to its first data step, and append a return step (`ret`) to each HTTP draft from the route's handler back to the caller; MAX_DRAFTS stays 12 and the digest trim order stays, so the synthesizer reads no more than today. (3) Golden fixtures under tests/fixtures/golden gain a sequence whose participants carry `node` so the viewer test can drive the player; the render stays byte-identical for a model without such a sequence. (4) Document the player in README.md (one sentence under What a build delivers) and the drafting rule in skills/architecture-map/references/sequences.md.",
+          "files": [
+            "assets/viewer/viewer.js",
+            "assets/viewer/viewer.css",
+            "scripts/merge.mjs",
+            "tests/fixtures/golden",
+            "tests/viewer.test.mjs",
+            "tests/merge.test.mjs",
+            "tests/render.test.mjs",
+            "README.md",
+            "skills/architecture-map/references/sequences.md"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/viewer.test.mjs: with a sequence whose participants carry node ids, the player highlights the current step participants and their edge, dims the rest, moves with next, previous and arrow keys, and the clean render carries no overlay text",
+              "tests/merge.test.mjs: draftSequences makes a queue flow for a queue with a known producer and consumer not covered by an HTTP draft, a pull flow for a scheduled entry, appends a return step to each HTTP draft, keeps MAX_DRAFTS and the digest cap, and is byte-identical across two runs",
+              "tests/render.test.mjs: a model without a node-linked sequence renders byte-identically to the committed golden",
+              "assets/viewer/viewer.css: #qres li interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .btn interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .ent interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its focus and hover state, not only rest",
+              "assets/viewer/viewer.css: .evchip interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .fld interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .ilink interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .lnk interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .node interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its focus and hover state, not only rest",
+              "assets/viewer/viewer.css: .opb interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: .tab interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: a interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest",
+              "assets/viewer/viewer.css: nav.sections .navtab interaction-state parity - a clipped snapshot (or a computed-style assertion) of its OWN box in its hover state, not only rest"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
         }
       ],
       "request": "Zatim predloži fazu v1.1 iz docs/roadmap.md (/audit:phase add), bez pokretanja.",
@@ -10066,7 +10175,9 @@
         "Whether Bicep is in the first cut beside Terraform, or Terraform only with Bicep following",
         "Whether the R7 follow-up (running the tracked grader over the real private benchmark cells) is an owner-run step, since the cells live only on the owner's machine",
         "Whether the mixed-fixture headless build is run by the orchestrator or by the owner, as the self-build runs were"
-      ]
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-11-02T21:32:47Z"
     }
   ],
   "fileIndex": {
@@ -10133,7 +10244,8 @@
     ],
     "assets/viewer/viewer.css": [
       "P2.3",
-      "P2.4"
+      "P2.4",
+      "P13.11"
     ],
     "assets/viewer/viewer.js": [
       "P2.3",
@@ -10142,19 +10254,22 @@
       "P2.7-2vu",
       "BF1.1",
       "BF1.2",
-      "BF1.5-4w0"
+      "BF1.5-4w0",
+      "P13.11"
     ],
     "scripts/render.mjs": [
       "P2.3"
     ],
     "tests/render.test.mjs": [
-      "P2.3"
+      "P2.3",
+      "P13.11"
     ],
     "tests/viewer.test.mjs": [
       "P2.4",
       "BF1.1",
       "BF1.2",
-      "BF1.5-4w0"
+      "BF1.5-4w0",
+      "P13.11"
     ],
     "tests/visual/screenshots.py": [
       "P2.5",
@@ -10227,7 +10342,8 @@
       "P10.11-6rm",
       "P10.13-6rm",
       "P10.15-6rm",
-      "P13.6"
+      "P13.6",
+      "P13.10"
     ],
     "tests/fixtures/repos/python-api/README.md": [
       "P3.2",
@@ -10242,7 +10358,8 @@
       "P10.15-6rm",
       "P10.18-6rm",
       "P10.20-6rm",
-      "P13.6"
+      "P13.6",
+      "P13.10"
     ],
     "scripts/lib/prescan/ts-frontend.mjs": [
       "P3.3",
@@ -10265,7 +10382,8 @@
       "P10.14-6rm",
       "P10.18-6rm",
       "P10.20-6rm",
-      "P13.6"
+      "P13.6",
+      "P13.10"
     ],
     "tests/fixtures/repos/node-api/README.md": [
       "P3.4",
@@ -10278,7 +10396,8 @@
       "P10.14-6rm",
       "P10.13-6rm",
       "P10.18-6rm",
-      "P13.6"
+      "P13.6",
+      "P13.10"
     ],
     "tests/fixtures/repos/python-api/pyproject.toml": [
       "P3.2"
@@ -10469,7 +10588,8 @@
     ],
     "skills/architecture-map/references/sequences.md": [
       "P4.1",
-      "P10.3-2xj"
+      "P10.3-2xj",
+      "P13.11"
     ],
     "tests/skill-references.test.mjs": [
       "P4.1"
@@ -10481,13 +10601,15 @@
     ],
     "skills/architecture-map/references/stack-python-backend.md": [
       "P4.2",
-      "P13.6"
+      "P13.6",
+      "P13.10"
     ],
     "skills/architecture-map/references/stack-ts-frontend.md": [
       "P4.2"
     ],
     "skills/architecture-map/references/stack-node-backend.md": [
-      "P4.2"
+      "P4.2",
+      "P13.10"
     ],
     "skills/architecture-map/references/schema-introspection.md": [
       "P4.2",
@@ -10606,7 +10728,9 @@
       "P8.9",
       "BF2.1",
       "P13.5",
-      "P13.6"
+      "P13.6",
+      "P13.10",
+      "P13.11"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -10627,7 +10751,9 @@
       "P8.9",
       "BF2.1",
       "P13.5",
-      "P13.6"
+      "P13.6",
+      "P13.10",
+      "P13.11"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -10761,7 +10887,8 @@
       "P12.5",
       "BF2.2-8q4",
       "P13.8",
-      "P13.9"
+      "P13.9",
+      "P13.11"
     ],
     "CHANGELOG.md": [
       "P7.6",
@@ -10914,13 +11041,15 @@
     ],
     "tests/fixtures/repos/node-api": [
       "P10.10-6rm",
-      "P10.14-6rm"
+      "P10.14-6rm",
+      "P13.10"
     ],
     "tests/fixtures/repos/python-api": [
       "P10.11-6rm",
       "P10.13-6rm",
       "P10.15-6rm",
-      "P13.6"
+      "P13.6",
+      "P13.10"
     ],
     "skills/architecture-map/evals/evidence": [
       "P11.3",
@@ -11099,6 +11228,9 @@
     ],
     "skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json": [
       "P13.8"
+    ],
+    "tests/fixtures/golden": [
+      "P13.11"
     ]
   },
   "bugs": [

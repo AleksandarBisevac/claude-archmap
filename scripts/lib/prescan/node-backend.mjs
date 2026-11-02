@@ -3,7 +3,7 @@
 // extractNodeBackend(files, read) -> fragment
 //   { scanned, routes[], entities[], openapi[], queues[], envKeys[], clients[], sqlTables[], skipped{<kind>: n}, truncated{<kind>: n} }
 // Routes (NestJS controllers, Express and Hono routers, with router mounts resolved), ORM entities
-// (Prisma models, TypeORM entities, Drizzle tables) with fields, PK/FK and relations, OpenAPI
+// (Prisma models, TypeORM entities, Drizzle tables, and Knex migration tables nobody else declares) with fields, PK/FK and relations, OpenAPI
 // documents (YAML or JSON), BullMQ queues with their producers and workers, environment variables read
 // (names only), SDK clients / base URLs, and SQL statements in string and template literals (sqlTables: {table, op,
 // evidence}, a CREATE TABLE with its columns). Every item carries
@@ -663,6 +663,113 @@ function extractDrizzle(ctx, f, acc, drizzle) {
   }
 }
 
+// Knex migrations: `knex.schema.createTable('t', (table) => { table.string('name') ... })` is a table with the fields
+// its callback declares; `alterTable('t', ...)` of a table an earlier migration (path order, so timestamp order)
+// created adds or drops columns. Only the `up` part of a migration is read: the `down` part undoes it. The column
+// type is the builder method (increments, string, integer, ...); `increments` and `.primary()` mark the key,
+// `.references('col').inTable('t')` or `.references('t.col')` the foreign key (also through `table.foreign('col')`),
+// `timestamps()` adds created_at and updated_at. A table or column name that is not a literal is skipped and counted.
+const KNEX_NOT_COLUMN = new Set([
+  'index', 'unique', 'primary', 'foreign', 'dropColumn', 'dropColumns', 'dropForeign', 'dropPrimary', 'dropUnique', 'dropIndex',
+  'dropTimestamps', 'dropChecks', 'renameColumn', 'comment', 'engine', 'charset', 'collate', 'inherits', 'check', 'setNullable',
+  'dropNullable', 'queryContext', 'fulltext', 'dropTimestamps',
+]);
+const KNEX_PK_METHODS = new Set(['increments', 'bigIncrements']);
+
+function knexParam(f, p) {
+  if (!p) return null;
+  const m = new RegExp(`^(?:async\\s*)?(?:function\\s*(?:${ID})?\\s*\\(\\s*(${ID})|\\(\\s*(${ID})[^)]*\\)\\s*=>|(${ID})\\s*=>)`).exec(f.clean.slice(p.a, p.b));
+  return m ? (m[1] ?? m[2] ?? m[3]) : null;
+}
+
+/** The `.name(args)` calls chained after the call closing at `close`: [{name, call}]. */
+function chainAfter(f, close) {
+  const out = [];
+  let pos = close + 1;
+  for (;;) {
+    const m = new RegExp(`^\\s*\\.\\s*(${ID})\\s*(?=\\()`).exec(f.masked.slice(pos, pos + 200));
+    if (!m) return out;
+    const call = callAt(f, pos + m[0].length);
+    if (!call) return out;
+    out.push({ name: m[1], call });
+    pos = call.close + 1;
+  }
+}
+
+function knexReference(ctx, f, chain) {
+  const ref = chain.find((c) => c.name === 'references');
+  if (!ref || !ref.call.args[0]) return null;
+  const a = strValue(ctx, f, ref.call.args[0].a, ref.call.args[0].b);
+  if (a === null) return null;
+  if (a.includes('.')) return clip(a);
+  const into = chain.find((c) => c.name === 'inTable');
+  const t = into && into.call.args[0] ? strValue(ctx, f, into.call.args[0].a, into.call.args[0].b) : null;
+  return t ? clip(`${t}.${a}`) : null;
+}
+
+function extractKnex(ctx, f, acc, tables) {
+  if (!/\bschema\b/.test(f.masked)) return;
+  const downAt = f.masked.search(/\b(?:exports\.down|(?:function|const)\s+down)\b/);
+  const upAt = f.masked.search(/\b(?:exports\.up|(?:function|const)\s+up)\b/);
+  const limit = downAt > upAt && upAt >= 0 ? downAt : Infinity;
+  const re = /\.\s*(createTable|createTableIfNotExists|alterTable)\s*(?=\()/g;
+  for (const d of f.masked.matchAll(re)) {
+    if (d.index > limit) continue;
+    const call = callAt(f, d.index + d[0].length);
+    if (!call) continue;
+    const create = d[1] !== 'alterTable';
+    const table = call.args[0] ? strValue(ctx, f, call.args[0].a, call.args[0].b) : null;
+    const param = knexParam(f, call.args[1]);
+    if (table === null || param === null) {
+      acc.skipped.entities++;
+      continue;
+    }
+    let t = tables.get(table.toLowerCase());
+    if (create) {
+      if (t && t.f === f && t.at === d.index) continue;
+      t = { table: clip(table), fields: [], f, at: d.index, evidence: evidence(f, d.index, call.close + 1) };
+      tables.set(table.toLowerCase(), t);
+    } else if (!t) continue; // altered here, created where this scan cannot see: no declaration to extend
+    const field = (name) => t.fields.find((x) => x.name === name);
+    const put = (name, type, pk, fk) => {
+      const had = field(name);
+      if (had) Object.assign(had, { type, pk: had.pk || pk, fk: fk ?? had.fk });
+      else t.fields.push({ name, type, pk, fk: fk ?? null });
+    };
+    const names = (p) => (p ? [...f.clean.slice(p.a, p.b).matchAll(/['"]([^'"\s]+)['"]/g)].map((x) => x[1]) : []);
+    const body = new RegExp(`(?<![\\w$.])${param.replace(/\$/g, '\\$')}\\s*\\.\\s*(${ID})\\s*(?=\\()`, 'g');
+    const bodyText = f.masked.slice(call.args[1].a, call.args[1].b);
+    for (const c of bodyText.matchAll(body)) {
+      const open = call.args[1].a + c.index + c[0].length;
+      const m = callAt(f, open);
+      if (!m) continue;
+      const chain = chainAfter(f, m.close);
+      const a0 = m.args[0];
+      if (c[1] === 'timestamps') {
+        put('created_at', 'timestamp', false, null);
+        put('updated_at', 'timestamp', false, null);
+      } else if (c[1] === 'primary') {
+        for (const n of names(a0)) if (field(n)) field(n).pk = true;
+      } else if (c[1] === 'foreign') {
+        const n = a0 ? strValue(ctx, f, a0.a, a0.b) : null;
+        const fk = knexReference(ctx, f, chain);
+        if (n && fk && field(n)) field(n).fk = fk;
+      } else if (c[1] === 'dropColumn') {
+        const n = a0 ? strValue(ctx, f, a0.a, a0.b) : null;
+        if (n) t.fields = t.fields.filter((x) => x.name !== n);
+      } else if (!KNEX_NOT_COLUMN.has(c[1])) {
+        const n = a0 ? strValue(ctx, f, a0.a, a0.b) : null;
+        if (n === null) {
+          acc.skipped.entities++;
+          continue;
+        }
+        const type = c[1] === 'specificType' && m.args[1] ? strValue(ctx, f, m.args[1].a, m.args[1].b) ?? c[1] : c[1];
+        put(n, clip(type), KNEX_PK_METHODS.has(c[1]) || chain.some((x) => x.name === 'primary'), knexReference(ctx, f, chain));
+      }
+    }
+  }
+}
+
 function drizzleRelations(ctx, f, drizzle) {
   for (const d of f.masked.matchAll(/(?<![\w$.])relations\s*(?=\()/g)) {
     const call = callAt(f, d.index + d[0].length);
@@ -1031,6 +1138,14 @@ export function extractNodeBackend(files, read) {
     extractDrizzle(ctx, f, acc, drizzle);
   }
   for (const f of ctx.files) drizzleRelations(ctx, f, drizzle);
+  // Knex migrations declare a table where no other ORM does
+  const knex = new Map();
+  for (const f of ctx.files) extractKnex(ctx, f, acc, knex);
+  const declared = new Set(acc.entities.flatMap((e) => [e.table, e.name]).filter((x) => typeof x === 'string').map((x) => x.toLowerCase()));
+  for (const [key, t] of [...knex].sort(([a], [b]) => byCodeUnit(a, b))) {
+    if (declared.has(key)) continue;
+    acc.entities.push({ orm: 'knex', name: t.table, table: t.table, fields: t.fields.slice(0, MAX_FIELDS), relations: [], evidence: t.evidence });
+  }
 
   const prefix = globalPrefix(ctx);
   for (const r of nest) acc.routes.push({ framework: r.framework, method: r.method, url: joinUrl(prefix, r.sub), handler: r.handler, evidence: r.ev });

@@ -33,8 +33,10 @@ Trust these as `declared` evidence. Do not re-Grep for decorators it already lis
 3. **Entities.** Complete what prescan marked unresolved: mixins and abstract bases (read the base class), Django
    fields declared through helper functions, SQLAlchemy `relationship(...)` and `ForeignKey(...)` targets, association
    tables. A Pydantic schema is not an entity unless it maps a table; use it to confirm field names and types, and
-   tag them `declared`. Alembic revisions give the latest column set when models are split or generated; read the head
-   revision, not the whole history.
+   tag them `declared`. Prescan already turns SQLAlchemy, SQLModel and Django models, a table only an Alembic migration
+   creates (its `create_table` and later `add_column` and `drop_column`) and `CREATE TABLE` in `.sql` files and string
+   literals into table rows with their fields; merge makes those entities, so do not transcribe them. Alembic revisions
+   give the latest column set when models are split or generated; read the head revision, not the whole history.
 4. **Access.** For each service or handler, find the session or ORM calls that touch an entity: `session.add`,
    `query(`, `select(`, `.objects.create`, `.filter`, `.update`, `.delete`, `execute("INSERT ...")`. Map to CRUD letters
    and cite the line. A repository class that wraps the model gives the access row for its callers too.

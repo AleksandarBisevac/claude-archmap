@@ -17,7 +17,9 @@ One realistic example of each pattern the Python extractor looks for:
 | SQLAlchemy entities | `app/models.py` |
 | Django entities | `shop/models.py` |
 | Pydantic schemas | `app/schemas.py` |
-| Alembic migrations | `migrations/versions/` |
+| Alembic migrations (`0003` creates a table only a migration declares) | `migrations/versions/` |
+| SQLModel table and schema classes | `shop/members.py` |
+| `CREATE TABLE` in a `.sql` file | `app/schema.sql` |
 | Raw SQL table names | `app/reports.py` |
 | Outbound HTTP calls | `app/clients.py` |
 | Environment variables and shared clients | `app/config.py` |

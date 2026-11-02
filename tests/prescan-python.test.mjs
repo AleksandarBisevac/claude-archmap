@@ -50,7 +50,7 @@ test('py1 routes: FastAPI and Flask decorators and Django urls, with method, ful
 
 test('py2 entities: SQLAlchemy and Django models with fields, types, PK and FK', () => {
   const byName = Object.fromEntries(frag.entities.map((e) => [e.name, e]));
-  assert.deepEqual(Object.keys(byName).sort(), ['Author', 'Book', 'Edition', 'Publisher']);
+  assert.deepEqual(Object.keys(byName).sort(), ['Author', 'Book', 'Edition', 'Member', 'Publisher', 'loans']);
   assert.equal(byName.Author.framework, 'sqlalchemy');
   assert.equal(byName.Author.table, 'authors');
   assert.deepEqual(pick(byName.Author.fields, ['name', 'type', 'pk', 'fk']), [
@@ -76,6 +76,26 @@ test('py2 entities: SQLAlchemy and Django models with fields, types, PK and FK',
     { name: 'printed_on', type: 'DateField', pk: false, fk: null },
   ]);
   assert.ok(!frag.entities.some((e) => e.name === 'Base'), 'a base class without __tablename__ is not an entity');
+  // P13.6: a SQLModel table class (fields of its SQLModel base first, a Relationship is no column), and a table only an
+  // Alembic migration declares, each with declared fields and evidence
+  assert.equal(byName.Member.framework, 'sqlmodel');
+  assert.equal(byName.Member.table, 'members');
+  assert.deepEqual(pick(byName.Member.fields, ['name', 'type', 'pk', 'fk']), [
+    { name: 'name', type: 'str', pk: false, fk: null },
+    { name: 'email', type: 'str', pk: false, fk: null },
+    { name: 'id', type: 'Optional[int]', pk: true, fk: null },
+    { name: 'branch_id', type: 'int', pk: false, fk: 'branches.id' },
+  ]);
+  assert.equal(ev(byName.Member), 'shop/members.py:12-17');
+  assert.equal(byName.loans.framework, 'alembic');
+  assert.equal(byName.loans.table, 'loans');
+  assert.deepEqual(pick(byName.loans.fields, ['name', 'type', 'pk', 'fk']), [
+    { name: 'id', type: 'Integer', pk: true, fk: null },
+    { name: 'book_id', type: 'Integer', pk: false, fk: 'books.id' },
+    { name: 'due_on', type: 'Date', pk: false, fk: null },
+  ]);
+  assert.equal(ev(byName.loans), 'migrations/versions/0003_create_loans.py:10-15');
+  assert.ok(!frag.entities.some((e) => e.framework === 'alembic' && ['authors', 'books'].includes(e.table)), 'a table a model declares is the model\'s, not repeated from its migration');
 });
 
 test('py3 schemas: Pydantic models with fields, inheritance followed across the repo', () => {
@@ -85,6 +105,9 @@ test('py3 schemas: Pydantic models with fields, inheritance followed across the 
       ['BookBase', ['BaseModel'], [{ name: 'title', type: 'str' }, { name: 'isbn', type: 'str' }, { name: 'price_cents', type: 'int' }]],
       ['BookIn', ['BookBase'], [{ name: 'author_id', type: 'int' }]],
       ['BookOut', ['BookBase'], [{ name: 'id', type: 'int' }, { name: 'subtitle', type: 'Optional[str]' }]],
+      // a SQLModel class without table=True is a schema; the one with table=True is an entity (py2)
+      ['MemberBase', ['SQLModel'], [{ name: 'name', type: 'str' }, { name: 'email', type: 'str' }]],
+      ['MemberCreate', ['MemberBase'], [{ name: 'branch_id', type: 'int' }]],
     ],
   );
 });
@@ -101,6 +124,8 @@ test('py4 migrations: Alembic ops with table, revision and direction', () => {
     '0002/upgrade alter_column books migrations/versions/0002_add_isbn.py:13',
     '0002/upgrade execute null migrations/versions/0002_add_isbn.py:14',
     '0002/downgrade drop_column books migrations/versions/0002_add_isbn.py:19',
+    '0003/upgrade create_table loans migrations/versions/0003_create_loans.py:10-15',
+    '0003/downgrade drop_table loans migrations/versions/0003_create_loans.py:19',
   ]);
   const m1 = frag.migrations.filter((m) => m.revision === '0001');
   assert.equal(m1[0].down_revision, null);
@@ -125,6 +150,7 @@ test('py5 raw SQL tables and outbound HTTP calls', () => {
       'order_archive insert app/reports.py:15',
       'orders select app/reports.py:15',
       'stock update app/reports.py:16',
+      'fines ddl app/schema.sql:2-6',
       'shelves ddl app/stockroom.py:4-8',
       'shelf_moves ddl app/stockroom.py:9-15',
       'courier_slots ddl app/stockroom.py:22',
@@ -292,9 +318,17 @@ test('py10 prescan writes one extracts/<area>.json (and its summary) per area wi
     assert.deepEqual(emails.producers, [{ job: 'send_receipt', file: 'app/jobs.py', line: 7 }]);
     assert.deepEqual(emails.consumers, [{ handler: 'send_receipt', file: 'app/tasks.py', line: 9 }]);
 
+    // P13.6: the .sql file, the SQLModel class and the migration-only table are table rows too
+    const fines = app.tables.find((t) => t.table === 'fines');
+    assert.deepEqual([fines.orm, fines.file, fines.lines], ['sql', 'app/schema.sql', '2-6']);
+    assert.deepEqual(fines.fields, ['id INTEGER pk', 'member_id INTEGER fk=members.id', 'amount_cents INTEGER']);
+    assert.deepEqual(slice('migrations').tables.map((t) => [t.table, t.orm, t.fields]), [
+      ['loans', 'alembic', ['id Integer pk', 'book_id Integer fk=books.id', 'due_on Date']],
+    ]);
+
     const shop = slice('shop');
     assert.ok(shop.routes.some((x) => x.method === 'ANY' && x.path === '/catalog/' && x.file === 'shop/urls.py' && x.line === 9));
-    assert.deepEqual(shop.tables.map((t) => t.name), ['Publisher', 'Edition']);
+    assert.deepEqual(shop.tables.map((t) => t.name), ['Member', 'Publisher', 'Edition']);
     assert.ok(!('queues' in shop) || shop.queues.length === 0, 'rows are kept in the area that owns their file');
     assert.deepEqual(app.links.filter((l) => l.kind === 'import' && l.other === 'shop'), [
       { kind: 'import', dir: 'out', from: 'app/jobs.py', to: 'shop/models.py', other: 'shop' },
@@ -336,7 +370,7 @@ test('py11 duckdb.connect and sqlite3.connect with a path literal give a store r
 // name are references merge turns into inferred entities.
 
 test('py12 CREATE TABLE statements in string literals (a multi-statement script, a single-line call) give a ddl row with their columns, primary keys and REFERENCES targets; a constraint line is not a column', () => {
-  const ddl = Object.fromEntries(frag.sqlTables.filter((t) => t.op === 'ddl').map((t) => [t.table, t]));
+  const ddl = Object.fromEntries(frag.sqlTables.filter((t) => t.op === 'ddl' && t.evidence[0].path.endsWith('.py')).map((t) => [t.table, t]));
   assert.deepEqual(Object.keys(ddl).sort(), ['courier_slots', 'shelf_moves', 'shelves']);
   assert.deepEqual(pick(ddl.shelves.columns, ['name', 'type', 'pk', 'fk']), [
     { name: 'id', type: 'INTEGER', pk: true, fk: null },
@@ -486,4 +520,89 @@ test('py16 WITH orders AS (SELECT * FROM orders WHERE open) SELECT ... FROM orde
     'stock select 3',
   ], 'the shadowed table keeps its row from inside the CTE body; a, tree and the outer orders, stock and b name a CTE');
   assert.equal(odd.skipped.sqlTables ?? 0, 0);
+});
+
+// ---------------------------------------------------------------------------------------------
+// P13.6: the static sources are the first-class path to an entity's fields (the database file is often not in the
+// checkout), so every table a repository declares - in an ORM model, an Alembic migration or CREATE TABLE text in a
+// string literal or a .sql file - reaches the extract as a table row with its declared fields and its evidence.
+
+const STATIC_REPO = {
+  'app/__init__.py': '',
+  'app/main.py': 'from fastapi import FastAPI\napp = FastAPI()\n\n@app.get("/health")\ndef health():\n    return {}\n',
+  'app/models.py':
+    'from typing import Optional\n' +
+    'from sqlalchemy import Column, Integer, String\n' +
+    'from sqlalchemy.orm import declarative_base\n' +
+    'from sqlmodel import Field, SQLModel\n\n' +
+    'Base = declarative_base()\n\n\n' +
+    'class Account(Base):\n' +
+    '    __tablename__ = "accounts"\n' +
+    '    id = Column(Integer, primary_key=True)\n' +
+    '    email = Column(String(80))\n\n\n' +
+    'class Hero(SQLModel, table=True):\n' +
+    '    __tablename__ = "heroes"\n' +
+    '    id: Optional[int] = Field(default=None, primary_key=True)\n' +
+    '    name: str\n' +
+    '    team_id: int = Field(foreign_key="teams.id")\n\n\n' +
+    'class HeroCreate(SQLModel):\n' +
+    '    name: str\n',
+  'app/ddl.py': 'SCHEMA = """\nCREATE TABLE ledger (\n  id INTEGER PRIMARY KEY,\n  amount INTEGER NOT NULL\n);\n"""\n',
+  'db/schema.sql': 'CREATE TABLE IF NOT EXISTS warehouse_bins (\n  bin_id TEXT PRIMARY KEY,\n  capacity INTEGER\n);\n',
+  'migrations/versions/0100_invoices.py':
+    'from alembic import op\nimport sqlalchemy as sa\n\nrevision = "0100"\ndown_revision = None\n\n\n' +
+    'def upgrade():\n' +
+    '    op.create_table(\n' +
+    '        "invoices",\n' +
+    '        sa.Column("id", sa.Integer(), primary_key=True),\n' +
+    '        sa.Column("account_id", sa.Integer(), sa.ForeignKey("accounts.id")),\n' +
+    '        sa.Column("note", sa.Text()),\n' +
+    '    )\n\n\n' +
+    'def downgrade():\n    op.drop_table("invoices")\n',
+  'migrations/versions/0101_paid.py':
+    'from alembic import op\nimport sqlalchemy as sa\n\nrevision = "0101"\ndown_revision = "0100"\n\n\n' +
+    'def upgrade():\n    op.add_column("invoices", sa.Column("paid_at", sa.DateTime()))\n\n\n' +
+    'def downgrade():\n    op.drop_column("invoices", "paid_at")\n',
+};
+
+test('py17 a repository with SQLAlchemy and SQLModel models, an Alembic migration, a CREATE TABLE string literal and a .sql file and no database file yields every table as a table row with its declared fields and evidence', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'archmap-pystatic-'));
+  try {
+    for (const [f, text] of Object.entries(STATIC_REPO)) {
+      mkdirSync(dirname(join(dir, f)), { recursive: true });
+      writeFileSync(join(dir, f), text);
+    }
+    const g = (...a) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...a], { cwd: dir });
+    g('init', '-q');
+    g('add', '-A');
+    g('commit', '-q', '-m', 'fixture');
+    assert.ok(!Object.keys(STATIC_REPO).some((f) => /\.(?:duckdb|sqlite3?|db)$/.test(f)), 'no database file in the checkout');
+
+    const work = mkdtempSync(join(tmpdir(), 'archmap-pystatic-out-'));
+    try {
+      const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'prescan.mjs'), dir, '--out', join(work, 'prescan.json')], { encoding: 'utf8' });
+      assert.equal(r.status, 0, r.stderr);
+      const rows = readdirSync(join(work, 'extracts'))
+        .filter((f) => !f.endsWith('.summary.json'))
+        .flatMap((f) => JSON.parse(readFileSync(join(work, 'extracts', f), 'utf8')).tables ?? []);
+      const byTable = Object.fromEntries(rows.map((t) => [t.table ?? t.name, t]));
+      assert.deepEqual(Object.keys(byTable).sort(), ['accounts', 'heroes', 'invoices', 'ledger', 'warehouse_bins']);
+
+      const row = (t) => `${t.orm} ${t.fields.join(' | ')} @${t.file}:${t.lines}`;
+      assert.equal(row(byTable.accounts), 'sqlalchemy id Integer pk | email String(80) @app/models.py:9-12');
+      assert.equal(row(byTable.heroes), 'sqlmodel id Optional[int] pk | name str | team_id int fk=teams.id @app/models.py:15-19');
+      assert.equal(row(byTable.ledger), 'sql id INTEGER pk | amount INTEGER @app/ddl.py:2-5');
+      assert.equal(row(byTable.warehouse_bins), 'sql bin_id TEXT pk | capacity INTEGER @db/schema.sql:1-4');
+      assert.equal(
+        row(byTable.invoices),
+        'alembic id Integer pk | account_id Integer fk=accounts.id | note Text | paid_at DateTime @migrations/versions/0100_invoices.py:9-14',
+        'a table only a migration declares: the columns of create_table then those of the later add_column; the evidence is the create_table',
+      );
+      assert.ok(!rows.some((t) => t.name === 'HeroCreate'), 'a SQLModel class without table=True is a schema, not a table');
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

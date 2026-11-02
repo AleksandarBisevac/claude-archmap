@@ -1,7 +1,12 @@
 # Schema introspection
 
 Static schema sources come first (ORM models, migrations, DDL, Pydantic or OpenAPI): they give `declared` fields.
-Introspection adds `observed` fields from a live database. It is optional, read-only and bounded by the rules below.
+Prescan reads SQLAlchemy, SQLModel, Django, Prisma, Drizzle and TypeORM models, Alembic and Knex migrations and
+`CREATE TABLE` in `.sql` files and string literals into table rows, and merge makes the entity with its `declared`
+fields from them, so a repository whose database file is not in the checkout still has entities with fields.
+Introspection adds `observed` fields to the declared ones; it never replaces them and is not needed for them. A missing
+database is a skipped introspection (recorded in `meta.sources`), not an entity without fields: where introspection was
+skipped, no field is `observed`. It is optional, read-only and bounded by the rules below.
 
 ## Rules
 

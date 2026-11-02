@@ -3,8 +3,10 @@
 // extractPython(files, read) -> fragment
 //   { scanned, routes[], entities[], schemas[], migrations[], sqlTables[], httpCalls[], envKeys[],
 //     clients[], queues[], stores[], middleware[], modules[], skipped{<kind>: n}, truncated{<kind>: n} }
-// Routes (FastAPI/Flask decorators, Django urls), SQLAlchemy/Django entities with fields, Pydantic
-// schemas, Alembic migration ops, raw SQL table names, outbound HTTP calls, environment variables
+// Routes (FastAPI/Flask decorators, Django urls), SQLAlchemy/SQLModel/Django entities with fields (a table only an
+// Alembic migration declares is an entity too, framework 'alembic', from its replayed upgrade ops), Pydantic and
+// SQLModel schemas, Alembic migration ops, raw SQL table names (string literals and .sql files, a CREATE TABLE with
+// its columns), outbound HTTP calls, environment variables
 // read (names only), SDK clients and base URLs, and task queues (Celery, Dramatiq, RQ, pika) with
 // their producers and consumers, and file databases opened by path (duckdb.connect, sqlite3.connect: a store
 // row with kind, path and evidence whether or not the file is in the repository). Two lists feed the coverage
@@ -296,7 +298,7 @@ function columnFacts(f, args, annotation) {
       fk = inner ? resolveArg(f, inner.args[0]) : null;
       continue;
     }
-    if (type === null) type = stripSa(text(f, p));
+    if (type === null) type = stripSa(text(f, p)).replace(/\(\s*\)$/, ''); // sa.Integer() and sa.Integer are one type
   }
   if (annotation) {
     const mm = /^(?:\w+\.)?Mapped\[(.*)\]$/.exec(annotation.trim());
@@ -417,6 +419,52 @@ function sqlalchemyEntity(f, cls) {
   return { table: resolveStr(f, a, a + tn.m[2].length) };
 }
 
+/** The table of a SQLModel table class: its `__tablename__` literal, else the class name lowercased (SQLModel's default). */
+function sqlmodelTable(f, cls) {
+  const sa = sqlalchemyEntity(f, cls);
+  if (sa) return sa.table;
+  return cls.name.toLowerCase();
+}
+
+/**
+ * The columns of a SQLModel class: annotated attributes, those of its SQLModel bases first (a table class often extends
+ * a plain SQLModel base that holds the fields). `Field(primary_key=True, foreign_key="t.col")` gives the key and the
+ * target; a `Relationship(...)`, a ClassVar and a private name are not columns.
+ */
+function sqlmodelFields(f, cls, byClass, seen) {
+  if (seen.has(cls.name)) return [];
+  seen.add(cls.name);
+  const fields = [];
+  for (const b of cls.bases) {
+    const base = byClass.get(lastSeg(b));
+    if (base) for (const x of sqlmodelFields(base.f, base.cls, byClass, seen)) fields.push(x);
+  }
+  const re = /^([ \t]+)([A-Za-z_]\w*)[ \t]*:[ \t]*([^=\n]+?)[ \t]*(?:=(?!=)[ \t]*((?:\w+\.)*\w+[ \t]*\()?[^\n]*)?$/gm;
+  for (const { m, off } of bodyMatches(f, cls, re)) {
+    if (m[2].startsWith('_') || /^(?:typing\.)?ClassVar\b/.test(m[3])) continue;
+    const a = off + m[0].indexOf(m[3], m[1].length + m[2].length);
+    const type = clip(f.src.slice(a, a + m[3].length).replace(/\s+/g, ' '));
+    let pk = false;
+    let fk = null;
+    if (m[4]) {
+      const callee = lastSeg(m[4].replace(/[ \t]*\($/, ''));
+      if (callee === 'Relationship') continue;
+      if (callee === 'Field') {
+        const call = callArgs(f, off + m[0].indexOf(m[4], m[1].length + m[2].length) + m[4].length - 1);
+        if (call) {
+          pk = isTrue(f, kwArg(f, call.args, 'primary_key'));
+          fk = clip(resolveArg(f, kwArg(f, call.args, 'foreign_key')));
+        }
+      }
+    }
+    const at = fields.findIndex((x) => x.name === m[2]);
+    const field = { name: m[2], type, pk, fk };
+    if (at >= 0) fields[at] = field; // a subclass redeclares an inherited field
+    else fields.push(field);
+  }
+  return fields;
+}
+
 function extractEntitiesAndSchemas(parsed, acc) {
   // Class index across the repo, so inheritance can be followed between files.
   const all = [];
@@ -436,11 +484,21 @@ function extractEntitiesAndSchemas(parsed, acc) {
     }
     return names;
   };
-  const pydantic = closure((b) => b === 'BaseModel');
+  const pydantic = closure((b) => b === 'BaseModel' || b === 'SQLModel');
   const django = closure((b) => b === 'Model');
+  const byClass = new Map(all.map((x) => [x.cls.name, x]));
+  // a SQLModel class is a table when its header says table=True (SQLModel's own switch)
+  const isSqlmodelTable = (cls) => cls.bases.some((b) => /^table\s*=\s*True$/.test(b)) && pydantic.has(cls.name);
 
   for (const { f, cls } of all) {
     const ev = evidence(f, cls.start, cls.end);
+    if (isSqlmodelTable(cls)) {
+      const table = sqlmodelTable(f, cls);
+      const fields = sqlmodelFields(f, cls, byClass, new Set());
+      if (table === null) acc.skipped.entities++;
+      else acc.entities.push({ framework: 'sqlmodel', name: cls.name, table: clip(table), fields: fields.slice(0, MAX_FIELDS), evidence: ev });
+      continue;
+    }
     if (pydantic.has(cls.name)) {
       const fields = bodyMatches(f, cls, /^([ \t]+)([A-Za-z_]\w*)[ \t]*:[ \t]*([^=\n]+?)[ \t]*(?:=[^\n]*)?$/gm)
         .filter(({ m }) => !m[2].startsWith('model_') && !/^ClassVar\b/.test(m[3]))
@@ -589,6 +647,76 @@ function extractSql(f, acc) {
       const ev = evidence(f, s.bodyStart + st.a, s.bodyStart + st.b);
       for (const r of st.refs) acc.sqlTables.push({ ...r, table: clip(r.table), evidence: ev });
     }
+  }
+}
+
+// The same statements in a .sql file (a schema, a migration or a dump kept beside the code): one row per table, op and
+// statement, a CREATE TABLE with its columns. A file that is not text is not read.
+function extractSqlFile(path, src, acc) {
+  const starts = [0];
+  for (let i = 0; i < src.length; i++) if (src[i] === '\n') starts.push(i + 1);
+  const lineOf = (off) => {
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid] <= off) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  };
+  const { statements, skipped } = sqlStatements(src);
+  acc.skipped.sqlTables += skipped;
+  for (const st of statements) {
+    const x = lineOf(st.a);
+    const y = lineOf(Math.max(st.a, st.b - 1));
+    const ev = [{ path, lines: y > x ? `${x}-${y}` : `${x}` }];
+    for (const r of st.refs) acc.sqlTables.push({ ...r, table: clip(r.table), evidence: ev });
+  }
+}
+
+/**
+ * The tables only an Alembic migration declares. The upgrade ops are replayed in revision order (down_revision chain,
+ * then path): create_table sets the columns, add_column and drop_column change them, drop_table removes the table. A
+ * table a model (SQLAlchemy, SQLModel, Django) or a CREATE TABLE statement already declares is that source's: a migration
+ * is the history of the table, the model its current shape. The row is an entity {framework: 'alembic', name: table,
+ * table, fields, evidence at the create_table}, so a repository whose schema lives only in its migrations still has
+ * tables with fields.
+ */
+function foldMigrations(acc) {
+  const ups = acc.migrations.filter((m) => m.direction === 'upgrade' && typeof m.table === 'string');
+  if (!ups.length) return;
+  const down = new Map(ups.map((m) => [m.revision, m.down_revision]));
+  const depth = (rev) => {
+    let n = 0;
+    for (let r = down.get(rev); typeof r === 'string' && down.has(r) && n < 10000; r = down.get(r)) n++;
+    return n;
+  };
+  const ordered = ups.slice().sort((a, b) => depth(a.revision) - depth(b.revision) || byCodeUnit(a.evidence[0].path, b.evidence[0].path) || lineNo(a) - lineNo(b));
+  const tables = new Map();
+  for (const m of ordered) {
+    const key = m.table.toLowerCase();
+    const cols = (m.columns ?? []).map((c) => ({ ...c }));
+    if (m.op === 'create_table') tables.set(key, { table: m.table, fields: cols, evidence: m.evidence });
+    else if (m.op === 'drop_table') tables.delete(key);
+    else if (tables.has(key) && m.op === 'add_column') {
+      const t = tables.get(key);
+      for (const c of cols) {
+        const at = t.fields.findIndex((x) => x.name === c.name);
+        if (at >= 0) t.fields[at] = c;
+        else t.fields.push(c);
+      }
+    } else if (tables.has(key) && m.op === 'drop_column') {
+      const t = tables.get(key);
+      t.fields = t.fields.filter((x) => !cols.some((c) => c.name === x.name));
+    }
+  }
+  const declared = new Set();
+  for (const e of acc.entities) if (typeof e.table === 'string') declared.add(e.table.toLowerCase());
+  for (const t of acc.sqlTables) if (t.op === 'ddl' && Array.isArray(t.columns)) declared.add(t.table.toLowerCase());
+  for (const [key, t] of tables) {
+    if (declared.has(key) || !t.fields.length) continue;
+    acc.entities.push({ framework: 'alembic', name: t.table, table: t.table, fields: t.fields.slice(0, MAX_FIELDS), evidence: t.evidence });
   }
 }
 
@@ -816,7 +944,12 @@ export function extractPython(files, read) {
     extractSql(f, acc);
     extractHttp(f, acc);
   }
+  for (const path of files.filter((p) => /\.sql$/i.test(p)).slice().sort(byCodeUnit)) {
+    const src = read(path);
+    if (typeof src === 'string') extractSqlFile(path, src, acc);
+  }
   extractEntitiesAndSchemas(parsed, acc);
+  foldMigrations(acc);
   extractQueues(parsed, acc);
   const pyFiles = files.filter((p) => /\.py$/.test(p));
   acc.envKeys.push(...scanEnvKeys(pyFiles, read, 'py'));

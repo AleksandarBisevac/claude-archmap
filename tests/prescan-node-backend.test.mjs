@@ -526,3 +526,46 @@ test('nb15 new Queue(param) with an unresolved lowercase identifier (a parameter
   assert.deepEqual(f.queues[0].workers.map((w) => `${w.handler} ${ev(w)}`), ['handler src/factory.ts:9']);
   assert.equal(f.skipped.queues, 3, 'new Queue(name), new Queue(queueName) and new Queue(jobsName) are counted, never guessed');
 });
+
+// P13.6: Knex migrations are a static schema source too (the database file is not in the checkout): a createTable
+// is a table row with the fields its callback declares, an alterTable of a table a migration created adds its columns.
+test('nb16 Knex migrations: createTable (chained or not) gives a knex table with fields, PK and FK from references/inTable/foreign; a later alterTable adds its columns; a table another ORM declares is not repeated', () => {
+  const f = memFrag({
+    'db/migrations/20240101_init.js':
+      'exports.up = function (knex) {\n' +
+      '  return knex.schema\n' +
+      "    .createTable('users', (t) => {\n" +
+      "      t.increments('id');\n" +
+      "      t.string('email', 120).notNullable();\n" +
+      "      t.integer('team_id').unsigned().references('id').inTable('teams');\n" +
+      '    })\n' +
+      "    .createTable('teams', function (table) {\n" +
+      "      table.uuid('id').primary();\n" +
+      "      table.text('name');\n" +
+      "      table.integer('owner_id').references('users.id');\n" +
+      '      table.timestamps(true, true);\n' +
+      '    });\n' +
+      '};\n' +
+      "exports.down = function (knex) { return knex.schema.dropTable('teams').dropTable('users'); };\n",
+    'db/migrations/20240201_seen.js':
+      'export async function up(knex) {\n' +
+      "  await knex.schema.alterTable('users', (t) => {\n" +
+      "    t.timestamp('seen_at');\n" +
+      "    t.integer('badge_id');\n" +
+      "    t.foreign('badge_id').references('id').inTable('badges');\n" +
+      '  });\n' +
+      '}\n' +
+      'export async function down(knex) {}\n',
+    'db/migrations/20240301_lone.js':
+      "exports.up = (knex) => knex.schema.createTable('badges', (t) => { t.increments('id'); t.string('label'); });\n",
+    'db/schema.ts': "import { pgTable, serial } from 'drizzle-orm/pg-core';\nexport const badges = pgTable('badges', { id: serial('id').primaryKey() });\n",
+    'db/migrations/20240401_dynamic.js': "exports.up = (knex) => knex.schema.createTable(NAME, (t) => { t.increments('id'); });\n",
+  });
+  const knex = f.entities.filter((e) => e.orm === 'knex');
+  const rows = knex.map((e) => `${e.table} | ${e.fields.map((x) => `${x.name} ${x.type}${x.pk ? ' pk' : ''}${x.fk ? ` fk=${x.fk}` : ''}`).join(' | ')} @${ev(e)}`);
+  assert.deepEqual(rows, [
+    'users | id increments pk | email string | team_id integer fk=teams.id | seen_at timestamp | badge_id integer fk=badges.id @db/migrations/20240101_init.js:3-7',
+    'teams | id uuid pk | name text | owner_id integer fk=users.id | created_at timestamp | updated_at timestamp @db/migrations/20240101_init.js:8-13',
+  ], 'badges is the drizzle table\'s, not repeated; a computed table name is skipped');
+  assert.equal(f.skipped.entities, 1);
+});

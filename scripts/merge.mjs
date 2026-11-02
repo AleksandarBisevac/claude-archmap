@@ -488,6 +488,11 @@ const isQueueOf = (n, name) => {
   const want = new Set([slug(name), queueId(name), `queue-${slug(name)}`]);
   return [n.id, n.title].some((x) => typeof x === 'string' && want.has(slug(x)));
 };
+/** A meta.sources row that records introspection not run (the pipeline's `introspection-skipped`, or a skipped row of the introspection area). */
+const isSkippedIntrospection = (r) => isObj(r) && r.status === 'skipped' && (r.area === 'introspection' || /^introspection/.test(String(r.type ?? '')));
+/** A meta.sources row that records introspection run: a row of the introspection area with status ok. */
+const isRunIntrospection = (r) => isObj(r) && r.status === 'ok' && r.area === 'introspection';
+
 /** "<name> <type...> [pk] [fk=<target>]", the field row of a prescan table; null for a "+N more" row. */
 function parseFieldRow(row) {
   const parts = String(row).trim().split(/\s+/);
@@ -1771,6 +1776,26 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
         dropRow(areaOf(origin.entities, id), `${id}.${fld.name}`, fld.fk.entity, `foreign key ${id}.${fld.name}`);
         delete fld.fk;
       }
+    }
+  }
+  // introspection recorded as skipped and no run of it recorded as ok: nothing observed any field, so the static
+  // sources (unioned into the entities above, as declared) are all the fields have. A field an explorer marked
+  // observed that no static source named is relabelled inferred, once, in one normalisation row.
+  if (!prev && sources.some(isSkippedIntrospection) && !sources.some(isRunIntrospection)) {
+    const relabelled = [];
+    for (const [id, e] of [...entities].sort(([a], [b]) => cmp(a, b))) {
+      for (const fld of list(e.fields)) {
+        if (isObj(fld) && fld.provenance === 'observed') {
+          fld.provenance = 'inferred';
+          relabelled.push(`${id}.${fld.name}`);
+        }
+      }
+    }
+    if (relabelled.length) {
+      sources.push({
+        area: 'merge', type: 'normalisation', fields: relabelled,
+        note: `introspection was skipped, so nothing observed a field: ${relabelled.length} field(s) marked observed and named by no static source relabelled inferred (${relabelled.slice(0, 5).join(', ')}${relabelled.length > 5 ? ', ...' : ''})`,
+      });
     }
   }
   for (const x of leftOut) {

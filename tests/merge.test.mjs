@@ -1721,3 +1721,62 @@ test('m30e update with --changed: an entity with no evidence is never carried, s
   assert.deepEqual(en(run([]), 'orders').fields.map((f) => f.name), ['id', 'total']);
   assert.equal(json(run(['api/svc.js'])), json(model), 'deterministic');
 });
+
+// ---------------------------------------------------------------------------------------------
+// P13.6: when the database file is not in the checkout introspection is recorded as skipped, and the static sources
+// are all the entity has: its declared fields are kept (the explorer's and the extract's, unioned), and no field of
+// it is marked observed, because nothing observed it. A field an explorer marked observed that no static source names
+// and no run of introspection backs is relabelled inferred, and the relabelling is one normalisation row.
+
+const introFrag = (status) => frag('introspection', {
+  sources: [status === 'ok'
+    ? { kind: 'sqlite', path: 'data/shop.db', status: 'ok', store: 'main-db', entities: 0, alreadyDeclared: 1 }
+    : { type: 'introspection-skipped', kind: 'sqlite', path: 'data/shop.db', status: 'skipped', reason: 'data/shop.db does not exist in the repository' }],
+});
+const staticFrags = (status) => [
+  frag('db', {
+    nodes: [node('main-db', { zone: 'data', kind: 'store', paths: ['db/**'] })],
+    entities: [
+      {
+        id: 'user', store: 'main-db', name: 'users', kind: 'table', evidence: ev('db/models.py', '3-6'),
+        fields: [{ name: 'id', type: 'serial', pk: true, provenance: 'declared' }, { name: 'lastSeen', type: 'timestamp', provenance: 'observed' }],
+      },
+      { id: 'bare', store: 'main-db', name: 'ledger', kind: 'table', fields: [], evidence: ev('db/ddl.py', '2-5') },
+    ],
+  }),
+  introFrag(status),
+];
+const staticExtracts = () => [
+  {
+    area: 'db', stacks: ['python'], links: [], queues: [],
+    tables: [
+      { name: 'User', table: 'users', orm: 'sqlalchemy', fields: ['id Integer pk', 'email String(80)'], file: 'db/models.py', line: 3, lines: '3-6' },
+      { name: 'ledger', table: 'ledger', orm: 'sql', fields: ['id INTEGER pk', 'amount INTEGER'], file: 'db/ddl.py', line: 2, lines: '2-5' },
+      { name: 'invoices', table: 'invoices', orm: 'alembic', fields: ['id Integer pk', 'paid_at DateTime'], file: 'migrations/0100.py', line: 9, lines: '9-13' },
+    ],
+  },
+];
+const fieldsOf = (model) => Object.fromEntries(model.entities.map((e) => [e.name, e.fields.map((f) => `${f.name}:${f.provenance}`)]));
+
+test('m32 an entity whose introspection is recorded as skipped in meta.sources keeps its declared fields, takes those the static sources declare that it lacks, and gains none marked observed', () => {
+  const { model } = merge({ fragments: staticFrags('skipped'), extracts: staticExtracts(), meta: META });
+  assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
+  assert.ok(model.meta.sources.some((s) => s.status === 'skipped' && s.area === 'introspection'), 'the skip stays recorded');
+  assert.deepEqual(fieldsOf(model), {
+    users: ['id:declared', 'email:declared', 'lastSeen:inferred'],
+    ledger: ['id:declared', 'amount:declared'],
+    invoices: ['id:declared', 'paid_at:declared'],
+  }, 'the explorer\'s field stays, the extract\'s missing ones are added as declared, the unbacked observed one is inferred');
+  for (const e of model.entities) assert.ok(e.fields.every((f) => f.provenance !== 'observed'), `${e.name} has no observed field`);
+  const row = model.meta.sources.find((s) => s.type === 'normalisation' && /observed/.test(s.note ?? ''));
+  assert.ok(row, 'the relabelling is recorded as a normalisation row');
+  assert.match(row.note, /1 field/);
+});
+
+test('m32b the same fragments with introspection recorded as run keep the observed field observed, and without any introspection row nothing is relabelled', () => {
+  const ran = merge({ fragments: staticFrags('ok'), extracts: staticExtracts(), meta: META }).model;
+  assert.deepEqual(fieldsOf(ran).users, ['id:declared', 'email:declared', 'lastSeen:observed']);
+  assert.ok(!ran.meta.sources.some((s) => s.type === 'normalisation' && /observed/.test(s.note ?? '')));
+  const none = merge({ fragments: staticFrags('skipped').slice(0, 1), extracts: staticExtracts(), meta: META }).model;
+  assert.deepEqual(fieldsOf(none).users, ['id:declared', 'email:declared', 'lastSeen:observed'], 'no record of a skip, so no claim about it');
+});
