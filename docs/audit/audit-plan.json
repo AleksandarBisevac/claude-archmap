@@ -10143,7 +10143,7 @@
         {
           "id": "P13.8",
           "title": "Mixed fixture build: the no-LLM chain, one headless build and its tracked cost profile",
-          "status": "blocked",
+          "status": "in_progress",
           "description": "Add tests/fixtures/repos/mixed-platform combining a small API, a compose file, a GitHub workflow, a Terraform module and a dbt project, run the no-LLM chain on it in tests/e2e.test.mjs (prescan, merge, validate, layout, render), and run one headless /archmap:build of it (balanced, no issues) whose cost profile is tracked as skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json with a row in the evals README build table and in the README cost table; tests/readme.test.mjs r2 re-derives the figures from the profile.",
           "files": [
             "tests/fixtures/repos/mixed-platform",
@@ -10152,7 +10152,8 @@
             "skills/architecture-map/evals/README.md",
             "skills/architecture-map/evals/evals.json",
             "README.md",
-            "tests/readme.test.mjs"
+            "tests/readme.test.mjs",
+            "tests/evals.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
@@ -10174,18 +10175,22 @@
             "P13.5",
             "P13.6"
           ],
-          "attempts": 1,
+          "attempts": 2,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": "2026-11-02T23:17:34Z",
+          "startedAt": "2026-11-02T23:27:47Z",
           "completedAt": null,
           "verifiedBy": [],
           "reviewPerTask": "phase",
-          "blockedReason": "Waits on P13.12-exy: the headless mixed build and its tracked profile must run against the final area-stack briefing, so the platform-only areas of the fixture are briefed with their own stack references"
+          "testEvidence": {
+            "runId": "2026-11-02T23:42:01Z.6d7836",
+            "status": "passed",
+            "at": "2026-11-02T23:42:01Z"
+          }
         },
         {
           "id": "P13.9",
@@ -10385,7 +10390,7 @@
         {
           "id": "P13.12-exy",
           "title": "Area stacks include the platform stacks detected inside the area, so a platform-only area brief names its stack reference",
-          "status": "in_progress",
+          "status": "done",
           "description": "Gap left by P13.5: an area's stacks stay the code stacks (pc3 pins them), so a platform-only area (an infra directory of .tf files, a compose-only deploy directory, a dbt project) is briefed with discovery-generic.md and never sees stack-iac.md, stack-containers.md, stack-pipelines.md or stack-data-platform.md, although the top-level stacks list the plug-ins. Make the area stacks the union of the code stacks and the platform stacks whose plug-in detect() fires on files inside the area globs (scripts/prescan.mjs areaExtracts / partition.mjs), keep the order deterministic, update pc3 to the new rule with the reason, and let stackRefFor in scripts/pipeline.mjs hand every stack reference of the area to its explorer brief. No agent prompt changes; the summary budget stays.",
           "files": [
             "scripts/prescan.mjs",
@@ -10416,19 +10421,33 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "784ecfd2b777",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "scripts/prescan.mjs: new platformStacksIn(plugins, paths, read) runs each platform plug-in's detect() over the area's own files in fixed order containers, pipelines, iac, data-platform; area stacks = detectStacks (code, existing order) then those. partition.mjs untouched (area .paths already carry the files). scripts/pipeline.mjs: new exported stackRefsFor(stacks) returns every reference of the area in the area's order, deduped, discovery-generic.md only when none; stackRefFor is now its ', '-joined string; plan passes join(REFS, f) for each to explorerBrief's existing stackRef line (no template text change, summary budget and brief cap untouched). Tests: pw8 (prescan-wiring) builds a repo with python and ts areas plus infra/terraform, deploy compose, .github workflows, a dbt project and a Dockerfile in the web area, and pins terraform-only=[iac], compose-only=[containers], workflow-only=[pipelines], dbt-only=[data-platform], web=[ts-frontend, containers], api=[python]. p42 (pipeline) runs plan on a node-api copy with terraform, compose and a root Dockerfile and checks the iac and containers area briefs name stack-iac.md / stack-containers.md and not discovery-generic.md, the root area brief names stack-node-backend.md and stack-containers.md, and stackRefFor joins them. Updated existing pins: pc3 (api/ holds a Dockerfile so its stacks are [python, containers]; reason in a comment), pw7 (the 'area stacks stay code stacks' assertion now allows only the fixture's own platform stack), p41 (first-wins assertion replaced by every-reference-in-order and dedupe/unknown cases). Runs: node --test on the three files = 68 pass 0 fail; full node --test = 574 pass 0 fail. Dependants: tests/merge.test.mjs, evals, skill, commands tests and docs/architecture files that name prescan.mjs or pipeline.mjs still pass in the full suite (area stacks unchanged for areas with no platform file; committed maps not touched). usage.mjs only names pipeline.mjs by path, unaffected. discovery-generic.md reference still used for areas with no recognised stack.",
+            "descriptive": "A platform-only area (Terraform, compose, workflows, dbt) is now briefed with its own stack reference, and a mixed area names every reference of its stacks."
           },
           "startedAt": "2026-11-02T23:19:07Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T23:27:42Z",
+          "verifiedBy": [
+            "pw8: platform-only areas carry their platform stack, a code area with a Dockerfile carries code stack then containers, an area without platform files keeps code stacks only",
+            "p42: explorer briefs of platform-only areas name their stack reference instead of discovery-generic.md; a mixed area names every reference"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T23:27:41Z.103d0e",
             "status": "passed",
             "at": "2026-11-02T23:27:41Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "784ecfd2b777",
+            "at": "2026-11-02T23:27:42Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T23:26:44Z",
+            "basis": "`node --test tests/prescan-wiring.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         }
       ],
@@ -11214,7 +11233,8 @@
       "P11.6",
       "P9.7",
       "P12.4",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.8"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"

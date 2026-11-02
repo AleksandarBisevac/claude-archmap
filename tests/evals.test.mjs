@@ -573,7 +573,7 @@ const checkCostEvidence = (readme, read = readEvidence, onDisk = evidenceFiles) 
   assert.equal(median[1], medianOf(selfNamed[2]), `self-build run 3: the median context is the orchestrator medianContext of ${selfNamed[2]}`);
   assert.equal(median[2], medianOf(selfNamed[1]), `self-build run 2: the median context is the orchestrator medianContext of ${selfNamed[1]}`);
 
-  assert.deepEqual([...named].sort(), onDisk().filter((f) => !f.includes('/self-')).sort(), 'the table names every evidence file of the evals, and each exists');
+  assert.deepEqual([...named].sort(), onDisk().filter((f) => !f.includes('/self-') && !f.includes('/mixed-')).sort(), 'the table names every evidence file of the evals, and each exists');
   const self = onDisk().filter((f) => f.includes('/self-'));
   assert.deepEqual([...selfNamed].sort(), [...self].sort(), 'the self-build table names every self-build profile, and each exists');
   for (const f of self) assert.ok(how.includes(f), `${f} is named in the subsection`);

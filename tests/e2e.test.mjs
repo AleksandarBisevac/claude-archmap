@@ -232,3 +232,87 @@ test('e5 the driver chain (pipeline.mjs plan, finish, render) on the fixture pas
   assert.doesNotMatch(html, /<script[^>]+src=|<link[^>]+stylesheet/i, 'scripts and styles are inline');
   assert.doesNotMatch(html.replace(/<script type="application\/json"[\s\S]*?<\/script>/g, ''), /\bfetch\(\s*['"`]https?:/, 'no remote fetch');
 });
+
+// e6: the mixed fixture (an API, a compose file, a workflow, a Terraform module, a dbt project) through the whole
+// no-LLM chain. The one explorer fragment is the API node, the only thing a script cannot name by itself; every
+// container, pipeline, resource and dbt element comes from the prescan extractors through merge --extracts.
+const MIXED_SRC = join(ROOT, 'tests/fixtures/repos/mixed-platform');
+const MIXED_API_FRAGMENT = {
+  area: 'misc',
+  nodes: [{
+    id: 'parcel-api', zone: 'service', kind: 'route-group', title: 'Parcel API', paths: ['src/**'], level: 2,
+    role: 'HTTP API that lists parcels and reads one by id.',
+    evidence: [{ path: 'src/server.js', lines: '1-17' }],
+  }],
+  edges: [], entities: [], access: [],
+  coverage: ['.github/**', 'src/**'],
+};
+
+// one full chain over a fresh git copy of the fixture; returns the bytes of the three artifacts and the checks' output
+const runMixedChain = (name) => {
+  const mrepo = join(work, `mixed-${name}`);
+  const w = join(work, `mixed-${name}-work`);
+  const frags = join(w, 'fragments');
+  cpSync(MIXED_SRC, mrepo, { recursive: true });
+  // fixed dates make the commit id, and so meta.commit, the same in both copies
+  const gitFixed = (...args) => execFileSync('git', ['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.invalid', '-c', 'commit.gpgsign=false', ...args],
+    { cwd: mrepo, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: GENERATED_AT, GIT_COMMITTER_DATE: GENERATED_AT } }).trim();
+  gitFixed('init', '-q');
+  gitFixed('add', '-A');
+  gitFixed('commit', '-q', '-m', 'initial');
+  const commit = gitFixed('rev-parse', 'HEAD');
+  mkdirSync(frags, { recursive: true });
+  const f = { prescan: join(w, 'prescan.json'), model: join(w, 'model.json'), layout: join(w, 'layout.json'), html: join(w, 'archmap.html') };
+
+  run('prescan.mjs', [mrepo, '--out', f.prescan]);
+  const pre = readJson(f.prescan);
+  for (const area of pre.areas) {
+    writeFileSync(join(frags, `${area.id}.json`), JSON.stringify(area.id === 'misc'
+      ? MIXED_API_FRAGMENT
+      : { area: area.id, nodes: [], edges: [], entities: [], access: [], coverage: ['*'] }));
+  }
+  run('merge.mjs', [frags, '--out', f.model, '--extracts', join(w, 'extracts'), '--repo', mrepo, '--commit', commit,
+    '--project', 'parcel-platform', '--profile', 'balanced', '--generated-at', GENERATED_AT]);
+  const validated = run('validate.mjs', [f.model, '--repo', mrepo]);
+  run('layout.mjs', [f.model, '--out', f.layout]);
+  run('render.mjs', [f.model, '--layout', f.layout, '--out', f.html]);
+  return { pre, validated, model: readFileSync(f.model, 'utf8'), layout: readFileSync(f.layout, 'utf8'), html: readFileSync(f.html, 'utf8') };
+};
+
+test('e6 the mixed fixture goes through prescan, merge, validate --repo, layout and render with nodes of all four new kinds and the API, every element with evidence, byte-identical on a second run', () => {
+  const first = runMixedChain('a');
+  assert.deepEqual(first.pre.stacks.map((s) => s.id ?? s).sort(), ['containers', 'data-platform', 'iac', 'node-backend', 'pipelines']);
+  assert.match(first.validated, /^OK: no findings$/m);
+  assert.match(first.validated, /evidence: checked/);
+
+  const model = JSON.parse(first.model);
+  const byId = Object.fromEntries(model.nodes.map((n) => [n.id, n]));
+  const kindsOf = (re) => model.nodes.filter((n) => re.test(n.kind)).map((n) => n.id);
+  // the API the explorer named, and one node of each platform kind, each citing the file it comes from
+  assert.ok(byId['parcel-api'], 'the API node');
+  assert.deepEqual(model.nodes.filter((n) => n.evidence.some((e) => e.path === 'docker-compose.yml')).map((n) => n.id).sort(), ['api', 'db'], 'containers: the compose services');
+  assert.deepEqual(kindsOf(/^pipeline$/), ['parcel-api-ci']);
+  assert.deepEqual(kindsOf(/^job$/), ['parcel-api-ci-build-and-push', 'parcel-api-ci-test']);
+  assert.deepEqual(kindsOf(/^resource$/), ['aws-db-instance-parcels', 'aws-instance-api', 'aws-vpc-main']);
+  assert.deepEqual(kindsOf(/^model$/), ['parcels-by-status', 'stg-parcels']);
+  assert.deepEqual(kindsOf(/^source$/), ['parcels-db-parcels']);
+  assert.ok(model.edges.some((e) => e.type === 'lineage'), 'dbt lineage edges');
+  assert.ok(model.edges.some((e) => e.id === 'aws-instance-api-depends-aws-db-instance-parcels'), 'a Terraform reference edge');
+  assert.ok(model.edges.some((e) => e.id === 'parcel-api-ci-build-and-push-depends-parcel-api-ci-test'), 'a workflow needs edge');
+  assert.ok(model.entities.some((e) => e.name === 'parcels'), 'the table the code queries');
+
+  // every element carries evidence at a real line (validate --repo checked the lines exist)
+  for (const [kind, list] of [['node', model.nodes], ['edge', model.edges], ['entity', model.entities]]) {
+    for (const el of list) assert.ok(Array.isArray(el.evidence) && el.evidence.length > 0, `${kind} ${el.id} has evidence`);
+  }
+
+  const layout = JSON.parse(first.layout);
+  assert.deepEqual(Object.keys(layout.graph.nodes).sort(), ids(model.nodes));
+  for (const id of ['parcel-api', 'aws-vpc-main', 'stg-parcels', 'parcel-api-ci']) assert.ok(first.html.includes(id), `${id} is in the page`);
+
+  // a second run over a second copy of the fixture is byte-identical in the model, the layout and the page
+  const second = runMixedChain('b');
+  assert.equal(second.model, first.model, 'the model is byte-identical');
+  assert.equal(second.layout, first.layout, 'the layout is byte-identical');
+  assert.equal(second.html, first.html, 'the page is byte-identical');
+});

@@ -173,6 +173,17 @@ report lists them, and each model passed `validate.mjs` with `--repo`, exit 0.
 | self-build run 2 (balanced, no issues) | `evidence/iteration-2/self-with-skill-2.json` | 1.00 USD | 10 | 57.6 K | 10 turns, 0.44 USD | 49 turns, 0.56 USD | 30 | 18 | 1 | 4 | 5 |
 | self-build run 3 (update, balanced, no issues) | `evidence/iteration-2/self-with-skill-3.json` | 0.80 USD | 11 | 54.6 K | 11 turns, 0.41 USD | 35 turns, 0.39 USD | 34 | 23 | 1 | 4 | 5 |
 | self-build run 4 (balanced, no issues), the committed map | `evidence/iteration-2/self-with-skill-4.json` | 1.65 USD | 16 | 72.6 K | 16 turns, 0.71 USD | 90 turns, 0.94 USD | 43 | 25 | 1 | 4 | 6 |
+| mixed-platform build (balanced, no issues) | `evidence/iteration-3/mixed-with-skill-1.json` | 0.50 USD | 9 | 45.1 K | 9 turns, 0.31 USD | 26 turns, 0.19 USD | 18 | 14 | 1 | 3 | 6 |
+
+The last row of the table is not a self-build: it is one build of the `tests/fixtures/repos/mixed-platform` fixture
+(a small Node API, a compose file, a GitHub Actions workflow, a Terraform module and a dbt project), run the same way
+(`/archmap:build`, balanced profile, without `--issues`, the orchestrator on Opus, the Sonnet explorers and
+synthesizer). The plugin ran from a clone at commit `784ecfd`; the run took 85 seconds and exited 0, all four areas
+were explored, and the model passed `validate.mjs` with `--repo` at the fixture's commit. Its cost, turns, context and
+model figures are from `evidence/iteration-3/mixed-with-skill-1.json`; the map counts are those of the model the run
+built, whose model is not tracked (only the profile is), so they are not re-derived. The fixture's end-to-end case `e6`
+in `tests/e2e.test.mjs` covers the no-LLM chain over the same repository (prescan, merge, validate, layout, render,
+byte-identical on a second run); this row is its one LLM build.
 
 Where the money goes in iteration 2, in percent of each run's cost. The figures are shares of the result-event total
 (the per-model figure in the table above); the per-agent rows come from the stream, whose output counts are a lower

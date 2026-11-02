@@ -98,7 +98,9 @@ held every fragment and the whole model in its own context; the other columns ar
 flow, where `scripts/pipeline.mjs` runs every scripted step and the explorers write their fragments to files. The
 turns and the context are those of the orchestrating session. Each file in the Evidence column is under
 `skills/architecture-map/evals/evidence/`. Evals 1 to 5 ran on three private repositories; the self-build rows are the
-builds of this repository and its update at the release head, the runs whose whole output can be shared.
+builds of this repository and its update at the release head, the runs whose whole output can be shared. The
+mixed-platform row is one build of the `tests/fixtures/repos/mixed-platform` fixture (a small Node API, a compose file,
+a GitHub Actions workflow, a Terraform module and a dbt project), which is public too.
 
 | Eval | With skill | Baseline, no skill | Orchestrator turns | Orchestrator max context | Before: iteration 1, with skill | Result | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -110,6 +112,7 @@ builds of this repository and its update at the release head, the runs whose who
 | self-build (balanced, no issues) | 1.00 USD | - | 10 | 57.6 K | - | model validates | with skill `iteration-2/self-with-skill-2.json` |
 | self-build update (balanced, no issues) | 0.80 USD | - | 11 | 54.6 K | - | model validates | with skill `iteration-2/self-with-skill-3.json` |
 | self-build (balanced, no issues), the committed map | 1.65 USD | - | 16 | 72.6 K | - | model validates | with skill `iteration-2/self-with-skill-4.json` |
+| mixed-platform build (balanced, no issues) | 0.50 USD | - | 9 | 45.1 K | - | model validates | with skill `iteration-3/mixed-with-skill-1.json` |
 
 Read the table with these caveats, which [the evals README](skills/architecture-map/evals/README.md) states in full:
 

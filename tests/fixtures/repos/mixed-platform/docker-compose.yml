@@ -1,0 +1,23 @@
+# Parcel tracker local stack (fictional test fixture, placeholders only).
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://db:5432/parcels
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: parcels
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-placeholder}
+      POSTGRES_DB: parcels
+
+volumes:
+  pgdata:

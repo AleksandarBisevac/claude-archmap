@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: parcels_db
+    description: Operational tables of the fictional parcel tracker.
+    tables:
+      - name: parcels
+        description: One row per parcel.

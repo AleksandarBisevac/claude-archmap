@@ -105,7 +105,43 @@ const expectationCounts = () =>
     JSON.parse(readFileSync(join(EVALS_DIR, 'evals.json'), 'utf8')).evals.map((e) => [String(e.id), (e.expectations ?? e.assertions).length]),
   );
 
-const checkCostTable = (text, read = readEvidence, expectations = expectationCounts()) => {
+// P13.8: the one LLM build of the mixed-platform fixture (a build, not an eval and not a self-build) is a row of the
+// README cost table and a row of the evals README build table; both re-derive from the one profile they cite. The map
+// counts of that build are not derivable (its model is not tracked), so only the profile's figures are checked.
+const MIXED_PROFILE = 'iteration-3/mixed-with-skill-1.json';
+const modelSplit = (j, model) => {
+  const m = j.byModel.find((x) => x.model === model);
+  assert.ok(m, `the profile has a ${model} byModel row`);
+  return `${m.turns} turns, ${(Math.round(m.costUsd * 100) / 100).toFixed(2)} USD`;
+};
+const checkMixedBuild = (text, evalsReadme, read = readEvidence) => {
+  const j = read(MIXED_PROFILE);
+  const { header, rows } = table(section(text, 'What a build costs'), 'Eval');
+  const mixed = rows.filter((r) => /^mixed-platform build\b/.test(r[column(header, 'Eval')]));
+  assert.equal(mixed.length, 1, 'one mixed-platform build row in the README cost table');
+  const [r] = mixed;
+  assert.equal(r[column(header, 'With skill')], `${usd(j)} USD`, 'mixed build: the cost is total.costUsd of the profile');
+  assert.equal(r[column(header, 'Orchestrator turns')], String(orchestratorOf(j).turns), 'mixed build: the turns are the orchestrator row of the profile');
+  assert.equal(r[column(header, 'Orchestrator max context')], `${kTokens(j)} K`, 'mixed build: the max context is the orchestrator maxContext of the profile');
+  assert.equal(r[column(header, 'Baseline, no skill')], '-');
+  assert.equal(r[column(header, 'Before')], '-');
+  assert.equal(r[column(header, 'Result')], 'model validates');
+  assert.deepEqual(citations(r[column(header, 'Evidence')]), { 'with skill': [MIXED_PROFILE] }, 'mixed build: the cost row cites the profile');
+  const theirs = table(evalsReadme, 'Build | Evidence');
+  const rowsOf = theirs.rows.filter((x) => /^mixed-platform build\b/.test(x[0]));
+  assert.equal(rowsOf.length, 1, 'one mixed-platform build row in the evals README build table');
+  const [e] = rowsOf;
+  const at = (n) => e[column(theirs.header, n)];
+  assert.equal(at('Evidence'), `\`evidence/${MIXED_PROFILE}\``, 'mixed build: the evals README row cites the profile');
+  assert.equal(at('Cost'), `${usd(j)} USD`, 'mixed build: the evals README cost is total.costUsd of the profile');
+  assert.equal(at('Orchestrator turns'), String(orchestratorOf(j).turns), 'mixed build: the evals README turns are the orchestrator row of the profile');
+  assert.equal(at('Orchestrator max context'), `${kTokens(j)} K`, 'mixed build: the evals README max context is the orchestrator maxContext of the profile');
+  assert.equal(at('Opus'), modelSplit(j, 'claude-opus-5-5'), 'mixed build: the Opus split is the byModel row of the profile');
+  assert.equal(at('Sonnet'), modelSplit(j, 'claude-sonnet-5-5'), 'mixed build: the Sonnet split is the byModel row of the profile');
+  assert.equal(j.rates.date, text.match(/rate table dated (\d{4}-\d{2}-\d{2})/)?.[1], 'mixed build: the profile was priced at the README rate table date');
+};
+
+const checkCostTable = (text, read = readEvidence, expectations = expectationCounts(), evalsReadme = readFileSync(join(EVALS_DIR, 'README.md'), 'utf8')) => {
   const costs = section(text, 'What a build costs');
   assert.ok(costs.includes(EVIDENCE_PREFIX), `the section says the cited files are under ${EVIDENCE_PREFIX}`);
   const { header, rows } = table(costs, 'Eval');
@@ -164,6 +200,7 @@ const checkCostTable = (text, read = readEvidence, expectations = expectationCou
   const date = text.match(/rate table dated (\d{4}-\d{2}-\d{2})/)?.[1];
   assert.ok(date, 'the README states the date of the rate table');
   for (const f of cited) assert.equal(read(f).rates.date, date, `${f} was priced at the rate table dated ${date}`);
+  checkMixedBuild(text, evalsReadme, read);
 };
 
 // --- r3: no machine path and no planned or pre-release wording -----------------------------------------------------
@@ -335,6 +372,24 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
     return j;
   };
   assert.throws(() => checkCostTable(text, inflated), /with-skill cost/);
+  // P13.8: the mixed-platform build rows of both READMEs
+  const evalsText = readFileSync(EVALS_README, 'utf8');
+  const mixedRow = row(/^\| mixed-platform build /);
+  assert.throws(() => checkCostTable(swap(mixedRow, mixedRow.replace(/\| \d+ \| /, '| 10 | '))), /mixed build: the turns/);
+  assert.throws(() => checkCostTable(swap(mixedRow, mixedRow.replace(/\| \d+\.\d USD \|/, '| 9.9 USD |').replace(/\| 0\.\d\d USD \|/, '| 0.99 USD |'))), /mixed build: the cost/);
+  assert.throws(() => checkCostTable(swap(mixedRow, mixedRow.replace('model validates', 'ok'))), /model validates|Result/);
+  assert.throws(() => checkCostTable(swap(`${mixedRow}\n`, '')), /one mixed-platform build row/);
+  const evalsMixed = evalsText.split('\n').find((x) => /^\| mixed-platform build /.test(x));
+  assert.ok(evalsMixed, 'the evals README carries the mixed-platform build row');
+  const evalsSwap = (to) => evalsText.replace(evalsMixed, to);
+  const ec = cells(evalsMixed);
+  const evalsTamper = (i, to) => evalsSwap(`| ${ec.map((x, k) => (k === i ? to : x)).join(' | ')} |`);
+  const { header: eh } = table(evalsText, 'Build | Evidence');
+  const withEvals = (t) => checkCostTable(text, readEvidence, undefined, t);
+  assert.throws(() => withEvals(evalsTamper(column(eh, 'Opus'), '9 turns, 0.99 USD')), /Opus split/);
+  assert.throws(() => withEvals(evalsTamper(column(eh, 'Sonnet'), '1 turns, 0.19 USD')), /Sonnet split/);
+  assert.throws(() => withEvals(evalsTamper(column(eh, 'Orchestrator max context'), '99.9 K')), /evals README max context/);
+  assert.throws(() => withEvals(evalsTamper(column(eh, 'Evidence'), '`evidence/iteration-3/mixed-with-skill-2.json`')), /evals README row cites/);
   // wording: a machine path, planned wording, a dropped status
   assert.throws(() => checkWording(`${text}\nSee /Users/someone/checkout/README.md.\n`), /machine path/);
   assert.throws(() => checkWording(`${text}\nThe export command is planned.\n`), /planned or pre-release/);

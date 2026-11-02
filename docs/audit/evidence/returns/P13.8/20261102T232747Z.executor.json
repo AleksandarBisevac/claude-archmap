@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test (whole suite, from the project directory)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-02T23:40:38Z",
+    "basis": "`node --test tests/e2e.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Part 1: added the fixture tests/fixtures/repos/mixed-platform (small Node API with a pg-style table read, Dockerfile, compose with api and postgres, GitHub Actions workflow with test and build-and-push jobs, Terraform module with three resources, dbt project with two models, a source and a schema test) and case e6 in tests/e2e.test.mjs: prescan, merge --extracts --repo with one hand-written API fragment, validate --repo (OK, evidence checked), layout and render, nodes of containers, pipeline and job, resource, model and source kinds plus the API, every node, edge and entity with evidence, model, layout and HTML byte-identical on a second copy (fixed git commit dates). Part 2: added the mixed-platform build row (0.50 USD, 9 turns, 45.1 K, Opus 9 turns 0.31 USD, Sonnet 26 turns 0.19 USD, 18 nodes, 14 edges, 1 entity, 3 sequences, 6 views from the orchestrator's message, not re-derivable since the model is untracked) to the evals README build table with an introducing paragraph, and the row to the README cost table (no baseline, no before, model validates, evidence iteration-3/mixed-with-skill-1.json) after the committed-map row, which stays the last self-build row; r4 unaffected because the new label does not start with self-build. In tests/readme.test.mjs added checkMixedBuild, called from checkCostTable, so r2 re-derives the mixed rows of both READMEs (cost, turns, max context, Opus and Sonnet split, rate table date, cited profile) from the profile; r5 gained tamper cases (turns, cost, result, dropped row, Opus, Sonnet, evals README context, wrong evidence file). evals.json left unchanged: it has no self-build style entries. Outside the task files I made one edit to tests/evals.test.mjs (the e19 evidence-file listing now also skips /mixed-/ like /self-/), without which e19 and e20 failed on the new profile; the plan gate allowed the edit. Tests before the README rows existed: r2 and r5 failed (no mixed row). Final: node --test whole suite exit 0, 575 tests, 575 pass, 0 fail; node --test tests/e2e.test.mjs tests/readme.test.mjs 15 of 15 pass. No new top-level test cases, so the suite count is unchanged. Dependants: docs/architecture model and viewer unchanged and correct (e6 writes only to a temp dir); evals.test.mjs changed by the one-line exclusion above; README.md and evals README changed by the rows; tests/readme.test.mjs extended; evals.json unchanged.",
+    "descriptive": "The mixed-platform fixture runs through the whole no-LLM chain in e2e, and its one headless build is a tracked profile whose rows in both READMEs are re-derived from it by r2."
+  },
+  "testsAdded": [
+    "e6: the mixed fixture through prescan, merge, validate --repo, layout and render with nodes of all four platform kinds and the API, evidence on every element, byte-identical on a second run",
+    "r2 extended (checkMixedBuild) with r5 tamper cases: the mixed-build rows of both READMEs equal the tracked profile's cost, turns, context and Opus/Sonnet split"
+  ],
+  "casesAdded": [
+    [
+      "e6"
+    ],
+    [
+      "r2",
+      "r5"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:6a74664000094691515f7c1c56ac150c91be60931e50ce8016199cd814c0bf91\",\"dirtyDigest\":\"sha256:2f1e463cacefd890c8d1bf580112f1fce4a3a7e9319d6e3791246400598f422f\",\"dirtyPaths\":{},\"head\":\"784ecfd\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"README.md\",\"skills/architecture-map/evals/README.md\",\"skills/architecture-map/evals/evals.json\",\"skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json\",\"tests/e2e.test.mjs\",\"tests/fixtures/repos/mixed-platform\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:d0e2400625d2313c97a5bdbd887f66991a65f26984f9f843fb8792c2c8304595\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
