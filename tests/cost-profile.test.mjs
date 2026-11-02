@@ -297,10 +297,10 @@ test('c19 foreign subagent_type values, from Task and from Agent calls, label th
   assert.doesNotMatch(readFileSync(FOREIGN, 'utf8'), /\/Users\/|\/home\/|C:\\|github\.com|@/);
 });
 
-test('c20 a Task call with a description and no subagent_type is labelled by its description', () => {
+test('c20 a Task call with a description and no subagent_type is labelled task: plus its slugged description', () => {
   const j = profile(FOREIGN);
-  const row = j.byAgent.find((r) => r.agent === 'Survey the routes');
-  assert.ok(row, `a "Survey the routes" row in [${j.byAgent.map((r) => r.agent)}]`);
+  const row = j.byAgent.find((r) => r.agent === 'task:survey-the-routes');
+  assert.ok(row, `a "task:survey-the-routes" row in [${j.byAgent.map((r) => r.agent)}]`);
   assert.deepEqual([row.turns, row.input, row.cacheWrite, row.maxContext], [1, 90, 2500, 2590]);
   assert.equal(j.byAgent.length, 4, 'orchestrator, two typed subagents and the described one');
   for (const c of ['input', 'cacheRead', 'cacheWrite']) assert.equal(j.byAgent.reduce((n, r) => n + r[c], 0), j.total[c], c);
@@ -321,4 +321,35 @@ test('c21 a result event without modelUsage does not throw: the profile falls ba
   assert.equal(t.status, 0, t.stderr);
   assert.match(t.stdout, /modelUsage[^\n]*missing|missing[^\n]*modelUsage/i);
   assert.doesNotMatch(t.stdout, /MATCH\b(?!ES)/);
+});
+
+// P12-R4: the description-derived label lands in tracked profiles, so it is bounded, slugged and never a reserved row name.
+const withDescription = (name, description) => {
+  const evs = foreignEvents();
+  const call = evs[1].message.content.find((b) => b.id === 'toolu_T2');
+  call.input.description = description;
+  return writeStream(name, evs);
+};
+const describedRows = (j) => j.byAgent.map((r) => r.agent).filter((a) => !['orchestrator', 'code-cartographer', 'diagram-drafter'].includes(a));
+
+test('c22 a long, multi-line, mixed-character description is cut to the task: prefix plus 40 characters of [a-z0-9-]', () => {
+  const long = 'Read /Users/someone/Secret Repo/src\nand  report ON  everything, in   detail; then summarise it for the whole team please';
+  const rows = describedRows(profile(withDescription('long.jsonl', long)));
+  assert.equal(rows.length, 1, `one described row in [${rows}]`);
+  assert.match(rows[0], /^task:[a-z0-9-]{1,40}$/);
+  assert.ok(rows[0].length <= 'task:'.length + 40, rows[0]);
+  assert.doesNotMatch(rows[0], /--|\n|\//, 'runs collapse to one hyphen');
+  assert.equal(rows[0], 'task:read-users-someone-secret-repo-src-and-r', 'lowercased, collapsed, cut at 40');
+  const out = run([withDescription('long2.jsonl', long)]).stdout;
+  assert.doesNotMatch(out, /everything|summarise|team/i, 'the text report carries no more than the bounded label');
+  assert.deepEqual(describedRows(profile(withDescription('edge.jsonl', `${'a'.repeat(39)} b`))), [`task:${'a'.repeat(39)}`], 'a cut that lands on a hyphen is trimmed');
+});
+
+test('c23 a description that is empty after slugging or a reserved name becomes unknown-subagent and never merges into the orchestrator row', () => {
+  for (const [i, d] of ['orchestrator', 'Orchestrator!', 'total', 'unknown-subagent', '   ', '!!!', ''].entries()) {
+    const j = profile(withDescription(`reserved${i}.jsonl`, d));
+    assert.deepEqual(describedRows(j), ['unknown-subagent'], `description ${JSON.stringify(d)}`);
+    assert.equal(j.byAgent.filter((r) => r.agent === 'orchestrator').length, 1, 'one orchestrator row');
+    assert.equal(j.byAgent.find((r) => r.agent === 'orchestrator').turns, 3, 'the orchestrator row keeps its own turns');
+  }
 });

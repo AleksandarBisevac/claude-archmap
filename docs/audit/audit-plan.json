@@ -8784,8 +8784,10 @@
             "severity": "low",
             "file": "skills/architecture-map/evals/BENCHMARK.md:157-161",
             "issue": "The expectation pass counts (and the 'file references failed, 24 of 28' notes) come from 'the harness', but no grader is tracked: PROTOCOL.md:39-49 also sends the reader to 'the harness script' for the headless flags, and the only tracked check on these cells is b21 comparing the page to summary.json, which is itself unverifiable. A third party can re-run the method but not the grading.",
-            "resolution": "State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture).",
-            "fixTask": "P12.8-m8w"
+            "resolution": "fixed in P12.8-m8w (b8f0a1e0d227): State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture).",
+            "fixTask": "P12.8-m8w",
+            "commit": "b8f0a1e0d227",
+            "status": "fixed"
           },
           {
             "id": "P12-R4",
@@ -8796,7 +8798,7 @@
             "fixTask": "P12.9-m8w"
           }
         ],
-        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 2 with a recorded fix commit]"
+        "outcome": "[findings: 4 - 0 high, 1 med, 3 low; 3 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -9257,7 +9259,7 @@
         {
           "id": "P12.8-m8w",
           "title": "fix P12-R3: The expectation pass counts (and the 'file references failed, 24 ...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The expectation pass counts (and the 'file references failed, 24 of 28' notes) come from 'the harness', but no grader is tracked: PROTOCOL.md:39-49 also sends the reader to 'the harness script' for the headless flags, and the only tracked check on these cells is b21 comparing the page to summary.json, which is itself unverifiable. A third party can re-run the method but not the grading.\n\nResolution asked: State in PROTOCOL.md and BENCHMARK.md that the grader and the key-component checklists are private and the expectation results are the owner's records, or track a repo-free grader for the three mechanical checks (flows count, file references exist, artifact under docs/architecture).",
           "files": [
             "skills/architecture-map/evals/BENCHMARK.md",
@@ -9282,14 +9284,23 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "b8f0a1e0d227",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "New skills/architecture-map/evals/benchmark/grade-benchmark.mjs (Node 18, ESM, zero deps): `node grade-benchmark.mjs <run-dir> <A|B|C> <tool> <checklist.json> [--draw-c4-plot <plot.py>]`. It ports the private reference grader's five checks rule for rule. E1: checklist terms as case-insensitive substrings of the text-extension corpus of the files `git status --porcelain --untracked-files=all` reports. E2: archmap sequences with 2 or more steps; draw-c4 model.json flows, or the model draw-c4's plot.py extracts when --draw-c4-plot is given; otherwise sequenceDiagram blocks + headings of flow files and flow-named headings + flow-like .omm perspectives, with the tree found wherever it sits. E3: archmap nodes with evidence[]; draw-c4 nodes with a path-like token, kinds external/person/focus excluded, levels keyed by id; omm description.md, elements described as External excluded; cc-codemaps component-table rows, route tables and tables keyed by path skipped. PATHLIKE accepts folder paths, and a leading / counts as a route. E4: docs/architecture or the documented location. E5: exit-code. Python semantics are reproduced where the output depends on them: Unicode \\w/\\b, universal newlines, splitlines, strip('|'), truthiness, repr() of lists in evidence, json.dump indent=2 ensure_ascii with no trailing newline. Exits 2 with the usage on bad args, an unreadable checklist, a missing <run-dir>/repo or a failing git status. Deliberate deviations: the home-dir plot.py glob is replaced by --draw-c4-plot; a not-graded check's evidence reads 'not graded: <reason>' instead of 'None ()'/'None/None ()'; git status stdout only, not stdout+stderr; draw-c4 E3 uses the in-memory model E2 kept rather than re-reading a possibly stale draw-c4-model.json. Differential check in the scratchpad (diffcheck.mjs, the Python spec vs the port on 9 synthetic cells): grading.json and the summary line byte-identical on 6; the other 3 differ only in the not-graded evidence text. Tests: tests/benchmark.test.mjs gains b24..b31 after b23. Fixtures: tests/fixtures/benchmark/checklist.json and shapes.json, made-up components only; each case builds a temp run dir (git init, base commit, artifacts written uncommitted, exit-code). Docs: PROTOCOL.md names the grader and its command in the Pass rate bullet and the Expectations section, says run-candidate.sh does the placeholder substitution and passes the headless flags (it was 'the harness'), and its Runs section says the 13 cells were graded with this grader's rules. BENCHMARK.md 'How each number was produced' names the grader command and link, and points the headless flags at run-candidate.sh (tracked). Also corrected in both docs: the file-reference check never verified that the path exists, so the text now says 'a file or folder path' and PROTOCOL says existence is not checked. Runs: node --test tests/denylist.test.mjs tests/benchmark.test.mjs exit 0 (34 pass); node --test exit 0 (496 pass, 0 fail). New files staged with git add so the denylist scan sees them; nothing committed. Edits to PROTOCOL.md, BENCHMARK.md and one fix in the grader went through python3 in Bash, following the session's auto-mode instruction to prefer Bash: the Write tool had turned \\u2028/\\u2029 into literal characters, which broke a regex literal. No tool call was refused. Dependants: BENCHMARK.md -> CHANGELOG.md, README.md, docs/roadmap.md, skills/architecture-map/evals/README.md still correct (they link the page, whose tables did not change); tests/readme.test.mjs and benchmark.test.mjs b21/b23 green. PROTOCOL.md -> summary.json and run-candidate.sh unchanged and still correct; readme/benchmark tests green. tests/benchmark.test.mjs -> tests/evals.test.mjs green; docs/roadmap.md, BENCHMARK.md and the evals README still describe it correctly (they cite b21/b23, unchanged). tests/fixtures/benchmark -> the listed dependants match the basename 'benchmark' loosely (evidence/benchmark, cost-profile fixtures); none reads the new fixture files; all green.",
+            "descriptive": "The expectation grading of the benchmark can now be reproduced: the grader is tracked, tested on synthetic cells, and named with its command in PROTOCOL.md and BENCHMARK.md."
           },
           "startedAt": "2026-11-02T08:31:56Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T08:45:36Z",
+          "verifiedBy": [
+            "b24 usage and exit 2 on no args, bad letter, unreadable checklist, run dir without repo, dangling --draw-c4-plot, unknown option",
+            "b25 archmap-style model cell passes all five, exact evidence strings, artifacts include a modified tracked file, byte-identical regrade, exact summary line",
+            "b26 Markdown cell: flows from flows-file headings, file refs from component-table rows, route table skipped, folder path accepted, codemaps location",
+            "b27 missing component and no flows fail E1 and E2, summary line names the missing component",
+            "b28 draw-c4 without model.json or --draw-c4-plot: E2/E3 not graded with the reason, counted in neither",
+            "b29 draw-c4 model.json: flows counted, person/external/focus excluded from E3, draw-c4-model.json kept",
+            "b30 oh-my-mermaid tree under maps/.omm: flow-like perspectives, External element excluded, documented location, non-zero exit fails E5",
+            "b31 grader and fixtures carry no machine path, home dir, .private or denylist term"
+          ],
           "notes": [
             {
               "at": "2026-11-02T08:23:16Z",
@@ -9312,12 +9323,24 @@
             "runId": "2026-11-02T08:45:35Z.7c5059",
             "status": "passed",
             "at": "2026-11-02T08:45:35Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "b8f0a1e0d227",
+            "at": "2026-11-02T08:45:36Z",
+            "basis": "a fix task for P12-R3, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-11-02T08:44:04Z",
+            "basis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: Error: Cannot find module '<outside-repo>'; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P12.9-m8w",
           "title": "fix P12-R4: An Agent or Task call with no subagent_type is now labelled by it...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "An Agent or Task call with no subagent_type is now labelled by its free-text description, trimmed but unbounded. The label lands verbatim in the tracked evidence profiles and the text report, so a description that quotes repository content would put it in a public file, and a description equal to 'orchestrator' would merge into the orchestrator row. This phase's 13 profiles are clean (labels are archmap:* names and Explore), so it is a latent risk of the new fallback.\n\nResolution asked: Cap the fallback label (for example 60 characters, newlines collapsed) and prefix or reject the reserved label 'orchestrator'; add a case to c20.",
           "files": [
             "scripts/cost-profile.mjs",
@@ -9339,14 +9362,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T08:45:37Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -9361,7 +9384,13 @@
           ],
           "fixes": [
             "P12-R4"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T08:49:33Z.0e4984",
+            "status": "passed",
+            "at": "2026-11-02T08:49:33Z"
+          }
         }
       ],
       "reviewPerTask": "phase",

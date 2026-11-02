@@ -8,7 +8,7 @@
 // the Agent tool calls that spawned the subagent messages), the assistant turns, the median and maximum context
 // size per agent (cache read + cache write + input of one turn) and a list-price cost per row from RATES below.
 // The streams of other plugins are read the same way: a subagent_type of any name labels its row, an Agent or Task call
-// with no subagent_type is labelled by its description, and a stream that starts no subagent has the orchestrator row
+// with no subagent_type is labelled `task:` plus a bounded slug of its description, and a stream that starts no subagent has the orchestrator row
 // only. A transcript whose result events carry no modelUsage is profiled from the stream and its reconciliation entry
 // is marked `modelUsage: "missing"`.
 //
@@ -55,6 +55,8 @@ export const RATES = {
 const CLASSES = ['input', 'output', 'cacheRead', 'cacheWrite'];
 const ORCHESTRATOR = 'orchestrator';
 const UNKNOWN_AGENT = 'unknown-subagent';
+const RESERVED_LABELS = new Set([ORCHESTRATOR, UNKNOWN_AGENT, 'total']);
+const DESCRIPTION_SLUG_MAX = 40;
 const USAGE = 'usage: node scripts/cost-profile.mjs <transcript.jsonl>... [--json] [--basename]';
 
 class UsageError extends Error {}
@@ -101,13 +103,19 @@ const num = (v) => (Number.isFinite(v) && v >= 0 ? v : 0);
 
 // One transcript -> unique messages (agent, model, usage) and the last result event's modelUsage.
 function collect(events) {
-  const spawned = new Map(); // Agent tool_use id -> subagent_type, else its description
+  const spawned = new Map(); // Agent tool_use id -> subagent_type, else task:<description slug>
   const label = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+  // The label lands in tracked profiles: lowercase [a-z0-9-] only, one hyphen per run, cut to 40, never a row name of ours.
+  const describe = (v) => {
+    if (typeof v !== 'string') return null;
+    const slug = v.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+/, '').slice(0, DESCRIPTION_SLUG_MAX).replace(/-+$/, '');
+    return slug === '' || RESERVED_LABELS.has(slug) ? UNKNOWN_AGENT : `task:${slug}`;
+  };
   for (const e of events) {
     if (e?.type !== 'assistant' || !Array.isArray(e.message?.content)) continue;
     for (const part of e.message.content) {
       if (part?.type === 'tool_use' && (part.name === 'Agent' || part.name === 'Task')) {
-        spawned.set(part.id, label(part.input?.subagent_type) ?? label(part.input?.description) ?? UNKNOWN_AGENT);
+        spawned.set(part.id, label(part.input?.subagent_type) ?? describe(part.input?.description) ?? UNKNOWN_AGENT);
       }
     }
   }
