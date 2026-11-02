@@ -8744,7 +8744,7 @@
     {
       "id": "P12",
       "title": "Release 1.0.0 benchmark: the same task against other architecture and codebase-mapping plugins",
-      "status": "in_progress",
+      "status": "done",
       "description": "",
       "desiredOutcome": "After 1.0.0 is cut, the same build task on the same evaluation repositories is run with this plugin and with two or more comparable plugins or skills for Claude Code; a tracked, repo-free report compares cost, duration, orchestrator turns, expectation pass rate, issue recall and the owner's judgement of the maps, with the method and the transcripts' cost profiles as evidence.",
       "testGate": [
@@ -8753,7 +8753,7 @@
       "blockedBy": [],
       "baseRef": "bee1b5acfb26b9f9b0679927c6f6c340706111bf",
       "branch": "audit/p12-release-1-0-0-benchmark-the-sa",
-      "mergedAt": null,
+      "mergedAt": "2026-11-02T08:53:28Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -9479,7 +9479,8 @@
         "runId": "2026-11-02T08:53:25Z.d53fd0",
         "status": "passed",
         "at": "2026-11-02T08:53:25Z"
-      }
+      },
+      "mergedHead": "4a7309867b175d7f4f749a81a306f64aaec5b427"
     }
   ],
   "fileIndex": {
