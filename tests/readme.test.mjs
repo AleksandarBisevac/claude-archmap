@@ -287,6 +287,42 @@ const checkRoadmap = (roadmap, readme) => {
     assert.match(roadmap, new RegExp(w, 'i'), `the roadmap names ${w}`);
   }
   assert.ok(/\]\(docs\/roadmap\.md\)/.test(readme), 'the README links docs/roadmap.md');
+  checkV11Closed(roadmap, readme);
+};
+
+// The v1.1 item is closed the way the benchmark and BUG-5-6o1 items are: a heading that carries the close date, then a
+// "Closed on <date> by" paragraph that names the evidence, and every path it names exists. The README names the four
+// new node kinds in "What a build delivers".
+const V11_CLOSE_DATE = '2026-11-03';
+const checkV11Closed = (roadmap, readme, exists = existsSync) => {
+  const heading = roadmap.match(/^#{1,3} .*\bv1\.1\b.*$/m)?.[0] ?? '';
+  assert.match(heading, new RegExp(`closed on ${V11_CLOSE_DATE}$`), 'the v1.1 heading carries the close date');
+  const start = roadmap.indexOf(heading);
+  const rest = roadmap.slice(start + heading.length);
+  const item = rest.slice(0, rest.indexOf('\n## ') < 0 ? undefined : rest.indexOf('\n## '));
+  assert.match(item, new RegExp(`^\\s*Closed on ${V11_CLOSE_DATE} by `), 'the v1.1 item opens with its evidence paragraph');
+  const evidence = item.split('\n\n')[1] ?? '';
+  const paths = [...evidence.replace(/\s+/g, ' ').matchAll(/`((?:tests|skills)\/[^`\s]+)`/g)].map((m) => m[1]);
+  for (const want of [
+    'tests/fixtures/repos/mixed-platform',
+    'tests/prescan-containers.test.mjs',
+    'tests/prescan-pipelines.test.mjs',
+    'tests/prescan-iac.test.mjs',
+    'tests/prescan-data-platform.test.mjs',
+    'tests/schema.test.mjs',
+    'skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json',
+  ]) assert.ok(paths.includes(want), `the evidence paragraph names ${want}`);
+  for (const kind of ['containers', 'pipelines', 'iac', 'data-platform']) {
+    assert.match(evidence, new RegExp(`\`${kind}\``), `the evidence paragraph names the ${kind} fixture`);
+  }
+  for (const p of paths) assert.ok(exists(join(ROOT, p)), `the evidence path ${p} exists`);
+  const delivers = section(readme, 'What a build delivers').replace(/\s+/g, ' ');
+  for (const [name, re] of [
+    ['compose services', /compose services/i],
+    ['pipelines and jobs', /pipelines and jobs/i],
+    ['IaC resources', /IaC resources/i],
+    ['dbt models and sources', /dbt models and sources/i],
+  ]) assert.match(delivers, re, `What a build delivers names ${name}`);
 };
 
 // --- r8: both READMEs link the benchmark report, and every link resolves ----------------------------------------
@@ -422,7 +458,7 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
   assert.throws(() => checkDeliversAndMethod(swap('built with\n`/archmap:build` at commit', 'made at commit')), /names the commit the committed map was built or updated at/);
 });
 
-test('r6 docs/roadmap.md exists with a v1.1 heading and the benchmark item, and the README links it', () => {
+test('r6 docs/roadmap.md closes the v1.1 item with a close date and an evidence paragraph, keeps the benchmark item, and the README names the four new kinds and links it', () => {
   checkRoadmap(readRoadmap(), readReadme());
 });
 
@@ -435,6 +471,13 @@ test('r7 the roadmap check fails on a missing file, a missing v1.1 heading, a mi
   assert.throws(() => checkRoadmap(roadmap.replace(/^(#{1,3} .*)\bv1\.1\b/gm, '$1next'), text), /v1\.1 heading/);
   assert.throws(() => checkRoadmap(roadmap.replace(/benchmark/gi, 'comparison'), text), /benchmark/);
   assert.throws(() => checkRoadmap(roadmap, text.replace('](docs/roadmap.md)', ']')), /links docs\/roadmap\.md/);
+  // the v1.1 item, closed: no close date, no evidence paragraph, a dropped evidence path, a missing path, an unnamed kind
+  assert.throws(() => checkRoadmap(roadmap.replace(/(^#{1,3} .*\bv1\.1\b.*), closed on [-0-9]+$/m, '$1'), text), /close date/);
+  assert.throws(() => checkRoadmap(roadmap.replace('Closed on 2026-11-03 by the four extractors', 'The four extractors'), text), /evidence paragraph/);
+  assert.throws(() => checkRoadmap(roadmap.replace('`tests/prescan-iac.test.mjs`', 'the iac test'), text), /names tests\/prescan-iac\.test\.mjs/);
+  assert.throws(() => checkV11Closed(roadmap, text, () => false), /exists/);
+  assert.throws(() => checkRoadmap(roadmap, text.replace(/dbt\s+models\s+and\s+sources/gi, 'dbt things')), /names dbt models and sources/);
+  assert.throws(() => checkRoadmap(roadmap, text.replace(/compose\s+services/gi, 'containers')), /names compose services/);
 });
 
 test('r8 both the README cost section and the evals README benchmark section link BENCHMARK.md, and each link resolves', () => {

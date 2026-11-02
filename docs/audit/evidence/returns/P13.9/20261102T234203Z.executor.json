@@ -1,0 +1,27 @@
+{
+  "gates": {
+    "node --test tests/readme.test.mjs": "pass",
+    "node --test tests/readme.test.mjs tests/skill.test.mjs tests/evals.test.mjs tests/denylist.test.mjs tests/manifest.test.mjs": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression mode with expectRedFirst false: no red owed. Informally, r6 and r7 failed (2 fail) after the test edit and before the README edit, then went green (9 pass)."
+  },
+  "outcome": {
+    "technical": "docs/roadmap.md: v1.1 heading now ends 'closed on 2026-11-03' and the item opens with a 'Closed on 2026-11-03 by' evidence paragraph (four fixture dirs, four prescan tests, s15 of schema.test.mjs, mixed-platform fixture, e6, tracked profile iteration-3/mixed-with-skill-1.json), same form as the benchmark and BUG-5-6o1 items. CHANGELOG.md Unreleased: Added lines for the four extractors, entity fields from static sources and richer relations, flow player and draft sequences, mixed fixture and profile, the skill/README naming; Fixed line for P12-R5/R6/R7 and the roadmap closure; no version, no tag. README.md What a build delivers: nodes bullet names compose services, pipelines and jobs, IaC resources, dbt models and sources. skills/architecture-map/SKILL.md description gained one sentence naming the four kinds (913 chars, under the 1024 e16 limit). tests/readme.test.mjs: checkRoadmap now calls new checkV11Closed (heading close date, evidence paragraph opening, required evidence paths named and existing, README names the four kinds); r6 title updated, r7 extended with six failing mutations. Outside my declared files I also edited tests/skill.test.mjs line 157 (s9 pins the SKILL.md description verbatim, so the new description would have failed it); the Edit tool was not refused by the plan gate. Ran: node --test tests/readme.test.mjs exit 0, 9 pass 0 fail; plus skill, evals, denylist and manifest suites together, 56 pass 0 fail. Dependants: docs/roadmap.md dependants (architecture model and html, readme test, README, design.md) still correct, the model and viewer do not read it, readme r6 and r7 re-checked green, README still links it, design.md unchanged; README.md dependants (benchmark, diffmap, evals tests, fixtures) still correct, only the nodes bullet gained text, the counts, tables, mixed-build row and committed-map row untouched, r1-r9 green, evals/denylist/manifest suites green; tests/readme.test.mjs dependant README still correct (r6 now additionally requires the four kinds); CHANGELOG.md dependants (audit config, manifest test, readme test, README, design.md) still correct, manifest and readme tests green, no version heading added; SKILL.md dependants (model and viewer, commands/evals/pipeline/skill tests, node skill tile, issues script) still correct, only the frontmatter description line changed, e16 length and s9/s10 green, commands/pipeline tests not run by me (the orchestrator's full gate covers them).",
+    "descriptive": "The v1.1 roadmap item is closed with dated evidence, and the README, skill description and Unreleased changelog name the four new node kinds and the findings closed."
+  },
+  "testsAdded": [
+    "r6 now requires the v1.1 heading to carry the close date, the item to open with the evidence paragraph naming the fixtures, prescan tests, schema case and tracked profile (each path existing), and the README to name the four new kinds",
+    "r7 extended: fails on a dropped close date, a dropped evidence paragraph, an unnamed prescan test, a missing path, and a README that stops naming dbt models and sources or compose services"
+  ],
+  "casesAdded": [
+    [
+      "r6",
+      "r7"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:6dd417c9ee743e45d5bc5c32d6a23913799a64d4c710c77d498f0a9864a49a99\",\"dirtyDigest\":\"sha256:00b0d2da7005cb5b9e4e1059b7d09b60dfc59a233958a5d2987966ea33963f2a\",\"dirtyPaths\":{\"CHANGELOG.md\":\"ad5b4981ebaac195\",\"README.md\":\"34d0f435afc7b431\",\"docs/roadmap.md\":\"b13d38ffd1aa093a\",\"skills/architecture-map/SKILL.md\":\"2d76f435c91e0e6a\",\"tests/readme.test.mjs\":\"d378e92ee2fe9db0\",\"tests/skill.test.mjs\":\"15b6393e794432a6\"},\"head\":\"c0225a7\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"CHANGELOG.md\",\"README.md\",\"docs/roadmap.md\",\"skills/architecture-map/SKILL.md\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:b4f3cf906bcfb732f8910bdcd8552a202ae0e5fe63379ba07a055d7999dc0db3\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

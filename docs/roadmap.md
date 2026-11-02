@@ -5,7 +5,20 @@ offline viewer (see the [README](../README.md) and the [design](design.md)). Thi
 Each item says what it delivers and what evidence closes it. An item is closed by evidence in the repository, such as a
 passing test, a committed fixture or a tracked cost profile, never by a statement alone.
 
-## v1.1: data platforms, pipelines and infrastructure
+## v1.1: data platforms, pipelines and infrastructure, closed on 2026-11-03
+
+Closed on 2026-11-03 by the four extractors and their evidence, against the criterion below: a fixture repository per
+kind under `tests/fixtures/repos/` (`containers`, `pipelines`, `iac` and `data-platform`); a prescan test for each
+extractor that checks node, edge and evidence output (`tests/prescan-containers.test.mjs`,
+`tests/prescan-pipelines.test.mjs`, `tests/prescan-iac.test.mjs` and `tests/prescan-data-platform.test.mjs`); the model
+schema still accepting every committed map, which case s15 of `tests/schema.test.mjs` checks together with the new
+edge types and node kinds, all additive; and one build of the mixed fixture `tests/fixtures/repos/mixed-platform`, whose
+tracked cost profile is `skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json` and whose
+whole chain case e6 of `tests/e2e.test.mjs` runs. The same release reads entity fields from static schema sources when
+introspection is skipped, enriches relations (ORM access rows and sql edges, queue pairing, nodes without edges in the
+digest), adds the flow player and draft sequences for HTTP responses, queues and pulls, and closes the three
+re-review findings P12-R5, P12-R6 and P12-R7. The version bump and tag are the owner's decision and are not part of
+this item.
 
 Delivers extraction of the parts of a system that are not application code, added to the stack references and to the
 prescan so that a map shows them with the same file:line evidence, confidence and provenance as every other node:

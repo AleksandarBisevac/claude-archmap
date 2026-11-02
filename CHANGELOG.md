@@ -9,10 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The release benchmark, `skills/architecture-map/evals/BENCHMARK.md`: 1.0.0 against three other mapping plugins on the same prompt and repositories, every figure derived by a test from the tracked profiles.
+- Four prescan extractors for the parts of a system that are not application code, each with `file:line` evidence, confidence and provenance like every other node, a fixture repository under `tests/fixtures/repos/` and a prescan test: containers (Dockerfiles and compose files: services, images, ports, volumes and the dependencies between services), pipelines (GitHub Actions and Azure Pipelines: workflows, jobs, triggers, stages and the artefacts they pass on), infrastructure as code (Terraform and Bicep: resources, modules and the references between them) and data platform projects (dbt models, sources and tests, with lineage from `ref()` and `source()` calls). They are wired into stack detection, area partitioning, the fragment merge, the taxonomy, the viewer and the exports; an area's stacks include the platform stacks detected inside it; the schema gains the edge types `depends`, `lineage` and `artifact`, additive, so every committed map still validates.
+- Entity fields are read from static schema sources (ORM models, migrations, DDL) when introspection is skipped or no database file is in the checkout, with `declared` provenance; richer relations: ORM call access rows and sql edges, queue pairing, and `nodesWithoutEdges` in the synthesizer's digest.
+- The flow player on the Sequences tab (Play on graph) for sequences whose participants name graph nodes, and draft sequences for HTTP responses, queues and pulls.
+- A mixed-platform fixture (a Node API, a compose file, a GitHub Actions workflow, a Terraform module and a dbt project), the end-to-end case e6 over it and a tracked build cost profile, `skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json`.
+- The skill description and the README (What a build delivers) name the four new node kinds: compose services, pipelines and jobs, IaC resources, and dbt models and sources.
 
 ### Fixed
 
 - BUG-5-6o1: an edge written to an area whose evidence lines name a file that exactly one node of that area owns now targets that node, not the area hub, so the SessionStart hook edge in the committed map reaches the node that holds `scripts/staleness.mjs`; the committed map is rebuilt at the fix: 43 nodes, 25 edges, 1 entity, 4 sequences and 6 views.
+- The three low findings of the benchmark phase re-review: P12-R5, `BENCHMARK.md` and `PROTOCOL.md` cite where the confirmation of the rubric scores is recorded instead of asserting it; P12-R6, `scripts/cost-profile.mjs` replaces a description-derived label that holds a path-like token, a quoted string or more than a few words with a redacted label, so no repository text lands in a tracked profile; P12-R7, the tracked grader is run over every benchmark cell and its agreement with the recorded grading is kept as counts in `skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json`, which the report cites.
+- The roadmap item v1.1 is closed on 2026-11-03 with its evidence. The version bump and the tag are the owner's decision.
 
 ## [1.0.0] - 2026-11-01
 

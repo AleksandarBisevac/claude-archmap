@@ -51,7 +51,10 @@ two on Sonnet.
 One model, `docs/architecture/architecture.model.json`, checked against `schema/archmap-model.schema.json`:
 
 - **nodes**: the components (browser apps, services, data stores, external systems, platforms) at C4 levels 1 to 3,
-  each with `file:line` evidence;
+  each with `file:line` evidence. Beyond application code a build also maps four kinds of non-code parts: compose
+  services (from Dockerfiles and compose files), pipelines and jobs (GitHub Actions and Azure Pipelines), IaC
+  resources (Terraform and Bicep) and dbt models and sources, with their tests and lineage; they carry the same
+  evidence, confidence and provenance as every other node;
 - **edges**: typed calls, reads, writes and messages between them, each with evidence and a confidence of
   `verified`, `inferred` or `external`, so what was read in code is kept apart from what was inferred;
 - **entities**: tables, views, collections and datasets with their fields, keys and per-field provenance
