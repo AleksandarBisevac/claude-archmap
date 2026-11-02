@@ -9481,6 +9481,74 @@
         "at": "2026-11-02T08:53:25Z"
       },
       "mergedHead": "4a7309867b175d7f4f749a81a306f64aaec5b427"
+    },
+    {
+      "id": "BF2",
+      "title": "Bugfix batch 2",
+      "status": "in_progress",
+      "description": "",
+      "desiredOutcome": "BUG-5-6o1 is fixed: an edge written to an area whose evidence lines name a file that exactly one node of that area owns targets that node, not the area hub, so the SessionStart hook edge in the plugin map reaches the node owning scripts/staleness.mjs.",
+      "testGate": [
+        "test"
+      ],
+      "blockedBy": [],
+      "baseRef": "77aa2af61d4bed6e829bfc17e13386ad3cc47695",
+      "branch": "audit/bf2-bugfix-batch-2",
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [
+        {
+          "id": "BF2.1",
+          "title": "Fix BUG-5-6o1: Synthesizer or merge targets a hook edge at the wrong script node",
+          "status": "in_progress",
+          "description": "Bug BUG-5-6o1 (phase review finding P11-R2). Repro: Build this repository with /archmap:build (balanced, no issues) and read the edge whose evidence is hooks/hooks.json in docs/architecture/architecture.model.json. Expected: The edge targets the node whose paths include scripts/staleness.mjs. Actual: The edge targets the pipeline script node.\n\nMechanism found at HEAD: the explorer names a node another area owns as `to: \"area:<id>\"` (agents/archmap-explorer.md), and the reference-resolution block of scripts/merge.mjs (`hubOf` / `resolveNode`, after the comment \"references that point at nothing\") resolves the area to its level-2 app or service node, else the area's first node in id order. In the plugin's own map that is scripts-pipeline, while the edge's evidence (hooks/hooks.json lines 5-12) names scripts/staleness.mjs, a path the scripts-diffmap node owns.\n\nFix, in scripts/merge.mjs only: when an edge reference resolves through an area (not a node id) and a repository reader exists (evidenceReader over meta.commit, the same reader normaliseEvidence uses; extend it with a way to read the text of a path at the commit), read the edge's own evidence lines at the commit and collect the repo-relative file paths named on those lines (a path token under the repository, with its extension) that a node of the target area owns (nodeResolver over that area's nodes, paths first). When exactly one node of the area owns a named file, the edge targets that node; when no node or more than one node is found, the edge keeps the hub as today. The same rule applies to `from`. Without --repo or a resolvable commit nothing changes (the hub). Output stays deterministic and byte-identical across two runs and across fragment order (m6, m18, m20f must keep passing); m19, m19b and m29 keep passing unchanged. Keep the exported function signatures; no new dependency.\n\nTests, in tests/merge.test.mjs (red first): build a temporary git repository (evidenceRepo style) holding a hooks/hooks.json whose lines 5-12 run `node scripts/staleness.mjs`, plus scripts/pipeline.mjs and scripts/staleness.mjs; fragments: area hooks with one node (paths hooks/**) and an edge `to: \"area:scripts\"` with evidence hooks/hooks.json lines 5-12; area scripts with scripts-pipeline (level 2, kind service, paths scripts/pipeline.mjs, first in id order) and scripts-staleness (level 2, kind service, paths scripts/staleness.mjs). With --repo and meta.commit at that repository's HEAD, assert the edge targets scripts-staleness. The assertion fails at HEAD (the edge targets scripts-pipeline). Add two more assertions in the same case or a sibling: without a repo the edge still targets the hub (scripts-pipeline), and an evidence span naming files of two different nodes of the area keeps the hub.",
+          "files": [
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: an edge to area:<id> whose evidence lines, read at meta.commit, name a file that exactly one node of that area owns targets that node and not the area hub; FAILS on current code: expected the node whose paths include scripts/staleness.mjs vs actual the pipeline script node"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-11-02T08:58:00Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "bugId": "BUG-5-6o1",
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T09:02:43Z.fb85d3",
+            "status": "passed",
+            "at": "2026-11-02T09:02:43Z"
+          }
+        }
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-11-02T08:58:00Z"
     }
   ],
   "fileIndex": {
@@ -10001,7 +10069,8 @@
       "P10.14-6rm",
       "P10.17-6rm",
       "P8.7",
-      "P8.9"
+      "P8.9",
+      "BF2.1"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -10019,7 +10088,8 @@
       "P10.14-6rm",
       "P10.17-6rm",
       "P8.7",
-      "P8.9"
+      "P8.9",
+      "BF2.1"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -10461,7 +10531,7 @@
     {
       "id": "BUG-5-6o1",
       "title": "Synthesizer or merge targets a hook edge at the wrong script node",
-      "status": "open",
+      "status": "in_progress",
       "severity": "low",
       "reportedAt": "2026-10-31T22:57:21Z",
       "reportedBy": "phase review P11",
@@ -10470,7 +10540,7 @@
       "expected": "The edge targets the node whose paths include scripts/staleness.mjs.",
       "actual": "The edge targets the pipeline script node.",
       "files": [],
-      "taskId": null,
+      "taskId": "BF2.1",
       "fixedIn": null,
       "notes": null
     }

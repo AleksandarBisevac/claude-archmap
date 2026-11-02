@@ -764,6 +764,55 @@ test('m19 an edge to or from an area id (or area:<id>) lands on that area\'s lev
   assert.equal(validate(model).ok, true, JSON.stringify(validate(model).findings));
 });
 
+/** A repo whose hooks/hooks.json runs scripts/staleness.mjs on lines 5-12 and names two scripts on lines 13-16. */
+function hookRepo() {
+  const dir = tmp();
+  mkdirSync(join(dir, 'hooks'), { recursive: true });
+  mkdirSync(join(dir, 'scripts'), { recursive: true });
+  const lines = [
+    '{', '  "hooks": {', '    "SessionStart": [', '      {',
+    '        "matcher": "startup",', '        "hooks": [', '          {', '            "type": "command",',
+    '            "command": "node scripts/staleness.mjs",', '            "timeout": 10', '          }', '        ]',
+    '        "also": "node scripts/pipeline.mjs && node scripts/staleness.mjs",', '      }', '    ]', '  }',
+  ];
+  writeFileSync(join(dir, 'hooks', 'hooks.json'), lines.join('\n') + '\n');
+  writeFileSync(join(dir, 'scripts', 'pipeline.mjs'), numbered(4));
+  writeFileSync(join(dir, 'scripts', 'staleness.mjs'), numbered(4));
+  assert.equal(git(dir, 'init', '-q').status, 0);
+  assert.equal(git(dir, 'add', '-A').status, 0);
+  assert.equal(git(dir, 'commit', '-q', '-m', 'init').status, 0);
+  return { dir, sha: git(dir, 'rev-parse', 'HEAD').stdout.trim() };
+}
+const hookFrags = () => [
+  frag('hooks', {
+    nodes: [node('hooks-config', { zone: 'z', kind: 'config', paths: ['hooks/**'], evidence: ev('hooks/hooks.json', '1-4') })],
+    edges: [
+      { id: 'hook-runs-staleness', from: 'hooks-config', to: 'area:scripts', type: 'call', desc: 'SessionStart runs the check', evidence: ev('hooks/hooks.json', '5-12'), confidence: 'verified' },
+      { id: 'hook-runs-both', from: 'hooks-config', to: 'area:scripts', type: 'call', desc: 'names two scripts', evidence: ev('hooks/hooks.json', '13-14'), confidence: 'verified' },
+    ],
+  }),
+  frag('scripts', {
+    nodes: [
+      node('scripts-pipeline', { zone: 'z', paths: ['scripts/pipeline.mjs'], evidence: ev('scripts/pipeline.mjs', '1-2') }),
+      node('scripts-staleness', { zone: 'z', paths: ['scripts/staleness.mjs'], evidence: ev('scripts/staleness.mjs', '1-2') }),
+    ],
+  }),
+];
+
+test('m31 an edge to area:<id> whose evidence lines, read at meta.commit, name a file exactly one node of that area owns targets that node; no repo, or two owners, keep the area hub', () => {
+  const { dir, sha } = hookRepo();
+  const edge = (model, id) => model.edges.find((x) => x.id === id);
+  const withRepo = merge({ fragments: hookFrags(), repo: dir, meta: { ...META, commit: sha } }).model;
+  assert.equal(edge(withRepo, 'hook-runs-staleness').to, 'scripts-staleness', 'the node whose paths include scripts/staleness.mjs');
+  assert.deepEqual(edge(withRepo, 'hook-runs-staleness').evidence, ev('hooks/hooks.json', '5-12'), 'the evidence stays');
+  assert.equal(edge(withRepo, 'hook-runs-both').to, 'scripts-pipeline', 'two nodes of the area own the named files: the hub');
+  assert.equal(validate(withRepo, { repo: dir }).ok, true, JSON.stringify(validate(withRepo, { repo: dir }).findings));
+  const noRepo = merge({ fragments: hookFrags(), meta: { ...META, commit: sha } }).model;
+  assert.equal(edge(noRepo, 'hook-runs-staleness').to, 'scripts-pipeline', 'without --repo nothing changes: the hub');
+  const flipped = merge({ fragments: hookFrags().reverse(), repo: dir, meta: { ...META, commit: sha } }).model;
+  assert.deepEqual(flipped.edges, withRepo.edges, 'fragment order does not change the edges');
+});
+
 test('m19b a reference that resolves to nothing is dropped with one dropped-ref row each, and the merge still exits 0 and writes a valid model', () => {
   const { r, model } = runDir(refFrags());
   assert.equal(r.status, 0, r.stderr);

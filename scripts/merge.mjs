@@ -1154,7 +1154,8 @@ const git = (repo, args) =>
 
 /**
  * A reader of `repo` at `commit`, or null when there is none to read (no repo, not a git repository, commit unknown).
- * `lineCount(path)` is the file's line count at the commit, or null when the path is not a file there.
+ * `lineCount(path)` is the file's line count at the commit, or null when the path is not a file there; `text(path)` is
+ * the file's text at the commit, or null likewise.
  */
 export function evidenceReader(repo, commit) {
   if (typeof repo !== 'string' || typeof commit !== 'string' || !commit || commit.startsWith('-')) return null;
@@ -1164,17 +1165,25 @@ export function evidenceReader(repo, commit) {
   } catch {
     return null;
   }
+  const texts = new Map();
   const counts = new Map();
+  const text = (path) => {
+    if (texts.has(path)) return texts.get(path);
+    let t = null;
+    try {
+      git(repo, ['cat-file', '-e', `${commit}:${path}`]);
+      t = git(repo, ['cat-file', 'blob', `${commit}:${path}`]); // fails for a directory
+    } catch { /* absent */ }
+    texts.set(path, t);
+    return t;
+  };
   return {
     short: commit.slice(0, 12),
+    text,
     lineCount(path) {
       if (counts.has(path)) return counts.get(path);
-      let n = null;
-      try {
-        git(repo, ['cat-file', '-e', `${commit}:${path}`]);
-        const text = git(repo, ['cat-file', 'blob', `${commit}:${path}`]); // fails for a directory
-        n = text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
-      } catch { /* absent */ }
+      const t = text(path);
+      const n = t === null ? null : t === '' ? 0 : t.split('\n').length - (t.endsWith('\n') ? 1 : 0);
       counts.set(path, n);
       return n;
     },
@@ -1606,18 +1615,45 @@ export function merge({ fragments = [], previous, synth, areas, meta = {}, extra
       }
       return prevIds.get(area);
     };
+    const areaIds = (area) => (placed.has(area) ? list(placed.get(area)) : previousOf(area)).filter((id) => nodes.has(id));
     const hubOf = (area) => {
-      const ids = (placed.has(area) ? list(placed.get(area)) : previousOf(area)).filter((id) => nodes.has(id));
+      const ids = areaIds(area);
       return ids.find((id) => isHub(nodes.get(id))) ?? ids[0] ?? null;
     };
-    const resolveNode = (ref) => {
+    // The node of `area` that owns a file the edge's own evidence lines name, read at meta.commit, when exactly one
+    // does; null otherwise (no reader, no file named, or more than one node), and the caller keeps the hub.
+    const PATH_TOKEN = /[\w@.+-]+(?:\/[\w@.+-]+)*\.[A-Za-z0-9]+/g;
+    const ownerOf = new Map();
+    const namedOwner = (area, e) => {
+      if (reader === null) return null;
+      if (!ownerOf.has(area)) ownerOf.set(area, nodeResolver(new Map(areaIds(area).map((nid) => [nid, nodes.get(nid)]))));
+      const owner = ownerOf.get(area);
+      const found = new Set();
+      for (const cite of list(e.evidence)) {
+        const m = isObj(cite) && typeof cite.path === 'string' && typeof cite.lines === 'string' ? LINES.exec(cite.lines) : null;
+        const text = m === null ? null : reader.text(cite.path);
+        if (text === null) continue;
+        const start = Number(m[1]);
+        const end = m[2] === undefined ? start : Number(m[2]);
+        for (const line of text.split('\n').slice(Math.max(start, 1) - 1, end)) {
+          for (const token of line.match(PATH_TOKEN) ?? []) {
+            const path = token.replace(/^(\.\/)+/, '');
+            const id = reader.lineCount(path) ? owner(path) : null;
+            if (id !== null) found.add(id);
+          }
+        }
+      }
+      return found.size === 1 ? [...found][0] : null;
+    };
+    const resolveNode = (ref, e = null) => {
       if (typeof ref !== 'string') return null;
       if (nodes.has(follow(ref))) return ref;
-      return hubOf(ref.startsWith('area:') ? ref.slice('area:'.length) : ref);
+      const area = ref.startsWith('area:') ? ref.slice('area:'.length) : ref;
+      return (e !== null ? namedOwner(area, e) : null) ?? hubOf(area);
     };
     for (const [id, e] of [...edges]) {
-      const from = resolveNode(e.from);
-      const to = resolveNode(e.to);
+      const from = resolveNode(e.from, e);
+      const to = resolveNode(e.to, e);
       if (from === null || to === null) {
         edges.delete(id);
         dropRow(areaOf(origin.edges, id), id, from === null ? e.from : e.to, `edge ${id}`);
