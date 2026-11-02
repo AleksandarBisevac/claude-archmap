@@ -355,7 +355,8 @@ const benchFiles = () => {
   assert.ok(existsSync(BENCH), 'evidence/benchmark/ is missing');
   return readdirSync(BENCH).sort();
 };
-const runFiles = () => benchFiles().filter((f) => f !== 'summary.json');
+const EQUIVALENCE = 'grader-equivalence.json';
+const runFiles = () => benchFiles().filter((f) => f !== 'summary.json' && f !== EQUIVALENCE);
 const loadJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const cells = () => {
   assert.ok(existsSync(SUMMARY), 'evidence/benchmark/summary.json is missing');
@@ -842,4 +843,44 @@ test('b31 the grader and its fixtures are public: no machine path, home director
     return;
   }
   for (const [f, text] of texts) assert.deepEqual(denylistHits(text), [], `${f} carries a denylist term`);
+});
+
+// ---- P13.7: the grader-equivalence record (R7) and the citation of the owner's confirmation (R5) ----
+const EQ_KEYS = ['cellsCompared', 'cellsEqual', 'expectationsCompared', 'expectationsEqual'];
+// The sentence BENCHMARK.md must carry for a record: its four counts in a fixed order, and the file that holds them.
+const equivalenceSentence = (eq) =>
+  `${eq.cellsCompared} cells compared, ${eq.cellsEqual} cells equal, ${eq.expectationsCompared} expectations compared, ${eq.expectationsEqual} expectations equal`;
+
+test('b32 grader-equivalence.json carries the four counts as counts only, equal counts are not above compared counts, and BENCHMARK.md states the same counts', () => {
+  const file = join(BENCH, EQUIVALENCE);
+  assert.ok(existsSync(file), `${EQUIVALENCE} is missing`);
+  const eq = loadJson(file);
+  assert.deepEqual(Object.keys(eq).sort(), ['date', 'method', ...EQ_KEYS].sort(), 'the record has exactly a date, a method sentence and the four counts');
+  for (const k of EQ_KEYS) assert.ok(Number.isInteger(eq[k]) && eq[k] >= 0, `${k} is a non-negative integer`);
+  assert.ok(eq.cellsEqual <= eq.cellsCompared, 'cells equal does not exceed cells compared');
+  assert.ok(eq.expectationsEqual <= eq.expectationsCompared, 'expectations equal does not exceed expectations compared');
+  assert.match(eq.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(typeof eq.method, 'string');
+  assert.ok(eq.method.length >= 40 && eq.method.length <= 600, 'the method is one sentence or two');
+  const compared = cells().filter((c) => c.tool !== 'archmap-issues');
+  assert.equal(eq.cellsCompared, compared.length, 'one comparison per comparison cell of summary.json');
+  assert.equal(eq.expectationsCompared, compared.reduce((n, c) => n + c.graded, 0), 'the expectations compared are the ones graded in summary.json');
+  const report = flat(loadReport());
+  assert.ok(report.includes(equivalenceSentence(eq)), `BENCHMARK.md does not state "${equivalenceSentence(eq)}"`);
+  assert.ok(report.includes(`evidence/benchmark/${EQUIVALENCE}`), 'BENCHMARK.md names the record');
+  assert.ok(report.includes(eq.date), 'BENCHMARK.md carries the record date');
+  assert.doesNotMatch(report, /\b9-cell\b|\bnine cells\b/i, 'the old 9-cell claim is gone');
+});
+
+test('b33 BENCHMARK.md and PROTOCOL.md cite the P12 sign-off summary in docs/audit/audit-plan.json, dated 2026-11-02, as where the owner confirmed the rubric scores', () => {
+  const plan = loadJson(join(ROOT, 'docs', 'audit', 'audit-plan.json'));
+  const p12 = plan.phases.find((p) => p.id === 'P12');
+  assert.ok(p12, 'the plan has phase P12');
+  assert.match(p12.summary, /rubric scores[^.]*confirmed as the owner's own/, 'the sign-off summary records the confirmation');
+  assert.match(p12.summary, /2026-11-02/, 'the sign-off summary carries the date');
+  for (const [name, text] of [['BENCHMARK.md', loadReport()], ['PROTOCOL.md', loadDoc('PROTOCOL.md')]]) {
+    const t = flat(text);
+    assert.match(t, /sign-off summary[^.]*docs\/audit\/audit-plan\.json|docs\/audit\/audit-plan\.json[^.]*sign-off summary/i, `${name} names the sign-off summary and the file`);
+    assert.match(t, /P12/, `${name} names phase P12`);
+  }
 });

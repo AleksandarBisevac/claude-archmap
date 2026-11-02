@@ -103,7 +103,8 @@ Every figure comes from a file the run left, never from the model's own report o
   ground truth of repository A. The candidates do not produce an issues layer, so their recall is not applicable.
 - **Rubric**: the owner's score from `rubric.md`, four axes of 1 to 5, proposed by the orchestrator of the
   benchmark session and confirmed by the owner as their own after reading each artifact (on 2026-11-02 for the
-  recorded runs).
+  recorded runs; the confirmation is recorded in the sign-off summary of phase P12 in `docs/audit/audit-plan.json`,
+  dated 2026-11-02).
   It is the only judgement in the table and the only figure no tracked script produces.
 
 ## Expectations
@@ -190,11 +191,13 @@ checklists stay private and are not tracked.
   evidence files are therefore `<tool>-C-2.json`; the discarded run-1 profiles stay private.
 - **Expectations**: the 13 cells were graded with the rules of `grade-benchmark.mjs`: the tracked script reproduces
   the private grader used on 2026-11-01/02 rule for rule, giving the same results and the same summary line on the
-  same cell (only the evidence text of a check not graded now states its reason). None is recorded as not graded;
+  same cell (only the evidence text of a check not graded now states its reason; the counts of the comparison, taken
+  on 2026-11-03, are in `evidence/benchmark/grader-equivalence.json` and in BENCHMARK.md). None is recorded as not graded;
   every expectation of every tool was graded mechanically. The file reference check ("every component carries a file
   reference") leaves out the elements a tool marks as external systems, actors or the system boundary.
 - **Rubric**: the scores in `summary.json` were proposed by the orchestrator and confirmed by the owner as their own
-  on 2026-11-02, after reading the artifacts, as each cell's `scoredBy` records.
+  on 2026-11-02, after reading the artifacts, as each cell's `scoredBy` records and as the sign-off summary of phase P12
+  in `docs/audit/audit-plan.json` (dated 2026-11-02) records in the owner's own words.
 - **Recall**: the `archmap-issues` run on A (`archmap-issues-A-1.json`, outside the comparison table) has a recall of
   0.933, 14 of the 15 counted reference issues with one miss, and reported 23 issues.
 - **Side effects observed**: two candidates edited an existing README of the repository they mapped (a project

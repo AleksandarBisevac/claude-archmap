@@ -8,7 +8,8 @@
 // the Agent tool calls that spawned the subagent messages), the assistant turns, the median and maximum context
 // size per agent (cache read + cache write + input of one turn) and a list-price cost per row from RATES below.
 // The streams of other plugins are read the same way: a subagent_type of any name labels its row, an Agent or Task call
-// with no subagent_type is labelled `task:` plus a bounded slug of its description, and a stream that starts no subagent has the orchestrator row
+// with no subagent_type is labelled `task:` plus a bounded slug of its description (a description holding a path-like
+// token, a quoted string or more than four words is labelled `task:<n>-words-<hash>` instead, none of its text), and a stream that starts no subagent has the orchestrator row
 // only. A transcript whose result events carry no modelUsage is profiled from the stream and its reconciliation entry
 // is marked `modelUsage: "missing"`.
 //
@@ -27,6 +28,7 @@
 // Exit 0 ok, 2 usage error or unreadable/malformed transcript. Node >= 18, ESM, zero dependencies.
 
 import { readFileSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -57,6 +59,10 @@ const ORCHESTRATOR = 'orchestrator';
 const UNKNOWN_AGENT = 'unknown-subagent';
 const RESERVED_LABELS = new Set([ORCHESTRATOR, UNKNOWN_AGENT, 'total']);
 const DESCRIPTION_SLUG_MAX = 40;
+const DESCRIPTION_WORDS_MAX = 4;
+// A path separator, a home tilde, an address, a leading dot or a file name with a letter extension (config.yaml, not v1.1).
+const PATH_LIKE = /[\\/~@]|(?:^|\s)\.|[A-Za-z0-9_-]\.[A-Za-z]{1,5}\b/;
+const QUOTED = /["'`‘’“”]/;
 const USAGE = 'usage: node scripts/cost-profile.mjs <transcript.jsonl>... [--json] [--basename]';
 
 class UsageError extends Error {}
@@ -105,9 +111,15 @@ const num = (v) => (Number.isFinite(v) && v >= 0 ? v : 0);
 function collect(events) {
   const spawned = new Map(); // Agent tool_use id -> subagent_type, else task:<description slug>
   const label = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
-  // The label lands in tracked profiles: lowercase [a-z0-9-] only, one hyphen per run, cut to 40, never a row name of ours.
+  // The label lands in tracked profiles. A short plain description keeps a slug: lowercase [a-z0-9-] only, one hyphen per
+  // run, cut to 40, never a row name of ours. A description that holds a path-like token, a quoted string or more than a
+  // few words may carry repository text, so none of its words is kept: the label is its word count and a short hash.
   const describe = (v) => {
     if (typeof v !== 'string') return null;
+    const words = v.trim().split(/\s+/).filter(Boolean);
+    if (words.length > DESCRIPTION_WORDS_MAX || PATH_LIKE.test(v) || QUOTED.test(v)) {
+      return `task:${words.length}-words-${createHash('sha256').update(v).digest('hex').slice(0, 6)}`;
+    }
     const slug = v.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+/, '').slice(0, DESCRIPTION_SLUG_MAX).replace(/-+$/, '');
     return slug === '' || RESERVED_LABELS.has(slug) ? UNKNOWN_AGENT : `task:${slug}`;
   };

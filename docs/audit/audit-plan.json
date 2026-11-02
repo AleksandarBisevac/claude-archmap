@@ -9920,7 +9920,7 @@
         {
           "id": "P13.5",
           "title": "Wire the four extractors into detection, partition, summaries, merge, the taxonomy and the schema",
-          "status": "in_progress",
+          "status": "done",
           "description": "Register the four stacks in prescan detection and the extract and summary key order (scripts/prescan.mjs, scripts/lib/prescan/partition.mjs), derive their nodes and edges in scripts/merge.mjs from the extracts where no agent judgement is needed (compose services and dbt models as nodes with paths, depends_on, lineage, artefact pass-on and IaC references as edges), add the node kinds and edge types to skills/architecture-map/references/relation-taxonomy.md and model-schema.md and to the schema files additively, name the four references in the skill and the explorer agent, and keep every committed and fixture map validating.",
           "files": [
             "scripts/prescan.mjs",
@@ -9973,19 +9973,39 @@
           ],
           "attempts": 2,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "28b24466182e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Continued attempt 1's tree (prescan, merge, schema 15 edge types, taxonomy, model-schema, explorer agent, pw7, s3, s15, m35-m35d kept). Added this attempt: (1) scripts/pipeline.mjs STACK_REFS now maps containers, pipelines, iac, data-platform to stack-containers.md, stack-pipelines.md, stack-iac.md, stack-data-platform.md; the lookup is the new exported stackRefFor(stacks), used by plan; test p41. Note: prescan area stacks stay the code stacks (pc3 pins them), so the mapping takes effect for any area whose stacks name a platform stack; a pure-platform area today still has no stack and gets discovery-generic. (2) assets/viewer/viewer.js REL gains depends (3 3, w1.6), lineage (12 4, w2.6), artifact (9 3 1.5 3, w2.1) so they have their own legend chip, marker and style; REL and relOf are added to the no-document module.exports; viewer.css gets --rel-depends/lineage/artifact in all three theme blocks plus .t-depends/.t-lineage/.t-artifact; scripts/export.mjs REL_STYLE mirrors the same dash and width. Tests v14 (viewer: every schema edge type has REL entry, CSS class, colour in 3 blocks, unknown still falls back to call, new types distinct) and x38 (export svg stroke, width and dash of the three types match the viewer REL and are not the call colour). (3) The four stack references no longer say the taxonomy has no relation: they say the merge draws depends / artifact / lineage edges itself and the explorer should not repeat them; test r5. (4) tests/skill-references.test.mjs r2 expects 15. validate.mjs untouched (reads enum from schema). Ran node --test whole suite: 569 tests, 569 pass, 0 fail (exit 0). Dependants: scripts/pipeline.mjs/tests/pipeline.test.mjs correct (additive export, plan behaviour unchanged for code stacks, p28/p40 pass); viewer.js/css dependants render.mjs, export.mjs, screenshots.py still correct (REL only grew; golden html tests pass); export.mjs dependants commands/export.md, CHANGELOG unaffected; docs/architecture model and html unchanged and valid (s15). Other dependants as in attempt 1. Process: red for the new cases was watched in the working tree before the fix (x38, p41, r5, v14 failed; 4 not ok of 100), all edits via Edit/Write.",
+            "descriptive": "The four platform stacks reach explorer briefs, and depends, lineage and artifact edges render with their own style and legend entry in the viewer and SVG export."
           },
           "startedAt": "2026-11-02T23:02:40Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T23:09:32Z",
+          "verifiedBy": [
+            "pw7 prescan-wiring: four platform fixtures detected, key order, budget, code repos unchanged",
+            "s3 and s15 schema: new edge types accepted, unknown refused, every committed map validates",
+            "m35 to m35d merge: compose, dbt, pipeline and IaC nodes and edges derived deterministically with evidence",
+            "p41 pipeline: stackRefFor names the four platform references and falls back to generic",
+            "v14 viewer: every schema edge type has its own style, class and colour in three themes",
+            "x38 export: svg edges of the three new types use their own palette entry, dash and width mirroring the viewer",
+            "r5 skill references: the four stack references describe the new edge types",
+            "r2 now expects 15 edge types"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T23:09:31Z.b2cd19",
             "status": "passed",
             "at": "2026-11-02T23:09:31Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "28b24466182e",
+            "at": "2026-11-02T23:09:32Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T23:08:27Z",
+            "basis": "`node --test tests/prescan-wiring.test.mjs tests/schema.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/viewer.test.mjs tests/export.test.mjs tests/skill-references.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
@@ -10056,7 +10076,7 @@
         {
           "id": "P13.7",
           "title": "Close the P12 re-review findings R5, R6 and R7",
-          "status": "pending",
+          "status": "in_progress",
           "description": "R5: BENCHMARK.md and PROTOCOL.md cite where the owner's confirmation of the rubric scores is recorded (the P12 sign-off summary in docs/audit/audit-plan.json, dated 2026-11-02) instead of asserting it bare. R6: scripts/cost-profile.mjs redacts the description-derived fallback label: a description holding a path-like token, a quoted string or more than a few words is replaced by task:<n>-words or a short hash, so no repository text lands in a tracked profile; c22 and c23 updated. R7: the tracked grader skills/architecture-map/evals/benchmark/grade-benchmark.mjs is run over every real benchmark cell and the per-cell result compared with the recorded grading, recorded as counts only (cells compared, cells equal, expectations compared, expectations equal) in skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json, which BENCHMARK.md cites in place of the 9-cell claim; tests/benchmark.test.mjs checks the file's shape and that the report's sentence matches it. No repository name, client or machine path anywhere.",
           "files": [
             "skills/architecture-map/evals/BENCHMARK.md",
@@ -10083,16 +10103,28 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T23:09:33Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-11-02T23:10:55Z",
+              "text": "R7 measurement done by the orchestrator on 2026-11-03, counts only: the tracked grader skills/architecture-map/evals/benchmark/grade-benchmark.mjs was run over all 12 real comparison cells (4 tools x repositories A, B, C run 2) on reconstructed checkouts (a fresh git init holding each cell artifacts as untracked files, the cell exit-code beside it; draw-c4 with --draw-c4-plot from its pinned clone) with the private checklist, and compared with the grading.json the private grader recorded per cell on 2026-11-01/02: cells compared 12, cells equal 12, expectations compared 60, expectations equal 60 (passed and notGraded per E1 to E5). Record exactly these four counts plus the method sentence (reconstructed checkouts, not the original clones, which were deleted) in skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json with the date 2026-11-03; no repository name, client or machine path."
+            }
+          ],
+          "testEvidence": {
+            "runId": "2026-11-02T23:17:32Z.9b0941",
+            "status": "passed",
+            "at": "2026-11-02T23:17:32Z"
+          }
         },
         {
           "id": "P13.8",
@@ -10333,6 +10365,49 @@
             "status": "could-not-prove",
             "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P13.12-exy",
+          "title": "Area stacks include the platform stacks detected inside the area, so a platform-only area brief names its stack reference",
+          "status": "pending",
+          "description": "Gap left by P13.5: an area's stacks stay the code stacks (pc3 pins them), so a platform-only area (an infra directory of .tf files, a compose-only deploy directory, a dbt project) is briefed with discovery-generic.md and never sees stack-iac.md, stack-containers.md, stack-pipelines.md or stack-data-platform.md, although the top-level stacks list the plug-ins. Make the area stacks the union of the code stacks and the platform stacks whose plug-in detect() fires on files inside the area globs (scripts/prescan.mjs areaExtracts / partition.mjs), keep the order deterministic, update pc3 to the new rule with the reason, and let stackRefFor in scripts/pipeline.mjs hand every stack reference of the area to its explorer brief. No agent prompt changes; the summary budget stays.",
+          "files": [
+            "scripts/prescan.mjs",
+            "scripts/lib/prescan/partition.mjs",
+            "scripts/pipeline.mjs",
+            "tests/prescan-core.test.mjs",
+            "tests/prescan-wiring.test.mjs",
+            "tests/pipeline.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/prescan-wiring.test.mjs: an area whose globs hold only Terraform, compose, workflow or dbt files carries that platform stack in its stacks, a code area with an added Dockerfile carries both, and an area with none keeps its code stacks only",
+              "tests/pipeline.test.mjs: the explorer brief of a platform-only area names the platform stack reference instead of discovery-generic.md"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [
+            "P13.5"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
         }
       ],
       "request": "Zatim predloži fazu v1.1 iz docs/roadmap.md (/audit:phase add), bez pokretanja.",
@@ -10465,7 +10540,8 @@
       "P10.17-6rm",
       "P8.9",
       "P13.5",
-      "P13.10"
+      "P13.10",
+      "P13.12-exy"
     ],
     "scripts/lib/prescan/inventory.mjs": [
       "P3.1",
@@ -10482,7 +10558,8 @@
       "P10.6-6rm",
       "P10.14-6rm",
       "P10.15-6rm",
-      "P13.5"
+      "P13.5",
+      "P13.12-exy"
     ],
     "scripts/lib/prescan/generic.mjs": [
       "P3.1",
@@ -10505,7 +10582,8 @@
       "P8.5",
       "P8.9",
       "P13.1",
-      "P13.2"
+      "P13.2",
+      "P13.12-exy"
     ],
     "scripts/lib/prescan/python.mjs": [
       "P3.2",
@@ -10740,7 +10818,8 @@
       "P3.5-cdj",
       "P10.15-6rm",
       "P10.17-6rm",
-      "P13.5"
+      "P13.5",
+      "P13.12-exy"
     ],
     "skills/architecture-map/references/model-schema.md": [
       "P4.1",
@@ -11181,7 +11260,8 @@
       "P8.9",
       "P9.1",
       "P11.1",
-      "P13.5"
+      "P13.5",
+      "P13.12-exy"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -11200,7 +11280,8 @@
       "P8.5",
       "P9.1",
       "P11.1",
-      "P13.5"
+      "P13.5",
+      "P13.12-exy"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"

@@ -332,17 +332,55 @@ const withDescription = (name, description) => {
 };
 const describedRows = (j) => j.byAgent.map((r) => r.agent).filter((a) => !['orchestrator', 'code-cartographer', 'diagram-drafter'].includes(a));
 
-test('c22 a long, multi-line, mixed-character description is cut to the task: prefix plus 40 characters of [a-z0-9-]', () => {
-  const long = 'Read /Users/someone/Secret Repo/src\nand  report ON  everything, in   detail; then summarise it for the whole team please';
-  const rows = describedRows(profile(withDescription('long.jsonl', long)));
-  assert.equal(rows.length, 1, `one described row in [${rows}]`);
-  assert.match(rows[0], /^task:[a-z0-9-]{1,40}$/);
-  assert.ok(rows[0].length <= 'task:'.length + 40, rows[0]);
-  assert.doesNotMatch(rows[0], /--|\n|\//, 'runs collapse to one hyphen');
-  assert.equal(rows[0], 'task:read-users-someone-secret-repo-src-and-r', 'lowercased, collapsed, cut at 40');
-  const out = run([withDescription('long2.jsonl', long)]).stdout;
-  assert.doesNotMatch(out, /everything|summarise|team/i, 'the text report carries no more than the bounded label');
+test('c22 a short plain description is cut to the task: prefix plus 40 characters of [a-z0-9-]; a long multi-line one is redacted', () => {
+  const plain = 'Alpha-ALPHA  bravo\ncharlie, delta';
+  const rows = describedRows(profile(withDescription('plain.jsonl', plain)));
+  assert.deepEqual(rows, ['task:alpha-alpha-bravo-charlie-delta'], 'lowercased and collapsed to one hyphen per run');
+  const wide = 'aaaaaaaaaaaa bbbbbbbbbbbb cccccccccccc dddddddddddd';
+  assert.deepEqual(describedRows(profile(withDescription('wide.jsonl', wide))), ['task:aaaaaaaaaaaa-bbbbbbbbbbbb-cccccccccccc-d'], 'cut at 40');
   assert.deepEqual(describedRows(profile(withDescription('edge.jsonl', `${'a'.repeat(39)} b`))), [`task:${'a'.repeat(39)}`], 'a cut that lands on a hyphen is trimmed');
+  const long = 'Read the notes\nand  report ON  everything, in   detail; then summarise it for the whole team please';
+  const redacted = describedRows(profile(withDescription('long.jsonl', long)));
+  assert.equal(redacted.length, 1, `one described row in [${redacted}]`);
+  assert.match(redacted[0], /^task:\d+-words-[0-9a-f]{6}$/);
+  const out = run([withDescription('long2.jsonl', long)]).stdout;
+  assert.doesNotMatch(out, /everything|summarise|team|notes/i, 'the text report carries none of the description');
+});
+
+test('c24 a description holding a path, a quoted string or a long sentence yields a redacted label that carries none of its words; a short plain one keeps its slug', () => {
+  const holders = [
+    'inspect src/server/routes.js',
+    'Read C:\\Work\\app\\main.cs',
+    'open ~/projects/secretrepo',
+    'check config.yaml',
+    'summarise "Project Falcon" docs',
+    "list 'billing' tables",
+    'find `orders` model',
+    'one two three four five',
+    'Survey every service and report its dependencies in detail',
+  ];
+  const labels = new Set();
+  const chrome = run([withDescription('chrome.jsonl', 'plain')]).stdout.toLowerCase(); // the report's own headings and rows
+  for (const [i, d] of holders.entries()) {
+    const rows = describedRows(profile(withDescription(`redact${i}.jsonl`, d)));
+    assert.equal(rows.length, 1, `one described row for ${JSON.stringify(d)}`);
+    assert.match(rows[0], /^task:\d+-words-[0-9a-f]{6}$/, `redacted: ${JSON.stringify(d)}`);
+    const n = d.trim().split(/\s+/).length;
+    assert.ok(rows[0].startsWith(`task:${n}-words-`), `${rows[0]} carries the word count ${n}`);
+    for (const w of d.toLowerCase().split(/[^a-z0-9]+/).filter((x) => x.length > 2 && x !== 'words')) {
+      assert.ok(!rows[0].includes(w), `${rows[0]} carries "${w}" of ${JSON.stringify(d)}`);
+    }
+    const out = run([withDescription(`redact-out${i}.jsonl`, d)]).stdout;
+    for (const w of d.toLowerCase().split(/[^a-z0-9]+/).filter((x) => x.length > 2 && x !== 'words' && !chrome.includes(x))) {
+      assert.ok(!out.toLowerCase().includes(w), `the text report carries "${w}"`);
+    }
+    labels.add(rows[0]);
+  }
+  assert.equal(labels.size, holders.length, 'distinct descriptions keep distinct labels');
+  assert.deepEqual(describedRows(profile(withDescription('again.jsonl', holders[0]))), describedRows(profile(withDescription('again2.jsonl', holders[0]))), 'the label is deterministic');
+  for (const [d, slug] of [['Survey the routes', 'task:survey-the-routes'], ['one two three four', 'task:one-two-three-four'], ['v1.1 audit', 'task:v1-1-audit']]) {
+    assert.deepEqual(describedRows(profile(withDescription(`keep-${slug}.jsonl`, d))), [slug], `${d} keeps its slug`);
+  }
 });
 
 test('c23 a description that is empty after slugging or a reserved name becomes unknown-subagent and never merges into the orchestrator row', () => {

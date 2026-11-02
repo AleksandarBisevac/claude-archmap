@@ -33,7 +33,8 @@ whole run, all models and all subagents; seconds are the wall clock of the sessi
 orchestrating session's only, context in thousands of tokens. Expectations are the five tool-neutral checks passed of
 those graded. Rubric is the total of the four rubric axes (out of 20), followed by coverage, relations, flows and
 readability. **The rubric scores were proposed by the orchestrator of the benchmark session and confirmed as their own by
-the owner on 2026-11-02, after reading the artifacts, as the `scoredBy` of every summary.json cell records.**
+the owner on 2026-11-02, after reading the artifacts, as the `scoredBy` of every summary.json cell records and as the
+sign-off summary of phase P12 in `docs/audit/audit-plan.json` (dated 2026-11-02) records in the owner's own words.**
 
 | Tool | Repository | Run | Cost | Seconds | Orchestrator turns | Max context | Expectations | Rubric |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -123,7 +124,9 @@ edited an existing README on one repository. It renders no diagram and ships no 
   private. A third party cannot re-run the cells; it can re-run the method with the same prompt, rubric and
   expectations on its own repositories.
 - **Rubric.** The rubric scores were proposed by the orchestrator of the benchmark session and confirmed as their own
-  by the owner on 2026-11-02, after reading the artifacts; a rubric is one person's judgement in any case.
+  by the owner on 2026-11-02, after reading the artifacts. The confirmation is recorded in the sign-off summary of
+  phase P12 in `docs/audit/audit-plan.json` (dated 2026-11-02); a rubric is one person's judgement in
+  any case.
 - **Repository C is run 2.** The repository's own Claude Code configuration blocked two of the tools from writing their
   result in run 1, so run 1 on C was discarded for every tool, and every C cell is run 2 on a fresh clone without that
   configuration.
@@ -162,9 +165,13 @@ and the profile saved exactly as it printed, one file per run, under `evidence/b
   repository's private checklist is named, by name or path), flows (at least three), file references (every
   component carries a file or folder path, leaving out external systems, actors and the system boundary), artifact on
   disk (files under `docs/architecture`, or the tool's own documented location) and exit status (the run exits 0).
-  The tracked script reproduces the private grader the cells were graded with on 2026-11-01/02. None was recorded as
+  The tracked script reproduces the private grader the cells were graded with on 2026-11-01/02. Grader equivalence
+  was measured on 2026-11-03 by running the tracked script over every comparison cell on reconstructed checkouts (not
+  the original clones, which were deleted) and comparing each result with the recorded grading: 12 cells compared, 12 cells
+  equal, 60 expectations compared, 60 expectations equal, as counts only in
+  [evidence/benchmark/grader-equivalence.json](evidence/benchmark/grader-equivalence.json). None was recorded as
   not graded.
-- **Rubric**: the four axes and the total of the `rubric` block in `summary.json`, proposed by the orchestrator and confirmed by the owner as stated above.
+- **Rubric**: the four axes and the total of the `rubric` block in `summary.json`, proposed by the orchestrator and confirmed by the owner as stated above (the sign-off summary of phase P12 in `docs/audit/audit-plan.json` records the confirmation).
 - **Recall** and **issues reported**: `recall` and `issuesReported` of the issues cell in `summary.json`, from
   `node skills/architecture-map/evals/score-recall.mjs <issues.json> <ground-truth.json> --json` against the private
   ground truth of repository A.

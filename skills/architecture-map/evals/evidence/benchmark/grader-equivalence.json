@@ -1,0 +1,8 @@
+{
+  "date": "2026-11-03",
+  "method": "The tracked grade-benchmark.mjs was run over all 12 comparison cells (four tools on repositories A, B and C, run 2 on C) on reconstructed checkouts, not the original clones, which were deleted: a fresh git repository holding each cell's artifacts as untracked files with the cell's exit code beside it, and draw-c4 with --draw-c4-plot from its pinned clone, against the private key-component checklists. Each result was compared with the grading the private grader recorded for the same cell on 2026-11-01/02, check by check; the counts are all this record keeps.",
+  "cellsCompared": 12,
+  "cellsEqual": 12,
+  "expectationsCompared": 60,
+  "expectationsEqual": 60
+}
