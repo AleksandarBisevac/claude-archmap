@@ -9674,7 +9674,64 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P13-R1",
+            "severity": "med",
+            "file": "tests/fixtures/repos/containers/docker-compose.yml:1-41",
+            "issue": "contradicts task clause: P13.1 asks for the fixture tests/fixtures/repos/containers with 'a compose file with three services, two Dockerfiles, one .env.example'. The diff adds the compose file and two Dockerfiles but no .env.example, and no service has an env_file line. The executor disclosed the omission (its Write was refused by a permission setting) and no waiver is recorded in the plan. The env_file key-name path (envKeysOf, scripts/lib/prescan/containers.mjs) is therefore exercised only by the in-memory ct3, never by the committed fixture. The ct5 message at tests/prescan-containers.test.mjs:1009 says '.env.example is not a container file' about a file that does not exist.",
+            "resolution": "Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message."
+          },
+          {
+            "id": "P13-R2",
+            "severity": "low",
+            "file": "schema/archmap-model.schema.json:79",
+            "issue": "The edge type enum gains depends, lineage and artifact, but docs/design.md section 5 (line 107, 'The types come from the artifact (api, static, ... deploy) plus event/queue') is not touched by the phase, so it no longer matches the schema. The model-contract rule asks schema, validate.mjs and design section 5 to agree, and test s3 is titled 'model enums match design section 5' while its expected list was widened without the design text. Severity is low because the enum change is additive, relation-taxonomy.md and model-schema.md were updated, and the change is documentation drift only.",
+            "resolution": "Add depends, lineage and artifact to docs/design.md line 107 (one phrase, e.g. 'plus event/queue and, from v1.1, depends/lineage/artifact') and the new node kinds pipeline, job, resource, module, model, source where section 5 lists kinds.",
+            "fixTask": "P13.13-exy"
+          },
+          {
+            "id": "P13-R3",
+            "severity": "low",
+            "file": "skills/architecture-map/references/stack-iac.md:28-32",
+            "issue": "P13.5 made merge.mjs create a node per Terraform or Bicep resource and module, per pipeline file and job, and per dbt model and source (150 per stack), and the Edges item of each stack reference was updated to say so. The Nodes item of the same references still tells the explorer the opposite: stack-iac.md:28 'A resource is not an architecture node by itself ... Networks, subnets, security groups ... are plumbing: they belong in notes ... not as nodes'; stack-pipelines.md:24 'A pipeline is not an architecture node by itself'; stack-data-platform.md:29 'a repo of fifty models is not fifty nodes ... a layer is a group, not a node'. The explorer therefore does not know that merge already made the plumbing nodes. Its own system-component nodes are deduplicated only when they share an id or title slug, the same paths, or the same cited line range, so duplicates beside the merge nodes are likely.",
+            "resolution": "In the Nodes item of stack-iac.md, stack-pipelines.md and stack-data-platform.md, say that merge already makes the level-3 resource, module, pipeline, job, model and source nodes. Then tell the explorer to add only the grouped system-level nodes (service, store, queue) and to cite the same block, so find() reuses the existing node.",
+            "fixTask": "P13.14-exy"
+          },
+          {
+            "id": "P13-R4",
+            "severity": "low",
+            "file": "scripts/merge.mjs:1535",
+            "issue": "P13.10 asks for a nodes-without-edges count in the digest counts 'so a build report shows it'. The digest now carries counts.nodesWithoutEdges, but the build report is the finish output of scripts/pipeline.mjs, whose counts object (pipeline.mjs:1169-1172: nodes, edges, entities, access, relations, drafts) does not read it, so no report shows the figure. Only the synthesizer reads the digest.",
+            "resolution": "Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword the clause and the CHANGELOG line to say the digest only.",
+            "fixTask": "P13.15-exy"
+          },
+          {
+            "id": "P13-R5",
+            "severity": "low",
+            "file": "scripts/merge.mjs:1336",
+            "issue": "The merge now writes a new meta.sources row type, queue-unpaired, and P13.11 widened drafts to queue, pull and response flows. skills/architecture-map/references/model-schema.md (the contract reference) still enumerates the source row kinds at line 36 without queue-unpaired and still describes the drafts at line 151 as 'sequences derived from each HTTP entry point'. Reference and writer disagree across the boundary (checklist rule 5). The schema accepts the row (sources items are open objects), so nothing fails.",
+            "resolution": "Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds.",
+            "fixTask": "P13.16-exy"
+          },
+          {
+            "id": "P13-R6",
+            "severity": "low",
+            "file": "assets/viewer/viewer.js:1169-1276",
+            "issue": "The flow player is a headline feature (README, CHANGELOG, roadmap), but only its pure helpers are tested (v9-v11). The DOM glue (flowEnter, flowApply, flowBar, the play timer, the document keydown handler that preventDefaults the arrow, PageUp/PageDown, Home and End keys while the player is open, flowSync on sequence change) runs in no test; the executor says so. A regression in the glue passes the gate. Separately, docs/architecture/archmap.html, the public example the README links, was not re-rendered and has no player (grep count of 'Play on graph' is 0); it was already behind the viewer after P13.5. render.mjs is script-only, so it costs no LLM run.",
+            "resolution": "Add one test that evaluates viewer.js against a minimal DOM stub, or a vm run, and drives enter, next, play tick and exit. Re-render the committed archmap.html from the committed model and layout with render.mjs before release, or state in the README that the example viewer predates the player.",
+            "fixTask": "P13.17-exy"
+          },
+          {
+            "id": "P13-R7",
+            "severity": "low",
+            "file": "skills/architecture-map/evals/README.md:182",
+            "issue": "The new build row paragraph states figures that no tracked artifact backs and no test re-derives: 'the run took 85 seconds', 'all four areas were explored', and the map counts (18 nodes, 14 edges, 1 entity, 3 sequences, 6 views). The paragraph does say the model is untracked, so the counts are labelled, but the duration and the area claim are given as fact with no source. Checklist rule 6 (evidence and honesty).",
+            "resolution": "Drop the duration and the all-four-areas claim, or record them (duration, areas explored) in the tracked profile or a small tracked note and have r2 check them.",
+            "fixTask": "P13.18-exy"
+          }
+        ],
+        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -10209,7 +10266,7 @@
         {
           "id": "P13.9",
           "title": "Roadmap, CHANGELOG and README for the v1.1 extraction",
-          "status": "in_progress",
+          "status": "done",
           "description": "Close the v1.1 item of docs/roadmap.md the way the benchmark item is closed (close date and the evidence that closes it: the four fixture repositories, the prescan tests, the schema test over every committed map, the tracked mixed-build profile), add the Unreleased CHANGELOG lines for the four extractors, the entity-fields change and the three findings, and name the new kinds in README.md What a build delivers and in the skill description. The version bump and tag are left to the owner's decision in openChoices.",
           "files": [
             "docs/roadmap.md",
@@ -10240,19 +10297,31 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "53f46141b609",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "docs/roadmap.md: v1.1 heading now ends 'closed on 2026-11-03' and the item opens with a 'Closed on 2026-11-03 by' evidence paragraph (four fixture dirs, four prescan tests, s15 of schema.test.mjs, mixed-platform fixture, e6, tracked profile iteration-3/mixed-with-skill-1.json), same form as the benchmark and BUG-5-6o1 items. CHANGELOG.md Unreleased: Added lines for the four extractors, entity fields from static sources and richer relations, flow player and draft sequences, mixed fixture and profile, the skill/README naming; Fixed line for P12-R5/R6/R7 and the roadmap closure; no version, no tag. README.md What a build delivers: nodes bullet names compose services, pipelines and jobs, IaC resources, dbt models and sources. skills/architecture-map/SKILL.md description gained one sentence naming the four kinds (913 chars, under the 1024 e16 limit). tests/readme.test.mjs: checkRoadmap now calls new checkV11Closed (heading close date, evidence paragraph opening, required evidence paths named and existing, README names the four kinds); r6 title updated, r7 extended with six failing mutations. Outside my declared files I also edited tests/skill.test.mjs line 157 (s9 pins the SKILL.md description verbatim, so the new description would have failed it); the Edit tool was not refused by the plan gate. Ran: node --test tests/readme.test.mjs exit 0, 9 pass 0 fail; plus skill, evals, denylist and manifest suites together, 56 pass 0 fail. Dependants: docs/roadmap.md dependants (architecture model and html, readme test, README, design.md) still correct, the model and viewer do not read it, readme r6 and r7 re-checked green, README still links it, design.md unchanged; README.md dependants (benchmark, diffmap, evals tests, fixtures) still correct, only the nodes bullet gained text, the counts, tables, mixed-build row and committed-map row untouched, r1-r9 green, evals/denylist/manifest suites green; tests/readme.test.mjs dependant README still correct (r6 now additionally requires the four kinds); CHANGELOG.md dependants (audit config, manifest test, readme test, README, design.md) still correct, manifest and readme tests green, no version heading added; SKILL.md dependants (model and viewer, commands/evals/pipeline/skill tests, node skill tile, issues script) still correct, only the frontmatter description line changed, e16 length and s9/s10 green, commands/pipeline tests not run by me (the orchestrator's full gate covers them).",
+            "descriptive": "The v1.1 roadmap item is closed with dated evidence, and the README, skill description and Unreleased changelog name the four new node kinds and the findings closed."
           },
           "startedAt": "2026-11-02T23:42:03Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T23:46:10Z",
+          "verifiedBy": [
+            "r6 now requires the v1.1 heading to carry the close date, the item to open with the evidence paragraph naming the fixtures, prescan tests, schema case and tracked profile (each path existing), and the README to name the four new kinds",
+            "r7 extended: fails on a dropped close date, a dropped evidence paragraph, an unnamed prescan test, a missing path, and a README that stops naming dbt models and sources or compose services"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T23:46:09Z.f1a415",
             "status": "passed",
             "at": "2026-11-02T23:46:09Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "53f46141b609",
+            "at": "2026-11-02T23:46:10Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression mode with expectRedFirst false: no red owed. Informally, r6 and r7 failed (2 fail) after the test edit and before the README edit, then went green (9 pass)."
           }
         },
         {
@@ -10470,6 +10539,332 @@
             "status": "could-not-prove",
             "source": "red-first-helper"
           }
+        },
+        {
+          "id": "P13.13-exy",
+          "title": "fix P13-R2: The edge type enum gains depends, lineage and artifact, but docs/...",
+          "status": "in_progress",
+          "description": "The edge type enum gains depends, lineage and artifact, but docs/design.md section 5 (line 107, 'The types come from the artifact (api, static, ... deploy) plus event/queue') is not touched by the phase, so it no longer matches the schema. The model-contract rule asks schema, validate.mjs and design section 5 to agree, and test s3 is titled 'model enums match design section 5' while its expected list was widened without the design text. Severity is low because the enum change is additive, relation-taxonomy.md and model-schema.md were updated, and the change is documentation drift only.\n\nResolution asked: Add depends, lineage and artifact to docs/design.md line 107 (one phrase, e.g. 'plus event/queue and, from v1.1, depends/lineage/artifact') and the new node kinds pipeline, job, resource, module, model, source where section 5 lists kinds.",
+          "files": [
+            "schema/archmap-model.schema.json",
+            "docs/design.md",
+            "tests/schema.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-11-02T23:51:49Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: schema/archmap-model.schema.json, every path the finding(s) P13-R2 name"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "no suite: schema/archmap-model.schema.json - 2 test files name it and none is named for it (tests/skill-references.test.mjs, tests/viewer.test.mjs); name the one that tests it with `scope --files`, none was guessed"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "no tests.add clause for P13-R2: no test file is named, placed or mapped for it; name the case with `scope --tests-add \"<path>: <what it asserts>\"`"
+            }
+          ],
+          "fixes": [
+            "P13-R2"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T23:54:59Z.e8e3f5",
+            "status": "passed",
+            "at": "2026-11-02T23:54:59Z"
+          }
+        },
+        {
+          "id": "P13.14-exy",
+          "title": "fix P13-R3: P13.5 made merge.mjs create a node per Terraform or Bicep resourc...",
+          "status": "pending",
+          "description": "P13.5 made merge.mjs create a node per Terraform or Bicep resource and module, per pipeline file and job, and per dbt model and source (150 per stack), and the Edges item of each stack reference was updated to say so. The Nodes item of the same references still tells the explorer the opposite: stack-iac.md:28 'A resource is not an architecture node by itself ... Networks, subnets, security groups ... are plumbing: they belong in notes ... not as nodes'; stack-pipelines.md:24 'A pipeline is not an architecture node by itself'; stack-data-platform.md:29 'a repo of fifty models is not fifty nodes ... a layer is a group, not a node'. The explorer therefore does not know that merge already made the plumbing nodes. Its own system-component nodes are deduplicated only when they share an id or title slug, the same paths, or the same cited line range, so duplicates beside the merge nodes are likely.\n\nResolution asked: In the Nodes item of stack-iac.md, stack-pipelines.md and stack-data-platform.md, say that merge already makes the level-3 resource, module, pipeline, job, model and source nodes. Then tell the explorer to add only the grouped system-level nodes (service, store, queue) and to cite the same block, so find() reuses the existing node.",
+          "files": [
+            "skills/architecture-map/references/stack-iac.md",
+            "skills/architecture-map/references/stack-pipelines.md",
+            "skills/architecture-map/references/stack-data-platform.md",
+            "skills/architecture-map/references/stack-containers.md",
+            "tests/skill-references.test.mjs"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: skills/architecture-map/references/stack-iac.md, every path the finding(s) P13-R3 name"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "no suite: skills/architecture-map/references/stack-iac.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are scripts/pipeline.mjs, tests/pipeline.test.mjs, tests/skill-references.test.mjs"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "gate-only, not tdd: every file P13-R3 names is a document (skills/architecture-map/references/stack-iac.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P13-R3"
+          ]
+        },
+        {
+          "id": "P13.15-exy",
+          "title": "fix P13-R4: P13.10 asks for a nodes-without-edges count in the digest counts ...",
+          "status": "pending",
+          "description": "P13.10 asks for a nodes-without-edges count in the digest counts 'so a build report shows it'. The digest now carries counts.nodesWithoutEdges, but the build report is the finish output of scripts/pipeline.mjs, whose counts object (pipeline.mjs:1169-1172: nodes, edges, entities, access, relations, drafts) does not read it, so no report shows the figure. Only the synthesizer reads the digest.\n\nResolution asked: Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword the clause and the CHANGELOG line to say the digest only.",
+          "files": [
+            "scripts/pipeline.mjs",
+            "tests/pipeline.test.mjs",
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword ..."
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: scripts/merge.mjs, every path the finding(s) P13-R4 name"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            }
+          ],
+          "fixes": [
+            "P13-R4"
+          ]
+        },
+        {
+          "id": "P13.16-exy",
+          "title": "fix P13-R5: The merge now writes a new meta.sources row type, queue-unpaired,...",
+          "status": "pending",
+          "description": "The merge now writes a new meta.sources row type, queue-unpaired, and P13.11 widened drafts to queue, pull and response flows. skills/architecture-map/references/model-schema.md (the contract reference) still enumerates the source row kinds at line 36 without queue-unpaired and still describes the drafts at line 151 as 'sequences derived from each HTTP entry point'. Reference and writer disagree across the boundary (checklist rule 5). The schema accepts the row (sources items are open objects), so nothing fails.\n\nResolution asked: Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds.",
+          "files": [
+            "skills/architecture-map/references/model-schema.md",
+            "tests/skill-references.test.mjs",
+            "scripts/merge.mjs",
+            "tests/merge.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/merge.test.mjs: Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three ..."
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: scripts/merge.mjs, every path the finding(s) P13-R5 name"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: tests/merge.test.mjs, the suite that tests scripts/merge.mjs (the test file that names merge.mjs)"
+            }
+          ],
+          "fixes": [
+            "P13-R5"
+          ]
+        },
+        {
+          "id": "P13.17-exy",
+          "title": "fix P13-R6: The flow player is a headline feature (README, CHANGELOG, roadmap...",
+          "status": "pending",
+          "description": "The flow player is a headline feature (README, CHANGELOG, roadmap), but only its pure helpers are tested (v9-v11). The DOM glue (flowEnter, flowApply, flowBar, the play timer, the document keydown handler that preventDefaults the arrow, PageUp/PageDown, Home and End keys while the player is open, flowSync on sequence change) runs in no test; the executor says so. A regression in the glue passes the gate. Separately, docs/architecture/archmap.html, the public example the README links, was not re-rendered and has no player (grep count of 'Play on graph' is 0); it was already behind the viewer after P13.5. render.mjs is script-only, so it costs no LLM run.\n\nResolution asked: Add one test that evaluates viewer.js against a minimal DOM stub, or a vm run, and drives enter, next, play tick and exit. Re-render the committed archmap.html from the committed model and layout with render.mjs before release, or state in the README that the example viewer predates the player.",
+          "files": [
+            "assets/viewer/viewer.js",
+            "tests/viewer.test.mjs",
+            "tests/export.test.mjs",
+            "docs/architecture/archmap.html",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/export.test.mjs: Add one test that evaluates viewer.js against a minimal DOM stub, or a vm run, and drives enter, next, play tick and exit"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: assets/viewer/viewer.js, every path the finding(s) P13-R6 name"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: tests/export.test.mjs, the suite that tests assets/viewer/viewer.js (the test file that names viewer.js)"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "the resolution of P13-R6 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "no test runner in this task's gate for the test P13-R6 asks for: the gate is ['test'], derived as the phase's testGate, wide -- no sibling task in P13 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P13-R6"
+          ]
+        },
+        {
+          "id": "P13.18-exy",
+          "title": "fix P13-R7: The new build row paragraph states figures that no tracked artifa...",
+          "status": "pending",
+          "description": "The new build row paragraph states figures that no tracked artifact backs and no test re-derives: 'the run took 85 seconds', 'all four areas were explored', and the map counts (18 nodes, 14 edges, 1 entity, 3 sequences, 6 views). The paragraph does say the model is untracked, so the counts are labelled, but the duration and the area claim are given as fact with no source. Checklist rule 6 (evidence and honesty).\n\nResolution asked: Drop the duration and the all-four-areas claim, or record them (duration, areas explored) in the tracked profile or a small tracked note and have r2 check them.",
+          "files": [
+            "skills/architecture-map/evals/README.md",
+            "skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "scope: skills/architecture-map/evals/README.md, every path the finding(s) P13-R7 name"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "no suite: skills/architecture-map/evals/README.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/benchmark.test.mjs, tests/diffmap.test.mjs, tests/evals.test.mjs, tests/glob.test.mjs, tests/prescan-core.test.mjs, tests/readme.test.mjs and 2 more"
+            },
+            {
+              "at": "2026-11-02T23:51:49Z",
+              "text": "gate-only, not tdd: every file P13-R7 names is a document (skills/architecture-map/evals/README.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P13-R7"
+          ]
         }
       ],
       "request": "Zatim predloži fazu v1.1 iz docs/roadmap.md (/audit:phase add), bez pokretanja.",
@@ -10487,7 +10882,8 @@
     "schema/archmap-model.schema.json": [
       "P1.1",
       "BF1.1",
-      "P10.13-6rm"
+      "P10.13-6rm",
+      "P13.13-exy"
     ],
     "schema/archmap-issues.schema.json": [
       "P1.1"
@@ -10499,7 +10895,8 @@
       "P1.1",
       "P1.5-hma",
       "BF1.1",
-      "P13.5"
+      "P13.5",
+      "P13.13-exy"
     ],
     "scripts/validate.mjs": [
       "P1.2",
@@ -10560,7 +10957,8 @@
       "BF1.2",
       "BF1.5-4w0",
       "P13.11",
-      "P13.5"
+      "P13.5",
+      "P13.17-exy"
     ],
     "scripts/render.mjs": [
       "P2.3"
@@ -10575,7 +10973,8 @@
       "BF1.2",
       "BF1.5-4w0",
       "P13.11",
-      "P13.5"
+      "P13.5",
+      "P13.17-exy"
     ],
     "tests/visual/screenshots.py": [
       "P2.5",
@@ -10893,7 +11292,8 @@
       "P10.13-6rm",
       "P10.17-6rm",
       "P8.7",
-      "P13.5"
+      "P13.5",
+      "P13.16-exy"
     ],
     "skills/architecture-map/references/relation-taxonomy.md": [
       "P4.1",
@@ -10906,7 +11306,9 @@
     ],
     "tests/skill-references.test.mjs": [
       "P4.1",
-      "P13.5"
+      "P13.5",
+      "P13.14-exy",
+      "P13.16-exy"
     ],
     "skills/architecture-map/references/discovery-generic.md": [
       "P4.2",
@@ -11049,7 +11451,9 @@
       "P13.5",
       "P13.6",
       "P13.10",
-      "P13.11"
+      "P13.11",
+      "P13.15-exy",
+      "P13.16-exy"
     ],
     "tests/merge.test.mjs": [
       "P5.1",
@@ -11072,7 +11476,9 @@
       "P13.5",
       "P13.6",
       "P13.10",
-      "P13.11"
+      "P13.11",
+      "P13.15-exy",
+      "P13.16-exy"
     ],
     "tests/fixtures/merge/": [
       "P5.1"
@@ -11171,7 +11577,8 @@
       "BF1.1",
       "P10.4-2xj",
       "P10.5-2xj",
-      "P10.19-6rm"
+      "P10.19-6rm",
+      "P13.13-exy"
     ],
     "scripts/export.mjs": [
       "P7.1",
@@ -11193,7 +11600,8 @@
       "P7.7-5ye",
       "P7.8-5ye",
       "P7.9-5ye",
-      "P13.5"
+      "P13.5",
+      "P13.17-exy"
     ],
     "commands/export.md": [
       "P7.6"
@@ -11241,7 +11649,8 @@
       "P9.7",
       "P12.5",
       "BF2.2-8q4",
-      "P13.8"
+      "P13.8",
+      "P13.18-exy"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -11325,7 +11734,8 @@
       "P9.1",
       "P11.1",
       "P13.5",
-      "P13.12-exy"
+      "P13.12-exy",
+      "P13.15-exy"
     ],
     "tests/pipeline.test.mjs": [
       "P10.4-2xj",
@@ -11345,7 +11755,8 @@
       "P9.1",
       "P11.1",
       "P13.5",
-      "P13.12-exy"
+      "P13.12-exy",
+      "P13.15-exy"
     ],
     "tests/fixtures/e2e": [
       "P10.4-2xj"
@@ -11392,7 +11803,9 @@
       "P12.5",
       "BF2.2-8q4",
       "P13.8",
-      "P13.9"
+      "P13.9",
+      "P13.18-exy",
+      "P13.17-exy"
     ],
     "docs/architecture": [
       "P11.6",
@@ -11481,7 +11894,8 @@
       "BF2.2-8q4"
     ],
     "docs/architecture/archmap.html": [
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P13.17-exy"
     ],
     "scripts/lib/prescan/containers.mjs": [
       "P13.1",
@@ -11492,7 +11906,8 @@
     ],
     "skills/architecture-map/references/stack-containers.md": [
       "P13.1",
-      "P13.5"
+      "P13.5",
+      "P13.14-exy"
     ],
     "tests/fixtures/repos/containers": [
       "P13.1"
@@ -11508,7 +11923,8 @@
     ],
     "skills/architecture-map/references/stack-pipelines.md": [
       "P13.2",
-      "P13.5"
+      "P13.5",
+      "P13.14-exy"
     ],
     "tests/fixtures/repos/pipelines": [
       "P13.2"
@@ -11524,7 +11940,8 @@
     ],
     "skills/architecture-map/references/stack-iac.md": [
       "P13.3",
-      "P13.5"
+      "P13.5",
+      "P13.14-exy"
     ],
     "tests/fixtures/repos/iac": [
       "P13.3"
@@ -11540,7 +11957,8 @@
     ],
     "skills/architecture-map/references/stack-data-platform.md": [
       "P13.4",
-      "P13.5"
+      "P13.5",
+      "P13.14-exy"
     ],
     "tests/fixtures/repos/data-platform": [
       "P13.4"
@@ -11558,7 +11976,8 @@
       "P13.8"
     ],
     "skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json": [
-      "P13.8"
+      "P13.8",
+      "P13.18-exy"
     ],
     "tests/fixtures/golden": [
       "P13.11"

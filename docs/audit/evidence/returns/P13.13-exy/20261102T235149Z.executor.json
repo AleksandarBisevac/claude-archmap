@@ -1,0 +1,20 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "tests.expectRedFirst is false on this tdd task: it names no case to prove a red by, so no red-first proof is owed",
+    "at": "2026-11-02T23:53:44Z"
+  },
+  "outcome": {
+    "technical": "Edited docs/design.md section 5: node kinds now list pipeline|resource|model|source (module and job were already there), and the edges bullet adds depends, lineage and artifact with one phrase each. Rewrote tests/schema.test.mjs s3 to read zone kind, edge type, confidence, entity kind, relation cardinality and relation kind from the design text (a designBullet helper slices the section 5 bullet, alternatives()/ticked() parse the lists) instead of literal lists; s3 also checks every design node kind is in the relation-taxonomy.md kind table and that pipeline, job, resource, module, model and source are listed. Full run: node --test, 575 tests, 575 pass, 0 fail (counts read from the TAP summary; the exit code was lost behind a grep pipe). tests/schema.test.mjs alone: 15 pass. Scope: the brief's files list only schema/archmap-model.schema.json, which I did not change (the node kind in the schema is an open string, the edge enum already had the three types). docs/design.md and tests/schema.test.mjs are outside that list; the plan gate allowed both edits without refusal. Dependants: architecture.model.json, archmap.html, merge.mjs, viewer.test.mjs, skill-references.test.mjs, README.md, model-schema.md and relation-taxonomy.md are still correct because the schema is unchanged and the design text now matches the enum those files already follow; relation-taxonomy.md is now also read by s3 (unchanged).",
+    "descriptive": "Design section 5 agrees with the schema enums again, and test s3 now parses the design text so future drift fails the suite."
+  },
+  "testsAdded": [
+    "s3 now derives expected enums from docs/design.md section 5 and checks node kinds against the taxonomy table (no new case; tests.add was none)"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:ba035d63850236a561b4dce9415cf5f1b76068cb8849694726c1cada39db3976\",\"dirtyDigest\":\"sha256:ffe7b04f69666fec63fcede218b66e95997520beb53d0fe65a7774c9316725e0\",\"dirtyPaths\":{\"docs/design.md\":\"0476e66ef48a4f6e\",\"tests/schema.test.mjs\":\"4e581a42c3ebce07\"},\"head\":\"53f4614\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"schema/archmap-model.schema.json\"],\"scopeDigest\":\"sha256:07fd036f11f161e3d816dc2e1a4dfbb1413a54f1c0bcf3ea4b18e7cab3048d52\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

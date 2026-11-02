@@ -1,0 +1,322 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "tests/fixtures/repos/containers/docker-compose.yml:1-41",
+      "issue": "contradicts task clause: P13.1 asks for the fixture tests/fixtures/repos/containers with 'a compose file with three services, two Dockerfiles, one .env.example'. The diff adds the compose file and two Dockerfiles but no .env.example, and no service has an env_file line. The executor disclosed the omission (its Write was refused by a permission setting) and no waiver is recorded in the plan. The env_file key-name path (envKeysOf, scripts/lib/prescan/containers.mjs) is therefore exercised only by the in-memory ct3, never by the committed fixture. The ct5 message at tests/prescan-containers.test.mjs:1009 says '.env.example is not a container file' about a file that does not exist.",
+      "resolution": "Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message."
+    },
+    {
+      "id": 2,
+      "severity": "low",
+      "file": "schema/archmap-model.schema.json:79",
+      "issue": "The edge type enum gains depends, lineage and artifact, but docs/design.md section 5 (line 107, 'The types come from the artifact (api, static, ... deploy) plus event/queue') is not touched by the phase, so it no longer matches the schema. The model-contract rule asks schema, validate.mjs and design section 5 to agree, and test s3 is titled 'model enums match design section 5' while its expected list was widened without the design text. Severity is low because the enum change is additive, relation-taxonomy.md and model-schema.md were updated, and the change is documentation drift only.",
+      "resolution": "Add depends, lineage and artifact to docs/design.md line 107 (one phrase, e.g. 'plus event/queue and, from v1.1, depends/lineage/artifact') and the new node kinds pipeline, job, resource, module, model, source where section 5 lists kinds."
+    },
+    {
+      "id": 3,
+      "severity": "low",
+      "file": "skills/architecture-map/references/stack-iac.md:28-32",
+      "issue": "P13.5 made merge.mjs create a node per Terraform or Bicep resource and module, per pipeline file and job, and per dbt model and source (150 per stack), and the Edges item of each stack reference was updated to say so. The Nodes item of the same references still tells the explorer the opposite: stack-iac.md:28 'A resource is not an architecture node by itself ... Networks, subnets, security groups ... are plumbing: they belong in notes ... not as nodes'; stack-pipelines.md:24 'A pipeline is not an architecture node by itself'; stack-data-platform.md:29 'a repo of fifty models is not fifty nodes ... a layer is a group, not a node'. The explorer therefore does not know that merge already made the plumbing nodes. Its own system-component nodes are deduplicated only when they share an id or title slug, the same paths, or the same cited line range, so duplicates beside the merge nodes are likely.",
+      "resolution": "In the Nodes item of stack-iac.md, stack-pipelines.md and stack-data-platform.md, say that merge already makes the level-3 resource, module, pipeline, job, model and source nodes. Then tell the explorer to add only the grouped system-level nodes (service, store, queue) and to cite the same block, so find() reuses the existing node."
+    },
+    {
+      "id": 4,
+      "severity": "low",
+      "file": "scripts/merge.mjs:1535",
+      "issue": "P13.10 asks for a nodes-without-edges count in the digest counts 'so a build report shows it'. The digest now carries counts.nodesWithoutEdges, but the build report is the finish output of scripts/pipeline.mjs, whose counts object (pipeline.mjs:1169-1172: nodes, edges, entities, access, relations, drafts) does not read it, so no report shows the figure. Only the synthesizer reads the digest.",
+      "resolution": "Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword the clause and the CHANGELOG line to say the digest only."
+    },
+    {
+      "id": 5,
+      "severity": "low",
+      "file": "scripts/merge.mjs:1336",
+      "issue": "The merge now writes a new meta.sources row type, queue-unpaired, and P13.11 widened drafts to queue, pull and response flows. skills/architecture-map/references/model-schema.md (the contract reference) still enumerates the source row kinds at line 36 without queue-unpaired and still describes the drafts at line 151 as 'sequences derived from each HTTP entry point'. Reference and writer disagree across the boundary (checklist rule 5). The schema accepts the row (sources items are open objects), so nothing fails.",
+      "resolution": "Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds."
+    },
+    {
+      "id": 6,
+      "severity": "low",
+      "file": "assets/viewer/viewer.js:1169-1276",
+      "issue": "The flow player is a headline feature (README, CHANGELOG, roadmap), but only its pure helpers are tested (v9-v11). The DOM glue (flowEnter, flowApply, flowBar, the play timer, the document keydown handler that preventDefaults the arrow, PageUp/PageDown, Home and End keys while the player is open, flowSync on sequence change) runs in no test; the executor says so. A regression in the glue passes the gate. Separately, docs/architecture/archmap.html, the public example the README links, was not re-rendered and has no player (grep count of 'Play on graph' is 0); it was already behind the viewer after P13.5. render.mjs is script-only, so it costs no LLM run.",
+      "resolution": "Add one test that evaluates viewer.js against a minimal DOM stub, or a vm run, and drives enter, next, play tick and exit. Re-render the committed archmap.html from the committed model and layout with render.mjs before release, or state in the README that the example viewer predates the player."
+    },
+    {
+      "id": 7,
+      "severity": "low",
+      "file": "skills/architecture-map/evals/README.md:182",
+      "issue": "The new build row paragraph states figures that no tracked artifact backs and no test re-derives: 'the run took 85 seconds', 'all four areas were explored', and the map counts (18 nodes, 14 edges, 1 entity, 3 sequences, 6 views). The paragraph does say the model is untracked, so the counts are labelled, but the duration and the area claim are given as fact with no source. Checklist rule 6 (evidence and honesty).",
+      "resolution": "Drop the duration and the all-four-areas claim, or record them (duration, areas explored) in the tracked profile or a small tracked note and have r2 check them."
+    }
+  ],
+  "intent": {
+    "answer": "diverges",
+    "note": "slice 1: Slice 1 covers P13.1 to P13.7, so the phase outcome is judged only for those parts. The four extractors, the wiring, the declared-field work and R5 to R7 are in the diff. Prescan extracts containers (compose services and Dockerfiles), pipelines (GitHub Actions and Azure Pipelines), IaC (Terraform and Bicep) and dbt models, sources, tests and lineage, each with file:line evidence, sorted output and caps. Nothing is executed. Entities keep declared fields without a database file (SQLModel, Alembic-only tables, .sql DDL, Knex), and merge relabels unbacked observed fields as inferred when introspection was skipped. P12-R5, R6 and R7 are closed. Two divergences from the task text remain. P13.1 asks for 'one .env.example' in the containers fixture and the diff has none (finding 1). P13.6 asks for table rows 'with fields and provenance declared'; the executor filed that the prescan rows carry no provenance key (pc11 forbids it) and merge marks the fields declared, so the model-level outcome holds but the row-level clause does not. P13.5 lists scripts/lib/prescan/partition.mjs among its files and leaves it untouched, so a platform-only area still gets generic discovery. The later commit 784ecfd (P13.12-exy) addresses that and is outside this slice. Where a task left an open choice: P13.3 takes Bicep into the first cut beside Terraform, which its own description names. P13.7 takes the R7 measurement from the orchestrator. The executor says it did not run the grader, and the P13.7 task note in the plan records the orchestrator's run (12 cells, 60 expectations). I could not re-run it because the cells are private, so those four counts rest on that note. Scan: scan.mjs against base 640f84f ran 118 files and 7870 added lines, the denylist check passed (14 terms), and the 13 leads are false positives. They are RegExp .exec calls read as child processes, a viewer string read as a regex flag, and fixture imports of pg, express and drizzle that are never installed. Added lines carry no client name, real repository name or machine path; the only path-shaped literal is the synthetic C:\\Work\\app\\main.cs in tests/cost-profile.test.mjs c24. The fixtures use fictional fleet, parcel and library domains. Slice 2 (the mixed-fixture build, its cost profile, README, CHANGELOG and roadmap) was not in this brief, so the part of the phase outcome about the mixed-fixture build and the final validation of every committed map is not judged here. | slice 2: Slice 2 (P13.8 to P13.12-exy) does what each task's description asked, with the gaps below. P13.8: mixed-platform fixture, e6 over prescan, merge, validate --repo, layout and render (I ran e6 once: it passes), tracked profile iteration-3/mixed-with-skill-1.json, rows in both READMEs, and r2 re-derives cost, turns, context and the Opus and Sonnet split from the profile. I checked the figures: 0.501 USD, 9 turns, 45076 context, 0.31 and 0.19 USD, rates date 2026-10-31. P13.9: roadmap heading and evidence paragraph (four fixture directories, four prescan tests, s15, e6, the profile; every named path exists), Unreleased CHANGELOG lines, README and the skill description name the four kinds, and no version bump or tag. P13.10: ormCalls for Drizzle, Prisma, TypeORM, SQLAlchemy and SQLModel, access rows and sql edges, typed import edges, queue-unpaired rows, and the stack reference rows asked for in clause 5. P13.11: the viewer player, the three draft kinds with the response step and MAX_DRAFTS 12, README and sequences.md. P13.12-exy: area stacks are code stacks then platform stacks in a fixed order, and the brief names every reference. Claims versus diffs: the filed outcomes describe the diffs. P13.11 says the golden already has node-linked sequences, so no golden file changed: true, since v9 drives the player from it. Its clause 3 wording 'render stays byte-identical for a model without such a sequence' cannot hold literally because the viewer script grew, and r9 only shows the script is model-independent and the static shell is unchanged. Gaps (findings 1 to 4): the nodes-without-edges count is not in any build report, model-schema.md is stale on queue-unpaired and the drafts, the player glue is untested and the committed example HTML lacks the player, and some figures in the evals README row are unsourced. Open choices the request left open, as slice 2 shows them: P13.8 chose an orchestrator-run headless build (request: 'bez pokretanja' left who runs the build open) and tracks only its profile; P13.9 chose to leave the version bump, release heading and tag to the owner (open choice 1) and its CHANGELOG lines name Bicep beside Terraform (choice 2, made in slice 1). The mechanical scan found no denylist term, no machine path or client name in any added line of the five tasks (my own grep of the added lines found only example.invalid addresses and synthetic test paths), and no external URL, fetch or shell-string child process. Its other hits are false positives: fixture requires of express, pg, drizzle-orm, prisma and typeorm, regex .exec calls, and a 'v flag' lead on viewer string text.",
+    "missing": [
+      "the P13.8 and later task diffs (slice 2): the mixed-fixture build, tracked cost profile, README, CHANGELOG and roadmap clauses of desiredOutcome"
+    ],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "mode phase: the phase's diff is judged against desiredOutcome and no phase-level red-first is owed. The per-task red-first words are computed by the filing verb: all seven tasks read could-not-prove because the red-first helper saw a non-zero exit with no readable tally.",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "every task's tests.gate is `test` -> `node --test`, which runs the whole project, so the question does not reach a bounded selection."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P13.1",
+      "commit": "2e92f27302ad",
+      "answer": "diverges",
+      "note": "The description reads 'Add the fixture tests/fixtures/repos/containers (a compose file with three services, two Dockerfiles, one .env.example; no real secrets)'. The diff adds the compose file with web, api and db and the Dockerfiles web/Dockerfile and api/Dockerfile, but no .env.example (finding 1). The claim describes the diff accurately: it names the omission, the permission refusal and the in-memory ct3 coverage. The extractor and stack-containers.md match the description (image or build, ports, volumes, depends_on, env key names only, Dockerfile base, ports and entrypoint, evidence, sorted and capped with truncated counts).",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-containers.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.1/20261102T221547Z.executor.json, at 2026-11-02T22:24:40Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.2",
+      "commit": "dfdaf364930e",
+      "answer": "matches",
+      "note": "pipelines.mjs extracts workflow and pipeline items with triggers, jobs and stages with needs and dependsOn, artefact uploads and downloads with the step as evidence, passes carrying the upload and the download evidence (pl4), deploy targets, sorted output and caps. YAML is read as text through the parser exported from containers.mjs, and nothing is executed (pl10). The claim matches the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-pipelines.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.2/20261102T222557Z.executor.json, at 2026-11-02T22:32:08Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.3",
+      "commit": "0e34ce10bb35",
+      "answer": "matches",
+      "note": "iac.mjs reads Terraform and Bicep as masked text: resources, modules with local targets, variable and output names with no value, references that stay inside one scope, sorted output, caps and skipped.blocks. Comments, strings and heredocs hold no reference. The fixture and the stack-iac.md reference follow the description. The one scan lead on this file (TF_SOURCE.exec, iac.mjs:244) is a regex exec, not a child process.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-iac.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.3/20261102T223343Z.executor.json, at 2026-11-02T22:41:25Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.4",
+      "commit": "72cb1e91a7d1",
+      "answer": "matches",
+      "note": "data-platform.mjs reads dbt_project.yml, model .sql files, schema yml files and Jinja regions only. It gives models with a materialization precedence, sources and tests from the schema files, and lineage with evidence at the call line. Targets the project does not declare are counted in skipped.references, never guessed. Output is sorted and capped.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-data-platform.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.4/20261102T224249Z.executor.json, at 2026-11-02T22:49:21Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.5",
+      "commit": "28b24466182e",
+      "answer": "matches",
+      "note": "The key order and PLATFORM_KINDS wiring in prescan.mjs, makePlatformNodes in merge.mjs (compose service and dbt model nodes with paths; depends, lineage and artifact edges cited at the declaring block, verified), the additive schema enum, the taxonomy and model-schema text, and the explorer agent and SKILL.md references are all in the diff. The viewer and export additions v14 and x38 go beyond the description but keep the relation styles consistent. The task lists partition.mjs and the diff leaves it unchanged; a platform-only area's stack is addressed later by 784ecfd. Findings 2 and 3 are charged to this task's schema change and to the reference text its edits left behind.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-wiring.test.mjs tests/schema.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/viewer.test.mjs tests/export.test.mjs tests/skill-references.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.5/20261102T230240Z.executor.json, at 2026-11-02T23:08:27Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.6",
+      "commit": "997b6ae0af16",
+      "answer": "diverges",
+      "note": "The description reads 'into table rows with fields and provenance declared'. The prescan rows carry no provenance key; the executor reverted that change because prescan-core pc11 requires summary rows to equal the extract's first rows, and merge marks every row's fields declared, so the model-level outcome holds. The clause 'merge.mjs unions declared fields into the entity when introspection is skipped' was already satisfied by generateFromExtracts. The diff adds the new rule instead: a field marked observed and named by no static source is relabelled inferred, with a normalisation row, only when introspection was recorded skipped and no run is recorded ok (m32 and m32b pin it). The python extractor (SQLModel, Alembic-only tables, .sql DDL), the Knex migration reader and the schema-introspection.md text are present. The claim states the .sql limitation for node-only repos and the missing provenance key, and matches the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/merge.test.mjs tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.6/20261102T213247Z.executor.json, at 2026-11-02T21:46:45Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.7",
+      "commit": "57b41737e3d0",
+      "answer": "matches",
+      "note": "R5: BENCHMARK.md and PROTOCOL.md cite the P12 sign-off summary in docs/audit/audit-plan.json dated 2026-11-02, and b33 reads that summary. R6: cost-profile.mjs labels a description holding a path-like token, a quote or more than four words as task:<n>-words-<6 hex>, with no repository text (c22 rewritten, c24 added). The clause 'c22 and c23 updated' is met by c22 plus the new c24, since c23 needed no change. R7: grader-equivalence.json holds the date, a method sentence and the four counts only, and BENCHMARK.md states the same counts, which b32 checks. The executor says it did not run the grader. The P13.7 task note in the plan records the orchestrator's measurement, so the file's method text is backed by a recorded source. I cannot verify the counts, since the cells are private, and b32 binds only the compared counts to summary.json, not cellsEqual or expectationsEqual.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.7/20261102T230933Z.executor.json, at 2026-11-02T23:14:52Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.8",
+      "commit": "c0225a7917b8",
+      "answer": "matches",
+      "note": "Clause: fixture combining API, compose, workflow, Terraform module and dbt project; no-LLM chain in e2e; one headless build tracked as iteration-3/mixed-with-skill-1.json with a row in each README; r2 re-derives the figures. The diff does each (tests/e2e.test.mjs e6; tests/readme.test.mjs checkMixedBuild; the profile reconciles: 9+26 turns, 35 total). The claim matches the diff, including the one edit outside the files, tests/evals.test.mjs e19 now skipping /mixed-/, which the executor disclosed. The fixture is fictional (example.invalid registry, placeholder passwords). Unsourced figures in the evals README paragraph are finding 4.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/e2e.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.8/20261102T232747Z.executor.json, at 2026-11-02T23:40:38Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.9",
+      "commit": "53f46141b609",
+      "answer": "matches",
+      "note": "Clause: close v1.1 like the benchmark item, Unreleased CHANGELOG lines, README and skill description name the new kinds, version bump and tag left to the owner. The diff does all of it: the heading ends 'closed on 2026-11-03', the evidence paragraph names existing paths, the CHANGELOG adds no version heading, and the SKILL.md description gains one sentence (913 characters). Edits to tests/skill.test.mjs follow from s9 pinning the description. The claim describes the diff. The closure line sits under Fixed in the CHANGELOG, which is odd but harmless.",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "The executor filed not-attempted: 'regression mode with expectRedFirst false: no red owed'. The manifest task has tests.mode regression and expectRedFirst false, so the basis holds; its informal note that r6 and r7 failed before the README edit is not relied on.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.10",
+      "commit": "29ddf775f165",
+      "answer": "matches",
+      "note": "Clauses 1 to 5 are in the diff: ormCalls in node-backend.mjs and python.mjs, merge.mjs access rows and a deduplicated sql edge, import edges typed sql, queue or call and never link, queue-unpaired rows, and the reference rows and fixtures. The summary only counts ormCalls (COUNT_ONLY), so no new explorer reads, as the task required. The digest counts.nodesWithoutEdges exists but no build report reads it (finding 1). model-schema.md was not updated for queue-unpaired (finding 2). The claim describes the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-python.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.10/20261102T214751Z.executor.json, at 2026-11-02T22:03:07Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.11",
+      "commit": "a81e33dab5d6",
+      "answer": "matches",
+      "note": "Clause 1: viewer.js and viewer.css add Play on graph with previous, next, play on a timer that stops at the end, and the arrow keys; model strings go through esc and codeify (v12 checks it); the player markup is built in the script, so the static HTML is unchanged. Clause 2: draftSequences adds queue and pull drafts and a response step with ret, MAX_DRAFTS stays 12; cron and hook links become pull flows with no edge. Clause 3: no golden file changed because the golden already holds node-linked sequences, which v9 uses; the literal 'byte-identical' cannot hold when the script grew, and r9 checks something weaker. Clause 4 is done. The DOM glue is untested and the committed example HTML lacks the player (finding 3). The claim describes the diff and states the untested glue honestly.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/viewer.test.mjs tests/render.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD: inline suite assets/viewer/viewer.css (its test file is its implementation file): it is not Python, and an inline suite's test hunks are read from Python definitions; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.11/20261102T220438Z.executor.json, at 2026-11-02T22:12:57Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    },
+    {
+      "id": "P13.12-exy",
+      "commit": "784ecfd2b777",
+      "answer": "matches",
+      "note": "Clause: area stacks become the code stacks plus the platform stacks whose detect fires inside the area, in a deterministic order, with pc3 updated and every reference handed to the brief. The diff adds platformStacksIn with a fixed PLATFORM_ORDER, stackRefsFor with a dedupe and a discovery-generic fallback, and plan builds the stackRef line from every reference; the only code reading area stacks for behaviour is zoneFor, which tests only ts-frontend, so nothing else shifts. No prompt template text changed. The claim matches. In production plan() calls stackRefsFor directly, so stackRefFor is now used only by tests.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "`node --test tests/prescan-wiring.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.12-exy/20261102T231907Z.executor.json, at 2026-11-02T23:26:44Z)",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
+    }
+  ],
+  "preExisting": [],
+  "computedAnswers": {
+    "P13.1": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.2": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.3": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.4": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.5": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.6": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.7": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.8": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.9": [
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.10": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.11": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ],
+    "P13.12-exy": [
+      "redFirst",
+      "redFirstBasis",
+      "inheritedTests",
+      "inheritedTestsBasis"
+    ]
+  },
+  "shown": [
+    {
+      "id": "P13.1",
+      "commit": "2e92f27302ad"
+    },
+    {
+      "id": "P13.2",
+      "commit": "dfdaf364930e"
+    },
+    {
+      "id": "P13.3",
+      "commit": "0e34ce10bb35"
+    },
+    {
+      "id": "P13.4",
+      "commit": "72cb1e91a7d1"
+    },
+    {
+      "id": "P13.5",
+      "commit": "28b24466182e"
+    },
+    {
+      "id": "P13.6",
+      "commit": "997b6ae0af16"
+    },
+    {
+      "id": "P13.7",
+      "commit": "57b41737e3d0"
+    },
+    {
+      "id": "P13.8",
+      "commit": "c0225a7917b8"
+    },
+    {
+      "id": "P13.9",
+      "commit": "53f46141b609"
+    },
+    {
+      "id": "P13.10",
+      "commit": "29ddf775f165"
+    },
+    {
+      "id": "P13.11",
+      "commit": "a81e33dab5d6"
+    },
+    {
+      "id": "P13.12-exy",
+      "commit": "784ecfd2b777"
+    }
+  ]
+}

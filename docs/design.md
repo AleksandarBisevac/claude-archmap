@@ -101,10 +101,12 @@ Conventions borrowed from the audit plugin: commands call scripts as
 - `meta`: `schemaVersion`, `project`, `commit`, `generatedAt`, `repoUrl` (for evidence links), `profile`,
   `sources` (introspections run or skipped, and why), `coverage` (area → globs).
 - `zones[]`: `{id, kind: browser|edge|service|data|external|platform|delivery, label, parent?, outside?}`.
-- `nodes[]`: `{id, zone, kind (app|module|route-group|service|store|queue|job|external…), title, sub[], role, facts[],
+- `nodes[]`: `{id, zone, kind (app|module|route-group|service|store|queue|job|external|pipeline|resource|model|source…), title, sub[], role, facts[],
   evidence[{path, lines}], paths[] (owned globs, used by diffmap), level: 1|2|3, locked?, notes?}`.
 - `edges[]`: `{id, from, to, type, label?, desc, evidence[], confidence: verified|inferred|external, async?}`.
-  The types come from the artifact (`api, static, auth, pull, sql, cache, persist, call, link, deploy`) plus `event`/`queue`.
+  The types come from the artifact (`api, static, auth, pull, sql, cache, persist, call, link, deploy`) plus `event`/`queue`
+  and, from v1.1, `depends` (a declared dependency that is not a call), `lineage` (data flowing from a source or model to
+  the model that reads it) and `artifact` (a build output handed from one pipeline job to another).
 - `entities[]`: `{id, store, name, kind: table|view|collection|dataset, fields[{name, type, pk?, fk?{entity, field},
   nullable?, provenance, evidence[]}], indexes[], evidence[]}`.
 - `relations[]` (ER): `{from{entity, field}, to{entity, field}, cardinality: 1-1|1-n|n-m, kind: fk|join|name-convention, provenance}`.

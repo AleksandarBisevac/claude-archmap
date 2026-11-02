@@ -92,22 +92,56 @@ test('s2 model schema requires the design section 5 top-level and meta keys', ()
   for (const k of ['repoUrl', ...meta.required]) assert.ok(meta.properties[k], `meta.properties.${k}`);
 });
 
+// The kinds and types below are read from docs/design.md section 5 (and the node kind table of
+// relation-taxonomy.md), so a change to the schema enum without the design text fails here.
+const design = readFileSync(new URL('../docs/design.md', import.meta.url), 'utf8');
+const taxonomy = readFileSync(
+  new URL('../skills/architecture-map/references/relation-taxonomy.md', import.meta.url), 'utf8');
+
+// The text of the section 5 bullet that starts with `- \`<key>\``, up to the next top-level bullet.
+function designBullet(key) {
+  const section = design.slice(design.indexOf('## 5. The model'), design.indexOf('## 6.'));
+  const start = section.indexOf(`- \`${key}\``);
+  assert.ok(start >= 0, `design section 5 has a ${key} bullet`);
+  const rest = section.slice(start + 1);
+  const next = rest.search(/\n- /);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+// Every backticked word list in a text, split on commas, spaces and slashes.
+const ticked = (text) => [...text.matchAll(/`([^`]+)`/g)].flatMap((m) => m[1].split(/[,\s/]+/)).filter(Boolean);
+// The `a|b|c` alternatives that follow `<field>:` inside a bullet.
+const alternatives = (text, field) => {
+  const m = text.match(new RegExp(`${field}: ([A-Za-z0-9|-]+)`));
+  assert.ok(m, `design names the ${field} alternatives`);
+  return m[1].split('|');
+};
+
 test('s3 model enums match design section 5', () => {
   const d = model.$defs;
-  assert.deepEqual(d.zone.properties.kind.enum,
-    ['browser', 'edge', 'service', 'data', 'external', 'platform', 'delivery']);
-  assert.deepEqual(d.edge.properties.type.enum,
-    ['api', 'static', 'auth', 'pull', 'sql', 'cache', 'persist', 'call', 'link', 'deploy', 'event', 'queue', 'depends', 'lineage', 'artifact']);
-  assert.deepEqual(d.edge.properties.confidence.enum, ['verified', 'inferred', 'external']);
+  const zones = alternatives(designBullet('zones[]'), 'kind');
+  assert.deepEqual(d.zone.properties.kind.enum, zones);
+  const edges = designBullet('edges[]');
+  const edgeTypes = ticked(edges.slice(edges.indexOf('The types come')));
+  assert.deepEqual([...d.edge.properties.type.enum].sort(), [...edgeTypes].sort());
+  assert.deepEqual(d.edge.properties.confidence.enum, alternatives(edges, 'confidence'));
   assert.deepEqual(d.edge.properties.foundBy.enum, ['static', 'llm', 'introspection']);
   assert.ok(!d.edge.required.includes('foundBy'), 'foundBy is optional');
-  assert.deepEqual(d.entity.properties.kind.enum, ['table', 'view', 'collection', 'dataset']);
+  assert.deepEqual(d.entity.properties.kind.enum, alternatives(designBullet('entities[]'), 'kind'));
   assert.deepEqual(d.field.properties.provenance.enum, ['declared', 'observed', 'inferred']);
-  assert.deepEqual(d.relation.properties.cardinality.enum, ['1-1', '1-n', 'n-m']);
-  assert.deepEqual(d.relation.properties.kind.enum, ['fk', 'join', 'name-convention']);
+  const relations = designBullet('relations[]');
+  assert.deepEqual(d.relation.properties.cardinality.enum, alternatives(relations, 'cardinality'));
+  assert.deepEqual(d.relation.properties.kind.enum, alternatives(relations, 'kind'));
   assert.deepEqual(d.relation.properties.provenance.enum, ['declared', 'observed', 'inferred']);
   assert.deepEqual(model.properties.meta.properties.profile.enum, ['max', 'balanced', 'economy']);
   assert.deepEqual(d.node.properties.level.enum, [1, 2, 3]);
+  // Node kind is an open string in the schema; the design list and the taxonomy table must still agree.
+  const designKinds = designBullet('nodes[]').match(/kind \(([^)]*)\)/)[1].replace('…', '').split('|');
+  const tableKinds = [...taxonomy.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]);
+  for (const k of designKinds) assert.ok(tableKinds.includes(k), `design node kind ${k} is in relation-taxonomy.md`);
+  for (const k of ['pipeline', 'job', 'resource', 'module', 'model', 'source']) {
+    assert.ok(designKinds.includes(k), `design section 5 lists the v1.1 node kind ${k}`);
+  }
 });
 
 test('s4 model $defs hold the shared shapes and every local $ref resolves', () => {
