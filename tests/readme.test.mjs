@@ -252,6 +252,28 @@ const checkRoadmap = (roadmap, readme) => {
   assert.ok(/\]\(docs\/roadmap\.md\)/.test(readme), 'the README links docs/roadmap.md');
 };
 
+// --- r8: both READMEs link the benchmark report, and every link resolves ----------------------------------------
+// The top-level README links it from its cost section; the evals README from its own benchmark section, beside the
+// protocol and the candidates. A link resolves against the directory of the file that carries it.
+const EVALS_README = join(EVALS_DIR, 'README.md');
+const linksTo = (text, name) =>
+  [...text.matchAll(/\]\(([^)\s#]+)(?:#[^)]*)?\)/g)].map((m) => m[1]).filter((target) => target.split('/').pop() === name);
+const checkBenchmarkLinks = (readme, evalsReadme, exists = existsSync) => {
+  const cost = section(readme, 'What a build costs');
+  const top = linksTo(cost, 'BENCHMARK.md');
+  assert.ok(top.length >= 1, 'the README cost section links BENCHMARK.md');
+  for (const l of top) assert.ok(exists(join(ROOT, l)), `the README link ${l} resolves`);
+  const sentence = cost.replace(/\s+/g, ' ').split(/(?<=\.) /).find((s) => s.includes('BENCHMARK.md'));
+  assert.match(sentence, /\b1\.0\.0\b/, 'the sentence says which build was benchmarked');
+  assert.match(sentence, /other\b.*plugins/i, 'the sentence says what it was compared with');
+  const bench = section(evalsReadme, 'Benchmark against other plugins');
+  for (const name of ['BENCHMARK.md', 'PROTOCOL.md', 'CANDIDATES.md']) {
+    const ls = linksTo(bench, name);
+    assert.ok(ls.length >= 1, `the evals README benchmark section links ${name}`);
+    for (const l of ls) assert.ok(exists(join(EVALS_DIR, l)), `the evals README link ${l} resolves`);
+  }
+};
+
 test('r1 the README command table has one row per commands/*.md, with its argument-hint and description verbatim', () => {
   checkCommandTable(readReadme());
 });
@@ -352,4 +374,21 @@ test('r7 the roadmap check fails on a missing file, a missing v1.1 heading, a mi
   assert.throws(() => checkRoadmap(roadmap.replace(/^(#{1,3} .*)\bv1\.1\b/gm, '$1next'), text), /v1\.1 heading/);
   assert.throws(() => checkRoadmap(roadmap.replace(/benchmark/gi, 'comparison'), text), /benchmark/);
   assert.throws(() => checkRoadmap(roadmap, text.replace('](docs/roadmap.md)', ']')), /links docs\/roadmap\.md/);
+});
+
+test('r8 both the README cost section and the evals README benchmark section link BENCHMARK.md, and each link resolves', () => {
+  checkBenchmarkLinks(readReadme(), readFileSync(EVALS_README, 'utf8'));
+});
+
+test('r9 the benchmark link check fails on a dropped link, a link that does not resolve and a missing evals README section', () => {
+  const text = readReadme();
+  const evals = readFileSync(EVALS_README, 'utf8');
+  checkBenchmarkLinks(text, evals); // the unbroken pair passes, so each failure below is the edit's
+  const top = linksTo(section(text, 'What a build costs'), 'BENCHMARK.md')[0];
+  assert.throws(() => checkBenchmarkLinks(text.replaceAll(`](${top})`, ']'), evals), /README cost section links BENCHMARK\.md/);
+  assert.throws(() => checkBenchmarkLinks(text.replaceAll(`](${top})`, `](${top.replace('BENCHMARK.md', 'benchmark/BENCHMARK.md')})`), evals), /README link .* resolves/);
+  assert.throws(() => checkBenchmarkLinks(text, evals.replace(/\]\(BENCHMARK\.md\)/g, ']')), /evals README benchmark section links BENCHMARK\.md/);
+  assert.throws(() => checkBenchmarkLinks(text, evals.replace(/\]\(benchmark\/CANDIDATES\.md\)/g, '](CANDIDATES.md)')), /evals README link CANDIDATES\.md resolves/);
+  assert.throws(() => checkBenchmarkLinks(text, evals.replace('## Benchmark against other plugins', '## Elsewhere')), /Benchmark against other plugins/);
+  assert.throws(() => checkBenchmarkLinks(text, evals, () => false), /resolves/);
 });

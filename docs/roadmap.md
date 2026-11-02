@@ -71,7 +71,16 @@ The 1.0.0 figure is the one in the evals README.
 Closed by: a tracked recall figure for every release in the changelog, derived by the existing recall scorer, and a
 test that fails when a release entry lacks the figure.
 
-## Benchmark against other plugins (after 1.0.0)
+## Benchmark against other plugins (after 1.0.0), closed on 2026-11-02
+
+Closed on 2026-11-02 by the report `skills/architecture-map/evals/BENCHMARK.md`, against the criterion below: it is
+repo-free (the repositories are named by letter and a generic description, with no client and no machine path); the
+task is the tracked prompt `skills/architecture-map/evals/benchmark/prompt.md`; the plugin versions and commits are in
+`skills/architecture-map/evals/benchmark/CANDIDATES.md` and the report's configuration table; the rate table date,
+2026-10-31, is in the report and in the `rates` block of every profile; and the raw cost profiles are tracked under
+`skills/architecture-map/evals/evidence/benchmark/`, where `tests/benchmark.test.mjs` re-derives every figure of the
+report from them. The task prompt is public, but the repositories it ran on are private, so a third party re-runs the
+method on its own repositories, not the cells; the report says so in its limits.
 
 Delivers a comparison of the same build task run with this plugin and with other architecture and codebase-mapping
 plugins for Claude Code: cost, turns, context, and how many of the facts the task needs each map gets right. It is

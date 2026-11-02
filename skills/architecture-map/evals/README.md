@@ -220,3 +220,13 @@ of the builds of this repository by its own skill are `evidence/iteration-2/self
 update, the committed map). The three P11.2
 runs are `evidence/iteration-2/2-with-skill-4.json` to `evidence/iteration-2/2-with-skill-6.json`, named in the eval 2
 run-by-run table, and e19 reads that table and the self-build rows against these files too.
+
+## Benchmark against other plugins
+
+The 1.0.0 build was run once on each of the three repositories beside three other mapping plugins for Claude Code,
+on the same task prompt, with the same headless session and the same orchestrator model.
+[BENCHMARK.md](BENCHMARK.md) reports the cost, duration, turns, context, expectations passed and rubric of every
+cell, and this plugin's issue recall. The method is [benchmark/PROTOCOL.md](benchmark/PROTOCOL.md), and the choice
+of the other plugins, with their versions and install commands, is [benchmark/CANDIDATES.md](benchmark/CANDIDATES.md).
+Its profiles are tracked under `evidence/benchmark/`, separate from the evals profiles above, and
+`tests/benchmark.test.mjs` checks every figure of the report against them.

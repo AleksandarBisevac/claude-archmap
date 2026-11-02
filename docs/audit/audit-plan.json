@@ -8948,7 +8948,7 @@
         {
           "id": "P12.4",
           "title": "Owner-run: this plugin at 1.0.0 and every candidate on the same prompt over the same three repositories, plus the issue-overlay recall run; profiles tracked under evidence/benchmark, raw results private",
-          "status": "in_progress",
+          "status": "done",
           "description": "Owner-run with the orchestrator driving. Run the benchmark cells of PROTOCOL.md: this plugin from its 1.0.0 tag checkout and each candidate from CANDIDATES.md, over repositories A, B and C with the prompt in prompt.md, one run per cell with the same orchestrator model, through run-candidate.sh in fresh detached clones under the workspace the evals README names; plus the issue-overlay run of this plugin on repository A for recall. No executor runs while a cell runs, and at most two or three cells run in parallel. After every cell check that the three original repositories are untouched. For each completed cell save `node scripts/cost-profile.mjs <stream.jsonl> --json --basename` as skills/architecture-map/evals/evidence/benchmark/<tool>-<repo-letter>-<run>.json where <tool> is `archmap` or the candidate's short name from CANDIDATES.md, grade the tool-neutral expectations with the harness and record pass, fail or not graded per expectation, record duration from timing.json, and record the owner's rubric scores; the raw streams, transcripts, gradings and rubric notes go to the private results log, never into a tracked file. A cell that the usage limit cuts is reset and rerun; a candidate that fails to install or exits non-zero in two attempts is recorded as such in the private log and the cell is reported as failed in the evidence summary. Append to PROTOCOL.md a `## Runs` section with the date, the plugin and candidate versions used, the orchestrator model, the Claude Code version and the rate table date. The evidence directory may hold a summary.json with per cell: tool, repo letter, run, evidence file, exit code, seconds, expectations {passed, failed, notGraded}, recall (archmap on A only), rubric {coverage, relations, flows, readability}; no path or denylist term inside. Extend tests/benchmark.test.mjs: every evidence file under evidence/benchmark/ matches the naming rule, every summary.json cell names an evidence file that exists and whose orchestrator row exists, and no evidence file carries a path component of a home directory.",
           "files": [
             "skills/architecture-map/evals/evidence/benchmark",
@@ -8976,25 +8976,43 @@
           ],
           "attempts": 2,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "2030f2ac0fa7",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Copied the 14 staged files (13 profiles <tool>-<repo>-<run>.json exactly as cost-profile.mjs --json --basename printed them, plus summary.json) unchanged into skills/architecture-map/evals/evidence/benchmark/ (cmp per file: no difference). PROTOCOL.md: Evidence section now says each per-run file is the profile exactly as printed with nothing added and summary.json beside them carries duration, exit status, expectation results, recall and rubric; appended a ## Runs section from the orchestrator's facts (dates, Claude Code 2.1.316, model opus, rate table dated 2026-10-31, versions and commits of archmap v1.0.0 and the three candidates, who launched which cells and why, the repository C deviation and why C files are run 2, expectations all graded with the external-element exclusion of the file-reference check, provisional orchestrator rubric, recall 0.933 14/15 with 23 issues reported, side effects, originals unchanged). tests/benchmark.test.mjs: appended b15-b20 (written before the evidence was copied; all six failed on the pre-change tree: b15/b17 'evidence/benchmark/ is missing', b16/b18/b19 'summary.json is missing', b20 'no \"## Runs\" section'). Outside the declared files: tests/evals.test.mjs e19/e20 failed once the evidence directory existed, because its evidenceFiles() walked evidence/ recursively and required the evals README cost table to name every JSON there, the benchmark files included. Added a one-line filter that leaves evidence/benchmark/ out of that walk (with a two-line comment); the plan gate allowed the Edit. Commands, run from the project dir: node --test tests/denylist.test.mjs tests/benchmark.test.mjs -> exit 0, 22 pass 0 fail 0 skipped; node --test -> exit 0, 482 tests, 482 pass, 0 fail (before the evals.test.mjs filter: exit 1, e19 and e20 failing on the benchmark files). All new and changed files staged with git add; nothing committed. Dependants: run-candidate.sh, PROTOCOL.md's other sections, tests/cost-profile.test.mjs, tests/readme.test.mjs, the evals README: still correct, unchanged, and their tests pass in the full run. tests/evals.test.mjs changed as above, so its README cost-section check now covers the evals' own evidence only. .agents/skills/node files matched by basename only and are not affected.",
+            "descriptive": "The release benchmark's 13 cost profiles and their summary are now tracked, PROTOCOL.md records how the runs went, and six tests hold the files to the naming rule, the summary and the protocol's rate date."
           },
           "startedAt": "2026-11-02T07:57:26Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-02T08:05:59Z",
+          "verifiedBy": [
+            "b15: every file under evidence/benchmark/ is summary.json or matches <tool>-<repo-letter>-<run>.json for a known tool (archmap, archmap-issues or a CANDIDATES.md short name), and every file is named by a summary cell",
+            "b16: every summary.json cell names evidence/benchmark/<tool>-<repo>-<run>.json for its own tool, repo and run; the file exists and has an orchestrator row",
+            "b17: no evidence file carries a home-directory or machine path (or the running user's home dir), nor a denylist term (skipped when the list is absent)",
+            "b18: summary.json has 13 cells: each of the four tools once on A, B and C, plus one archmap-issues cell on A with recall in [0,1]; only the issues cell has a recall",
+            "b19: every cell's costUsd is its file's total.costUsd rounded to two decimals; orchestratorTurns and maxContext match that file's orchestrator row",
+            "b20: PROTOCOL.md's Runs section names the Claude Code version, the opus model, v1.0.0 and each candidate's version and commit; every profile's rates.date equals the rate table date it gives"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-02T08:05:58Z.5cd85a",
             "status": "passed",
             "at": "2026-11-02T08:05:58Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "2030f2ac0fa7",
+            "at": "2026-11-02T08:05:59Z"
+          },
+          "redFirst": {
+            "at": "2026-11-02T08:02:41Z",
+            "basis": "`node --test tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P12.5",
           "title": "BENCHMARK.md: every figure derived from an evidence file by a test, linked from both READMEs, the roadmap Benchmark item closed by its own criterion and a CHANGELOG line",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Write skills/architecture-map/evals/BENCHMARK.md, the report of PROTOCOL.md's runs: a short statement of what was compared and when, the configuration table (tool, version, install, orchestrator model), the result table with one row per cell (tool, repository letter, cost USD, seconds, orchestrator turns, maximum context, expectations passed of graded, rubric total) and the recall row for this plugin, a paragraph per tool on what its artifact contained and lacked against the task (from summary.json and the rubric notes, in generic terms), the limits paragraph (one run per cell, list prices, private repositories, the owner graded the rubric), and a `## How each number was produced` section that names the evidence file of every row like the evals README does. Every figure in the tables is derived from evidence/benchmark/ files: extend tests/benchmark.test.mjs so that each cost cell equals total.costUsd of the named evidence file rounded to two decimals, each turn and context cell equals the orchestrator row, each seconds, expectations and rubric cell equals summary.json, and the test fails on a tampered cell (feed it a modified copy as tests/evals.test.mjs does). Link the report from the top-level README (in the section that gives the cost table, one sentence that says what the benchmark compared and links the file) and from skills/architecture-map/evals/README.md; tests/readme.test.mjs checks the link exists and resolves. In docs/roadmap.md, mark the Benchmark section closed with the date and the report path, by its own criterion (repo-free, tracked prompt, versions, rate table date, raw profiles), and add a one-line CHANGELOG entry under an Unreleased heading. No denylist term, no machine path, no candidate's output quoted beyond generic terms.",
           "files": [
             "skills/architecture-map/evals/BENCHMARK.md",
@@ -9003,7 +9021,8 @@
             "docs/roadmap.md",
             "CHANGELOG.md",
             "tests/benchmark.test.mjs",
-            "tests/readme.test.mjs"
+            "tests/readme.test.mjs",
+            "tests/manifest.test.mjs"
           ],
           "tests": {
             "mode": "tdd",
@@ -9023,16 +9042,22 @@
           "dependsOn": [
             "P12.4"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-02T08:06:00Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-02T08:16:05Z.488a8d",
+            "status": "passed",
+            "at": "2026-11-02T08:16:05Z"
+          }
         }
       ],
       "reviewPerTask": "phase",
@@ -9876,7 +9901,8 @@
     "tests/manifest.test.mjs": [
       "P9.2",
       "P9.5",
-      "P9.8"
+      "P9.8",
+      "P12.5"
     ],
     ".claude-plugin/plugin.json": [
       "P9.3",

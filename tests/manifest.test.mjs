@@ -15,7 +15,7 @@ test('plugin manifest names the plugin archmap with a semver version', () => {
   assert.match(plugin.version, /^\d+\.\d+\.\d+$/);
 });
 
-test('mf3 the newest CHANGELOG version heading equals plugin.json\'s version, is dated, and sits below an empty Unreleased heading', () => {
+test('mf3 the newest CHANGELOG version heading equals plugin.json\'s version, is dated, and sits below an Unreleased heading that holds only change entries', () => {
   const changelog = text('CHANGELOG.md');
   const headings = versionHeadings(changelog);
   assert.ok(headings.length > 0, 'CHANGELOG.md has at least one "## [x.y.z] - YYYY-MM-DD" version heading');
@@ -25,7 +25,9 @@ test('mf3 the newest CHANGELOG version heading equals plugin.json\'s version, is
   const unreleased = changelog.indexOf('## [Unreleased]');
   const first = changelog.indexOf(`## [${newest.version}]`);
   assert.ok(unreleased >= 0 && unreleased < first, 'the Unreleased heading sits above the newest version');
-  assert.equal(changelog.slice(unreleased + '## [Unreleased]'.length, first).trim(), '', 'the Unreleased section is empty');
+  // After a release the Unreleased section collects the next entries (Keep a Changelog): `###` kinds and list items only.
+  const pending = changelog.slice(unreleased + '## [Unreleased]'.length, first).split('\n').filter((l) => l.trim() !== '');
+  for (const l of pending) assert.match(l, /^(### \S|- \S|\s+\S)/, `the Unreleased section holds only change entries: "${l}"`);
 });
 
 test('mf4 the CHANGELOG version check fails on a heading that differs from the plugin version and passes on a matching pair', () => {

@@ -456,3 +456,218 @@ test('b20 PROTOCOL.md has a Runs section naming the Claude Code version, the mod
   assert.ok(m, 'Runs states no rate table date');
   for (const f of runFiles()) assert.equal(loadJson(join(BENCH, f)).rates?.date, m[1], `${f}: rates.date`);
 });
+
+// ---- P12.5: the benchmark report (BENCHMARK.md) ----
+// Every figure of its tables is derived from evidence/benchmark/: the cost from the named profile's total.costUsd, the
+// turns and the context from its orchestrator row, the seconds, expectations, rubric and recall from summary.json. The
+// check reads a report text, a profile reader and the summary cells, so b23 can feed it a tampered copy of any of them.
+const REPORT = join(EVALS, 'BENCHMARK.md');
+const loadReport = () => {
+  assert.ok(existsSync(REPORT), 'BENCHMARK.md is missing');
+  return readFileSync(REPORT, 'utf8');
+};
+const readBench = (rel) => loadJson(join(EVALS, rel));
+// The table of the body whose header row starts with `| <head>`, as { header, rows } (null when there is none).
+function tableAt(body, head) {
+  const lines = body.split('\n').map((l) => l.trim());
+  const at = lines.findIndex((l) => l.startsWith(`| ${head}`));
+  return at === -1 ? null : table(lines.slice(at).join('\n'));
+}
+const colOf = (t, name) => {
+  const i = t.header.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+  assert.ok(i !== -1, `column ${name} is missing from [${t.header.join(', ')}]`);
+  return i;
+};
+const unquote = (s) => s.replace(/`/g, '').trim();
+// Prose is wrapped, so a phrase is matched on the text with every run of whitespace made one space.
+const flat = (s) => s.replace(/\s+/g, ' ');
+const usdOf = (n) => `${(Math.round(n * 100) / 100).toFixed(2)} USD`;
+const kOf = (n) => `${(n / 1000).toFixed(1)} K`;
+const cellKey = (tool, repo, run) => `${tool}/${repo}/${run}`;
+const rubricOf = (r) => `${r.total} (${r.coverage}, ${r.relations}, ${r.flows}, ${r.readability})`;
+
+const checkReport = (text, read = readBench, all = cells()) => {
+  const byKey = new Map(all.map((c) => [cellKey(c.tool, c.repo, String(c.run)), c]));
+  const compared = all.filter((c) => c.tool !== 'archmap-issues');
+
+  // the evidence table: one row per summary.json cell, naming the file that cell names
+  const how = section(text, 'How each number was produced');
+  assert.notEqual(how, null, 'no "## How each number was produced" section');
+  const ev = tableAt(how, 'Tool | Repository | Run | Evidence');
+  assert.ok(ev, 'no evidence table (Tool | Repository | Run | Evidence) in How each number was produced');
+  const evidenceOf = new Map();
+  for (const r of ev.rows) {
+    const id = cellKey(unquote(r[colOf(ev, 'Tool')]), r[colOf(ev, 'Repository')], r[colOf(ev, 'Run')]);
+    const c = byKey.get(id);
+    assert.ok(c, `evidence row ${id} is no summary.json cell`);
+    assert.ok(!evidenceOf.has(id), `evidence row ${id} appears twice`);
+    const f = unquote(r[colOf(ev, 'Evidence')]);
+    assert.equal(f, c.evidence, `${id}: the evidence file is the one summary.json names`);
+    assert.ok(existsSync(join(EVALS, f)), `${id}: ${f} exists`);
+    evidenceOf.set(id, f);
+  }
+  assert.deepEqual([...evidenceOf.keys()].sort(), [...byKey.keys()].sort(), 'the evidence table names every summary.json cell once');
+  assert.ok(how.includes('node scripts/cost-profile.mjs <stream.jsonl> --json --basename'), 'the cost-profile command is named');
+  assert.ok(how.includes('run-candidate.sh'), 'the run script is named');
+  for (const e of ['key components', 'flows', 'file references', 'artifact on disk', 'exit status']) {
+    assert.ok(flat(how).toLowerCase().includes(e), `the expectation "${e}" is named`);
+  }
+  const date = flat(how).match(/rate table dated (\d{4}-\d{2}-\d{2})/)?.[1];
+  assert.ok(date, 'How each number was produced states the rate table date');
+  for (const f of evidenceOf.values()) assert.equal(read(f).rates?.date, date, `${f}: priced at the rate table dated ${date}`);
+
+  // the result table: one row per compared cell
+  const res = section(text, 'Results');
+  assert.notEqual(res, null, 'no "## Results" section');
+  assert.match(flat(res), /provisional/i, 'the Results caption says the rubric scores are provisional');
+  assert.match(flat(res), /owner confirms or replaces/i, 'the Results caption says the owner confirms or replaces them');
+  const rt = tableAt(res, 'Tool | Repository | Run | Cost');
+  assert.ok(rt, 'no result table (Tool | Repository | Run | Cost ...)');
+  const at = (n) => colOf(rt, n);
+  const seen = [];
+  for (const r of rt.rows) {
+    const id = cellKey(unquote(r[at('Tool')]), r[at('Repository')], r[at('Run')]);
+    const c = byKey.get(id);
+    assert.ok(c && c.tool !== 'archmap-issues', `result row ${id} is a compared summary.json cell`);
+    seen.push(id);
+    const f = evidenceOf.get(id);
+    const p = read(f);
+    const o = orchestratorRow(p);
+    assert.equal(r[at('Cost')], usdOf(p.total.costUsd), `${id}: the cost is total.costUsd of ${f} rounded to two decimals (${p.total.costUsd})`);
+    assert.equal(r[at('Orchestrator turns')], String(o.turns), `${id}: the turns are the orchestrator row of ${f}`);
+    assert.equal(r[at('Max context')], kOf(o.maxContext), `${id}: the max context is the orchestrator maxContext of ${f}`);
+    assert.equal(r[at('Seconds')], String(c.seconds), `${id}: the seconds are summary.json's`);
+    assert.match(r[at('Expectations')], new RegExp(`^${c.passed}/${c.graded}(\\s|$)`), `${id}: the expectations are summary.json's ${c.passed}/${c.graded}`);
+    assert.equal(r[at('Rubric')], rubricOf(c.rubric), `${id}: the rubric is summary.json's`);
+  }
+  assert.deepEqual([...seen].sort(), compared.map((c) => cellKey(c.tool, c.repo, String(c.run))).sort(), 'one result row per compared cell');
+
+  // the per-tool totals: the sum of the three profiles' total.costUsd, rounded once
+  const tt = tableAt(res, 'Tool | Cost over A, B and C');
+  assert.ok(tt, 'no totals table (Tool | Cost over A, B and C)');
+  assert.deepEqual(tt.rows.map((r) => unquote(r[0])), [...new Set(compared.map((c) => c.tool))], 'one totals row per tool, in summary.json order');
+  for (const r of tt.rows) {
+    const tool = unquote(r[0]);
+    const sum = compared.filter((c) => c.tool === tool).reduce((s, c) => s + read(c.evidence).total.costUsd, 0);
+    assert.equal(r[1], usdOf(sum), `${tool}: the total over A, B and C is the sum of its profiles' total.costUsd (${sum})`);
+  }
+
+  // the issues-overlay row, outside the comparison
+  const it = tableAt(res, 'Tool | Repository | Run | Recall');
+  assert.ok(it, 'no issue-recall table (Tool | Repository | Run | Recall ...)');
+  assert.equal(it.rows.length, 1, 'one issue-recall row');
+  const [ir] = it.rows;
+  const iid = cellKey(unquote(ir[colOf(it, 'Tool')]), ir[colOf(it, 'Repository')], ir[colOf(it, 'Run')]);
+  const ic = byKey.get(iid);
+  assert.ok(ic && ic.tool === 'archmap-issues', `the issue-recall row ${iid} is the archmap-issues cell`);
+  const ip = read(evidenceOf.get(iid));
+  assert.equal(ir[colOf(it, 'Recall')], String(ic.recall), `${iid}: the recall is summary.json's`);
+  assert.equal(ir[colOf(it, 'Issues reported')], String(ic.issuesReported), `${iid}: the issues reported are summary.json's`);
+  assert.equal(ir[colOf(it, 'Cost')], usdOf(ip.total.costUsd), `${iid}: the cost is total.costUsd of ${evidenceOf.get(iid)}`);
+  assert.equal(ir[colOf(it, 'Orchestrator turns')], String(orchestratorRow(ip).turns), `${iid}: the turns are the orchestrator row of ${evidenceOf.get(iid)}`);
+  assert.match(flat(res), /outside the comparison/i, 'the issue-recall row is marked outside the comparison');
+
+  // the configuration table: each tool once, with its pinned version and the orchestrator model
+  const conf = section(text, 'Configurations');
+  assert.notEqual(conf, null, 'no "## Configurations" section');
+  const ct = tableAt(conf, 'Tool | Version | Install | Orchestrator model');
+  assert.ok(ct, 'no configuration table (Tool | Version | Install | Orchestrator model)');
+  assert.deepEqual(ct.rows.map((r) => unquote(r[0])), TOOLS(), 'one configuration row per tool');
+  const cand = table(section(load(), 'Candidates'));
+  for (const r of ct.rows) {
+    const name = unquote(r[0]);
+    assert.equal(unquote(r[colOf(ct, 'Orchestrator model')]), 'opus', `${name}: the orchestrator model is opus`);
+    const version = r[colOf(ct, 'Version')];
+    if (name === 'archmap') {
+      assert.match(version, /\b1\.0\.0\b/, 'archmap: version 1.0.0');
+      continue;
+    }
+    const pinned = column(cand, 'Version')[column(cand, 'Name').map(unquote).indexOf(name)];
+    assert.ok(version.includes(pinned.match(/\b\d+\.\d+\.\d+\b/)[0]), `${name}: the version CANDIDATES.md pins`);
+    assert.ok(version.includes(pinned.match(/commit ([0-9a-f]{7})/)[1]), `${name}: the commit CANDIDATES.md pins`);
+  }
+
+  // the limits
+  const limits = section(text, 'Limits');
+  assert.notEqual(limits, null, 'no "## Limits" section');
+  for (const re of [/one run per cell/i, /list price/i, /private/i, /provisional/i, /owner confirms or replaces/i, /run 2/i, /owner/i]) {
+    assert.match(flat(limits), re, `the limits say ${re}`);
+  }
+};
+
+test('b21 every cost, seconds, turn, context, expectations, rubric, total and recall cell of BENCHMARK.md equals the evidence file it names or summary.json', () => {
+  checkReport(loadReport());
+});
+
+test('b22 BENCHMARK.md is public: no machine path, home directory or denylist term (denylist skipped when absent)', (t) => {
+  const text = loadReport();
+  for (const re of [/\/Users\/\S/, /\/home\/\S/, /\/private\/\S/, /\/tmp\/\S/, /[A-Za-z]:\\\\?\S/, /~\//, /\.private\b/]) {
+    assert.doesNotMatch(text, re, `matches ${re}`);
+  }
+  if (!existsSync(DENYLIST)) {
+    t.skip('denylist not checked: .private/anonymise-denylist.txt is absent');
+    return;
+  }
+  assert.deepEqual(denylistHits(text), [], 'BENCHMARK.md carries a denylist term');
+});
+
+test('b23 the report check fails on a tampered cost, seconds, turn, context, expectations, rubric, total, recall, evidence or date cell, a dropped row or caveat, and a tampered profile or summary', () => {
+  const text = loadReport();
+  checkReport(text); // the unbroken text passes, so each failure below is the edit's
+  const lines = text.split('\n');
+  const row = (re) => {
+    const l = lines.find((x) => re.test(x));
+    assert.ok(l, `a row matching ${re}`);
+    return l;
+  };
+  const swap = (from, to) => {
+    assert.ok(text.includes(from), `the report carries ${from}`);
+    return text.replace(from, to);
+  };
+  const split = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+  const tamper = (line, head, name, to) => {
+    const t = tableAt(text, head);
+    const c = split(line);
+    c[colOf(t, name)] = to;
+    return swap(line, `| ${c.join(' | ')} |`);
+  };
+  const RES = 'Tool | Repository | Run | Cost';
+  const a = row(/^\| `archmap` \| A \| 1 \| \d/);
+  assert.throws(() => checkReport(tamper(a, RES, 'Cost', '9.99 USD')), /total\.costUsd/, 'cost');
+  assert.throws(() => checkReport(tamper(a, RES, 'Seconds', '239')), /seconds are summary/, 'seconds');
+  assert.throws(() => checkReport(tamper(a, RES, 'Orchestrator turns', '24')), /orchestrator row/, 'turns');
+  assert.throws(() => checkReport(tamper(a, RES, 'Max context', '85.2 K')), /maxContext/, 'context');
+  assert.throws(() => checkReport(tamper(a, RES, 'Expectations', '4/5')), /expectations are summary/, 'expectations');
+  assert.throws(() => checkReport(tamper(a, RES, 'Rubric', '19 (5, 4, 4, 5)')), /rubric is summary/, 'rubric');
+  assert.throws(() => checkReport(swap(`${a}\n`, '')), /one result row per compared cell/, 'a dropped row');
+  const total = row(/^\| `archmap` \| \d+\.\d\d USD \|$/);
+  assert.throws(() => checkReport(tamper(total, 'Tool | Cost over A, B and C', 'Cost over A, B and C', '4.42 USD')), /sum of its profiles/, 'total');
+  const issues = row(/^\| `archmap-issues` \| A \| 1 \|/);
+  const ISS = 'Tool | Repository | Run | Recall';
+  assert.throws(() => checkReport(tamper(issues, ISS, 'Recall', '0.9')), /recall is summary/, 'recall');
+  assert.throws(() => checkReport(tamper(issues, ISS, 'Issues reported', '22')), /issues reported/, 'issues reported');
+  assert.throws(() => checkReport(tamper(issues, ISS, 'Cost', '2.39 USD')), /total\.costUsd/, 'issues cost');
+  const evRow = row(/^\| `draw-c4` \| B \| 1 \| `evidence\//);
+  assert.throws(() => checkReport(swap(evRow, evRow.replace('draw-c4-B-1.json', 'draw-c4-A-1.json'))), /the one summary\.json names/, 'evidence file');
+  assert.throws(() => checkReport(swap(`${evRow}\n`, '')), /names every summary\.json cell once/, 'a dropped evidence row');
+  assert.throws(() => checkReport(text.replace(/rate\s+table\s+dated\s+\d{4}-\d{2}-\d{2}/, 'rate table dated 2026-01-01')), /rate table dated 2026-01-01/, 'date');
+  assert.throws(() => checkReport(text.replace(/owner\s+confirms\s+or\s+replaces/gi, 'owner reads')), /owner confirms or replaces/, 'the provisional caveat');
+  assert.throws(() => checkReport(text.replace(/outside\s+the\s+comparison/gi, 'below')), /outside the comparison/, 'the outside-the-comparison mark');
+  // the same report against a profile that drifted from its transcript, or a summary with another figure
+  const bump = (mutate) => (rel) => {
+    const j = readBench(rel);
+    if (rel === 'evidence/benchmark/oh-my-mermaid-B-1.json') mutate(j);
+    return j;
+  };
+  assert.throws(() => checkReport(text, bump((j) => { j.total.costUsd += 0.01; })), /total\.costUsd/, 'a tampered profile cost');
+  assert.throws(() => checkReport(text, bump((j) => { orchestratorRow(j).turns += 1; })), /orchestrator row/, 'a tampered profile turn count');
+  assert.throws(() => checkReport(text, bump((j) => { orchestratorRow(j).maxContext += 100; })), /maxContext/, 'a tampered profile context');
+  const summary = (mutate) => {
+    const all = JSON.parse(JSON.stringify(cells()));
+    mutate(all.find((c) => c.tool === 'cc-codemaps' && c.repo === 'B'));
+    return all;
+  };
+  assert.throws(() => checkReport(text, readBench, summary((c) => { c.seconds += 1; })), /seconds are summary/, 'a tampered summary duration');
+  assert.throws(() => checkReport(text, readBench, summary((c) => { c.passed -= 1; })), /expectations are summary/, 'a tampered summary grade');
+  assert.throws(() => checkReport(text, readBench, summary((c) => { c.rubric.flows -= 1; })), /rubric is summary/, 'a tampered summary rubric');
+});

@@ -125,6 +125,10 @@ Read the table with these caveats, which [the evals README](skills/architecture-
   build at `8174e41` and `63d7495`, so it cost 0.80 USD against the build's 1.00 USD; its orchestrator's median
   context was 47.3 K tokens, against 46.4 K for the build.
 
+The 1.0.0 build was also benchmarked against three other mapping plugins for Claude Code, on the same prompt and the
+same three repositories, for cost, duration, turns, expectations passed and a rubric score:
+[the benchmark report](skills/architecture-map/evals/BENCHMARK.md) gives every figure and the evidence it comes from.
+
 ## How these numbers were measured
 
 - **Cost, turns and context.** Every run was a headless `claude -p` session whose `stream-json` transcript was

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The release benchmark, `skills/architecture-map/evals/BENCHMARK.md`: 1.0.0 against three other mapping plugins on the same prompt and repositories, every figure derived by a test from the tracked profiles.
+
 ## [1.0.0] - 2026-11-01
 
 The first release: a Claude Code plugin that maps a repository's architecture into one evidence-backed model,
