@@ -235,6 +235,18 @@ const checkWording = (text, version = pluginVersion()) => {
 // The committed map is the repository's own docs/architecture/: the README links its viewer, and the counts it states
 // are those of the committed model and of the evals README's committed-map row.
 const VIEWER = 'docs/architecture/archmap.html';
+// P13.17: the committed example viewer carries the viewer script this checkout ships, byte for byte (the Play on graph
+// control and FLOW_TICK_MS are in it), so the public example cannot fall behind assets/viewer/viewer.js again.
+const viewerScriptIn = (html) => [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].filter((m) => !/application\/json/.test(m[1])).map((m) => m[2]);
+const checkCommittedViewerIsCurrent = (html, shipped = readFileSync(join(ROOT, 'assets', 'viewer', 'viewer.js'), 'utf8')) => {
+  const scripts = viewerScriptIn(html);
+  assert.equal(scripts.length, 1, `${VIEWER} carries exactly one inline viewer script`);
+  for (const marker of ['Play on graph', 'FLOW_TICK_MS']) {
+    assert.ok(shipped.includes(marker), `assets/viewer/viewer.js still has ${marker}`);
+    assert.ok(scripts[0].includes(marker), `${VIEWER} predates the viewer: it lacks ${marker}; re-render it with scripts/render.mjs`);
+  }
+  assert.ok(scripts[0].includes(shipped.trim()), `${VIEWER} embeds an older viewer.js than the one in assets/viewer; re-render it with scripts/render.mjs`);
+};
 const readCommittedModel = () => JSON.parse(readFileSync(join(ROOT, 'docs', 'architecture', 'architecture.model.json'), 'utf8'));
 const checkDeliversAndMethod = (text, evalsReadme = readFileSync(join(EVALS_DIR, 'README.md'), 'utf8'), model = readCommittedModel()) => {
   const delivers = section(text, 'What a build delivers');
@@ -495,4 +507,13 @@ test('r9 the benchmark link check fails on a dropped link, a link that does not 
   assert.throws(() => checkBenchmarkLinks(text, evals.replace(/\]\(benchmark\/CANDIDATES\.md\)/g, '](CANDIDATES.md)')), /evals README link CANDIDATES\.md resolves/);
   assert.throws(() => checkBenchmarkLinks(text, evals.replace('## Benchmark against other plugins', '## Elsewhere')), /Benchmark against other plugins/);
   assert.throws(() => checkBenchmarkLinks(text, evals, () => false), /resolves/);
+});
+
+test('r10 the committed example viewer embeds the current viewer script, with the flow player; a viewer without the player or an older script fails the check', () => {
+  const html = readFileSync(join(ROOT, VIEWER), 'utf8');
+  checkCommittedViewerIsCurrent(html);
+  assert.throws(() => checkCommittedViewerIsCurrent(html.replaceAll('Play on graph', 'Play')), /lacks Play on graph/);
+  assert.throws(() => checkCommittedViewerIsCurrent(html.replaceAll('FLOW_TICK_MS', 'TICK_MS')), /lacks FLOW_TICK_MS/);
+  const shipped = readFileSync(join(ROOT, 'assets', 'viewer', 'viewer.js'), 'utf8');
+  assert.throws(() => checkCommittedViewerIsCurrent(html, `${shipped}\n// a later change\n`), /older viewer\.js/);
 });

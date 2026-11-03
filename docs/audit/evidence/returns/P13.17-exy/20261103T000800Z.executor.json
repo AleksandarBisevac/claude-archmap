@@ -1,0 +1,31 @@
+{
+  "gates": {
+    "node --test tests/viewer.test.mjs tests/readme.test.mjs": "pass",
+    "node --test (full suite, 581 tests)": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-03T00:13:29Z",
+    "basis": "`node --test tests/viewer.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "tests/viewer.test.mjs: viewerOf split into viewerScriptOf plus viewerOf (same behaviour); added a ~60-line StubEl DOM stub (classList, dataset, attributes, listeners, querySelector memoised per selector, innerHTML, hidden/disabled, focus, appendChild/removeChild/insertBefore), fake timers and a document stub that answers the architecture svg's node, edge and label queries from the golden model's ids; flowRig runs the real inline viewer script from the rendered golden HTML against it. v15 drives place-order: Play on graph offered; enter lights frame 0, opens the bar, shows the graph tab, focuses Play; Next; every frame's nodes and edge lit via ArrowRight; ArrowLeft, End, Home, PageDown prevented and moving; unrelated key, ctrl-modified key and key in an INPUT left alone; Play starts one timer at FLOW_TICK_MS, a tick advances, Pause stops, ticks reach the last frame and stop the timer (Replay); Escape closes the bar, clears marks, returns to the sequences tab on the last step and frees the keys; re-enter, Back button exit; re-enter then click another sequence tab closes the player (flowSync). v16: the five mutants above. tests/readme.test.mjs: checkCommittedViewerIsCurrent helper next to VIEWER and case r10: the committed archmap.html has exactly one inline script that contains assets/viewer/viewer.js byte for byte plus the Play on graph and FLOW_TICK_MS markers; tamper cases (marker removed, shipped viewer changed) throw. docs/architecture/archmap.html re-rendered with: node scripts/render.mjs docs/architecture/architecture.model.json --layout docs/architecture/architecture.layout.json --out docs/architecture/archmap.html (exit 0, 152150 bytes, no theme file exists, no issues overlay); git status shows architecture.model.json and architecture.layout.json untouched; Play on graph count 0 to 1, FLOW_TICK_MS 0 to 3. assets/viewer/viewer.js and tests/export.test.mjs not edited (tests.add names export.test.mjs but the orchestrator note put the test in viewer.test.mjs, which is where the existing viewer tests and the page-script loader are). Runs: node --test tests/viewer.test.mjs tests/readme.test.mjs 26 pass; node --test full suite 581 tests, 581 pass, 0 fail, exit 0. Dependants: viewer.css, scripts/export.mjs, scripts/render.mjs, tests/visual/screenshots.py, architecture.model.json are unchanged and still correct (viewer.js not edited; model/layout byte-identical); archmap.html's dependants (README, CHANGELOG, evals, commands/render.md, SKILL.md, tests/readme.test.mjs) reference it by path only and the readme test (counts, commit) still passes since the model is unchanged; README still links the file, which now carries the player.",
+    "descriptive": "The flow player's DOM glue is now tested end to end (with proof the test fails on broken glue), and the public example viewer carries the current viewer with a test that stops it drifting again."
+  },
+  "testsAdded": [
+    "v15: drives the flow player glue (enter, next, keys, play ticks, Escape, Back button, sequence change) against a minimal DOM stub",
+    "v16: the same driver must catch five deliberately broken copies of the viewer script",
+    "r10: committed archmap.html embeds the current viewer script with Play on graph and FLOW_TICK_MS, and the check fails on tampered input"
+  ],
+  "casesAdded": [
+    [
+      "v15",
+      "v16",
+      "r10"
+    ]
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:04521c47779a12dd47d50544d7e7c7142f270e88f93fa068c3349a8f2efd0ee0\",\"dirtyDigest\":\"sha256:05ffebee831dd81e3651e562e4cac04f5d7bfbefc00a7f19fa5cd06f331cb0c5\",\"dirtyPaths\":{\"docs/architecture/archmap.html\":\"88601c1d6da65b68\",\"tests/readme.test.mjs\":\"05b15d0336a8ef62\",\"tests/viewer.test.mjs\":\"8541d0c08decaa07\"},\"head\":\"ecbce69\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"assets/viewer/viewer.js\",\"docs/architecture/archmap.html\",\"tests/export.test.mjs\",\"tests/readme.test.mjs\",\"tests/viewer.test.mjs\"],\"scopeDigest\":\"sha256:82d024f041b08e4e9a7d12c23143c6a5caeeadd27484cad12b454d5108f74581\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

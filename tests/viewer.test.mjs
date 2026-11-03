@@ -19,11 +19,14 @@ const layout = await layoutModel(model);
 const clean = renderHtml({ model, layout, mode: 'clean' });
 const internal = renderHtml({ model, layout, issues, mode: 'internal' });
 
-function viewerOf(html) {
+function viewerScriptOf(html) {
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].filter((m) => !/application\/json/.test(m[1]));
   assert.equal(scripts.length, 1, 'expected exactly one inline viewer script');
+  return scripts[0][2];
+}
+function viewerOf(html) {
   const mod = { exports: {} };
-  new Function('module', scripts[0][2])(mod);
+  new Function('module', viewerScriptOf(html))(mod);
   return mod.exports;
 }
 const V = viewerOf(clean);
@@ -396,5 +399,229 @@ test('v14 every edge type of the schema has its own relation style, legend entry
   for (const t of ['depends', 'lineage', 'artifact']) {
     const same = Object.keys(V.REL).filter((k) => k !== t && V.REL[k].dash === V.REL[t].dash && V.REL[k].w === V.REL[t].w);
     assert.deepEqual(same, [], `${t} differs from every other type in dash or width`);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// P13.17: the flow player's DOM glue (flowEnter, flowApply, flowBar, the play timer, the document keydown handler,
+// flowSync, flowExit) runs here against a minimal hand-written DOM stub: elements with classList, dataset, attributes,
+// listeners, querySelector and innerHTML; fake timers; the real viewer script from the rendered golden HTML. The stub
+// answers the architecture svg's queries from the model's own node and edge ids, so the marks the player puts on the
+// graph can be read back. Zero dependencies; nothing here touches a browser.
+
+class StubEl {
+  constructor(tag, doc) {
+    this.tagName = String(tag).toUpperCase(); this.doc = doc;
+    this.cls = new Set(); this.attrs = {}; this.dataset = {}; this.children = []; this.listeners = {};
+    this.hidden = false; this.disabled = false; this.textContent = ''; this.innerHTML = ''; this.id = '';
+    this.parentNode = null; this.picked = new Map(); this.style = { setProperty() {}, removeProperty() {} }; this.clientWidth = 1000; this.value = '';
+    const me = this;
+    this.classList = { add: (...c) => c.forEach((x) => me.cls.add(x)), remove: (...c) => c.forEach((x) => me.cls.delete(x)), contains: (c) => me.cls.has(c), toggle: (c, on) => ((on ?? !me.cls.has(c)) ? me.cls.add(c) : me.cls.delete(c)) };
+  }
+  get className() { return [...this.cls].join(' '); }
+  set className(v) { this.cls = new Set(String(v).split(/\s+/).filter(Boolean)); }
+  setAttribute(k, v) { this.attrs[k] = String(v); }
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+  removeAttribute(k) { delete this.attrs[k]; }
+  addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+  removeEventListener() {}
+  dispatch(type, ev = {}) { (this.listeners[type] || []).forEach((fn) => fn(ev)); }
+  appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+  removeChild(c) { this.children = this.children.filter((x) => x !== c); c.parentNode = null; return c; }
+  insertBefore(c) { c.parentNode = this; this.children.push(c); return c; }
+  focus() { this.doc.focused = this; }
+  closest() { return this; }
+  getBoundingClientRect() { return { width: 1000, height: 600, left: 0, top: 0 }; }
+  remove() {}
+  contains() { return false; }
+  get firstChild() { return this.children[0] ?? null; }
+  get nextSibling() { return null; }
+  // an element a script asked for by selector is made once and handed back every time: the stub's "found" element
+  querySelector(sel) {
+    if (!this.picked.has(sel)) {
+      const e = new StubEl('div', this.doc);
+      const act = /\[data-act="([a-z]+)"\]/.exec(sel); if (act) { e.tagName = 'BUTTON'; e.dataset.act = act[1]; }
+      this.picked.set(sel, e);
+    }
+    return this.picked.get(sel);
+  }
+  querySelectorAll() { return []; }
+}
+
+function flowRig(script) {
+  const jsons = Object.fromEntries([...clean.matchAll(/<script\b([^>]*application\/json[^>]*)>([\s\S]*?)<\/script>/g)].map((m) => [/\bid="([^"]+)"/.exec(m[1])[1], m[2]]));
+  const doc = { focused: null, created: [], byId: new Map(), listeners: {}, tabs: [] };
+  const timers = { list: [], next: 1 };
+  const env = {
+    setInterval: (fn, ms) => { const t = { id: timers.next++, fn, ms }; timers.list.push(t); return t.id; },
+    clearInterval: (id) => { timers.list = timers.list.filter((t) => t.id !== id); },
+    setTimeout: () => 0, clearTimeout: () => {}, location: { hash: '' }, history: { replaceState() {} }, CSS: { escape: (s) => String(s) },
+  };
+  const svg = new StubEl('svg', doc); svg.namespaceURI = 'svg-ns'; svg.id = 'arch';
+  const marked = []; // the nodes, edges and edge labels the player may light
+  for (const n of model.nodes) { const e = new StubEl('g', doc); e.cls.add('node'); e.dataset.id = n.id; marked.push(e); }
+  model.edges.forEach((x, i) => { const e = new StubEl('g', doc); e.cls.add('edge'); e.dataset.id = x.id; e.dataset.i = String(i); marked.push(e); const l = new StubEl('text', doc); l.cls.add('elabel'); l.dataset.i = String(i); marked.push(l); });
+  const nodeEl = (id) => marked.find((e) => e.cls.has('node') && e.dataset.id === id);
+  const hotIds = () => marked.filter((e) => e.cls.has('flow-hot')).map((e) => `${[...e.cls].filter((c) => c !== 'flow-hot')[0]}:${e.dataset.id ?? e.dataset.i}`).sort();
+  const matches = (e, sel) => (sel === '.flow-hot' ? e.cls.has('flow-hot') : sel === '.edge' ? e.cls.has('edge') : (m => m && e.cls.has('node') && e.dataset.id === m[1])(/^\.node\[data-id="(.*)"\]$/.exec(sel)) || (m => m && e.cls.has('elabel') && e.dataset.i === m[1])(/^\.elabel\[data-i="(.*)"\]$/.exec(sel)));
+  svg.querySelectorAll = (sel) => marked.filter((e) => matches(e, sel));
+  svg.querySelector = (sel) => svg.querySelectorAll(sel)[0] ?? null;
+  doc.byId.set('arch', svg);
+  const document = {
+    getElementById(id) {
+      if (id in jsons) { const j = new StubEl('script', doc); j.textContent = jsons[id]; return j; }
+      if (!doc.byId.has(id)) { const e = new StubEl('div', doc); e.id = id; e.parentNode = new StubEl('div', doc); doc.byId.set(id, e); }
+      return doc.byId.get(id);
+    },
+    createElement(tag) { const e = new StubEl(tag, doc); doc.created.push(e); return e; },
+    createElementNS(ns, tag) { return new StubEl(tag, doc); },
+    querySelector(sel) {
+      const m = /^#navlist \[data-tab="([a-z]+)"\]$/.exec(sel);
+      if (!m) return null;
+      if (!doc.navs) doc.navs = {};
+      return (doc.navs[m[1]] ||= Object.assign(new StubEl('button', doc), { dataset: { tab: m[1] } }));
+    },
+    querySelectorAll(sel) {
+      if (sel !== '#seqtabs .tab') return [];
+      if (!doc.tabs.length) for (const s of model.sequences) { const b = new StubEl('button', doc); b.dataset.seq = s.id; doc.tabs.push(b); }
+      return doc.tabs;
+    },
+    addEventListener(type, fn) { (doc.listeners[type] ||= []).push(fn); },
+    documentElement: new StubEl('html', doc), body: new StubEl('body', doc),
+  };
+  const mod = { exports: {} };
+  new Function('module', 'document', 'window', ...Object.keys(env), script)(mod, document, { addEventListener() {} }, ...Object.values(env));
+  const key = (k, extra = {}) => {
+    const ev = { key: k, defaultPrevented: false, target: new StubEl('body', doc), preventDefault() { this.defaultPrevented = true; }, ...extra };
+    (doc.listeners.keydown || []).forEach((fn) => fn(ev));
+    return ev;
+  };
+  const clickBar = (bar, act) => { const b = bar.querySelector(`[data-act="${act}"]`); bar.dispatch('click', { target: { closest: () => b } }); return b; };
+  return { doc, timers, svg, marked, nodeEl, hotIds, key, clickBar, playBtn: () => doc.created.find((e) => e.id === 'seqplay'), bar: () => doc.created.find((e) => e.className.split(' ').includes('flowbar')) };
+}
+
+// Plays place-order on the stub and asserts what a person sees at each step; throws an AssertionError the moment
+// the glue does not do what the player promises.
+function driveFlow(script) {
+  const frames = V.flowFrames(model, placeOrder);
+  const last = frames.length - 1;
+  const hotNodes = (f) => f.nodes.map((n) => `node:${n}`);
+  const r = flowRig(script);
+  const play = r.playBtn();
+  assert.ok(play, 'the script builds the Play on graph control');
+  assert.equal(play.hidden, false, 'a node-linked sequence is offered the player');
+  assert.equal(r.bar(), undefined, 'no bar exists before the player is used');
+  assert.deepEqual(r.hotIds(), [], 'nothing is lit before the player is used');
+
+  // enter: the first frame is lit, the bar opens, the graph tab is shown, previous is off and next is on
+  play.dispatch('click');
+  const bar = r.bar();
+  assert.ok(bar, 'entering builds the flow bar');
+  assert.equal(bar.hidden, false, 'the bar is open');
+  assert.ok(r.svg.cls.has('flowing'), 'the graph is marked as flowing');
+  const lit = () => r.hotIds().filter((x) => x.startsWith('node:'));
+  assert.deepEqual(lit(), hotNodes(frames[0]).sort(), 'the first frame lights its nodes');
+  const stepbox = () => bar.querySelector('.stepbox');
+  assert.match(stepbox().innerHTML, new RegExp(frames[0].title.replace(/[^\w ]/g, '.').slice(0, 12)), 'the stepbox shows the first message');
+  assert.equal(r.doc.byId.get('architecture').hidden, false, 'the graph tab is shown');
+  assert.match(stepbox().className, /\bt-[a-z]+\b/, 'the stepbox carries the relation class');
+  assert.equal(bar.querySelector('[data-act="prev"]').disabled, true, 'previous is off on the first frame');
+  assert.equal(bar.querySelector('[data-act="next"]').disabled, false);
+  assert.equal(bar.querySelector('.flowname').textContent, placeOrder.title, 'the bar names the sequence');
+  assert.equal(r.doc.focused, bar.querySelector('[data-act="play"]'), 'focus moves to the Play button');
+
+  // next: the lit step moves on and the old step's marks go
+  r.clickBar(bar, 'next');
+  assert.deepEqual(lit(), hotNodes(frames[1]).sort(), 'next lights the second frame');
+  assert.deepEqual(r.hotIds().filter((x) => x.startsWith('edge:')), frames[1].edge === null ? [] : [`edge:${frames[1].edge}`], 'the frame edge is lit, and only it');
+  assert.equal(bar.querySelector('[data-act="prev"]').disabled, false, 'previous is on after a step');
+  // every frame, in turn: its nodes and its edge lit and nothing else, so a frame with an edge shows it
+  const edgesLit = () => r.hotIds().filter((x) => x.startsWith('edge:') || x.startsWith('elabel:'));
+  for (let i = 2; i <= last; i++) {
+    r.key('ArrowRight');
+    assert.deepEqual(lit(), hotNodes(frames[i]).sort(), `frame ${i}: its nodes are lit`);
+    assert.equal(edgesLit().some((x) => x.startsWith('edge:')), frames[i].edge !== null, `frame ${i}: its edge is lit exactly when it has one`);
+  }
+  assert.ok(frames.some((f) => f.edge !== null), 'place-order walks real edges');
+  r.key('Home'); r.clickBar(bar, 'next');
+
+  // the keys, while the player is open: handled keys are prevented, the others are left alone
+  assert.equal(r.key('ArrowLeft').defaultPrevented, true);
+  assert.deepEqual(lit(), hotNodes(frames[0]).sort(), 'ArrowLeft goes back one frame');
+  assert.equal(r.key('End').defaultPrevented, true);
+  assert.deepEqual(lit(), hotNodes(frames[last]).sort(), 'End jumps to the last frame');
+  assert.equal(bar.querySelector('[data-act="next"]').disabled, true, 'next is off on the last frame');
+  assert.equal(r.key('Home').defaultPrevented, true);
+  assert.deepEqual(lit(), hotNodes(frames[0]).sort(), 'Home jumps to the first frame');
+  assert.equal(r.key('PageDown').defaultPrevented, true);
+  assert.deepEqual(lit(), hotNodes(frames[1]).sort(), 'PageDown steps forward');
+  assert.equal(r.key('x').defaultPrevented, false, 'an unrelated key is not swallowed');
+  assert.equal(r.key('ArrowRight', { ctrlKey: true }).defaultPrevented, false, 'a modified key is left to the browser');
+  assert.equal(r.key('ArrowRight', { target: new StubEl('input', r.doc) }).defaultPrevented, false, 'typing in a field is left alone');
+  assert.deepEqual(lit(), hotNodes(frames[1]).sort(), 'none of those moved the frame');
+  r.clickBar(bar, 'prev');
+
+  // play: one frame per tick at the viewer's pace, Pause while it runs, the timer gone after the last frame
+  assert.equal(r.timers.list.length, 0, 'no timer runs before Play');
+  r.clickBar(bar, 'play');
+  assert.equal(r.timers.list.length, 1, 'Play starts one timer');
+  assert.equal(r.timers.list[0].ms, V.FLOW_TICK_MS);
+  assert.equal(bar.querySelector('[data-act="play"]').textContent, 'Pause');
+  r.timers.list[0].fn();
+  assert.deepEqual(lit(), hotNodes(frames[1]).sort(), 'a tick advances one frame');
+  r.clickBar(bar, 'play');
+  assert.equal(r.timers.list.length, 0, 'Pause stops the timer');
+  assert.equal(bar.querySelector('[data-act="play"]').textContent, 'Play');
+  r.clickBar(bar, 'play');
+  for (let i = 1; i < last; i++) r.timers.list[0].fn();
+  assert.deepEqual(lit(), hotNodes(frames[last]).sort(), 'ticks reach the last frame');
+  assert.equal(r.timers.list.length, 0, 'the tick that reaches the last frame stops the timer');
+  assert.equal(bar.querySelector('[data-act="play"]').textContent, 'Replay');
+
+  // exit on Escape: the marks go, the bar closes, the sequences tab is back on the step the player stopped at, and the keys are free again
+  const esc = r.key('Escape');
+  assert.equal(esc.defaultPrevented, true, 'Escape is handled while the player is open');
+  assert.equal(bar.hidden, true, 'the bar closes');
+  assert.equal(r.svg.cls.has('flowing'), false, 'the graph is no longer flowing');
+  assert.deepEqual(r.hotIds(), [], 'no mark is left on the graph');
+  assert.equal(r.doc.byId.get('sequences').hidden, false, 'the sequences tab is shown again');
+  assert.equal(r.doc.byId.get('architecture').hidden, true);
+  assert.match(r.doc.byId.get('stepbox').innerHTML, new RegExp(`Step ${last + 1} of`), 'the sequence view is back on the last step');
+  assert.equal(r.key('ArrowRight').defaultPrevented, false, 'a closed player lets the arrow keys through');
+  assert.equal(r.key('Escape').defaultPrevented, false);
+
+  // enter again, leave by the Back button, enter again and change sequence: flowSync closes the player
+  play.dispatch('click');
+  assert.equal(bar.hidden, false, 'the same bar reopens');
+  assert.deepEqual(lit(), hotNodes(frames[last]).sort(), 'the player starts at the step the sequence view was on');
+  r.clickBar(bar, 'exit');
+  assert.equal(bar.hidden, true, 'the Back button closes the player');
+  assert.deepEqual(r.hotIds(), []);
+  play.dispatch('click');
+  assert.equal(bar.hidden, false);
+  r.doc.tabs.find((b) => b.dataset.seq === 'rate-quote').dispatch('click');
+  assert.equal(bar.hidden, true, 'selecting another sequence closes the player');
+  assert.deepEqual(r.hotIds(), [], 'and clears its marks');
+  assert.equal(play.hidden, false, 'the other node-linked sequence is still offered the player');
+  return r;
+}
+
+test('v15 the flow player\'s glue, on a minimal DOM stub: enter lights the first frame, next, the keys and a play tick move the lit step, Escape, the Back button and a sequence change close it', () => {
+  driveFlow(viewerScriptOf(clean));
+});
+
+test('v16 the flow player test can fail: a viewer whose glue is broken in any of five places is caught by it', () => {
+  const src = viewerScriptOf(clean);
+  const breaks = {
+    'the first frame is not lit': ['n.classList.add("flow-hot")', 'n.classList.add("flow-hotx")'],
+    'an arrow key is not prevented': ['if (action){ ev.preventDefault(); flowGo(action); }', 'if (action){ flowGo(action); }'],
+    'the last tick leaves the timer running': ['if (t.done) flowStopTimer();', ''],
+    'exit leaves the bar open': ['if (flow.bar) flow.bar.hidden = true;', ''],
+    'a sequence change leaves the player open': ['if (flow.frames && (!frames || seqState.id !== flow.seqId)) flowExit(false);', ''],
+  };
+  assert.doesNotThrow(() => driveFlow(src), 'the unbroken viewer passes');
+  for (const [what, [from, to]] of Object.entries(breaks)) {
+    assert.ok(src.includes(from), `the viewer no longer has the text this case breaks (${what})`);
+    assert.throws(() => driveFlow(src.replace(from, to)), assert.AssertionError, `broken (${what}) was not caught`);
   }
 });

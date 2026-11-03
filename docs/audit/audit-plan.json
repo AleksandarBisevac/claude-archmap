@@ -9717,8 +9717,10 @@
             "severity": "low",
             "file": "scripts/merge.mjs:1336",
             "issue": "The merge now writes a new meta.sources row type, queue-unpaired, and P13.11 widened drafts to queue, pull and response flows. skills/architecture-map/references/model-schema.md (the contract reference) still enumerates the source row kinds at line 36 without queue-unpaired and still describes the drafts at line 151 as 'sequences derived from each HTTP entry point'. Reference and writer disagree across the boundary (checklist rule 5). The schema accepts the row (sources items are open objects), so nothing fails.",
-            "resolution": "Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds.",
-            "fixTask": "P13.16-exy"
+            "resolution": "fixed in P13.16-exy (ecbce69d4703): Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds.",
+            "fixTask": "P13.16-exy",
+            "commit": "ecbce69d4703",
+            "status": "fixed"
           },
           {
             "id": "P13-R6",
@@ -9737,7 +9739,7 @@
             "fixTask": "P13.18-exy"
           }
         ],
-        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 3 with a recorded fix commit]"
+        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 4 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -10764,7 +10766,7 @@
         {
           "id": "P13.16-exy",
           "title": "fix P13-R5: The merge now writes a new meta.sources row type, queue-unpaired,...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The merge now writes a new meta.sources row type, queue-unpaired, and P13.11 widened drafts to queue, pull and response flows. skills/architecture-map/references/model-schema.md (the contract reference) still enumerates the source row kinds at line 36 without queue-unpaired and still describes the drafts at line 151 as 'sequences derived from each HTTP entry point'. Reference and writer disagree across the boundary (checklist rule 5). The schema accepts the row (sources items are open objects), so nothing fails.\n\nResolution asked: Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds.",
           "files": [
             "skills/architecture-map/references/model-schema.md",
@@ -10790,14 +10792,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "ecbce69d4703",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added case m36 to tests/merge.test.mjs: it reads every type: '<row>' literal from the non-comment lines of scripts/merge.mjs, requires each as a whole token in the sources entry of the meta table in model-schema.md, and requires the paragraph describing drafts to name HTTP, draft-queue- and draft-pull-. It failed first: queue-unpaired was missing, and so were clamped-evidence, dropped-evidence, dropped-ref, dropped-step and dropped-changed, which the sources entry had never named. Edited model-schema.md only. The sources entry now describes the queue-unpaired row (queue, node, missing, note) and the five correction rows. The drafts description now gives three kinds: HTTP entry point (draft-<name>, with queue hops and a response), queue (draft-queue-<name>) and scheduled or hook entry (draft-pull-<name>). Going past the one queue-unpaired sentence was needed because a pin on every written row type would otherwise need an allowlist of undocumented types. merge.mjs is unchanged (no row type misspelt). tests/skill-references.test.mjs is unchanged. Full run: node --test gave 578 tests, 578 pass, 0 fail. Dependants: scripts/merge.mjs, pipeline.mjs, the golden test and the model and html artefacts are unchanged, still correct. tests/agents.test.mjs, tests/skill-references.test.mjs (r1 names meta keys, sources is still named), tests/skill.test.mjs, tests/pipeline.test.mjs and the two agent files read the reference but lost no token, still correct. docs/roadmap.md is unchanged.",
+            "descriptive": "The model contract reference now matches what merge writes: every meta.sources row type and the three draft kinds, with a test that fails when they drift again."
           },
           "startedAt": "2026-11-03T00:04:46Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-03T00:08:00Z",
+          "verifiedBy": [
+            "m36: every row type merge.mjs writes appears in the sources entry of model-schema.md, and the drafts paragraph names the HTTP, queue and pull kinds"
+          ],
           "notes": [
             {
               "at": "2026-11-02T23:51:49Z",
@@ -10816,12 +10820,24 @@
             "runId": "2026-11-03T00:07:58Z.b64a7a",
             "status": "passed",
             "at": "2026-11-03T00:07:58Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "ecbce69d4703",
+            "at": "2026-11-03T00:08:00Z",
+            "basis": "a fix task for P13-R5, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-11-03T00:06:49Z",
+            "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.17-exy",
           "title": "fix P13-R6: The flow player is a headline feature (README, CHANGELOG, roadmap...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The flow player is a headline feature (README, CHANGELOG, roadmap), but only its pure helpers are tested (v9-v11). The DOM glue (flowEnter, flowApply, flowBar, the play timer, the document keydown handler that preventDefaults the arrow, PageUp/PageDown, Home and End keys while the player is open, flowSync on sequence change) runs in no test; the executor says so. A regression in the glue passes the gate. Separately, docs/architecture/archmap.html, the public example the README links, was not re-rendered and has no player (grep count of 'Play on graph' is 0); it was already behind the viewer after P13.5. render.mjs is script-only, so it costs no LLM run.\n\nResolution asked: Add one test that evaluates viewer.js against a minimal DOM stub, or a vm run, and drives enter, next, play tick and exit. Re-render the committed archmap.html from the committed model and layout with render.mjs before release, or state in the README that the example viewer predates the player.",
           "files": [
             "assets/viewer/viewer.js",
@@ -10846,14 +10862,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-03T00:08:00Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -10876,7 +10892,13 @@
           ],
           "fixes": [
             "P13-R6"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-03T00:14:30Z.effa89",
+            "status": "passed",
+            "at": "2026-11-03T00:14:30Z"
+          }
         },
         {
           "id": "P13.18-exy",
