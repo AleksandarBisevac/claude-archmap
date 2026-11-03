@@ -11228,7 +11228,7 @@
     {
       "id": "P14",
       "title": "Release 1.1.0",
-      "status": "in_progress",
+      "status": "done",
       "description": "The release of the v1.1 work landed in P13 (platform extractors, flow player, mixed fixture) and the BF2 fix, following the 1.0.0 procedure of P9: version bump, CHANGELOG entry, README status, then the self-update of the committed map at the release head so the map ships current and shows the new node kinds on this repository's own CI workflow. Nothing in agent prompts or brief templates changes.",
       "desiredOutcome": "Version 1.1.0 in plugin.json with a dated CHANGELOG entry that holds the Unreleased changes, the README status naming 1.1.0, and the committed map updated at the 1.1.0 head with its cost profile tracked and recorded in both READMEs, every version and count pinned by the existing tests.",
       "testGate": [
@@ -11237,7 +11237,7 @@
       "blockedBy": [],
       "baseRef": "f0d693ee447a95c45b1163b9945b90044dbfd319",
       "branch": "audit/p14-release-1-1-0",
-      "mergedAt": null,
+      "mergedAt": "2026-11-03T10:24:43Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -11489,7 +11489,8 @@
         "runId": "2026-11-03T10:24:41Z.4a6cd6",
         "status": "passed",
         "at": "2026-11-03T10:24:41Z"
-      }
+      },
+      "mergedHead": "59d0d75f131c9787e694c2bf8d4cacbc7a9e2adf"
     }
   ],
   "fileIndex": {
