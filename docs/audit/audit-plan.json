@@ -9660,7 +9660,7 @@
     {
       "id": "P13",
       "title": "v1.1: data platforms, pipelines and infrastructure",
-      "status": "in_progress",
+      "status": "done",
       "description": "The v1.1 item of docs/roadmap.md, in the roadmap's order, plus two follow-ups recorded at the P12 sign-off: the weak spot the benchmark showed on repository A (13 entities, 4 with fields, because the database file is not in the checkout) and the P12 re-review's low findings R5 (the owner's confirmation of the rubric scores is attested only in the sign-off record), R6 (the cost-profile fallback label is bounded but not redacted) and R7 (the tracked grader's equivalence to the private one rests on a 9-cell synthetic comparison). Each extractor follows the pattern of scripts/lib/prescan/{node-backend,python,ts-frontend}.mjs with a stacks/ re-export, a stack reference under skills/architecture-map/references/, a fixture repository under tests/fixtures/repos/ and a prescan test; the scanned code is only ever read as text. Node kinds and edge types the new elements need are added to relation-taxonomy.md and the model schema additively, so every committed map keeps validating. The phase does not start until the owner says so.",
       "desiredOutcome": "Prescan extracts containers (Docker, compose), pipelines (GitHub Actions, Azure Pipelines), infrastructure as code (Terraform, Bicep) and data platform projects (dbt models, sources, tests and lineage) with file:line evidence, confidence and provenance like every other node; entities keep declared fields when no database file is in the checkout; the three low findings P12-R5 to P12-R7 are closed; a fixture repository per kind, a prescan test per extractor, a mixed-fixture build with a tracked cost profile and every committed map still validating close it.",
       "testGate": [
@@ -9669,7 +9669,7 @@
       "blockedBy": [],
       "baseRef": "640f84f9555eb3274010a8a5a1eb125c65c45e16",
       "branch": "audit/p13-v1-1-data-platforms-pipelines",
-      "mergedAt": null,
+      "mergedAt": "2026-11-03T07:32:53Z",
       "review": {
         "tool": null,
         "model": "sonnet",
@@ -11222,7 +11222,8 @@
         "runId": "2026-11-03T07:32:48Z.706f03",
         "status": "passed",
         "at": "2026-11-03T07:32:48Z"
-      }
+      },
+      "mergedHead": "3c0d59e1b3289fca1374302dacff503a6b844969"
     }
   ],
   "fileIndex": {
