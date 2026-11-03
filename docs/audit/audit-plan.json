@@ -11241,20 +11241,28 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P14-R1",
             "severity": "med",
             "file": "README.md:136",
             "issue": "The cost caveat 'The committed map is a fresh build. It was built at commit `ddbd0be` and cost 1.65 USD in 16 orchestrator turns' is now false: P14.2 made the committed map the run 5 update (0.92 USD, 11 turns, shown in the cost table row the same diff adds at README.md:120 and in the What a build delivers prose). The next sentence also calls the update row 'an earlier map'. The README contradicts itself in the release page; r2/r4/r5 do not read this bullet, so the green suite does not catch it.",
-            "resolution": "Rewrite the bullet to say the committed map is the update of the ddbd0be build at 549c3c3 (0.92 USD, 11 turns, median context 43.7 K vs 55.2 K for the build) and that the run 4 row is the fresh build; keep the run 3 update comparison; add a README test case pinning the bullet's figures to the profile.",
-            "fixTask": "P14.3-la3"
+            "resolution": "fixed in P14.3-la3 (a34be4f0cdd6): Rewrite the bullet to say the committed map is the update of the ddbd0be build at 549c3c3 (0.92 USD, 11 turns, median context 43.7 K vs 55.2 K for the build) and that the run 4 row is the fresh build; keep the run 3 update comparison; add a README test case pinning the bullet's figures to the profile.",
+            "fixTask": "P14.3-la3",
+            "commit": "a34be4f0cdd6",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 1 - 0 high, 1 med, 0 low; 0 with a recorded fix commit]"
+        "outcome": "phase review filed at head 746f6b002eb0 [findings: 1 - 0 high, 1 med, 0 low; 1 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P14/746f6b002eb0b7b44744a1d7dac80cf5a1986d48.reviewer.json",
+            "sha256": "9a5c53326d17592d510efa84e834a2089b7f0818d0a366f1a3729881564ab42a"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "Release 1.1.0: plugin.json 1.1.0, CHANGELOG entry dated 2026-11-03 under an empty Unreleased, README status names 1.1.0 and the 1.1 additions; the committed map updated at the 1.1.0 head by a headless /archmap:update with the orchestrator pinned to Opus (0.92 USD, 11 turns, 51 nodes, 41 edges, 1 entity, 4 sequences, 6 views, the CI workflow mapped), profile tracked as iteration-3/self-with-skill-5.json and recorded in both READMEs with tests r2, r4, r5, e17-e20 and mf5 pinning the figures. Phase review: one med finding (stale README cost caveat) fixed in P14.3-la3, its diff read by the orchestrator (README bullet plus 18 test lines); suite 581 pass, 0 fail. P14.1 red-first could-not-prove by the helper as in P13, the executor watched the reds itself. Fix task(s) P14.3-la3 signed off with their diff unreviewed.",
       "tasks": [
         {
           "id": "P14.1",
@@ -11305,9 +11313,14 @@
             "at": "2026-11-03T10:08:42Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "549c3c35bb9e",
-            "at": "2026-11-03T10:08:43Z"
+            "at": "2026-11-03T10:24:42Z",
+            "return": "returns/P14/746f6b002eb0b7b44744a1d7dac80cf5a1986d48.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "Executor/helper: `node --test tests/manifest.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but 'no tally or error reader matched its output, so ... no test is known to have been collected'; the prose red claim in outcome is not a recorded run.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "Computed: tests.gate `test` -> `node --test` runs the whole project; no selection to bound the question."
           },
           "redFirst": {
             "at": "2026-11-03T10:07:44Z",
@@ -11370,9 +11383,14 @@
             "at": "2026-11-03T10:18:08Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "746f6b002eb0",
-            "at": "2026-11-03T10:18:09Z"
+            "at": "2026-11-03T10:24:42Z",
+            "return": "returns/P14/746f6b002eb0b7b44744a1d7dac80cf5a1986d48.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "Task owes none: gate-only, tests.add none, expectRedFirst false. The executor's basis says the extended tests were red on the new map until the rows were recorded, with no command quoted; I did not credit it as a proof.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "Computed: tests.gate `test` -> `node --test` runs the whole project; no selection to bound the question."
           },
           "redFirst": {
             "status": "not-attempted",
@@ -11383,7 +11401,7 @@
         {
           "id": "P14.3-la3",
           "title": "fix P14-R1: The cost caveat 'The committed map is a fresh build. It was built...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The cost caveat 'The committed map is a fresh build. It was built at commit `ddbd0be` and cost 1.65 USD in 16 orchestrator turns' is now false: P14.2 made the committed map the run 5 update (0.92 USD, 11 turns, shown in the cost table row the same diff adds at README.md:120 and in the What a build delivers prose). The next sentence also calls the update row 'an earlier map'. The README contradicts itself in the release page; r2/r4/r5 do not read this bullet, so the green suite does not catch it.\n\nResolution asked: Rewrite the bullet to say the committed map is the update of the ddbd0be build at 549c3c3 (0.92 USD, 11 turns, median context 43.7 K vs 55.2 K for the build) and that the run 4 row is the fresh build; keep the run 3 update comparison; add a README test case pinning the bullet's figures to the profile.",
           "files": [
             "README.md",
@@ -11405,14 +11423,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "a34be4f0cdd6",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "README.md: rewrote the last cost-section caveat bullet. It now reads 'The committed map is an update, not a fresh build': the /archmap:update of the build made at ddbd0be (run 4 row, third self-build row, 1.65 USD, 16 turns), run at 549c3c3, 0.92 USD, 11 orchestrator turns, median context 43.7 K against 55.2 K for the build; the run 3 update comparison (0.80 vs 1.00 USD, 47.3 K vs 46.4 K) is kept, lines wrapped so the existing r5 swap phrases stay on one line. Figures read from iteration-2/self-with-skill-4.json (1.649095 USD, 16 turns, median 55213.5) and iteration-3/self-with-skill-5.json (0.917692 USD, 11 turns, median 43724). Also edited tests/readme.test.mjs, which is OUTSIDE this task's declared files (only README.md): the resolution asked for a README test case pinning the bullet to the profile, so checkCostTable now matches the bullet and asserts its cost, turns and both median contexts against the two profiles (selfRows[2] and [3]), and r5 gained six tamper cases (cost, turns, update median, build median, build turns, the 'is an update' wording). I did not check whether the plan gate allowed that edit beyond the Edit tool succeeding; it did succeed with no refusal. Because the task is gate-only with tests.add none, no case is bound by id (casesAdded absent). Commands: node --test tests/readme.test.mjs -> 10 pass 0 fail; node --test (whole suite) -> tests 581, pass 581, fail 0 (exit code not captured through the pipe).",
+            "descriptive": "The README cost caveat no longer contradicts the committed-map row: it says the committed map is the 0.92 USD update of the ddbd0be build, and a test now pins its figures to the profiles."
           },
           "startedAt": "2026-11-03T10:19:26Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-03T10:22:34Z",
+          "verifiedBy": [
+            "checkCostTable (r2/r5) now parses the committed-map caveat bullet and asserts its build cost and turns and its update cost, turns and median contexts equal the run 4 and run 5 profiles; r5 tampers each figure and the wording and expects a throw"
+          ],
           "notes": [
             {
               "at": "2026-11-03T10:19:26Z",
@@ -11443,6 +11463,17 @@
             "runId": "2026-11-03T10:22:32Z.e284e7",
             "status": "passed",
             "at": "2026-11-03T10:22:32Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "a34be4f0cdd6",
+            "at": "2026-11-03T10:22:34Z",
+            "basis": "a fix task for P14-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task with expectRedFirst false; no red owed. The pinning assertions added to tests/readme.test.mjs were not run against the old bullet (the bullet was rewritten first).",
+            "at": "n/a"
           }
         }
       ],
@@ -11453,7 +11484,12 @@
         "The tag v1.1.0 and the GitHub release are created on the landing commit after sign-off, outside the plan, as for 1.0.0."
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-11-03T10:04:13Z"
+      "startedAt": "2026-11-03T10:04:13Z",
+      "testEvidence": {
+        "runId": "2026-11-03T10:24:41Z.4a6cd6",
+        "status": "passed",
+        "at": "2026-11-03T10:24:41Z"
+      }
     }
   ],
   "fileIndex": {
