@@ -9673,7 +9673,7 @@
       "review": {
         "tool": null,
         "model": "sonnet",
-        "status": "pending",
+        "status": "passed",
         "findings": [
           {
             "id": "P13-R1",
@@ -9750,13 +9750,25 @@
             "severity": "low",
             "file": "skills/architecture-map/references/stack-iac.md:27",
             "issue": "The rewritten Nodes item says the merge script 'already makes a level-3 node for every resource and module'. merge.mjs makes a module node at level 2 (scripts/merge.mjs:776) and a resource node at level 3 (merge.mjs:791). The P13.14-exy executor's own outcome records module as level 2. The new r6 test pins only the phrases 'merge script already makes', find() and cite, so it does not catch the wrong level.",
-            "resolution": "Reword to 'a level-3 node for every resource and a level-2 node for every module', or drop the level wording. Carry this low finding; do not loop it into another fix round.",
-            "fixTask": "P13.20-exy"
+            "resolution": "fixed in P13.20-exy (5af7cd4c7e79): Reword to 'a level-3 node for every resource and a level-2 node for every module', or drop the level wording. Carry this low finding; do not loop it into another fix round.",
+            "fixTask": "P13.20-exy",
+            "commit": "5af7cd4c7e79",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 8 - 0 high, 1 med, 7 low; 7 with a recorded fix commit]"
+        "outcome": "phase review filed at head 1ab9cc79f7ef [findings: 8 - 0 high, 1 med, 7 low; 8 with a recorded fix commit]",
+        "readReturns": [
+          {
+            "return": "returns/P13/1ab9cc79f7ef898a228d7bdb1c70cf02cf5fe533.reviewer.json",
+            "sha256": "3d9822f0a690ace1741d081cca87cc74f723160bc64086a87dce0d0abc9d190d"
+          },
+          {
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "sha256": "3e7db3a29ee5ee2d7c50293999e4a5d860ce3ed2156c023a063648068f195aa1"
+          }
+        ]
       },
-      "summary": null,
+      "summary": "P13 passed. Owner on 2026-11-03: \"Da, potpisi i sleti na main\". Twelve planned tasks and eight fix tasks landed on the phase branch; the suite grew from 499 to 581 passing. Delivered: four prescan extractors (containers, pipelines, iac, data-platform) with fixtures, tests and stack references; wiring into detection, partition, merge, schema (additive edge types depends, lineage, artifact), taxonomy, pipeline, viewer and export; area stacks include the platform stacks detected inside the area; entity fields from static schema sources without a database file; richer relations (ORM access rows and sql edges, queue pairing, nodesWithoutEdges in the digest and the build report); flow player on the Sequences tab with draft sequences for responses, queues and pulls, DOM-stub tested, the committed example viewer re-rendered; the mixed-platform fixture with e2e case e6 and one tracked headless build profile (orchestrator pinned to Opus, 0.50 USD, 9 turns); P12 findings R5, R6, R7 closed, with the grader equivalence record (12 of 12 cells, 60 of 60 expectations, measured by the orchestrator on reconstructed checkouts); roadmap v1.1 item closed, CHANGELOG Unreleased lines, README and skill description name the new kinds. Phase review: seven findings, all fixed (P13.13 to P13.19); re-review: one low finding fixed (P13.20), its one-sentence diff read by the orchestrator. Intent divergences accepted by the owner: P13.1 (resolved by the owner-created .env.example and P13.19) and P13.6 (pc11 forbids a provenance key on prescan rows). Open choices taken: version bump and tag left to a separate release phase; Bicep beside Terraform; R7 measured by the orchestrator; the mixed build run by the orchestrator. Nothing in agent prompts or brief templates changed. Red-first proofs are could-not-prove throughout because the helper reads no per-case tally; executors watched their reds and said so. Reviewer answers accepted: Owner, 2026-11-03: P13.1 - \"Ti dodas fajl, ja fix task\": the owner created the .env.example and P13.19-exy added the env_file line and the ct1 pins, so the divergence is resolved. P13.6 - \"Prihvati\": the model-level outcome holds, pc11 forbids a provenance key on prescan rows by design. Phase - \"Da, potpisi i sleti na main\": slice 1 judged only its tasks; the two divergences above are the whole gap.",
       "tasks": [
         {
           "id": "P13.1",
@@ -9807,9 +9819,14 @@
             "at": "2026-11-02T22:25:55Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "2e92f27302ad",
-            "at": "2026-11-02T22:25:57Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-containers.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.1/20261102T221547Z.executor.json, at 2026-11-02T22:24:40Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T22:24:40Z",
@@ -9868,9 +9885,14 @@
             "at": "2026-11-02T22:33:41Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "dfdaf364930e",
-            "at": "2026-11-02T22:33:42Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-pipelines.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.2/20261102T222557Z.executor.json, at 2026-11-02T22:32:08Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T22:32:08Z",
@@ -9927,9 +9949,14 @@
             "at": "2026-11-02T22:42:47Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "0e34ce10bb35",
-            "at": "2026-11-02T22:42:49Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-iac.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.3/20261102T223343Z.executor.json, at 2026-11-02T22:41:25Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T22:41:25Z",
@@ -9986,9 +10013,14 @@
             "at": "2026-11-02T22:50:41Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "72cb1e91a7d1",
-            "at": "2026-11-02T22:50:42Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-data-platform.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.4/20261102T224249Z.executor.json, at 2026-11-02T22:49:21Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T22:49:21Z",
@@ -10077,9 +10109,14 @@
             "at": "2026-11-02T23:09:31Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "28b24466182e",
-            "at": "2026-11-02T23:09:32Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-wiring.test.mjs tests/schema.test.mjs tests/merge.test.mjs tests/pipeline.test.mjs tests/viewer.test.mjs tests/export.test.mjs tests/skill-references.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.5/20261102T230240Z.executor.json, at 2026-11-02T23:08:27Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T23:08:27Z",
@@ -10142,9 +10179,14 @@
             "at": "2026-11-02T21:47:43Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "997b6ae0af16",
-            "at": "2026-11-02T21:47:44Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "diverges",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-python.test.mjs tests/merge.test.mjs tests/prescan-node-backend.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.6/20261102T213247Z.executor.json, at 2026-11-02T21:46:45Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T21:46:45Z",
@@ -10209,9 +10251,14 @@
             "at": "2026-11-02T23:17:32Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "57b41737e3d0",
-            "at": "2026-11-02T23:17:33Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/cost-profile.test.mjs tests/benchmark.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.7/20261102T230933Z.executor.json, at 2026-11-02T23:14:52Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T23:14:52Z",
@@ -10275,9 +10322,14 @@
             "at": "2026-11-02T23:42:01Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "c0225a7917b8",
-            "at": "2026-11-02T23:42:02Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/e2e.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.8/20261102T232747Z.executor.json, at 2026-11-02T23:40:38Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T23:40:38Z",
@@ -10338,9 +10390,14 @@
             "at": "2026-11-02T23:46:09Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "53f46141b609",
-            "at": "2026-11-02T23:46:10Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "not-attempted",
+            "redFirstBasis": "The executor filed not-attempted: 'regression mode with expectRedFirst false: no red owed'. The manifest task has tests.mode regression and expectRedFirst false, so the basis holds; its informal note that r6 and r7 failed before the README edit is not relied on.",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "status": "not-attempted",
@@ -10404,9 +10461,14 @@
             "at": "2026-11-02T22:04:35Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "29ddf775f165",
-            "at": "2026-11-02T22:04:37Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-node-backend.test.mjs tests/prescan-python.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.10/20261102T214751Z.executor.json, at 2026-11-02T22:03:07Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T22:03:07Z",
@@ -10489,9 +10551,14 @@
             "at": "2026-11-02T22:14:05Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "a81e33dab5d6",
-            "at": "2026-11-02T22:14:06Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/viewer.test.mjs tests/render.test.mjs tests/merge.test.mjs` in a throwaway tree at HEAD: inline suite assets/viewer/viewer.css (its test file is its implementation file): it is not Python, and an inline suite's test hunks are read from Python definitions; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.11/20261102T220438Z.executor.json, at 2026-11-02T22:12:57Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T22:12:57Z",
@@ -10552,9 +10619,14 @@
             "at": "2026-11-02T23:27:41Z"
           },
           "intentCheck": {
-            "answer": "deferred",
             "commit": "784ecfd2b777",
-            "at": "2026-11-02T23:27:42Z"
+            "at": "2026-11-03T07:32:50Z",
+            "return": "returns/P13/53f46141b6096c904f26481509eecc515e8193af.reviewer.json",
+            "answer": "matches",
+            "redFirst": "could-not-prove",
+            "redFirstBasis": "`node --test tests/prescan-wiring.test.mjs tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from (the red-first helper's block in returns/P13.12-exy/20261102T231907Z.executor.json, at 2026-11-02T23:26:44Z)",
+            "inheritedTests": "not-asked",
+            "inheritedTestsBasis": "computed: each gate command is its runner with no operand and no flag outside the no-selection set (`node --test`), so the gate is read as running the whole project"
           },
           "redFirst": {
             "at": "2026-11-02T23:26:44Z",
@@ -11072,7 +11144,7 @@
         {
           "id": "P13.20-exy",
           "title": "fix P13-R8: The rewritten Nodes item says the merge script 'already makes a l...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The rewritten Nodes item says the merge script 'already makes a level-3 node for every resource and module'. merge.mjs makes a module node at level 2 (scripts/merge.mjs:776) and a resource node at level 3 (merge.mjs:791). The P13.14-exy executor's own outcome records module as level 2. The new r6 test pins only the phrases 'merge script already makes', find() and cite, so it does not catch the wrong level.\n\nResolution asked: Reword to 'a level-3 node for every resource and a level-2 node for every module', or drop the level wording. Carry this low finding; do not loop it into another fix round.",
           "files": [
             "skills/architecture-map/references/stack-iac.md"
@@ -11093,13 +11165,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "5af7cd4c7e79",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "In skills/architecture-map/references/stack-iac.md line 28 (Nodes item) changed 'a level-3 node for every resource and module' to 'a level-3 node for every resource and a level-2 node for every module'. Confirmed in scripts/merge.mjs makePlatformNodes: module nodes are made with level: 2, resource nodes with level: 3. Nothing else edited. Gates: node --test tests/skill-references.test.mjs: 6 tests, 6 pass, 0 fail; full node --test: 581 tests, 581 pass, 0 fail (tallies read from the TAP summary; the shell exit code was not captured by the pipe, so the evidence is the tally). Dependants: tests/skill-references.test.mjs (ran green, still correct: it pins phrases, not the level wording), scripts/pipeline.mjs, tests/pipeline.test.mjs, agents/archmap-explorer.md and skills/architecture-map/SKILL.md reference the file by name or path only and are unchanged and still correct, since the edit corrects one sentence to match merge.mjs behaviour.",
+            "descriptive": "The IaC reference now states the right node levels for modules (2) and resources (3), matching merge.mjs, closing P13-R8."
           },
           "startedAt": "2026-11-03T07:29:13Z",
-          "completedAt": null,
+          "completedAt": "2026-11-03T07:31:34Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -11123,6 +11195,17 @@
             "runId": "2026-11-03T07:31:33Z.8fe077",
             "status": "passed",
             "at": "2026-11-03T07:31:33Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "5af7cd4c7e79",
+            "at": "2026-11-03T07:31:34Z",
+            "basis": "a fix task for P13-R8, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task, expectRedFirst false: no test owed",
+            "at": "n/a"
           }
         }
       ],
@@ -11134,7 +11217,12 @@
         "Whether the mixed-fixture headless build is run by the orchestrator or by the owner, as the self-build runs were"
       ],
       "reviewPerTask": "phase",
-      "startedAt": "2026-11-02T21:32:47Z"
+      "startedAt": "2026-11-02T21:32:47Z",
+      "testEvidence": {
+        "runId": "2026-11-03T07:32:48Z.706f03",
+        "status": "passed",
+        "at": "2026-11-03T07:32:48Z"
+      }
     }
   ],
   "fileIndex": {
