@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-03T00:03:45Z",
+    "basis": "`node --test tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts object built in the finish step of scripts/pipeline.mjs (next to nodes, edges, entities, access, relations, drafts), so the finish output prints it. Digest and merge.mjs unchanged (the count is already tested in merge.test.mjs). Added case p43 in tests/pipeline.test.mjs: finish over the canned fragments, asserts counts.nodesWithoutEdges is a number equal to the digest figure, then adds a node no edge touches and asserts the figure rises by one in both the finish output and the digest. Watched p43 fail first (node --test tests/pipeline.test.mjs: 42 pass, 1 fail) before the edit; after it, full `node --test` exit 0: 577 tests, 577 pass, 0 fail. Dependants: tests/pipeline.test.mjs, scripts/usage.mjs, tests/commands.test.mjs, tests/evals.test.mjs, tests/merge.test.mjs, tests/skill.test.mjs, docs/architecture/* still correct - the change only adds one key to the finish counts JSON and breaks no existing assertion (full suite green); the committed architecture model and html are not generated from finish counts. scripts/merge.mjs and tests/merge.test.mjs were not touched: the digest was right. Note: the brief's tests.add names tests/merge.test.mjs but the finish output is asserted in tests/pipeline.test.mjs, which is the file owned by this task.",
+    "descriptive": "The build report from pipeline finish now shows the nodes-without-edges count the digest already carried."
+  },
+  "testsAdded": [
+    "p43: finish counts carry nodesWithoutEdges equal to the digest figure and follow an added edgeless node"
+  ],
+  "casesAdded": [
+    "p43"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:79dc6c0fdc338205454c4e433249b6d1425dd6a83d40b32ef9cf2b38cbfe9039\",\"dirtyDigest\":\"sha256:db5238841c3a412654c5984b9574125f8c56c97ee8f1b7f0f36096d80633b4c0\",\"dirtyPaths\":{\"scripts/pipeline.mjs\":\"1e589c2eb5b486a5\",\"tests/pipeline.test.mjs\":\"027f9edd8f57c716\"},\"head\":\"b41e3f1\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"scripts/pipeline.mjs\",\"tests/merge.test.mjs\",\"tests/pipeline.test.mjs\"],\"scopeDigest\":\"sha256:0c4f3d0d7ce31ea1d960a338a61508e31038acaa6715a79c2f06c005e70c0d11\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

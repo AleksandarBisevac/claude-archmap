@@ -1169,6 +1169,7 @@ function finish(o, ctx) {
   const counts = {
     nodes: list(mj.nodes).length, edges: list(mj.edges).length, entities: list(mj.entities).length,
     access: list(mj.access).length, relations: list(mj.relations).length, drafts: list(dj.drafts).length,
+    nodesWithoutEdges: dj.counts?.nodesWithoutEdges,
   };
   if (v.exit !== 0) {
     return { exitCode: v.exit === 1 ? 1 : 2, counts, ...done, validate: { command: v.command, exit: v.exit, evidenceChecked: v.evidence === 'checked' }, findings: v.findings, agents: [], next: 'validate found the merged model invalid: report the findings; do not patch the model by hand' };

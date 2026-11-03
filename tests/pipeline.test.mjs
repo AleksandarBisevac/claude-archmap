@@ -1518,3 +1518,27 @@ test('p42 the explorer brief of a platform-only area names the platform stack re
   assert.ok(mixed.length <= BRIEF_CAP, `${mixed.length} characters`);
   assert.equal(stackRefFor(['node-backend', 'containers']), 'stack-node-backend.md, stack-containers.md', 'every reference of the area, in the area\'s order');
 });
+
+test('p43 the finish output carries counts.nodesWithoutEdges from the digest, so a build report shows the figure, and it follows a node that no edge touches', () => {
+  const w = join(tmp, 'work-p43');
+  assert.equal(planInto(w).status, 0);
+  cannedInto(w);
+  const first = step(['finish', '--work', w]);
+  assert.equal(first.status, 0, first.stdout);
+  const digestCount = () => readJson(join(w, 'digest.json')).counts.nodesWithoutEdges;
+  assert.equal(typeof digestCount(), 'number', 'the digest carries the figure');
+  assert.equal(typeof first.json.counts.nodesWithoutEdges, 'number', 'the finish counts carry it too');
+  assert.equal(first.json.counts.nodesWithoutEdges, digestCount());
+  // a node nothing connects to raises the figure by one, in the digest and in the finish output
+  const fp = join(w, 'fragments', 'src.json');
+  const frag = readJson(fp);
+  frag.nodes.push({
+    id: 'lone-job', zone: 'service', kind: 'route-group', title: 'Lone job', paths: ['src/books/**'], level: 2,
+    role: 'A node no edge touches.', evidence: [{ path: 'src/books/books.controller.ts', lines: '5-9' }],
+  });
+  writeFileSync(fp, JSON.stringify(frag));
+  const second = step(['finish', '--work', w]);
+  assert.equal(second.status, 0, second.stdout);
+  assert.equal(second.json.counts.nodesWithoutEdges, first.json.counts.nodesWithoutEdges + 1);
+  assert.equal(second.json.counts.nodesWithoutEdges, digestCount());
+});
