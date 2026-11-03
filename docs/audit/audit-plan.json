@@ -11224,6 +11224,125 @@
         "at": "2026-11-03T07:32:48Z"
       },
       "mergedHead": "3c0d59e1b3289fca1374302dacff503a6b844969"
+    },
+    {
+      "id": "P14",
+      "title": "Release 1.1.0",
+      "status": "in_progress",
+      "description": "The release of the v1.1 work landed in P13 (platform extractors, flow player, mixed fixture) and the BF2 fix, following the 1.0.0 procedure of P9: version bump, CHANGELOG entry, README status, then the self-update of the committed map at the release head so the map ships current and shows the new node kinds on this repository's own CI workflow. Nothing in agent prompts or brief templates changes.",
+      "desiredOutcome": "Version 1.1.0 in plugin.json with a dated CHANGELOG entry that holds the Unreleased changes, the README status naming 1.1.0, and the committed map updated at the 1.1.0 head with its cost profile tracked and recorded in both READMEs, every version and count pinned by the existing tests.",
+      "testGate": [
+        "test"
+      ],
+      "blockedBy": [],
+      "baseRef": "f0d693ee447a95c45b1163b9945b90044dbfd319",
+      "branch": "audit/p14-release-1-1-0",
+      "mergedAt": null,
+      "review": {
+        "tool": null,
+        "model": "sonnet",
+        "status": "pending",
+        "findings": []
+      },
+      "summary": null,
+      "tasks": [
+        {
+          "id": "P14.1",
+          "title": "Version 1.1.0: plugin.json, the CHANGELOG entry and the README status",
+          "status": "in_progress",
+          "description": "Set .claude-plugin/plugin.json version to 1.1.0. In CHANGELOG.md move every entry now under ## [Unreleased] under a new heading ## [1.1.0] - 2026-11-03, leave ## [Unreleased] above it holding nothing (mf3 allows an empty section), and replace the sentence 'The version bump and the tag are the owner's decision.' with a statement that 1.1.0 is tagged v1.1.0 in this repository; keep the map-count sentence of the BUG-5-6o1 entry as it is (the next task refreshes the counts). In README.md change the Status paragraph so it names version 1.1.0 and says in one sentence what 1.1 adds beyond the 1.0.0 application map: compose services, pipelines and jobs, IaC resources and dbt models and sources, with the flow player; keep the CHANGELOG link and the released wording r3 checks. Update tests/manifest.test.mjs mf5 so it reads the committed-map counts from the newest version entry (1.1.0) instead of the Unreleased entry while still pinning the 1.0.0 record (34, 23, 1, 4, 5), and tests/readme.test.mjs only where a 1.0.0 literal pins the status wording. Marketplace entries and descriptions stay unchanged so mf5 and mf6 keep holding.",
+          "files": [
+            ".claude-plugin/plugin.json",
+            "CHANGELOG.md",
+            "README.md",
+            "tests/manifest.test.mjs",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "tdd",
+            "add": [
+              "tests/manifest.test.mjs: mf5 reads the committed-map counts from the newest version entry, which is ## [1.1.0] - 2026-11-03 under an empty Unreleased section, and still pins the 1.0.0 record",
+              "tests/readme.test.mjs: r3 passes with the status naming version 1.1.0, the version plugin.json carries"
+            ],
+            "expectRedFirst": true,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-11-03T10:04:13Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-03T10:08:42Z.7d537e",
+            "status": "passed",
+            "at": "2026-11-03T10:08:42Z"
+          }
+        },
+        {
+          "id": "P14.2",
+          "title": "The committed map updated at the 1.1.0 head with /archmap:update, its profile tracked and both READMEs record the update (orchestrator-run)",
+          "status": "pending",
+          "description": "Orchestrator-run, after the bump task is committed: run /archmap:update (balanced, no issues) headlessly with the orchestrator pinned to Opus on a detached clone of this repository at the phase branch head, with a clone at the same head as the plugin directory, so the committed map catches up with the 1.1.0 head and shows the pipeline of .github/workflows/ci.yml; profile the stream with scripts/cost-profile.mjs. Bring docs/architecture (model, layout, clean HTML) in unchanged, validate.mjs --repo exit 0, denylist test green; track the profile as skills/architecture-map/evals/evidence/iteration-3/self-with-skill-5.json. The executor then records the update as the last self-build row of the evals README self-build table (run 5, update, the committed map; run 4 loses that mark) and of the README cost table, puts the counts of the updated model in the What a build delivers table and in the CHANGELOG 1.1.0 entry's map-count sentence, every figure derived from the profile, and extends tests r2, r4, e19 and mf5 to read these rows; the full suite must pass. If the update changes no node, say so and record the run anyway. No executor runs while this build runs.",
+          "files": [
+            "docs/architecture",
+            "skills/architecture-map/evals/evidence/iteration-3/self-with-skill-5.json",
+            "README.md",
+            "skills/architecture-map/evals/README.md",
+            "CHANGELOG.md",
+            "tests/readme.test.mjs",
+            "tests/evals.test.mjs",
+            "tests/manifest.test.mjs"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "med",
+          "blockedBy": [],
+          "dependsOn": [
+            "P14.1"
+          ],
+          "attempts": 0,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": null,
+          "completedAt": null,
+          "verifiedBy": []
+        }
+      ],
+      "request": "ok pushuj sve i napravi nov irelease",
+      "openChoices": [
+        "The committed map is updated at the 1.1.0 head by an orchestrator-run headless /archmap:update with the orchestrator pinned to Opus, as the 1.0.0 release did (P9.7); the cost is one build of this repository.",
+        "The plugin.json and marketplace descriptions stay as they are; the README status and the CHANGELOG say what 1.1.0 adds.",
+        "The tag v1.1.0 and the GitHub release are created on the landing commit after sign-off, outside the plan, as for 1.0.0."
+      ],
+      "reviewPerTask": "phase",
+      "startedAt": "2026-11-03T10:04:13Z"
     }
   ],
   "fileIndex": {
@@ -11965,7 +12084,9 @@
       "BF2.2-8q4",
       "P13.8",
       "P13.9",
-      "P13.11"
+      "P13.11",
+      "P14.1",
+      "P14.2"
     ],
     "CHANGELOG.md": [
       "P7.6",
@@ -11973,7 +12094,9 @@
       "P9.8",
       "P12.5",
       "BF2.2-8q4",
-      "P13.9"
+      "P13.9",
+      "P14.1",
+      "P14.2"
     ],
     "skills/architecture-map/evals/evals.json": [
       "P8.1",
@@ -11998,7 +12121,8 @@
       "P12.5",
       "BF2.2-8q4",
       "P13.8",
-      "P13.18-exy"
+      "P13.18-exy",
+      "P14.2"
     ],
     "tests/evals.test.mjs": [
       "P8.1",
@@ -12013,7 +12137,8 @@
       "P9.7",
       "P12.4",
       "BF2.2-8q4",
-      "P13.8"
+      "P13.8",
+      "P14.2"
     ],
     "skills/architecture-map/evals/score-recall.mjs": [
       "P8.2"
@@ -12153,22 +12278,28 @@
       "P13.8",
       "P13.9",
       "P13.18-exy",
-      "P13.17-exy"
+      "P13.17-exy",
+      "P14.1",
+      "P14.2"
     ],
     "docs/architecture": [
       "P11.6",
-      "P9.7"
+      "P9.7",
+      "P14.2"
     ],
     "tests/manifest.test.mjs": [
       "P9.2",
       "P9.5",
       "P9.8",
       "P12.5",
-      "BF2.2-8q4"
+      "BF2.2-8q4",
+      "P14.1",
+      "P14.2"
     ],
     ".claude-plugin/plugin.json": [
       "P9.3",
-      "P9.2"
+      "P9.2",
+      "P14.1"
     ],
     "docs/roadmap.md": [
       "P9.4",
@@ -12337,6 +12468,9 @@
     ],
     "tests/fixtures/repos/containers/.env.example": [
       "P13.19-exy"
+    ],
+    "skills/architecture-map/evals/evidence/iteration-3/self-with-skill-5.json": [
+      "P14.2"
     ]
   },
   "bugs": [

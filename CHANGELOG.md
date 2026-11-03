@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-03
+
 ### Added
 
 - The release benchmark, `skills/architecture-map/evals/BENCHMARK.md`: 1.0.0 against three other mapping plugins on the same prompt and repositories, every figure derived by a test from the tracked profiles.
@@ -19,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - BUG-5-6o1: an edge written to an area whose evidence lines name a file that exactly one node of that area owns now targets that node, not the area hub, so the SessionStart hook edge in the committed map reaches the node that holds `scripts/staleness.mjs`; the committed map is rebuilt at the fix: 43 nodes, 25 edges, 1 entity, 4 sequences and 6 views.
 - The three low findings of the benchmark phase re-review: P12-R5, `BENCHMARK.md` and `PROTOCOL.md` cite where the confirmation of the rubric scores is recorded instead of asserting it; P12-R6, `scripts/cost-profile.mjs` replaces a description-derived label that holds a path-like token, a quoted string or more than a few words with a redacted label, so no repository text lands in a tracked profile; P12-R7, the tracked grader is run over every benchmark cell and its agreement with the recorded grading is kept as counts in `skills/architecture-map/evals/evidence/benchmark/grader-equivalence.json`, which the report cites.
-- The roadmap item v1.1 is closed on 2026-11-03 with its evidence. The version bump and the tag are the owner's decision.
+- The roadmap item v1.1 is closed on 2026-11-03 with its evidence. 1.1.0 is tagged v1.1.0 in this repository.
 
 ## [1.0.0] - 2026-11-01
 

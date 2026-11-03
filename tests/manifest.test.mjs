@@ -93,7 +93,7 @@ const countsIn = (entry) => {
   return m && m.slice(1).map(Number);
 };
 
-test('mf5 the CHANGELOG 1.0.0 entry states the counts of the map it shipped with, and the Unreleased entry the counts of the committed map', () => {
+test('mf5 the CHANGELOG 1.0.0 entry records the counts of the map it shipped with, and the newest version entry (1.1.0, under an empty Unreleased section) the counts of the committed map', () => {
   const changelog = text('CHANGELOG.md');
   const entry = (heading) => {
     const start = changelog.indexOf(heading);
@@ -101,12 +101,16 @@ test('mf5 the CHANGELOG 1.0.0 entry states the counts of the map it shipped with
     const next = changelog.indexOf('\n## [', start + 1);
     return changelog.slice(start, next < 0 ? undefined : next);
   };
-  // 1.0.0 shipped with the map updated at 63d7495; the committed map has moved on since (BF2.2), so the released entry is a record
+  // 1.0.0 shipped with the map updated at 63d7495; the committed map has moved on since, so the released entry is a record
   assert.deepEqual(countsIn(entry('## [1.0.0]')), [34, 23, 1, 4, 5], 'the 1.0.0 entry states the counts of the map it shipped with');
-  const stated = countsIn(entry('## [Unreleased]'));
-  assert.ok(stated, 'the Unreleased entry states "N nodes, N edges, N entity, N sequences and N views"');
+  // 1.1.0 holds what was Unreleased: the Unreleased heading above it is empty, and the newest version entry carries the committed map's counts
+  assert.equal(entry('## [Unreleased]').replace('## [Unreleased]', '').trim(), '', 'the Unreleased section holds nothing after the 1.1.0 release');
+  const newest = versionHeadings(changelog)[0];
+  assert.equal(newest.version, '1.1.0', 'the newest CHANGELOG version entry is 1.1.0');
+  const stated = countsIn(entry(`## [${newest.version}]`));
+  assert.ok(stated, 'the newest version entry states "N nodes, N edges, N entity, N sequences and N views"');
   const model = read('docs/architecture/architecture.model.json');
   const actual = [model.nodes, model.edges, model.entities, model.sequences, model.views].map((a) => a.length);
-  assert.deepEqual(stated, actual, 'the counts in the Unreleased entry equal the committed model');
+  assert.deepEqual(stated, actual, 'the counts in the newest version entry equal the committed model');
   assert.deepEqual(countsIn('30 nodes, 18 edges, 1 entity, 4 sequences and 5 views'), [30, 18, 1, 4, 5], 'the reader parses a stale entry, which then differs from the model');
 });

@@ -368,7 +368,13 @@ test('r2 every cost, baseline, turn, context and before figure of the README cos
 });
 
 test('r3 the README carries no machine path and no planned, pre-release or not-usable-yet wording, and its status is released, with the version plugin.json carries and a CHANGELOG link', () => {
-  checkWording(readReadme());
+  const text = readReadme();
+  checkWording(text);
+  // 1.1 adds the platform node kinds and the flow player to the 1.0.0 application map; the status says so in one sentence
+  const status = section(text, 'Status');
+  for (const phrase of [/compose\s+services/i, /pipelines\s+and\s+jobs/i, /IaC\s+resources/i, /dbt\s+models\s+and\s+sources/i, /flow\s+player/i]) {
+    assert.match(status, phrase, `the status says what 1.1 adds: ${phrase}`);
+  }
 });
 
 test('r4 what a build delivers names the model contents with the self-build counts of the evals README, and the method section names the scripts, the evidence directory and the test count', () => {

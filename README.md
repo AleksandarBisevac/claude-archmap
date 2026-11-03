@@ -7,10 +7,11 @@ and draw it. The design is in [docs/design.md](docs/design.md).
 
 ## Status
 
-Released: version 1.0.0 is the first release, a Claude Code plugin that maps a repository's architecture into one
-evidence-backed model and renders it as an offline HTML viewer; see the [CHANGELOG](CHANGELOG.md). All six commands
-below work and are covered by the test suite and by five evals on three private repositories plus a build of this
-repository (see [What a build costs](#what-a-build-costs)).
+Released: version 1.1.0 is a Claude Code plugin that maps a repository's architecture into one evidence-backed model
+and renders it as an offline HTML viewer; beyond the 1.0.0 application map, 1.1 adds compose services, pipelines and
+jobs, IaC resources and dbt models and sources, with the flow player; see the [CHANGELOG](CHANGELOG.md).
+All six commands below work and are covered by the test suite and by five evals on three private repositories plus a
+build of this repository (see [What a build costs](#what-a-build-costs)).
 
 What comes next is in the [roadmap](docs/roadmap.md).
 

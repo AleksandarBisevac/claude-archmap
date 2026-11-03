@@ -1,0 +1,26 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-03T10:07:44Z",
+    "basis": "`node --test tests/manifest.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "plugin.json version 1.0.0 -> 1.1.0. CHANGELOG.md: new '## [1.1.0] - 2026-11-03' heading holds every former Unreleased entry, '## [Unreleased]' above it is empty, the owner's-decision sentence replaced by '1.1.0 is tagged v1.1.0 in this repository.'; BUG-5-6o1 map-count sentence untouched. README.md Status names version 1.1.0 and says in one sentence that 1.1 adds compose services, pipelines and jobs, IaC resources and dbt models and sources, with the flow player (CHANGELOG link, 'Released', six commands, test suite, evals kept). tests/manifest.test.mjs mf5 now asserts Unreleased is empty, newest version heading is 1.1.0, reads counts from that newest entry vs the committed model, and still pins 1.0.0 at [34,23,1,4,5]. tests/readme.test.mjs r3 additionally asserts the status names the five 1.1 additions (whitespace tolerant); no 1.0.0 literal pinned the status wording (r3 already reads plugin.json's version). Red first: before the fix mf5 failed (Unreleased not empty) and r3 failed (status lacks 'compose services'). After: node --test full suite 581 pass, 0 fail; the two files alone 18 pass, 0 fail. Dependants: plugin.json dependants - docs/architecture model and viewer (path) carry no plugin version, mf tests pass; docs/design.md line 65 only lists plugin.json fields; CANDIDATES.md cites other plugins' versions - all still correct. CHANGELOG dependants (audit.config.json, mf3 heading test, r3, README, design.md) still correct: mf3 passes with newest heading 1.1.0 equal to plugin.json under the Unreleased heading. README dependants (benchmark/diffmap/evals tests, fixtures) pass in the full run. Marketplace entries untouched, mf5/mf6 release-entry cases pass.",
+    "descriptive": "Release 1.1.0 is versioned: plugin.json, dated CHANGELOG entry with empty Unreleased, README status, and tests pinning them."
+  },
+  "testsAdded": [
+    "mf5 reworked: reads counts from the newest version entry (1.1.0) under an empty Unreleased section, still pins the 1.0.0 record",
+    "r3 extended: README status names version 1.1.0 and the five things 1.1 adds"
+  ],
+  "casesAdded": [
+    "mf5",
+    "r3"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:659d5fc5aafd4f0c8bed3a3f86dfcbcbb35abfda8a7629ec231075a057b98973\",\"dirtyDigest\":\"sha256:0613e76f44fb61798759b2252d33c7ac4a2ae7dd316376c99832e4057ce41334\",\"dirtyPaths\":{\".claude-plugin/plugin.json\":\"b4bf950ac3ef7ad8\",\"CHANGELOG.md\":\"eef68a8e39104bf5\",\"README.md\":\"1a76461f7bf8032e\",\"tests/manifest.test.mjs\":\"f37df708c7791657\",\"tests/readme.test.mjs\":\"d349fb678709b1c0\"},\"head\":\"f0d693e\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\".claude-plugin/plugin.json\",\"CHANGELOG.md\",\"README.md\",\"tests/manifest.test.mjs\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:f23cee4e7efa3932709f00f5f3572161a953c06730efb61b70751a9548b197d4\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}
