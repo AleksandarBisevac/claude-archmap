@@ -150,10 +150,10 @@ const checkCostTable = (text, read = readEvidence, expectations = expectationCou
   );
   const evalRows = rows.filter((r) => /^\d\b/.test(r[at.Eval]));
   assert.deepEqual(evalRows.map((r) => r[at.Eval].match(/^\d/)[0]), ['1', '2', '3', '4', '5'], 'one row per eval, 1 to 5, in order');
-  // P9.7: self-build rows, a build, its update and (BF2.2) the fresh build that is the committed map
+  // P9.7: self-build rows, a build, its update and (BF2.2) the fresh build; P14.2: the update of that build is the committed map
   const selfRows = rows.filter((r) => /^self-build\b/.test(r[at.Eval]));
-  assert.deepEqual(selfRows.map((r) => (/^self-build update\b/.test(r[at.Eval]) ? 'update' : 'build')), ['build', 'update', 'build'], 'three self-build rows: the build, its update, then the build that is the committed map');
-  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[at.Eval])), [false, false, true], 'the last self-build row is the committed map');
+  assert.deepEqual(selfRows.map((r) => (/^self-build update\b/.test(r[at.Eval]) ? 'update' : 'build')), ['build', 'update', 'build', 'update'], 'four self-build rows: the build, its update, the fresh build, then its update that is the committed map');
+  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[at.Eval])), [false, false, false, true], 'the last self-build row is the committed map');
   const cited = new Set();
   for (const r of [...evalRows, ...selfRows]) {
     const id = r[at.Eval];
@@ -166,7 +166,9 @@ const checkCostTable = (text, read = readEvidence, expectations = expectationCou
     const e = self ? 'self' : id.match(/^\d/)[0];
     const name = (f, iteration, config) => new RegExp(`^iteration-${iteration}/${e}-${config}-skill-\\d+\\.json$`).test(f);
     const withSkill = ev['with skill'] ?? [];
-    assert.ok(withSkill.length >= 1 && withSkill.every((f) => name(f, 2, 'with')), `${id}: "with skill" cites iteration-2 with-skill runs of this eval`);
+    // P14.2: the update of the 1.1.0 head (the last self-build row) is profiled in iteration 3, the other rows in iteration 2
+    const iteration = self && r === selfRows.at(-1) ? 3 : 2;
+    assert.ok(withSkill.length >= 1 && withSkill.every((f) => name(f, iteration, 'with')), `${id}: "with skill" cites iteration-${iteration} with-skill runs of this eval`);
     const js = withSkill.map(read);
     assert.equal(r[at['With skill']], span(js.map(usd), ' USD'), `${id}: the with-skill cost is total.costUsd of ${withSkill.join(', ')}`);
     assert.equal(r[at['Orchestrator turns']], span(js.map((j) => String(orchestratorOf(j).turns)), ''), `${id}: the turns are the orchestrator row of ${withSkill.join(', ')}`);
@@ -458,22 +460,26 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
   const grown = readCommittedModel();
   grown.nodes.push({ id: 'extra' });
   assert.throws(() => checkDeliversAndMethod(text, undefined, grown), /Nodes count is the committed model's/);
-  assert.throws(() => checkDeliversAndMethod(swap('`iteration-2/self-with-skill-4.json`', '`iteration-2/self-with-skill-3.json`')), /committed map's profile/);
+  assert.throws(() => checkDeliversAndMethod(swap('`iteration-3/self-with-skill-5.json`', '`iteration-2/self-with-skill-4.json`')), /committed map's profile/);
   // P9.7: the update row, its caveat; BF2.2: the committed-map row and the commit it was built at
   const update = row(/^\| self-build update /);
   assert.throws(() => checkCostTable(swap(update, update.replace(/\| \d+ \| /, '| 12 | '))), /self-build update.*turns are/);
-  const committedRow = row(/^\| self-build \(.*, the committed map \|/);
+  const committedRow = row(/^\| self-build update \(.*, the committed map \|/);
   assert.throws(() => checkCostTable(swap(committedRow, committedRow.replace(', the committed map', ''))), /last self-build row is the committed map/);
-  assert.throws(() => checkCostTable(swap(update, update.replace('self-build update', 'self-build'))), /the build, its update, then the build/);
+  assert.throws(() => checkCostTable(swap(update, update.replace('self-build update', 'self-build'))), /the build, its update, the fresh build/);
   assert.throws(() => checkCostTable(swap(committedRow, committedRow.replace(/\| \d+ \| /, '| 17 | '))), /self-build.*turns are/);
-  assert.throws(() => checkCostTable(swap(`${update}\n`, '')), /the build, its update, then the build/);
+  // P14.2: the mark moved with the update: run 4's row carrying it again makes two committed-map rows, and the committed row's profile is iteration 3's
+  const run4Row = row(/^\| self-build \(balanced, no issues\) \| 1\.65 USD /);
+  assert.throws(() => checkCostTable(swap(run4Row, run4Row.replace('no issues)', 'no issues), the committed map'))), /last self-build row is the committed map/);
+  assert.throws(() => checkCostTable(swap(committedRow, committedRow.replace('iteration-3/self-with-skill-5.json', 'iteration-2/self-with-skill-4.json'))), /cites iteration-3 with-skill runs/);
+  assert.throws(() => checkCostTable(swap(`${update}\n`, '')), /the build, its update, the fresh build/);
   assert.throws(() => checkCostTable(swap('context was 47.3 K', 'context was 54.6 K')), /median context is the orchestrator medianContext of the update/);
   assert.throws(() => checkCostTable(swap('against 46.4 K for the build', 'against 57.6 K for the build')), /build's median context/);
   assert.throws(() => checkCostTable(swap("against the build's 1.00 USD", "against the build's 1.11 USD")), /build's cost/);
-  assert.throws(() => checkDeliversAndMethod(swap('at commit `ddbd0be`', 'at commit `8174e41`')), /committed model records commit 8174e41/);
+  assert.throws(() => checkDeliversAndMethod(swap('at commit `549c3c3`', 'at commit `8174e41`')), /committed model records commit 8174e41/);
   // BF2.2: the build wording and the update wording both name the commit; neither wording, no commit
-  checkDeliversAndMethod(swap('built with\n`/archmap:build` at commit', 'updated with\n`/archmap:update` at commit'));
-  assert.throws(() => checkDeliversAndMethod(swap('built with\n`/archmap:build` at commit', 'made at commit')), /names the commit the committed map was built or updated at/);
+  checkDeliversAndMethod(swap('updated with `/archmap:update` at commit', 'built with `/archmap:build` at commit'));
+  assert.throws(() => checkDeliversAndMethod(swap('updated with `/archmap:update` at commit', 'made at commit')), /names the commit the committed map was built or updated at/);
 });
 
 test('r6 docs/roadmap.md closes the v1.1 item with a close date and an evidence paragraph, keeps the benchmark item, and the README names the four new kinds and links it', () => {

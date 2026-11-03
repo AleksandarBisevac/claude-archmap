@@ -112,5 +112,10 @@ test('mf5 the CHANGELOG 1.0.0 entry records the counts of the map it shipped wit
   const model = read('docs/architecture/architecture.model.json');
   const actual = [model.nodes, model.edges, model.entities, model.sequences, model.views].map((a) => a.length);
   assert.deepEqual(stated, actual, 'the counts in the newest version entry equal the committed model');
+  // P14.2: the committed map is the update at the 1.1.0 head, and the entry says so, with the same counts as the last (committed map) self-build row of the evals README
+  assert.match(entry(`## [${newest.version}]`), /updated at the 1\.1\.0 head with `\/archmap:update`, which adds the pipeline of `\.github\/workflows\/ci\.yml`/, 'the newest version entry says the committed map is the update at the 1.1.0 head');
+  const selfRow = text('skills/architecture-map/evals/README.md').split('\n').find((l) => /^\| self-build run \d \([^|]*\), the committed map \|/.test(l));
+  assert.ok(selfRow, 'the evals README has a committed-map self-build row');
+  assert.deepEqual(selfRow.split('|').slice(-6, -1).map((c) => Number(c.trim())), stated, 'the counts in the newest version entry equal the committed-map row of the evals README');
   assert.deepEqual(countsIn('30 nodes, 18 edges, 1 entity, 4 sequences and 5 views'), [30, 18, 1, 4, 5], 'the reader parses a stale entry, which then differs from the model');
 });

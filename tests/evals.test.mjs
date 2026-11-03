@@ -350,32 +350,42 @@ const checkCostSection = (readme, committed = readCommittedModel()) => {
   // counts are those of the model committed in docs/architecture/
   const selfHead = rows(/^\| Build \| Evidence/)[0];
   assert.ok(selfHead, 'the self-build table header');
-  // P9.7: run 3 is the update of run 2 at the release head; BF2.2: run 4 is the fresh build at the BF2.1 fix, and is now the committed map
+  // P9.7: run 3 is the update of run 2 at the release head; BF2.2: run 4 is the fresh build at the BF2.1 fix; P14.2: run 5 is
+  // the update of run 4 at the 1.1.0 head, and is now the committed map
   const selfRows = rows(/^\| self-build /);
-  assert.deepEqual(selfRows.map((r) => r[0].match(/^self-build (run \d)/)?.[1]), ['run 1', 'run 2', 'run 3', 'run 4'], 'four self-build rows, run 1 to run 4');
+  assert.deepEqual(selfRows.map((r) => r[0].match(/^self-build (run \d)/)?.[1]), ['run 1', 'run 2', 'run 3', 'run 4', 'run 5'], 'five self-build rows, run 1 to run 5');
   for (const r of selfRows) {
     assert.match(r[0], /balanced/);
     assert.match(r[0], /no issues/);
   }
-  assert.deepEqual(selfRows.map((r) => /\bupdate\b/.test(r[0])), [false, false, true, false], 'run 3 is the update');
-  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[0])), [false, false, false, true], 'run 4 is the committed map');
+  assert.deepEqual(selfRows.map((r) => /\bupdate\b/.test(r[0])), [false, false, true, false, true], 'runs 3 and 5 are the updates');
+  assert.deepEqual(selfRows.map((r) => /the committed map/.test(r[0])), [false, false, false, false, true], 'run 5 is the committed map');
+  const cites = (n, path) => (n?.evidence ?? []).some((e) => e.path === path);
   const countAt = (name) => selfHead.findIndex((c) => c.startsWith(name));
-  for (const [name, run1, run2, run3] of [['Nodes', '63', '30', '34'], ['Edges', '28', '18', '23'], ['Entities', '16', '1', '1'], ['Sequences', '4', '4', '4'], ['Views', '5', '5', '5']]) {
+  for (const [name, run1, run2, run3, run4] of [['Nodes', '63', '30', '34', '43'], ['Edges', '28', '18', '23', '25'], ['Entities', '16', '1', '1', '1'], ['Sequences', '4', '4', '4', '4'], ['Views', '5', '5', '5', '6']]) {
     assert.equal(selfRows[0][countAt(name)], run1, `self-build run 1 ${name}`);
     assert.equal(selfRows[1][countAt(name)], run2, `self-build run 2 ${name}`);
     assert.equal(selfRows[2][countAt(name)], run3, `self-build run 3 ${name}`);
-    assert.equal(selfRows[3][countAt(name)], String(committed[name.toLowerCase()].length), `self-build run 4 ${name} is the committed model's`);
+    assert.equal(selfRows[3][countAt(name)], run4, `self-build run 4 ${name}`);
+    assert.equal(selfRows[4][countAt(name)], String(committed[name.toLowerCase()].length), `self-build run 5 ${name} is the committed model's`);
   }
   assert.match(flat, /drop from 63 to 30 nodes is the P8\.5 and P8\.9 skip of fixture directories/i, 'the run 1 to run 2 drop is explained');
-  const grew = flat.match(/the map grew from (\d+) to (\d+) nodes and from (\d+) to (\d+) edges/);
+  const [grew, grew5] = [...flat.matchAll(/the map grew from (\d+) to (\d+) nodes and from (\d+) to (\d+) edges/g)];
   assert.ok(grew, 'the run 2 to run 3 growth is stated');
   assert.deepEqual(grew.slice(1), [selfRows[1][countAt('Nodes')], selfRows[2][countAt('Nodes')], selfRows[1][countAt('Edges')], selfRows[2][countAt('Edges')]], 'the growth is the run 2 and run 3 node and edge counts');
+  // P14.2: the run 4 to run 5 growth of the update that is the committed map, and the pipeline of ci.yml it now shows
+  assert.ok(grew5, 'the run 4 to run 5 growth is stated');
+  assert.deepEqual(grew5.slice(1), [selfRows[3][countAt('Nodes')], selfRows[4][countAt('Nodes')], selfRows[3][countAt('Edges')], selfRows[4][countAt('Edges')]], 'the growth is the run 4 and run 5 node and edge counts');
+  assert.match(flat, /Run 5\*\* is `\/archmap:update`[^*]*commit `549c3c3`/, 'run 5 is the update at the 1.1.0 head commit');
+  assert.equal(String(committed.meta.commit).slice(0, 7), '549c3c3', 'the committed model records the commit run 5 updated at');
+  const ci = committed.nodes.filter((n) => cites(n, '.github/workflows/ci.yml'));
+  assert.ok(ci.length >= 2 && ci.some((n) => n.id === 'misc-ci') && ci.some((n) => n.id === 'misc-ci-test'), 'the committed model shows the pipeline of ci.yml: the workflow node misc-ci and its job misc-ci-test');
+  assert.match(flat, /shows the pipeline of `\.github\/workflows\/ci\.yml`, as the workflow node `misc-ci` and its job `misc-ci-test`/, 'the run 5 bullet names the ci.yml pipeline nodes');
   // BF2.2: BUG-5-6o1 is fixed in the committed model: the SessionStart hook edge, which says it runs
   // scripts/staleness.mjs, targets the node citing scripts/staleness.mjs and not the node citing scripts/pipeline.mjs
   assert.match(flat, /BUG-5-6o1 and fixed in BF2\.1/, 'the BUG-5-6o1 sentence: tracked and fixed in BF2.1');
   assert.match(flat, /hook edge, whose evidence is `hooks\/hooks\.json`, now targets the staleness node, the one whose paths include `scripts\/staleness\.mjs`/, 'the hook edge sentence: it now targets the staleness node');
   assert.doesNotMatch(flat, /targets the pipeline script node instead/, 'the known-error sentence is gone');
-  const cites = (n, path) => (n?.evidence ?? []).some((e) => e.path === path);
   const hookEdge = committed.edges.find((e) => cites(e, 'hooks/hooks.json') && /scripts\/staleness\.mjs/.test(e.desc ?? ''));
   assert.ok(hookEdge, 'the committed model has the SessionStart hook edge that runs scripts/staleness.mjs');
   const target = committed.nodes.find((n) => n.id === hookEdge.to);
@@ -430,12 +440,22 @@ test('e18 the cost-section check fails on a shares row that does not sum to 100,
   assert.throws(() => checkCostSection(broken('| rerun 2 | P8 |', '| rerun 3 | P8 |')), /six eval 2 runs|each in its own row/);
   assert.throws(() => checkCostSection(broken('| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.93 | security |', '| P11.2 run 3 | P11.1 | `evidence/iteration-2/2-with-skill-6.json` | 14 | 2.61 USD | 69.4 K | 0.53 | security |')), /recall of the three P11\.2 runs/);
   assert.throws(() => checkCostSection(broken('| self-build run 1 (balanced, no issues) |', '| self-build run 1 (max) |')));
-  assert.throws(() => checkCostSection(broken('| self-build run 4 (balanced, no issues), the committed map |', '| self-build run 4 (balanced, no issues) |')), /committed map/);
-  assert.throws(() => checkCostSection(broken('| self-build run 3 (update, balanced, no issues) |', '| self-build run 3 (balanced, no issues) |')), /run 3 is the update/);
-  assert.throws(() => checkCostSection(broken('| 90 turns, 0.94 USD | 43 |', '| 90 turns, 0.94 USD | 44 |')), /committed model's/);
+  assert.throws(() => checkCostSection(broken('| self-build run 5 (update, balanced, no issues), the committed map |', '| self-build run 5 (update, balanced, no issues) |')), /committed map/);
+  assert.throws(() => checkCostSection(broken('| self-build run 4 (balanced, no issues) |', '| self-build run 4 (balanced, no issues), the committed map |')), /run 5 is the committed map/);
+  assert.throws(() => checkCostSection(broken('| self-build run 3 (update, balanced, no issues) |', '| self-build run 3 (balanced, no issues) |')), /runs 3 and 5 are the updates/);
+  assert.throws(() => checkCostSection(broken('| self-build run 5 (update, balanced, no issues), the committed map |', '| self-build run 5 (balanced, no issues), the committed map |')), /runs 3 and 5 are the updates/);
+  assert.throws(() => checkCostSection(broken('| 44 turns, 0.53 USD | 51 |', '| 44 turns, 0.53 USD | 52 |')), /committed model's/);
+  assert.throws(() => checkCostSection(broken('| 90 turns, 0.94 USD | 43 |', '| 90 turns, 0.94 USD | 44 |')), /self-build run 4 Nodes/);
   assert.throws(() => checkCostSection(broken('| 49 turns, 0.56 USD | 30 |', '| 49 turns, 0.56 USD | 31 |')), /self-build run 2 Nodes/);
   // P9.7: the growth sentence; BF2.2: the BUG-5-6o1 sentences, and a committed model whose hook edge carries the bug again
   assert.throws(() => checkCostSection(broken('from 18 to 23 edges', 'from 18 to 22 edges')), /growth is the run 2 and run 3/);
+  // P14.2: the run 5 growth, its commit and the ci.yml pipeline nodes
+  assert.throws(() => checkCostSection(broken('to 41 edges', 'to 40 edges')), /growth is the run 4 and run 5/);
+  assert.throws(() => checkCostSection(broken('at commit `549c3c3`, the head', 'at commit `ddbd0be`, the head')), /run 5 is the update at the 1.1.0 head commit/);
+  assert.throws(() => checkCostSection(broken('and its job `misc-ci-test`', 'and its job `misc-ci-lint`')), /names the ci\.yml pipeline nodes/);
+  const noCi = readCommittedModel();
+  noCi.nodes = noCi.nodes.map((n) => ({ ...n, evidence: (n.evidence ?? []).map((x) => (x.path === '.github/workflows/ci.yml' ? { ...x, path: 'scripts/other.mjs' } : x)) }));
+  assert.throws(() => checkCostSection(readme, noCi), /shows the pipeline of ci\.yml/);
   assert.throws(() => checkCostSection(broken('BUG-5-6o1 and fixed in BF2.1', 'BUG-0')), /BUG-5-6o1 sentence/);
   assert.throws(() => checkCostSection(broken('now targets the staleness', 'targets the pipeline script node instead of the staleness')), /hook edge sentence/);
   assert.throws(() => checkCostSection(broken('now targets the staleness', 'is wired to the staleness')), /hook edge sentence/);
@@ -555,7 +575,8 @@ const checkCostEvidence = (readme, read = readEvidence, onDisk = evidenceFiles) 
   const selfAt = (name) => col(selfHead, name);
   const selfNamed = selfRows.map((selfRow, i) => {
     const [selfFile] = filesOf(selfRow[selfAt('Evidence')]);
-    assert.equal(selfFile, `evidence/iteration-2/self-with-skill-${i + 1}.json`, `self-build run ${i + 1} names its profile`);
+    // P14.2: run 5, the update at the 1.1.0 head, is profiled in iteration 3
+    assert.equal(selfFile, `evidence/iteration-${i === 4 ? 3 : 2}/self-with-skill-${i + 1}.json`, `self-build run ${i + 1} names its profile`);
     const sj = get(selfFile);
     assert.equal(selfRow[selfAt('Cost')], usd2(sj), `self-build: the cost is total.costUsd of ${selfFile}`);
     assert.equal(Number(selfRow[selfAt('Orchestrator turns')]), orchestratorOf(sj).turns, `self-build: the turn count is the orchestrator row of ${selfFile}`);
@@ -572,6 +593,11 @@ const checkCostEvidence = (readme, read = readEvidence, onDisk = evidenceFiles) 
   const medianOf = (f) => (orchestratorOf(get(f)).medianContext / 1000).toFixed(1);
   assert.equal(median[1], medianOf(selfNamed[2]), `self-build run 3: the median context is the orchestrator medianContext of ${selfNamed[2]}`);
   assert.equal(median[2], medianOf(selfNamed[1]), `self-build run 2: the median context is the orchestrator medianContext of ${selfNamed[1]}`);
+  // P14.2: the run 5 bullet gives the median context of the update (run 5) against the build it updated (run 4)
+  const median5 = flat.match(/orchestrator's median context was ([\d.]+) K tokens, against ([\d.]+) K in run 4/);
+  assert.ok(median5 && selfNamed.length >= 5, 'the run 5 median context sentence');
+  assert.equal(median5[1], medianOf(selfNamed[4]), `self-build run 5: the median context is the orchestrator medianContext of ${selfNamed[4]}`);
+  assert.equal(median5[2], medianOf(selfNamed[3]), `self-build run 4: the median context is the orchestrator medianContext of ${selfNamed[3]}`);
 
   assert.deepEqual([...named].sort(), onDisk().filter((f) => !f.includes('/self-') && !f.includes('/mixed-')).sort(), 'the table names every evidence file of the evals, and each exists');
   const self = onDisk().filter((f) => f.includes('/self-'));
@@ -643,6 +669,14 @@ test('e20 the cost-evidence check fails on a tampered cost cell, turn count, rer
   assert.throws(() => checkCostEvidence(broken(updateRow, updateRow.replace('54.6 K', '57.6 K'))), /max context is the orchestrator maxContext of evidence\/iteration-2\/self-with-skill-3/, 'the update max context');
   assert.throws(() => checkCostEvidence(broken(updateRow, updateRow.replace('11 turns, 0.41 USD', '11 turns, 0.44 USD'))), /Opus model figure/, 'the update Opus figure');
   assert.throws(() => checkCostEvidence(broken(updateRow, updateRow.replace('self-with-skill-3', 'self-with-skill-2'))), /run 3 names its profile/, 'the update profile');
+  // P14.2: the update that is the committed map (run 5) and its median context sentence
+  const run5Row = readme.match(/\| self-build run 5 [^\n]*\n/)[0];
+  assert.throws(() => checkCostEvidence(broken(run5Row, run5Row.replace('0.92 USD', '0.93 USD'))), /self-build: the cost is total\.costUsd of evidence\/iteration-3\/self-with-skill-5\.json/, 'the run 5 cost');
+  assert.throws(() => checkCostEvidence(broken(run5Row, run5Row.replace('50.4 K', '55.2 K'))), /max context is the orchestrator maxContext of evidence\/iteration-3\/self-with-skill-5/, 'the run 5 max context');
+  assert.throws(() => checkCostEvidence(broken(run5Row, run5Row.replace('44 turns, 0.53 USD', '44 turns, 0.52 USD'))), /Sonnet model figure/, 'the run 5 Sonnet figure');
+  assert.throws(() => checkCostEvidence(broken(run5Row, run5Row.replace('iteration-3/self-with-skill-5', 'iteration-2/self-with-skill-5'))), /run 5 names its profile/, 'the run 5 profile');
+  assert.throws(() => checkCostEvidence(broken('median context was 43.7 K tokens', 'median context was 43.8 K tokens')), /run 5: the median context/, 'the run 5 median context');
+  assert.throws(() => checkCostEvidence(broken('against 55.2 K in run 4', 'against 55.3 K in run 4')), /run 4: the median context/, 'the run 4 median context');
   assert.throws(() => checkCostEvidence(broken('median context was 47.3 K tokens', 'median context was 47.2 K tokens')), /run 3: the median context/, 'the update median context');
   assert.throws(() => checkCostEvidence(broken('against 46.4 K in run 2', 'against 46.5 K in run 2')), /run 2: the median context/, 'the build median context');
   // a profile that drifted from its transcript: the same README against a profile with one more orchestrator turn or one more dollar

@@ -2,13 +2,14 @@
   "meta": {
     "schemaVersion": "1.0",
     "project": "repo",
-    "commit": "ddbd0be3bb5db77876266fb4908a08ce505fee81",
-    "generatedAt": "2026-11-02T09:05:33Z",
+    "commit": "549c3c35bb9e0815db4fc2c67b98d8d6b2f3598f",
+    "generatedAt": "2026-11-03T10:09:10Z",
     "profile": "balanced",
     "sources": [
       {
         "derived": {
           "access": 1,
+          "carried": 24,
           "edges": 0,
           "entities": 1,
           "entitiesInferred": 1,
@@ -17,7 +18,7 @@
           "relations": 0,
           "stores": 1
         },
-        "note": "merge.mjs made 1 entity (1 inferred from the SQL the code runs) (and merged 0 into the explorers'), 1 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved",
+        "note": "merge.mjs made 1 entity (1 inferred from the SQL the code runs) (and merged 0 into the explorers'), 1 store node(s) and 0 queue node(s) from the declared tables and queues, and derived 0 edge(s), 1 access row(s) from the SQL, ORM models and queues and 0 fk relation(s) from the prescan extracts; 0 link(s) or statement(s) could not be cited or resolved; update: 24 carried from the previous model unchanged (14 node(s), 10 edge(s), 0 entities): their evidence files are not among the 107 changed file(s)",
         "skipped": {
           "count": 0,
           "reasons": []
@@ -45,7 +46,7 @@
         "skipped": {
           "count": 1,
           "reasons": [
-            "audit journal and evidence files not read individually"
+            "docs/audit/journal and evidence files not read individually"
           ]
         },
         "type": "explorer"
@@ -54,9 +55,7 @@
         "area": "misc",
         "skipped": {
           "count": 0,
-          "reasons": [
-            "Root files (README, CHANGELOG, LICENSE, skills-lock.json) not mapped as modules"
-          ]
+          "reasons": []
         },
         "type": "explorer"
       },
@@ -65,7 +64,7 @@
         "skipped": {
           "count": 0,
           "reasons": [
-            "schema and agent bodies only partly read; node evidence limited to headers"
+            "Agent and schema bodies were not read in detail; only listings, headers and previous model."
           ]
         },
         "type": "explorer"
@@ -73,10 +72,9 @@
       {
         "area": "misc-3",
         "skipped": {
-          "count": 2,
+          "count": 1,
           "reasons": [
-            "elk.bundled.js and viewer.css not read (vendored bundle, styles)",
-            "audit.config.json contents not read in detail"
+            "elk.bundled.js is a vendored bundle, not read"
           ]
         },
         "type": "explorer"
@@ -84,9 +82,9 @@
       {
         "area": "scripts",
         "skipped": {
-          "count": 0,
+          "count": 1,
           "reasons": [
-            "sqlite_master select is a read-only introspection query, not a store"
+            "sqlite_master inferred table is introspection SQL, not a project store; left to merge"
           ]
         },
         "type": "explorer"
@@ -96,8 +94,8 @@
         "skipped": {
           "count": 2,
           "reasons": [
-            "Evidence JSON files under evals/evidence are data records, not modules",
-            "Reference documents and benchmark docs were sampled by headings, not read in full"
+            "evidence json files and eval json data not mapped as modules",
+            "references and evals contents only sampled, not read in full"
           ]
         },
         "type": "explorer"
@@ -107,7 +105,7 @@
         "skipped": {
           "count": 1,
           "reasons": [
-            "Most test files not read individually; only merge and e2e headers sampled."
+            "Only e2e.test.mjs read; other suites not individually mapped (summary empty, budget)."
           ]
         },
         "type": "explorer"
@@ -120,34 +118,37 @@
       ],
       "docs": [
         "docs/*.md",
-        "docs/release/**",
-        "docs/architecture/**"
+        "docs/architecture/**",
+        "docs/audit/audit-plan.json",
+        "docs/release/**"
       ],
       "misc": [
-        ".claude-plugin/**",
         ".github/**",
+        ".claude-plugin/**",
         "hooks/**"
       ],
       "misc-2": [
-        "commands/**",
         "agents/**",
+        "commands/**",
         "schema/**"
       ],
       "misc-3": [
         ".claude/**",
-        "assets/viewer/viewer.js",
-        "assets/viewer/template.html"
+        "assets/**"
       ],
       "scripts": [
-        "scripts/**"
+        "scripts/pipeline.mjs",
+        "scripts/prescan.mjs",
+        "scripts/staleness.mjs",
+        "scripts/render.mjs",
+        "scripts/merge.mjs"
       ],
       "skills": [
         "skills/architecture-map/SKILL.md",
-        "skills/architecture-map/evals/**",
-        "skills/architecture-map/references/**"
+        "skills/architecture-map/evals/score-recall.mjs"
       ],
       "tests": [
-        "tests/*.test.mjs"
+        "tests/e2e.test.mjs"
       ]
     }
   },
@@ -321,19 +322,34 @@
     {
       "evidence": [
         {
-          "lines": "1-22",
+          "lines": "12-27",
+          "path": ".github/workflows/ci.yml"
+        }
+      ],
+      "id": "misc-ci-test",
+      "kind": "job",
+      "level": 3,
+      "paths": [],
+      "role": "Pipeline job test of .github/workflows/ci.yml; made by merge.mjs from the prescan extract.",
+      "title": "test",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-20",
           "path": ".claude-plugin/plugin.json"
         }
       ],
       "id": "misc-plugin-manifest",
       "kind": "module",
-      "level": 2,
+      "level": 3,
       "paths": [
         ".claude-plugin/**"
       ],
-      "role": "Declares the archmap Claude Code plugin (name, version, license) and its marketplace listing.",
+      "role": "Declares the archmap plugin and marketplace metadata.",
       "title": "Plugin manifest",
-      "zone": "delivery"
+      "zone": "platform"
     },
     {
       "evidence": [
@@ -355,16 +371,8 @@
     {
       "evidence": [
         {
-          "lines": "1-5",
+          "lines": "1-118",
           "path": "agents/archmap-explorer.md"
-        },
-        {
-          "lines": "1-5",
-          "path": "agents/archmap-synthesizer.md"
-        },
-        {
-          "lines": "1-5",
-          "path": "agents/archmap-reviewer.md"
         }
       ],
       "id": "misc2-agents",
@@ -373,7 +381,7 @@
       "paths": [
         "agents/**"
       ],
-      "role": "Explorer, synthesizer and reviewer subagent prompts that the build and update flows dispatch.",
+      "role": "Markdown definitions of the explorer, synthesizer and reviewer subagents the build dispatches.",
       "title": "Subagent definitions",
       "zone": "delivery"
     },
@@ -401,7 +409,7 @@
     {
       "evidence": [
         {
-          "lines": "1-5",
+          "lines": "1-118",
           "path": "agents/archmap-explorer.md"
         }
       ],
@@ -411,7 +419,7 @@
       "paths": [
         "agents/archmap-explorer.md"
       ],
-      "role": "Maps one area from its prescan summary into a size-capped JSON fragment.",
+      "role": "Maps one area into a JSON fragment from excerpts.",
       "title": "archmap-explorer agent",
       "zone": "delivery"
     },
@@ -435,16 +443,8 @@
     {
       "evidence": [
         {
-          "lines": "1-30",
+          "lines": "1-225",
           "path": "schema/archmap-model.schema.json"
-        },
-        {
-          "lines": "1-20",
-          "path": "schema/archmap-issues.schema.json"
-        },
-        {
-          "lines": "1-15",
-          "path": "schema/archmap-theme.schema.json"
         }
       ],
       "id": "misc2-schema",
@@ -453,7 +453,7 @@
       "paths": [
         "schema/**"
       ],
-      "role": "JSON Schemas for the architecture model, the issues overlay and the theme.",
+      "role": "JSON Schemas for the architecture model, the issues catalog and the theme.",
       "title": "JSON schemas",
       "zone": "delivery"
     },
@@ -516,28 +516,28 @@
     {
       "evidence": [
         {
-          "lines": "1-8",
-          "path": "assets/viewer/viewer.js"
+          "lines": "1-207",
+          "path": "assets/viewer/template.html"
         },
         {
-          "lines": "1-12",
-          "path": "assets/viewer/template.html"
+          "lines": "1-60",
+          "path": "assets/viewer/viewer.js"
         }
       ],
       "id": "misc3-viewer",
-      "kind": "app",
-      "level": 2,
+      "kind": "module",
+      "level": 3,
       "paths": [
         "assets/viewer/**"
       ],
-      "role": "Template, CSS, JS and bundled ELK that render the embedded model, layout and issues as one offline HTML file.",
-      "title": "Offline HTML viewer assets",
-      "zone": "browser"
+      "role": "Offline HTML viewer template, script, styles and bundled ELK layout library used to render the model.",
+      "title": "Viewer assets",
+      "zone": "delivery"
     },
     {
       "evidence": [
         {
-          "lines": "1-5",
+          "lines": "61-73",
           "path": "scripts/pipeline.mjs"
         }
       ],
@@ -554,7 +554,7 @@
     {
       "evidence": [
         {
-          "lines": "1-4",
+          "lines": "1-10",
           "path": "scripts/cost-profile.mjs"
         }
       ],
@@ -571,7 +571,7 @@
     {
       "evidence": [
         {
-          "lines": "848",
+          "lines": "863",
           "path": "scripts/pipeline.mjs"
         }
       ],
@@ -603,7 +603,24 @@
     {
       "evidence": [
         {
-          "lines": "1-4",
+          "lines": "1-12",
+          "path": "scripts/staleness.mjs"
+        }
+      ],
+      "id": "scripts-diffmap-scripts",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/diffmap.mjs"
+      ],
+      "role": "Maps files changed since the build onto the model.",
+      "title": "Diffmap",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-10",
           "path": "scripts/export.mjs"
         }
       ],
@@ -637,11 +654,45 @@
     {
       "evidence": [
         {
+          "lines": "1-10",
+          "path": "scripts/issues.mjs"
+        }
+      ],
+      "id": "scripts-issues-scripts",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/issues.mjs"
+      ],
+      "role": "Imports audit plans into the issues overlay.",
+      "title": "Issues",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
           "lines": "1-4",
           "path": "scripts/layout.mjs"
         }
       ],
       "id": "scripts-layout",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/layout.mjs"
+      ],
+      "role": "Lays out the model with elkjs and persists positions.",
+      "title": "Layout",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/export.mjs"
+        }
+      ],
+      "id": "scripts-layout-scripts",
       "kind": "module",
       "level": 3,
       "paths": [
@@ -671,6 +722,23 @@
     {
       "evidence": [
         {
+          "lines": "37-40",
+          "path": "scripts/prescan.mjs"
+        }
+      ],
+      "id": "scripts-lib-prescan-scripts",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/lib/prescan/**"
+      ],
+      "role": "Stack detectors, inventory and partitioning used by prescan.",
+      "title": "Prescan library",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
           "lines": "1-5",
           "path": "scripts/lib/glob.mjs"
         }
@@ -688,7 +756,24 @@
     {
       "evidence": [
         {
-          "lines": "1-5",
+          "lines": "29",
+          "path": "scripts/render.mjs"
+        }
+      ],
+      "id": "scripts-lib-shared-scripts",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/lib/*.mjs"
+      ],
+      "role": "Glob matching and JSON schema validation helpers.",
+      "title": "Shared libs",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "112-118",
           "path": "scripts/merge.mjs"
         }
       ],
@@ -705,7 +790,7 @@
     {
       "evidence": [
         {
-          "lines": "1-5",
+          "lines": "61-73",
           "path": "scripts/pipeline.mjs"
         }
       ],
@@ -722,7 +807,7 @@
     {
       "evidence": [
         {
-          "lines": "1-4",
+          "lines": "33-40",
           "path": "scripts/prescan.mjs"
         }
       ],
@@ -790,6 +875,23 @@
     {
       "evidence": [
         {
+          "lines": "73",
+          "path": "scripts/pipeline.mjs"
+        }
+      ],
+      "id": "scripts-usage-scripts",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/usage.mjs"
+      ],
+      "role": "Records and summarises per-explorer token usage.",
+      "title": "Usage ledger",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
           "lines": "1-4",
           "path": "scripts/validate.mjs"
         }
@@ -801,6 +903,23 @@
         "scripts/validate.mjs"
       ],
       "role": "Validates a model and its issues overlay.",
+      "title": "Validate",
+      "zone": "delivery"
+    },
+    {
+      "evidence": [
+        {
+          "lines": "116",
+          "path": "scripts/merge.mjs"
+        }
+      ],
+      "id": "scripts-validate-scripts",
+      "kind": "module",
+      "level": 3,
+      "paths": [
+        "scripts/validate.mjs"
+      ],
+      "role": "Validates the model against its schema and rules.",
       "title": "Validate",
       "zone": "delivery"
     },
@@ -976,17 +1095,115 @@
       "type": "call"
     },
     {
-      "confidence": "verified",
-      "desc": "export imports validate.",
+      "confidence": "inferred",
+      "desc": "Diffmap imports glob matching.",
       "evidence": [
         {
-          "lines": "65",
+          "lines": "1-10",
+          "path": "scripts/diffmap.mjs"
+        }
+      ],
+      "from": "scripts-diffmap",
+      "id": "e-diffmap-shared",
+      "to": "scripts-lib-shared",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Diffmap imports glob matching.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/diffmap.mjs"
+        }
+      ],
+      "from": "scripts-diffmap-scripts",
+      "id": "e-diffmap-shared-scripts",
+      "to": "scripts-lib-shared-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Export imports layout.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/export.mjs"
+        }
+      ],
+      "from": "scripts-export",
+      "id": "e-export-layout",
+      "to": "scripts-layout",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Export imports layout.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/export.mjs"
+        }
+      ],
+      "from": "scripts-export",
+      "id": "e-export-layout-scripts",
+      "to": "scripts-layout-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Export imports validate.",
+      "evidence": [
+        {
+          "lines": "1-10",
           "path": "scripts/export.mjs"
         }
       ],
       "from": "scripts-export",
       "id": "e-export-validate",
       "to": "scripts-validate",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Export imports validate.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/export.mjs"
+        }
+      ],
+      "from": "scripts-export",
+      "id": "e-export-validate-scripts",
+      "to": "scripts-validate-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Issues imports glob matching.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/issues.mjs"
+        }
+      ],
+      "from": "scripts-issues",
+      "id": "e-issues-shared",
+      "to": "scripts-lib-shared",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Issues imports glob matching.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/issues.mjs"
+        }
+      ],
+      "from": "scripts-issues-scripts",
+      "id": "e-issues-shared-scripts",
+      "to": "scripts-lib-shared-scripts",
       "type": "call"
     },
     {
@@ -1004,6 +1221,20 @@
       "type": "call"
     },
     {
+      "confidence": "inferred",
+      "desc": "Issues imports validate.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "scripts/issues.mjs"
+        }
+      ],
+      "from": "scripts-issues-scripts",
+      "id": "e-issues-validate-scripts",
+      "to": "scripts-validate-scripts",
+      "type": "call"
+    },
+    {
       "confidence": "verified",
       "desc": "layout imports validate.",
       "evidence": [
@@ -1018,22 +1249,50 @@
       "type": "call"
     },
     {
-      "confidence": "verified",
-      "desc": "merge imports lib-shared.",
+      "confidence": "inferred",
+      "desc": "Layout imports validate.",
       "evidence": [
         {
-          "lines": "117",
-          "path": "scripts/merge.mjs"
+          "lines": "1-10",
+          "path": "scripts/layout.mjs"
         }
       ],
-      "from": "scripts-merge",
-      "id": "e-merge-lib-shared",
-      "to": "scripts-lib-shared",
+      "from": "scripts-layout-scripts",
+      "id": "e-layout-validate-scripts",
+      "to": "scripts-validate-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Inventory uses glob matching.",
+      "evidence": [
+        {
+          "lines": "37",
+          "path": "scripts/prescan.mjs"
+        }
+      ],
+      "from": "scripts-lib-prescan-scripts",
+      "id": "e-lib-prescan-glob",
+      "to": "scripts-lib-shared-scripts",
       "type": "call"
     },
     {
       "confidence": "verified",
-      "desc": "merge imports validate.",
+      "desc": "Merge uses schema validation and glob helpers.",
+      "evidence": [
+        {
+          "lines": "117-118",
+          "path": "scripts/merge.mjs"
+        }
+      ],
+      "from": "scripts-merge",
+      "id": "e-merge-shared",
+      "to": "scripts-lib-shared-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Merge validates the model it writes.",
       "evidence": [
         {
           "lines": "116",
@@ -1042,12 +1301,26 @@
       ],
       "from": "scripts-merge",
       "id": "e-merge-validate",
-      "to": "scripts-validate",
+      "to": "scripts-validate-scripts",
       "type": "call"
     },
     {
       "confidence": "verified",
-      "desc": "pipeline imports merge.",
+      "desc": "Pipeline matches globs with the shared lib.",
+      "evidence": [
+        {
+          "lines": "70",
+          "path": "scripts/pipeline.mjs"
+        }
+      ],
+      "from": "scripts-pipeline",
+      "id": "e-pipeline-glob",
+      "to": "scripts-lib-shared-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Pipeline imports merge caps.",
       "evidence": [
         {
           "lines": "71",
@@ -1061,7 +1334,7 @@
     },
     {
       "confidence": "verified",
-      "desc": "pipeline imports prescan.",
+      "desc": "Pipeline imports prescan's skipped cap.",
       "evidence": [
         {
           "lines": "72",
@@ -1075,7 +1348,7 @@
     },
     {
       "confidence": "verified",
-      "desc": "pipeline imports usage.",
+      "desc": "Pipeline uses the usage ledger helpers.",
       "evidence": [
         {
           "lines": "73",
@@ -1084,21 +1357,49 @@
       ],
       "from": "scripts-pipeline",
       "id": "e-pipeline-usage",
-      "to": "scripts-usage",
+      "to": "scripts-usage-scripts",
       "type": "call"
     },
     {
       "confidence": "verified",
-      "desc": "prescan imports lib-prescan.",
+      "desc": "Prescan matches globs with the shared lib.",
       "evidence": [
         {
-          "lines": "37",
+          "lines": "39",
           "path": "scripts/prescan.mjs"
         }
       ],
       "from": "scripts-prescan",
-      "id": "e-prescan-lib-prescan",
-      "to": "scripts-lib-prescan",
+      "id": "e-prescan-glob",
+      "to": "scripts-lib-shared-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Prescan uses inventory, stack detection and partition modules.",
+      "evidence": [
+        {
+          "lines": "37-40",
+          "path": "scripts/prescan.mjs"
+        }
+      ],
+      "from": "scripts-prescan",
+      "id": "e-prescan-lib",
+      "to": "scripts-lib-prescan-scripts",
+      "type": "call"
+    },
+    {
+      "confidence": "verified",
+      "desc": "Render validates against the JSON schema helper.",
+      "evidence": [
+        {
+          "lines": "29",
+          "path": "scripts/render.mjs"
+        }
+      ],
+      "from": "scripts-render",
+      "id": "e-render-shared",
+      "to": "scripts-lib-shared",
       "type": "call"
     },
     {
@@ -1158,6 +1459,20 @@
       "type": "link"
     },
     {
+      "confidence": "verified",
+      "desc": "CI parses every manifest JSON file under .claude-plugin.",
+      "evidence": [
+        {
+          "lines": "22-24",
+          "path": ".github/workflows/ci.yml"
+        }
+      ],
+      "from": "misc-ci",
+      "id": "misc-ci-validates-manifest",
+      "to": "misc-plugin-manifest",
+      "type": "call"
+    },
+    {
       "confidence": "inferred",
       "desc": "The SessionStart hook runs scripts/staleness.mjs.",
       "evidence": [
@@ -1169,6 +1484,34 @@
       "from": "misc-session-hook",
       "id": "misc-hook-staleness",
       "to": "scripts-staleness",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The agents directory holds the explorer definition.",
+      "evidence": [
+        {
+          "lines": "1-10",
+          "path": "agents/archmap-explorer.md"
+        }
+      ],
+      "from": "misc2-agents",
+      "id": "misc2-agents-explorer",
+      "to": "misc2-explorer",
+      "type": "link"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "Commands pass their arguments to the architecture-map skill.",
+      "evidence": [
+        {
+          "lines": "6-8",
+          "path": "commands/build.md"
+        }
+      ],
+      "from": "misc2-commands",
+      "id": "misc2-commands-build",
+      "to": "skills-architecture-map",
       "type": "call"
     },
     {
@@ -1205,6 +1548,20 @@
     },
     {
       "confidence": "inferred",
+      "desc": "The skill points agents at the reference documents to read on demand.",
+      "evidence": [
+        {
+          "lines": "37-53",
+          "path": "skills/architecture-map/SKILL.md"
+        }
+      ],
+      "from": "skills-architecture-map",
+      "id": "skills-architecture-map-reads-skills-references",
+      "to": "skills-references",
+      "type": "link"
+    },
+    {
+      "confidence": "inferred",
       "desc": "The benchmark grades each cell with grade-benchmark.mjs.",
       "evidence": [
         {
@@ -1214,6 +1571,20 @@
       ],
       "from": "skills-evals",
       "id": "skills-evals-grade",
+      "to": "skills-grade-benchmark",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
+      "desc": "The benchmark protocol grades each cell with the grader script.",
+      "evidence": [
+        {
+          "lines": "1-20",
+          "path": "skills/architecture-map/evals/benchmark/grade-benchmark.mjs"
+        }
+      ],
+      "from": "skills-evals",
+      "id": "skills-evals-grade-skills",
       "to": "skills-grade-benchmark",
       "type": "call"
     },
@@ -1233,6 +1604,20 @@
     },
     {
       "confidence": "inferred",
+      "desc": "The benchmark protocol runs each candidate plugin through the run script.",
+      "evidence": [
+        {
+          "lines": "1-15",
+          "path": "skills/architecture-map/evals/benchmark/run-candidate.sh"
+        }
+      ],
+      "from": "skills-evals",
+      "id": "skills-evals-run-skills",
+      "to": "skills-run-candidate",
+      "type": "call"
+    },
+    {
+      "confidence": "inferred",
       "desc": "The issues eval scores recall with score-recall.mjs.",
       "evidence": [
         {
@@ -1247,66 +1632,24 @@
     },
     {
       "confidence": "inferred",
-      "desc": "The evals exercise the skill and compare it to other mapping plugins.",
+      "desc": "The suite includes the end-to-end tests.",
       "evidence": [
         {
-          "lines": "1-12",
-          "path": "skills/architecture-map/evals/README.md"
-        }
-      ],
-      "from": "skills-evals",
-      "id": "skills-evals-skill",
-      "to": "skills-architecture-map",
-      "type": "link"
-    },
-    {
-      "confidence": "inferred",
-      "desc": "The skill runs the pipeline.mjs driver for plan, finish, render and issues steps.",
-      "evidence": [
-        {
-          "lines": "160-200",
-          "path": "skills/architecture-map/SKILL.md"
-        }
-      ],
-      "from": "skills-architecture-map",
-      "id": "skills-skill-pipeline",
-      "to": "scripts-pipeline",
-      "type": "call"
-    },
-    {
-      "confidence": "verified",
-      "desc": "The skill points agents to its reference documents for the schema, taxonomy and stack rules.",
-      "evidence": [
-        {
-          "lines": "37-53",
-          "path": "skills/architecture-map/SKILL.md"
-        }
-      ],
-      "from": "skills-architecture-map",
-      "id": "skills-skill-refs",
-      "to": "skills-references",
-      "type": "link"
-    },
-    {
-      "confidence": "inferred",
-      "desc": "Tests spawn and import scripts/merge.mjs.",
-      "evidence": [
-        {
-          "lines": "11-13",
-          "path": "tests/merge.test.mjs"
+          "lines": "1-27",
+          "path": "tests/e2e.test.mjs"
         }
       ],
       "from": "tests-suite",
-      "id": "tests-suite-merge",
-      "to": "scripts",
-      "type": "call"
+      "id": "tests-suite-to-e2e",
+      "to": "tests-e2e",
+      "type": "link"
     }
   ],
   "entities": [
     {
       "evidence": [
         {
-          "lines": "848",
+          "lines": "863",
           "path": "scripts/pipeline.mjs"
         }
       ],
@@ -1323,7 +1666,7 @@
       "entity": "sqlite-master",
       "evidence": [
         {
-          "lines": "848",
+          "lines": "863",
           "path": "scripts/pipeline.mjs"
         }
       ],
@@ -1356,99 +1699,87 @@
           "node": "scripts-validate"
         },
         {
-          "id": "layout",
-          "label": "Layout",
-          "node": "scripts-layout"
-        },
-        {
-          "id": "render",
-          "label": "Render",
-          "node": "scripts-render"
+          "id": "syn",
+          "label": "Synthesizer agent",
+          "node": "misc2-synthesizer"
         }
       ],
       "steps": [
         {
-          "d": "Checks every planned fragment exists.",
+          "d": "The skill runs finish after the explorers return.",
           "k": "call",
           "m": [
             "skill",
             "pipe"
           ],
           "r": [
-            "scripts/pipeline.mjs:1104-1127"
+            "scripts/pipeline.mjs:1119-1135"
           ],
-          "t": "pipeline finish"
+          "t": "finish"
         },
         {
-          "d": "Merges fragments and extracts into model.json.",
+          "d": "The driver merges fragments into the model.",
           "k": "call",
           "m": [
             "pipe",
             "merge"
           ],
           "r": [
-            "scripts/pipeline.mjs:1135-1135"
+            "scripts/pipeline.mjs:1080-1097"
           ],
           "t": "merge fragments"
         },
         {
-          "d": "The model is validated against the schema.",
+          "d": "The model is validated.",
           "k": "call",
           "m": [
-            "merge",
+            "pipe",
             "val"
           ],
           "r": [
-            "scripts/merge.mjs:116-116",
-            "scripts/pipeline.mjs:1093-1093"
+            "scripts/pipeline.mjs:1107-1118"
           ],
           "t": "validate"
         },
         {
-          "note": [
-            "skill"
+          "d": "The synthesizer writes synth.json from the digest.",
+          "k": "call",
+          "m": [
+            "skill",
+            "syn"
           ],
-          "t": "Orchestrator dispatches the synthesizer, which writes synth.json.",
-          "tone": "info"
+          "r": [
+            "scripts/pipeline.mjs:34-36"
+          ],
+          "t": "synthesize"
         },
         {
-          "d": "Merges synth.json into the model.",
+          "d": "Render merges synth.json and writes the HTML.",
           "k": "call",
           "m": [
             "skill",
             "pipe"
           ],
           "r": [
-            "scripts/pipeline.mjs:1196-1203"
+            "scripts/pipeline.mjs:1193-1210"
           ],
-          "t": "pipeline render"
+          "t": "render"
         },
         {
-          "d": "Positions are computed and persisted.",
+          "d": "The synth object is merged into the previous model.",
           "k": "call",
           "m": [
             "pipe",
-            "layout"
+            "merge"
           ],
           "r": [
-            "scripts/pipeline.mjs:1217-1217"
+            "scripts/pipeline.mjs:34-36",
+            "scripts/pipeline.mjs:1080-1097"
           ],
-          "t": "layout"
-        },
-        {
-          "d": "Writes the self-contained viewer file.",
-          "k": "call",
-          "m": [
-            "pipe",
-            "render"
-          ],
-          "r": [
-            "scripts/pipeline.mjs:227-228"
-          ],
-          "t": "render HTML"
+          "t": "merge --synth"
         }
       ],
-      "summary": "After explorers return, finish merges fragments and validates; the synthesizer adds narrative; render lays out and writes HTML.",
+      "summary": "Finish merges fragments and validates; the synthesizer adds narrative; render merges synth.json and writes the viewer.",
       "title": "Build: finish, synthesize and render"
     },
     {
@@ -1470,7 +1801,7 @@
           "node": "scripts-pipeline"
         },
         {
-          "id": "scan",
+          "id": "pre",
           "label": "Prescan",
           "node": "scripts-prescan"
         },
@@ -1483,62 +1814,75 @@
       "steps": [
         {
           "d": "The build command delegates to the skill.",
-          "k": "link",
+          "k": "call",
           "m": [
             "cmd",
             "skill"
           ],
           "r": [
-            "commands/build.md:1-20"
+            "scripts/pipeline.mjs:727-730"
           ],
-          "t": "/archmap:build"
+          "t": "/archmap build"
         },
         {
-          "d": "The skill runs the pipeline driver.",
+          "d": "The skill runs the driver's plan step.",
           "k": "call",
           "m": [
             "skill",
             "pipe"
           ],
           "r": [
-            "scripts/pipeline.mjs:7-20"
+            "scripts/pipeline.mjs:727-730"
           ],
-          "t": "pipeline plan"
+          "t": "plan"
         },
         {
-          "d": "The driver spawns prescan.mjs for inventory and extracts.",
+          "d": "The driver runs the zero-token prescan for inventory and areas.",
           "k": "call",
           "m": [
             "pipe",
-            "scan"
+            "pre"
           ],
           "r": [
-            "scripts/pipeline.mjs:755-755"
+            "scripts/pipeline.mjs:247-260"
           ],
-          "t": "run prescan"
+          "t": "prescan"
         },
         {
-          "d": "The driver prints one Agent call per area for the orchestrator to dispatch in one message.",
+          "d": "Plan returns one explorer call per area with a brief.",
           "k": "call",
           "m": [
             "pipe",
+            "skill"
+          ],
+          "r": [
+            "scripts/pipeline.mjs:716-722"
+          ],
+          "ret": "agent calls",
+          "t": "explorer calls"
+        },
+        {
+          "d": "The orchestrator dispatches the explorer subagents.",
+          "k": "call",
+          "m": [
+            "skill",
             "agents"
           ],
           "r": [
-            "scripts/pipeline.mjs:840-840"
+            "scripts/pipeline.mjs:716-722"
           ],
-          "t": "explorer briefs"
+          "t": "dispatch explorers"
         }
       ],
-      "summary": "The skill drives pipeline.mjs plan, which runs prescan and hands per-area briefs to explorer subagents.",
+      "summary": "The build command hands to the skill, which runs the pipeline driver; the driver prescans and plans explorer calls.",
       "title": "Build: plan, prescan and explorer dispatch"
     },
     {
       "id": "eval-benchmark",
       "participants": [
         {
-          "id": "evals",
-          "label": "skill evals",
+          "id": "ev",
+          "label": "Skill evals",
           "node": "skills-evals"
         },
         {
@@ -1559,43 +1903,43 @@
       ],
       "steps": [
         {
-          "d": "Runs one headless claude session and records evidence.",
+          "d": "One headless session per benchmark cell records evidence.",
           "k": "call",
           "m": [
-            "evals",
+            "ev",
             "run"
           ],
           "r": [
-            "skills/architecture-map/evals/run-candidate.sh:1-20"
+            "skills/architecture-map/evals/BENCHMARK.md:144-150"
           ],
           "t": "run cell"
         },
         {
-          "d": "Grades against the protocol expectations.",
+          "d": "The grader checks the cell against the protocol expectations.",
           "k": "call",
           "m": [
-            "evals",
+            "ev",
             "grade"
           ],
           "r": [
-            "skills/architecture-map/evals/grade-benchmark.mjs:1-20"
+            "skills/architecture-map/evals/BENCHMARK.md:162-166"
           ],
           "t": "grade cell"
         },
         {
-          "d": "Scores the issues file against ground truth.",
+          "d": "Recall of the issues file is scored against ground truth.",
           "k": "call",
           "m": [
-            "evals",
+            "ev",
             "score"
           ],
           "r": [
-            "skills/architecture-map/evals/score-recall.mjs:1-20"
+            "skills/architecture-map/evals/BENCHMARK.md:176-178"
           ],
           "t": "score recall"
         }
       ],
-      "summary": "Evals run a candidate plugin headlessly, then grade and score its output.",
+      "summary": "Evals run a cell with the candidate script, then grade it and score recall.",
       "title": "Skill eval benchmark"
     },
     {
@@ -1673,27 +2017,23 @@
       "id": "component-agents",
       "kind": "graph",
       "nodes": [
-        "misc2-commands",
         "misc2-agents",
         "misc2-explorer",
         "misc2-synthesizer",
-        "misc2-reviewer",
-        "misc2-schema"
+        "misc2-reviewer"
       ],
-      "title": "Agents and commands components"
+      "title": "Subagent components"
     },
     {
       "id": "component-evals",
       "kind": "graph",
       "nodes": [
-        "skills-architecture-map",
-        "skills-references",
         "skills-evals",
         "skills-grade-benchmark",
         "skills-run-candidate",
         "skills-score-recall"
       ],
-      "title": "Skill and evals components"
+      "title": "Evals components"
     },
     {
       "id": "component-scripts",
@@ -1704,16 +2044,15 @@
         "scripts-lib-prescan",
         "scripts-merge",
         "scripts-validate",
-        "scripts-lib-shared",
         "scripts-layout",
         "scripts-render",
         "scripts-export",
-        "scripts-issues",
         "scripts-diffmap",
         "scripts-staleness",
         "scripts-usage",
-        "scripts-cost-profile",
-        "scripts-db"
+        "scripts-issues",
+        "scripts-lib-shared",
+        "scripts-cost-profile"
       ],
       "title": "Scripts components"
     },
@@ -1724,7 +2063,6 @@
       "zones": [
         "platform",
         "delivery",
-        "browser",
         "data",
         "external"
       ]
@@ -1734,15 +2072,15 @@
       "kind": "graph",
       "nodes": [
         "scripts",
+        "skills-architecture-map",
         "misc2-commands",
         "misc2-agents",
-        "skills-architecture-map",
-        "misc-session-hook",
-        "misc3-viewer",
+        "misc2-schema",
+        "skills-references",
+        "scripts-db",
         "tests-suite",
         "skills-evals",
-        "misc-plugin-manifest",
-        "scripts-db"
+        "misc-ci"
       ],
       "title": "System"
     },
@@ -1753,8 +2091,9 @@
       "zones": [
         "platform",
         "delivery",
-        "browser",
-        "external"
+        "data",
+        "external",
+        "browser"
       ]
     }
   ]

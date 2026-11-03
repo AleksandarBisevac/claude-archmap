@@ -11249,7 +11249,7 @@
         {
           "id": "P14.1",
           "title": "Version 1.1.0: plugin.json, the CHANGELOG entry and the README status",
-          "status": "in_progress",
+          "status": "done",
           "description": "Set .claude-plugin/plugin.json version to 1.1.0. In CHANGELOG.md move every entry now under ## [Unreleased] under a new heading ## [1.1.0] - 2026-11-03, leave ## [Unreleased] above it holding nothing (mf3 allows an empty section), and replace the sentence 'The version bump and the tag are the owner's decision.' with a statement that 1.1.0 is tagged v1.1.0 in this repository; keep the map-count sentence of the BUG-5-6o1 entry as it is (the next task refreshes the counts). In README.md change the Status paragraph so it names version 1.1.0 and says in one sentence what 1.1 adds beyond the 1.0.0 application map: compose services, pipelines and jobs, IaC resources and dbt models and sources, with the flow player; keep the CHANGELOG link and the released wording r3 checks. Update tests/manifest.test.mjs mf5 so it reads the committed-map counts from the newest version entry (1.1.0) instead of the Unreleased entry while still pinning the 1.0.0 record (34, 23, 1, 4, 5), and tests/readme.test.mjs only where a 1.0.0 literal pins the status wording. Marketplace entries and descriptions stay unchanged so mf5 and mf6 keep holding.",
           "files": [
             ".claude-plugin/plugin.json",
@@ -11277,25 +11277,39 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "549c3c35bb9e",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "plugin.json version 1.0.0 -> 1.1.0. CHANGELOG.md: new '## [1.1.0] - 2026-11-03' heading holds every former Unreleased entry, '## [Unreleased]' above it is empty, the owner's-decision sentence replaced by '1.1.0 is tagged v1.1.0 in this repository.'; BUG-5-6o1 map-count sentence untouched. README.md Status names version 1.1.0 and says in one sentence that 1.1 adds compose services, pipelines and jobs, IaC resources and dbt models and sources, with the flow player (CHANGELOG link, 'Released', six commands, test suite, evals kept). tests/manifest.test.mjs mf5 now asserts Unreleased is empty, newest version heading is 1.1.0, reads counts from that newest entry vs the committed model, and still pins 1.0.0 at [34,23,1,4,5]. tests/readme.test.mjs r3 additionally asserts the status names the five 1.1 additions (whitespace tolerant); no 1.0.0 literal pinned the status wording (r3 already reads plugin.json's version). Red first: before the fix mf5 failed (Unreleased not empty) and r3 failed (status lacks 'compose services'). After: node --test full suite 581 pass, 0 fail; the two files alone 18 pass, 0 fail. Dependants: plugin.json dependants - docs/architecture model and viewer (path) carry no plugin version, mf tests pass; docs/design.md line 65 only lists plugin.json fields; CANDIDATES.md cites other plugins' versions - all still correct. CHANGELOG dependants (audit.config.json, mf3 heading test, r3, README, design.md) still correct: mf3 passes with newest heading 1.1.0 equal to plugin.json under the Unreleased heading. README dependants (benchmark/diffmap/evals tests, fixtures) pass in the full run. Marketplace entries untouched, mf5/mf6 release-entry cases pass.",
+            "descriptive": "Release 1.1.0 is versioned: plugin.json, dated CHANGELOG entry with empty Unreleased, README status, and tests pinning them."
           },
           "startedAt": "2026-11-03T10:04:13Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-03T10:08:43Z",
+          "verifiedBy": [
+            "mf5 reworked: reads counts from the newest version entry (1.1.0) under an empty Unreleased section, still pins the 1.0.0 record",
+            "r3 extended: README status names version 1.1.0 and the five things 1.1 adds"
+          ],
           "reviewPerTask": "phase",
           "testEvidence": {
             "runId": "2026-11-03T10:08:42Z.7d537e",
             "status": "passed",
             "at": "2026-11-03T10:08:42Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "549c3c35bb9e",
+            "at": "2026-11-03T10:08:43Z"
+          },
+          "redFirst": {
+            "at": "2026-11-03T10:07:44Z",
+            "basis": "`node --test tests/manifest.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P14.2",
           "title": "The committed map updated at the 1.1.0 head with /archmap:update, its profile tracked and both READMEs record the update (orchestrator-run)",
-          "status": "pending",
+          "status": "in_progress",
           "description": "Orchestrator-run, after the bump task is committed: run /archmap:update (balanced, no issues) headlessly with the orchestrator pinned to Opus on a detached clone of this repository at the phase branch head, with a clone at the same head as the plugin directory, so the committed map catches up with the 1.1.0 head and shows the pipeline of .github/workflows/ci.yml; profile the stream with scripts/cost-profile.mjs. Bring docs/architecture (model, layout, clean HTML) in unchanged, validate.mjs --repo exit 0, denylist test green; track the profile as skills/architecture-map/evals/evidence/iteration-3/self-with-skill-5.json. The executor then records the update as the last self-build row of the evals README self-build table (run 5, update, the committed map; run 4 loses that mark) and of the README cost table, puts the counts of the updated model in the What a build delivers table and in the CHANGELOG 1.1.0 entry's map-count sentence, every figure derived from the profile, and extends tests r2, r4, e19 and mf5 to read these rows; the full suite must pass. If the update changes no node, say so and record the run anyway. No executor runs while this build runs.",
           "files": [
             "docs/architecture",
@@ -11323,16 +11337,28 @@
           "dependsOn": [
             "P14.1"
           ],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-03T10:08:43Z",
           "completedAt": null,
-          "verifiedBy": []
+          "verifiedBy": [],
+          "reviewPerTask": "phase",
+          "notes": [
+            {
+              "at": "2026-11-03T10:12:03Z",
+              "text": "Orchestrator run done 2026-11-03: /archmap:update (balanced, no issues) headless with the orchestrator pinned to claude-opus-5-5, on a detached clone of this repository at 549c3c3 (the P14.1 head) with a clone at the same commit as the plugin directory; 122 s, exit 0. The map moved from ddbd0be to 549c3c3: nodes 43 to 51, edges 25 to 41, entities 1, sequences 4 (3 rewritten by the synthesizer), views 6; 7 areas re-explored; stacks pipelines and python; the GitHub Actions workflow is in the map as job nodes misc-ci and misc-ci-test citing .github/workflows/ci.yml. validate.mjs --repo exit 0 (evidence checked at meta.commit); the three artifacts are copied into docs/architecture unchanged (unstaged working-tree changes); the denylist test is green; staleness.mjs reports the map current. Profile copied unchanged to skills/architecture-map/evals/evidence/iteration-3/self-with-skill-5.json (rates 2026-10-31, reconciliation matchesModelUsage true): total 0.917692 USD over 55 turns (opus 0.392259 over 11 turns, sonnet 0.525433 over 44 turns); orchestrator 11 turns, 0.274579 USD, median context 43724, max 50375; explorers 40 turns 0.295967 USD; synthesizer 4 turns 0.045536 USD. Executor: do not touch docs/architecture or the profile; record run 5 as the update row and the committed map in both READMEs (run 4 loses that mark), derive every figure from self-with-skill-5.json, put the counts 51 nodes, 41 edges, 1 entity, 4 sequences and 6 views in the What a build delivers table and in the CHANGELOG 1.1.0 entry's map-count sentence, extend tests r2, r4, e19 and mf5 to read these rows, and run the full suite."
+            }
+          ],
+          "testEvidence": {
+            "runId": "2026-11-03T10:18:08Z.8174d7",
+            "status": "passed",
+            "at": "2026-11-03T10:18:08Z"
+          }
         }
       ],
       "request": "ok pushuj sve i napravi nov irelease",
