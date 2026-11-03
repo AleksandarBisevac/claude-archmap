@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test tests/prescan-containers.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "regression task with tests.expectRedFirst false: the fix is the fixture (env_file line on the api service) and the test extension locks the corrected behaviour at HEAD; no red owed",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Added 'env_file: .env.example' as the last key of the api service in tests/fixtures/repos/containers/docker-compose.yml (after the environment list, so only the db service lines shift). The owner-created tests/fixtures/repos/containers/.env.example was not written or read; its key names were confirmed by the owner brief (DB_PASSWORD, LOG_LEVEL, SMTP_HOST) and by ct1 itself passing. In tests/prescan-containers.test.mjs: ct1 now expects api envKeys DATABASE_URL, DB_PASSWORD, LOG_LEVEL, SMTP_HOST and evidence 14-28 (db evidence 29-38), asserts the fixture carries .env.example, pins DB_PASSWORD/LOG_LEVEL/SMTP_HOST as read via env_file, and asserts no value (placeholder, info, example.invalid) is anywhere in the JSON fragment; ct3 unchanged (its in-memory env_file case kept); the ct5 message now reads '.env.example is read for key names through env_file but yields no item of its own' (frag.scanned stays 3). Commands: 'node --test tests/prescan-containers.test.mjs' -> 8 pass, 0 fail; full 'node --test' -> 581 tests, 581 pass, 0 fail, 0 cancelled (exit code not captured through the pipe; the tally lines were read). Dependants: tests/pipeline.test.mjs still correct (it copies only docker-compose.yml into deploy/, where the env_file target .env.example does not exist, so the extractor skips it; full suite green); tests/e2e.test.mjs, tests/merge.test.mjs, tests/prescan-core.test.mjs, tests/prescan-wiring.test.mjs still correct (basename mentions only, no line numbers or env key lists for the api service; full suite green); tests/prescan-containers.test.mjs changed as described; scripts/lib/prescan/generic.mjs, .agents/skills/node/rules/environment.md and skills/architecture-map/references/stack-containers.md mention .env.example by basename only (not edited, not affected by a new fixture line). No file outside the task's files was edited. Note: an early compound Bash read of the compose file and .env.example was denied by the permission system; I re-read the files with separate Read and grep calls and did not work around the refusal.",
+    "descriptive": "The committed containers fixture now exercises the env_file key-name path: ct1 pins the api service's env keys read from .env.example with no value leaking, and the ct5 message is true."
+  },
+  "testsAdded": [
+    "ct1 extended: api envKeys include DB_PASSWORD, LOG_LEVEL and SMTP_HOST read from the committed .env.example via env_file, evidence ranges updated, and no env-file value (placeholder, info, example.invalid) appears anywhere in the fragment"
+  ],
+  "casesAdded": [
+    "ct1"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:1f9db86f6785eebd3cbe3cb86967ffff79834e99584ed6b750ea844ed1a37f21\",\"dirtyDigest\":\"sha256:73207b101aa043642c81845e4439a8e555cd8ccfa3e2d3d4a69d5454220fe70c\",\"dirtyPaths\":{\"tests/fixtures/repos/containers/.env.example\":\"a799e9fb7ca58b81\",\"tests/fixtures/repos/containers/docker-compose.yml\":\"c00af8626e097ba2\",\"tests/prescan-containers.test.mjs\":\"51d78fc829e874b5\"},\"head\":\"783473e\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"tests/fixtures/repos/containers/.env.example\",\"tests/fixtures/repos/containers/docker-compose.yml\",\"tests/prescan-containers.test.mjs\"],\"scopeDigest\":\"sha256:a933e4698841e8cdb6486f193e6bc10a6b48ca3bf308451e950e9226852a54a5\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

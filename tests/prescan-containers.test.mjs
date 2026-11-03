@@ -47,8 +47,8 @@ test('ct1 compose: one service per entry with image or build context, ports, vol
       ports: [tcp('8000', '8000'), tcp('8443', '8443')],
       volumes: ['./api/data:/srv/data:ro', 'uploads:/srv/uploads'],
       dependsOn: ['db'],
-      envKeys: ['DATABASE_URL', 'LOG_LEVEL'],
-      evidence: ev('docker-compose.yml', '14-27'),
+      envKeys: ['DATABASE_URL', 'DB_PASSWORD', 'LOG_LEVEL', 'SMTP_HOST'],
+      evidence: ev('docker-compose.yml', '14-28'),
     },
     {
       name: 'db',
@@ -58,9 +58,15 @@ test('ct1 compose: one service per entry with image or build context, ports, vol
       volumes: ['pgdata:/var/lib/postgresql/data'],
       dependsOn: [],
       envKeys: ['POSTGRES_DB', 'POSTGRES_PASSWORD', 'POSTGRES_USER'],
-      evidence: ev('docker-compose.yml', '28-37'),
+      evidence: ev('docker-compose.yml', '29-38'),
     },
   ]);
+  // The api service names .env.example in env_file: its key names (DB_PASSWORD, LOG_LEVEL, SMTP_HOST) are read from the
+  // committed file, and the values it holds never reach the fragment.
+  assert.ok(fixtureFiles.includes('.env.example'), 'the fixture carries the env file the api service names');
+  assert.deepEqual(frag.services.find((s) => s.name === 'api').envKeys.filter((k) => ['DB_PASSWORD', 'LOG_LEVEL', 'SMTP_HOST'].includes(k)), ['DB_PASSWORD', 'LOG_LEVEL', 'SMTP_HOST']);
+  const out = JSON.stringify(frag);
+  for (const value of ['placeholder', 'info', 'example.invalid']) assert.ok(!out.includes(value), `env file value ${value} must not be in the fragment`);
 });
 
 test('ct2 Dockerfiles: base image, exposed ports and the entrypoint file of the final stage, one item per Dockerfile', () => {
@@ -232,7 +238,7 @@ test('ct5 every item carries {path, lines} evidence inside the file, output sort
     assert.deepEqual(keys, sorted, `${kind} is ordered by path then line`);
   }
   assert.deepEqual(Object.keys(frag), ['dockerfiles', 'scanned', 'services', 'skipped', 'truncated']);
-  assert.equal(frag.scanned, 3, 'two Dockerfiles and one compose file were read; .env.example is not a container file');
+  assert.equal(frag.scanned, 3, 'two Dockerfiles and one compose file were read; .env.example is read for key names through env_file but yields no item of its own');
   assert.deepEqual(frag.skipped, { dockerfiles: 0, services: 0 });
   assert.deepEqual(frag.truncated, { dockerfiles: 0, services: 0 });
   const again = extractContainers(fixtureFiles.slice().reverse(), fixtureRead);

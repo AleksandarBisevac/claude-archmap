@@ -9680,7 +9680,8 @@
             "severity": "med",
             "file": "tests/fixtures/repos/containers/docker-compose.yml:1-41",
             "issue": "contradicts task clause: P13.1 asks for the fixture tests/fixtures/repos/containers with 'a compose file with three services, two Dockerfiles, one .env.example'. The diff adds the compose file and two Dockerfiles but no .env.example, and no service has an env_file line. The executor disclosed the omission (its Write was refused by a permission setting) and no waiver is recorded in the plan. The env_file key-name path (envKeysOf, scripts/lib/prescan/containers.mjs) is therefore exercised only by the in-memory ct3, never by the committed fixture. The ct5 message at tests/prescan-containers.test.mjs:1009 says '.env.example is not a container file' about a file that does not exist.",
-            "resolution": "Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message."
+            "resolution": "Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message.",
+            "fixTask": "P13.19-exy"
           },
           {
             "id": "P13-R2",
@@ -9737,11 +9738,13 @@
             "severity": "low",
             "file": "skills/architecture-map/evals/README.md:182",
             "issue": "The new build row paragraph states figures that no tracked artifact backs and no test re-derives: 'the run took 85 seconds', 'all four areas were explored', and the map counts (18 nodes, 14 edges, 1 entity, 3 sequences, 6 views). The paragraph does say the model is untracked, so the counts are labelled, but the duration and the area claim are given as fact with no source. Checklist rule 6 (evidence and honesty).",
-            "resolution": "Drop the duration and the all-four-areas claim, or record them (duration, areas explored) in the tracked profile or a small tracked note and have r2 check them.",
-            "fixTask": "P13.18-exy"
+            "resolution": "fixed in P13.18-exy (783473eeabe2): Drop the duration and the all-four-areas claim, or record them (duration, areas explored) in the tracked profile or a small tracked note and have r2 check them.",
+            "fixTask": "P13.18-exy",
+            "commit": "783473eeabe2",
+            "status": "fixed"
           }
         ],
-        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 5 with a recorded fix commit]"
+        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 6 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -10921,7 +10924,7 @@
         {
           "id": "P13.18-exy",
           "title": "fix P13-R7: The new build row paragraph states figures that no tracked artifa...",
-          "status": "in_progress",
+          "status": "done",
           "description": "The new build row paragraph states figures that no tracked artifact backs and no test re-derives: 'the run took 85 seconds', 'all four areas were explored', and the map counts (18 nodes, 14 edges, 1 entity, 3 sequences, 6 views). The paragraph does say the model is untracked, so the counts are labelled, but the duration and the area claim are given as fact with no source. Checklist rule 6 (evidence and honesty).\n\nResolution asked: Drop the duration and the all-four-areas claim, or record them (duration, areas explored) in the tracked profile or a small tracked note and have r2 check them.",
           "files": [
             "skills/architecture-map/evals/README.md",
@@ -10944,13 +10947,13 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "783473eeabe2",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Edited the paragraph introducing the mixed-platform build row in skills/architecture-map/evals/README.md: removed 'the run took 85 seconds and exited 0', 'all four areas were explored' and the unbacked 'model passed validate.mjs --repo' claim; kept the clone commit, the profile-backed figures sentence, and reworded the counts sentence to say plainly the model is not tracked (only the profile is), so the node/edge/entity/sequence/view counts are the orchestrator's reading of the run, backed by no tracked file and re-derived by nothing. Table row figures, profile (evidence/iteration-3/mixed-with-skill-1.json) and tests/readme.test.mjs untouched. Gate: `node --test` from project dir: tests 581, pass 581, fail 0 (tail of output; includes tests/readme.test.mjs). Dependants: tests/readme.test.mjs, README.md, CHANGELOG.md, docs/roadmap.md - still correct, grep for '85 seconds|four areas|18 nodes' finds nothing else, and readme.test.mjs checks only profile figures and the unchanged table row; the profile is unchanged. Other evals README dependants (architecture.model.json, archmap.html, evals/benchmark/diffmap tests, audit.config.json) - still correct, change is one paragraph of prose.",
+            "descriptive": "The mixed-platform build paragraph no longer states an unsourced duration or area claim, and labels the map counts as the orchestrator's reading of an untracked model."
           },
           "startedAt": "2026-11-03T00:14:31Z",
-          "completedAt": null,
+          "completedAt": "2026-11-03T00:16:57Z",
           "verifiedBy": [],
           "notes": [
             {
@@ -10974,6 +10977,73 @@
             "runId": "2026-11-03T00:16:55Z.d4ed58",
             "status": "passed",
             "at": "2026-11-03T00:16:55Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "783473eeabe2",
+            "at": "2026-11-03T00:16:57Z",
+            "basis": "a fix task for P13-R7, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task, expectRedFirst false; no test added",
+            "at": "n/a"
+          }
+        },
+        {
+          "id": "P13.19-exy",
+          "title": "fix P13-R1: contradicts task clause: P13.1 asks for the fixture tests/fixture...",
+          "status": "in_progress",
+          "description": "contradicts task clause: P13.1 asks for the fixture tests/fixtures/repos/containers with 'a compose file with three services, two Dockerfiles, one .env.example'. The diff adds the compose file and two Dockerfiles but no .env.example, and no service has an env_file line. The executor disclosed the omission (its Write was refused by a permission setting) and no waiver is recorded in the plan. The env_file key-name path (envKeysOf, scripts/lib/prescan/containers.mjs) is therefore exercised only by the in-memory ct3, never by the committed fixture. The ct5 message at tests/prescan-containers.test.mjs:1009 says '.env.example is not a container file' about a file that does not exist.\n\nResolution asked: Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message.",
+          "files": [
+            "tests/fixtures/repos/containers/docker-compose.yml",
+            "tests/fixtures/repos/containers/.env.example",
+            "tests/prescan-containers.test.mjs"
+          ],
+          "tests": {
+            "mode": "regression",
+            "add": [
+              "tests/fixtures/repos/containers/docker-compose.yml: the case P13-R1 asks for, locking the behaviour at HEAD"
+            ],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-11-03T07:23:44Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-03T07:23:44Z",
+              "text": "scope: tests/fixtures/repos/containers/docker-compose.yml, tests/fixtures/repos/containers/.env.example, every path the finding(s) P13-R1 name"
+            },
+            {
+              "at": "2026-11-03T07:23:44Z",
+              "text": "no test runner in this task's gate for the test P13-R1 asks for: the gate is ['test'], derived as the phase's testGate, wide -- no sibling task in P13 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P13-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-03T07:26:51Z.6f9ed8",
+            "status": "passed",
+            "at": "2026-11-03T07:26:51Z"
           }
         }
       ],
@@ -12023,7 +12093,8 @@
       "P13.1"
     ],
     "tests/prescan-containers.test.mjs": [
-      "P13.1"
+      "P13.1",
+      "P13.19-exy"
     ],
     "scripts/lib/prescan/pipelines.mjs": [
       "P13.2"
@@ -12091,6 +12162,12 @@
     ],
     "tests/fixtures/golden": [
       "P13.11"
+    ],
+    "tests/fixtures/repos/containers/docker-compose.yml": [
+      "P13.19-exy"
+    ],
+    "tests/fixtures/repos/containers/.env.example": [
+      "P13.19-exy"
     ]
   },
   "bugs": [

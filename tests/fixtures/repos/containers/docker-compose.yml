@@ -25,6 +25,7 @@ services:
     environment:
       - DATABASE_URL=postgres://db:5432/fleet
       - LOG_LEVEL
+    env_file: .env.example
   db:
     image: postgres:16-alpine
     ports:
