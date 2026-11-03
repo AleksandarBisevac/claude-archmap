@@ -2154,3 +2154,18 @@ test('m35d the derived nodes and edges are deterministic in any slice order, an 
   assert.deepEqual(plain.nodes.map((n) => n.id), ['api']);
   assert.deepEqual(plain.edges, []);
 });
+
+test('m36 the contract reference names every meta.sources row type merge.mjs writes and the three kinds of draft it derives', () => {
+  const code = readFileSync(CLI, 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
+  const written = [...new Set([...code.matchAll(/\btype: '([a-z]+(?:-[a-z]+)*)'/g)].map((m) => m[1]))].sort();
+  assert.ok(written.length >= 8 && written.includes('derivation') && written.includes('queue-unpaired'), `row types read from merge.mjs: ${written}`);
+  const ref = readFileSync(new URL('../skills/architecture-map/references/model-schema.md', import.meta.url), 'utf8');
+  const sourcesRow = ref.split('\n').find((l) => l.startsWith('| `sources`')) ?? '';
+  assert.ok(sourcesRow, 'the sources entry of the meta table');
+  const token = (t) => new RegExp(`(?<![A-Za-z0-9_-])${t}(?![A-Za-z0-9_-])`);
+  assert.deepEqual(written.filter((t) => !token(t).test(sourcesRow)), [], 'row types merge writes that the sources entry does not name');
+  // the drafts description names all three kinds: an HTTP entry point, a queue and a pull (cron or hook) entry
+  const drafts = ref.split(/\n\s*\n/).find((p) => /`drafts`/.test(p)) ?? '';
+  assert.ok(drafts, 'the paragraph describing drafts');
+  for (const word of ['HTTP', 'draft-queue-', 'draft-pull-']) assert.ok(drafts.includes(word), `drafts paragraph names ${word}`);
+});

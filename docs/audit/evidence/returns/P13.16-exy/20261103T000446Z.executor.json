@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "at": "2026-11-03T00:06:49Z",
+    "basis": "`node --test tests/merge.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+    "status": "could-not-prove",
+    "source": "red-first-helper"
+  },
+  "outcome": {
+    "technical": "Added case m36 to tests/merge.test.mjs: it reads every type: '<row>' literal from the non-comment lines of scripts/merge.mjs, requires each as a whole token in the sources entry of the meta table in model-schema.md, and requires the paragraph describing drafts to name HTTP, draft-queue- and draft-pull-. It failed first: queue-unpaired was missing, and so were clamped-evidence, dropped-evidence, dropped-ref, dropped-step and dropped-changed, which the sources entry had never named. Edited model-schema.md only. The sources entry now describes the queue-unpaired row (queue, node, missing, note) and the five correction rows. The drafts description now gives three kinds: HTTP entry point (draft-<name>, with queue hops and a response), queue (draft-queue-<name>) and scheduled or hook entry (draft-pull-<name>). Going past the one queue-unpaired sentence was needed because a pin on every written row type would otherwise need an allowlist of undocumented types. merge.mjs is unchanged (no row type misspelt). tests/skill-references.test.mjs is unchanged. Full run: node --test gave 578 tests, 578 pass, 0 fail. Dependants: scripts/merge.mjs, pipeline.mjs, the golden test and the model and html artefacts are unchanged, still correct. tests/agents.test.mjs, tests/skill-references.test.mjs (r1 names meta keys, sources is still named), tests/skill.test.mjs, tests/pipeline.test.mjs and the two agent files read the reference but lost no token, still correct. docs/roadmap.md is unchanged.",
+    "descriptive": "The model contract reference now matches what merge writes: every meta.sources row type and the three draft kinds, with a test that fails when they drift again."
+  },
+  "testsAdded": [
+    "m36: every row type merge.mjs writes appears in the sources entry of model-schema.md, and the drafts paragraph names the HTTP, queue and pull kinds"
+  ],
+  "casesAdded": [
+    "m36"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:c268b682b401f91e48b386413fbcd3c31542e8b7accb1e69939a0214946acbc5\",\"dirtyDigest\":\"sha256:ad9f1be6afee74cdbf0f2d683bf636a4818d6f1b3f551770d2b55517d3b26663\",\"dirtyPaths\":{\"skills/architecture-map/references/model-schema.md\":\"e92464528803cd45\",\"tests/merge.test.mjs\":\"bec3fc8235610870\"},\"head\":\"63005c1\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"scripts/merge.mjs\",\"skills/architecture-map/references/model-schema.md\",\"tests/merge.test.mjs\",\"tests/skill-references.test.mjs\"],\"scopeDigest\":\"sha256:0afa8b6777c22b6ca689e69f05d591181528576b72c666ed35c6f8c01a85a747\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

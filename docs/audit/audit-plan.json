@@ -9707,8 +9707,10 @@
             "severity": "low",
             "file": "scripts/merge.mjs:1535",
             "issue": "P13.10 asks for a nodes-without-edges count in the digest counts 'so a build report shows it'. The digest now carries counts.nodesWithoutEdges, but the build report is the finish output of scripts/pipeline.mjs, whose counts object (pipeline.mjs:1169-1172: nodes, edges, entities, access, relations, drafts) does not read it, so no report shows the figure. Only the synthesizer reads the digest.",
-            "resolution": "Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword the clause and the CHANGELOG line to say the digest only.",
-            "fixTask": "P13.15-exy"
+            "resolution": "fixed in P13.15-exy (63005c1d8967): Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword the clause and the CHANGELOG line to say the digest only.",
+            "fixTask": "P13.15-exy",
+            "commit": "63005c1d8967",
+            "status": "fixed"
           },
           {
             "id": "P13-R5",
@@ -9735,7 +9737,7 @@
             "fixTask": "P13.18-exy"
           }
         ],
-        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 2 with a recorded fix commit]"
+        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 3 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -10691,7 +10693,7 @@
         {
           "id": "P13.15-exy",
           "title": "fix P13-R4: P13.10 asks for a nodes-without-edges count in the digest counts ...",
-          "status": "in_progress",
+          "status": "done",
           "description": "P13.10 asks for a nodes-without-edges count in the digest counts 'so a build report shows it'. The digest now carries counts.nodesWithoutEdges, but the build report is the finish output of scripts/pipeline.mjs, whose counts object (pipeline.mjs:1169-1172: nodes, edges, entities, access, relations, drafts) does not read it, so no report shows the figure. Only the synthesizer reads the digest.\n\nResolution asked: Add nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts built at pipeline.mjs:1169 (the digest is already read there as dj) with a test, or reword the clause and the CHANGELOG line to say the digest only.",
           "files": [
             "scripts/pipeline.mjs",
@@ -10717,14 +10719,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "63005c1d8967",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added nodesWithoutEdges: dj.counts?.nodesWithoutEdges to the counts object built in the finish step of scripts/pipeline.mjs (next to nodes, edges, entities, access, relations, drafts), so the finish output prints it. Digest and merge.mjs unchanged (the count is already tested in merge.test.mjs). Added case p43 in tests/pipeline.test.mjs: finish over the canned fragments, asserts counts.nodesWithoutEdges is a number equal to the digest figure, then adds a node no edge touches and asserts the figure rises by one in both the finish output and the digest. Watched p43 fail first (node --test tests/pipeline.test.mjs: 42 pass, 1 fail) before the edit; after it, full `node --test` exit 0: 577 tests, 577 pass, 0 fail. Dependants: tests/pipeline.test.mjs, scripts/usage.mjs, tests/commands.test.mjs, tests/evals.test.mjs, tests/merge.test.mjs, tests/skill.test.mjs, docs/architecture/* still correct - the change only adds one key to the finish counts JSON and breaks no existing assertion (full suite green); the committed architecture model and html are not generated from finish counts. scripts/merge.mjs and tests/merge.test.mjs were not touched: the digest was right. Note: the brief's tests.add names tests/merge.test.mjs but the finish output is asserted in tests/pipeline.test.mjs, which is the file owned by this task.",
+            "descriptive": "The build report from pipeline finish now shows the nodes-without-edges count the digest already carried."
           },
           "startedAt": "2026-11-02T23:58:36Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-03T00:04:45Z",
+          "verifiedBy": [
+            "p43: finish counts carry nodesWithoutEdges equal to the digest figure and follow an added edgeless node"
+          ],
           "notes": [
             {
               "at": "2026-11-02T23:51:49Z",
@@ -10743,12 +10747,24 @@
             "runId": "2026-11-03T00:04:44Z.fa6207",
             "status": "passed",
             "at": "2026-11-03T00:04:44Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "63005c1d8967",
+            "at": "2026-11-03T00:04:45Z",
+            "basis": "a fix task for P13-R4, every finding it fixes raised low and its gate never red: it closes on its own green gate, and no re-review is owed"
+          },
+          "redFirst": {
+            "at": "2026-11-03T00:03:45Z",
+            "basis": "`node --test tests/pipeline.test.mjs` in a throwaway tree at HEAD exited 1, but its output carries no test tally this command reads, so an assertion failure cannot be told from a crash - no test is known to have been collected: no tally or error reader matched its output, so no line of it is quoted as decisive; run without CLAUDE_PROJECT_DIR, OLDPWD, PWD; no ignored dependency directory linked from the project root; the user's .npmrc in the home directory dropped (every run has a fresh home); deadline: 480s, the default - the command is not a sweep naming suites, so there is no recorded cost to size it from",
+            "status": "could-not-prove",
+            "source": "red-first-helper"
           }
         },
         {
           "id": "P13.16-exy",
           "title": "fix P13-R5: The merge now writes a new meta.sources row type, queue-unpaired,...",
-          "status": "pending",
+          "status": "in_progress",
           "description": "The merge now writes a new meta.sources row type, queue-unpaired, and P13.11 widened drafts to queue, pull and response flows. skills/architecture-map/references/model-schema.md (the contract reference) still enumerates the source row kinds at line 36 without queue-unpaired and still describes the drafts at line 151 as 'sequences derived from each HTTP entry point'. Reference and writer disagree across the boundary (checklist rule 5). The schema accepts the row (sources items are open objects), so nothing fails.\n\nResolution asked: Add one sentence for the queue-unpaired row to the sources entry at model-schema.md:36 and widen the drafts description at model-schema.md:151 to the three draft kinds.",
           "files": [
             "skills/architecture-map/references/model-schema.md",
@@ -10772,14 +10788,14 @@
           "risk": "low",
           "blockedBy": [],
           "dependsOn": [],
-          "attempts": 0,
+          "attempts": 1,
           "maxAttempts": 3,
           "commit": null,
           "outcome": {
             "technical": null,
             "descriptive": null
           },
-          "startedAt": null,
+          "startedAt": "2026-11-03T00:04:46Z",
           "completedAt": null,
           "verifiedBy": [],
           "notes": [
@@ -10794,7 +10810,13 @@
           ],
           "fixes": [
             "P13-R5"
-          ]
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-03T00:07:58Z.b64a7a",
+            "status": "passed",
+            "at": "2026-11-03T00:07:58Z"
+          }
         },
         {
           "id": "P13.17-exy",
