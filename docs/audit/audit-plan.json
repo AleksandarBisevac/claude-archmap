@@ -9680,8 +9680,10 @@
             "severity": "med",
             "file": "tests/fixtures/repos/containers/docker-compose.yml:1-41",
             "issue": "contradicts task clause: P13.1 asks for the fixture tests/fixtures/repos/containers with 'a compose file with three services, two Dockerfiles, one .env.example'. The diff adds the compose file and two Dockerfiles but no .env.example, and no service has an env_file line. The executor disclosed the omission (its Write was refused by a permission setting) and no waiver is recorded in the plan. The env_file key-name path (envKeysOf, scripts/lib/prescan/containers.mjs) is therefore exercised only by the in-memory ct3, never by the committed fixture. The ct5 message at tests/prescan-containers.test.mjs:1009 says '.env.example is not a container file' about a file that does not exist.",
-            "resolution": "Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message.",
-            "fixTask": "P13.19-exy"
+            "resolution": "fixed in P13.19-exy (1ab9cc79f7ef): Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message.",
+            "fixTask": "P13.19-exy",
+            "commit": "1ab9cc79f7ef",
+            "status": "fixed"
           },
           {
             "id": "P13-R2",
@@ -9742,9 +9744,17 @@
             "fixTask": "P13.18-exy",
             "commit": "783473eeabe2",
             "status": "fixed"
+          },
+          {
+            "id": "P13-R8",
+            "severity": "low",
+            "file": "skills/architecture-map/references/stack-iac.md:27",
+            "issue": "The rewritten Nodes item says the merge script 'already makes a level-3 node for every resource and module'. merge.mjs makes a module node at level 2 (scripts/merge.mjs:776) and a resource node at level 3 (merge.mjs:791). The P13.14-exy executor's own outcome records module as level 2. The new r6 test pins only the phrases 'merge script already makes', find() and cite, so it does not catch the wrong level.",
+            "resolution": "Reword to 'a level-3 node for every resource and a level-2 node for every module', or drop the level wording. Carry this low finding; do not loop it into another fix round.",
+            "fixTask": "P13.20-exy"
           }
         ],
-        "outcome": "[findings: 7 - 0 high, 1 med, 6 low; 6 with a recorded fix commit]"
+        "outcome": "[findings: 8 - 0 high, 1 med, 7 low; 7 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -10993,7 +11003,7 @@
         {
           "id": "P13.19-exy",
           "title": "fix P13-R1: contradicts task clause: P13.1 asks for the fixture tests/fixture...",
-          "status": "in_progress",
+          "status": "done",
           "description": "contradicts task clause: P13.1 asks for the fixture tests/fixtures/repos/containers with 'a compose file with three services, two Dockerfiles, one .env.example'. The diff adds the compose file and two Dockerfiles but no .env.example, and no service has an env_file line. The executor disclosed the omission (its Write was refused by a permission setting) and no waiver is recorded in the plan. The env_file key-name path (envKeysOf, scripts/lib/prescan/containers.mjs) is therefore exercised only by the in-memory ct3, never by the committed fixture. The ct5 message at tests/prescan-containers.test.mjs:1009 says '.env.example is not a container file' about a file that does not exist.\n\nResolution asked: Have the owner add tests/fixtures/repos/containers/.env.example (placeholder names only, e.g. DB_PASSWORD=placeholder) and an env_file: .env.example line on a service, then extend ct1 and ct3 to pin its key names and keep the values out of the fragment. Or amend P13.1's description to drop the file and correct the ct5 message.",
           "files": [
             "tests/fixtures/repos/containers/docker-compose.yml",
@@ -11018,14 +11028,16 @@
           "dependsOn": [],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "1ab9cc79f7ef",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Added 'env_file: .env.example' as the last key of the api service in tests/fixtures/repos/containers/docker-compose.yml (after the environment list, so only the db service lines shift). The owner-created tests/fixtures/repos/containers/.env.example was not written or read; its key names were confirmed by the owner brief (DB_PASSWORD, LOG_LEVEL, SMTP_HOST) and by ct1 itself passing. In tests/prescan-containers.test.mjs: ct1 now expects api envKeys DATABASE_URL, DB_PASSWORD, LOG_LEVEL, SMTP_HOST and evidence 14-28 (db evidence 29-38), asserts the fixture carries .env.example, pins DB_PASSWORD/LOG_LEVEL/SMTP_HOST as read via env_file, and asserts no value (placeholder, info, example.invalid) is anywhere in the JSON fragment; ct3 unchanged (its in-memory env_file case kept); the ct5 message now reads '.env.example is read for key names through env_file but yields no item of its own' (frag.scanned stays 3). Commands: 'node --test tests/prescan-containers.test.mjs' -> 8 pass, 0 fail; full 'node --test' -> 581 tests, 581 pass, 0 fail, 0 cancelled (exit code not captured through the pipe; the tally lines were read). Dependants: tests/pipeline.test.mjs still correct (it copies only docker-compose.yml into deploy/, where the env_file target .env.example does not exist, so the extractor skips it; full suite green); tests/e2e.test.mjs, tests/merge.test.mjs, tests/prescan-core.test.mjs, tests/prescan-wiring.test.mjs still correct (basename mentions only, no line numbers or env key lists for the api service; full suite green); tests/prescan-containers.test.mjs changed as described; scripts/lib/prescan/generic.mjs, .agents/skills/node/rules/environment.md and skills/architecture-map/references/stack-containers.md mention .env.example by basename only (not edited, not affected by a new fixture line). No file outside the task's files was edited. Note: an early compound Bash read of the compose file and .env.example was denied by the permission system; I re-read the files with separate Read and grep calls and did not work around the refusal.",
+            "descriptive": "The committed containers fixture now exercises the env_file key-name path: ct1 pins the api service's env keys read from .env.example with no value leaking, and the ct5 message is true."
           },
           "startedAt": "2026-11-03T07:23:44Z",
-          "completedAt": null,
-          "verifiedBy": [],
+          "completedAt": "2026-11-03T07:27:08Z",
+          "verifiedBy": [
+            "ct1 extended: api envKeys include DB_PASSWORD, LOG_LEVEL and SMTP_HOST read from the committed .env.example via env_file, evidence ranges updated, and no env-file value (placeholder, info, example.invalid) appears anywhere in the fragment"
+          ],
           "notes": [
             {
               "at": "2026-11-03T07:23:44Z",
@@ -11044,6 +11056,73 @@
             "runId": "2026-11-03T07:26:51Z.6f9ed8",
             "status": "passed",
             "at": "2026-11-03T07:26:51Z"
+          },
+          "intentCheck": {
+            "answer": "not-asked",
+            "commit": "1ab9cc79f7ef",
+            "at": "2026-11-03T07:27:08Z",
+            "basis": "a fix task for P13-R1: the phase review raised the finding; the fix's own diff is unreviewed unless sign-off re-reviews it"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "regression task with tests.expectRedFirst false: the fix is the fixture (env_file line on the api service) and the test extension locks the corrected behaviour at HEAD; no red owed",
+            "at": "n/a"
+          }
+        },
+        {
+          "id": "P13.20-exy",
+          "title": "fix P13-R8: The rewritten Nodes item says the merge script 'already makes a l...",
+          "status": "in_progress",
+          "description": "The rewritten Nodes item says the merge script 'already makes a level-3 node for every resource and module'. merge.mjs makes a module node at level 2 (scripts/merge.mjs:776) and a resource node at level 3 (merge.mjs:791). The P13.14-exy executor's own outcome records module as level 2. The new r6 test pins only the phrases 'merge script already makes', find() and cite, so it does not catch the wrong level.\n\nResolution asked: Reword to 'a level-3 node for every resource and a level-2 node for every module', or drop the level wording. Carry this low finding; do not loop it into another fix round.",
+          "files": [
+            "skills/architecture-map/references/stack-iac.md"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-11-03T07:29:13Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-03T07:29:12Z",
+              "text": "scope: skills/architecture-map/references/stack-iac.md, every path the finding(s) P13-R8 name"
+            },
+            {
+              "at": "2026-11-03T07:29:12Z",
+              "text": "no suite: skills/architecture-map/references/stack-iac.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are scripts/pipeline.mjs, tests/pipeline.test.mjs, tests/skill-references.test.mjs"
+            },
+            {
+              "at": "2026-11-03T07:29:12Z",
+              "text": "gate-only, not tdd: every file P13-R8 names is a document (skills/architecture-map/references/stack-iac.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            }
+          ],
+          "fixes": [
+            "P13-R8"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-03T07:31:33Z.8fe077",
+            "status": "passed",
+            "at": "2026-11-03T07:31:33Z"
           }
         }
       ],
@@ -12122,7 +12201,8 @@
     "skills/architecture-map/references/stack-iac.md": [
       "P13.3",
       "P13.5",
-      "P13.14-exy"
+      "P13.14-exy",
+      "P13.20-exy"
     ],
     "tests/fixtures/repos/iac": [
       "P13.3"

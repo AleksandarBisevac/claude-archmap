@@ -25,7 +25,7 @@ provider is never guessed. Comments, string text and heredoc text hold no refere
 
 ## What you must still read yourself
 
-1. **Nodes.** The merge script already makes a level-3 node for every resource and module, networks, subnets, security
+1. **Nodes.** The merge script already makes a level-3 node for every resource and a level-2 node for every module, networks, subnets, security
    groups and IAM roles included, so do not emit one per block. Add only the grouped system-level nodes: a compute
    resource (`aws_instance`, `Microsoft.Web/sites`, a container app or
    cluster) is a `service` node, a database, cache, bucket or storage account (`aws_db_instance`, `aws_s3_bucket`,

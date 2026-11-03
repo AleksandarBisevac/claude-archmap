@@ -1,0 +1,19 @@
+{
+  "gates": {
+    "node --test tests/skill-references.test.mjs": "pass",
+    "node --test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, expectRedFirst false: no test owed",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "In skills/architecture-map/references/stack-iac.md line 28 (Nodes item) changed 'a level-3 node for every resource and module' to 'a level-3 node for every resource and a level-2 node for every module'. Confirmed in scripts/merge.mjs makePlatformNodes: module nodes are made with level: 2, resource nodes with level: 3. Nothing else edited. Gates: node --test tests/skill-references.test.mjs: 6 tests, 6 pass, 0 fail; full node --test: 581 tests, 581 pass, 0 fail (tallies read from the TAP summary; the shell exit code was not captured by the pipe, so the evidence is the tally). Dependants: tests/skill-references.test.mjs (ran green, still correct: it pins phrases, not the level wording), scripts/pipeline.mjs, tests/pipeline.test.mjs, agents/archmap-explorer.md and skills/architecture-map/SKILL.md reference the file by name or path only and are unchanged and still correct, since the edit corrects one sentence to match merge.mjs behaviour.",
+    "descriptive": "The IaC reference now states the right node levels for modules (2) and resources (3), matching merge.mjs, closing P13-R8."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:f407c0551296ff3b905e5575607cdcacec41b08f3f246c25eb76c596b0274604\",\"dirtyDigest\":\"sha256:d3ab7c2793b7ea57c629374a122f996e7df4d92d3484bdaeb4912cdb9c183c15\",\"dirtyPaths\":{\"skills/architecture-map/references/stack-iac.md\":\"222ba54e640c7552\"},\"head\":\"1ab9cc7\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/references/stack-iac.md\"],\"scopeDigest\":\"sha256:98f0de5bbc41c3c894819afd9bcf2e175fda5b5a9121d6530d7c93ff483008d0\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

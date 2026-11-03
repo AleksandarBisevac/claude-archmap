@@ -1,0 +1,61 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "skills/architecture-map/references/stack-iac.md:27",
+      "issue": "The rewritten Nodes item says the merge script 'already makes a level-3 node for every resource and module'. merge.mjs makes a module node at level 2 (scripts/merge.mjs:776) and a resource node at level 3 (merge.mjs:791). The P13.14-exy executor's own outcome records module as level 2. The new r6 test pins only the phrases 'merge script already makes', find() and cite, so it does not catch the wrong level.",
+      "resolution": "Reword to 'a level-3 node for every resource and a level-2 node for every module', or drop the level wording. Carry this low finding; do not loop it into another fix round."
+    }
+  ],
+  "preExisting": [
+    {
+      "id": 1,
+      "severity": "low",
+      "file": "assets/viewer/viewer.js:flowExit, flowEnter",
+      "issue": "flowExit calls setStep(flow.i + 1) and flowEnter starts at seqState.cur - 1, both treating a frame index as a step number. flowFrames skips any step whose participants are missing, so frame i and step i + 1 diverge for such a sequence. frames[i].step holds the real step index. The v15 test cannot see this because every step of place-order yields a frame. This code was reviewed in the earlier round and is not changed by the fix tasks.",
+      "resolution": "Map through frames[flow.i].step + 1 on exit, and find the frame whose step equals the current one on enter."
+    }
+  ],
+  "intent": {
+    "answer": "matches",
+    "note": "Each fix task closes its finding as its Resolution asked. P13.13-exy: docs/design.md section 5 now lists depends, lineage and artifact and the node kinds pipeline, resource, model and source. Test s3 parses the design text instead of repeating literal lists, so it fails if the schema enum and the design drift. P13.14-exy: the Nodes item of the four platform stack references now says merge already makes the nodes, tells the explorer to add only grouped system-level nodes and to cite the same block so find() reuses them, and r6 pins that wording. P13.15-exy: pipeline.mjs:1172 adds counts.nodesWithoutEdges from the digest; p43 checks it equals the digest figure and rises by one when an edgeless node is added. P13.16-exy: model-schema.md names queue-unpaired and the five correction row types, and the drafts text names the three kinds. m36 reads every `type: '...'` literal in merge.mjs and requires each to appear in the sources entry. I checked the row types against merge.mjs. P13.17-exy: v15 and v16 drive the flow player glue on a DOM stub (enter, next, the keys, a play tick, Escape, Back, sequence change) and v16 breaks five places in the script and requires v15 to catch each. r10 pins the viewer script embedded in the committed archmap.html to assets/viewer/viewer.js byte for byte. P13.18-exy: the unsourced duration and all-four-areas claim are gone from the evals README paragraph, and the counts are labelled as an untracked reading. P13.19-exy: the fixture has .env.example (committed in 358c5aa) and an env_file line on api. ct1 pins DB_PASSWORD, LOG_LEVEL and SMTP_HOST and requires that no env value reaches the fragment, and the ct5 message is true. The executors' claims match their diffs. One caveat: P13.15-exy and P13.17-exy name files in tests.add or files that they did not edit (merge.test.mjs, export.test.mjs, viewer.js) and say so in their outcomes. I rendered the committed model and layout with scripts/render.mjs into the scratchpad. The output is byte-identical to the committed docs/architecture/archmap.html (152150 bytes), and architecture.model.json and architecture.layout.json are unchanged, so the re-render is a pure function of the committed inputs. The mechanical scan over d166aae5b11f~1..1ab9cc79f7ef (29 files, 1779 added lines, denylist checked with 14 terms) returned no leads. The fixture .env.example holds only placeholders and a .invalid host, with no machine path or client name. I did not run the suite. Each task's recorded gate run is node --test with exit 0, the last at 2026-11-03T07:26:51Z for P13.19-exy, and the executors report 581 of 581 passing.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "The phase diff is the fix tasks, which are owed no review answers. The fix tasks filed not-attempted, or could-not-prove with the helper's own caveat (P13.15-exy, P13.16-exy, P13.17-exy: the output carried no test tally). The helper's output is not a decisive red, so I report nothing as proved.",
+    "inheritedTests": "none-found",
+    "inheritedTestsBasis": "The tests.gate of the shown tasks is `node --test`, which selects every tests/*.test.mjs. I read the tests these diffs add or change: s3 (tests/schema.test.mjs), r6 (tests/skill-references.test.mjs), p43 (tests/pipeline.test.mjs), m36 (tests/merge.test.mjs), v15 and v16 (tests/viewer.test.mjs), r10 (tests/readme.test.mjs) and ct1 and ct5 (tests/prescan-containers.test.mjs). In each, the assertion reaches the behaviour it names: none swallows an error, none narrows to an empty set, and v16 includes its own break-it mutants. The one weak spot is ct1's check that no env value reaches the fragment: it uses the short substring 'info' at tests/prescan-containers.test.mjs:1283 (diff +1283), which could fail on an unrelated 'info' elsewhere in the fragment, so it errs towards failing, not towards passing. I did not read the whole suite."
+  },
+  "verdict": "findings",
+  "tasks": [],
+  "shown": [
+    {
+      "id": "P13.13-exy",
+      "commit": "d166aae5b11f"
+    },
+    {
+      "id": "P13.14-exy",
+      "commit": "b41e3f129a50"
+    },
+    {
+      "id": "P13.15-exy",
+      "commit": "63005c1d8967"
+    },
+    {
+      "id": "P13.16-exy",
+      "commit": "ecbce69d4703"
+    },
+    {
+      "id": "P13.17-exy",
+      "commit": "9fbfd6bfeb27"
+    },
+    {
+      "id": "P13.18-exy",
+      "commit": "783473eeabe2"
+    },
+    {
+      "id": "P13.19-exy",
+      "commit": "1ab9cc79f7ef"
+    }
+  ]
+}
