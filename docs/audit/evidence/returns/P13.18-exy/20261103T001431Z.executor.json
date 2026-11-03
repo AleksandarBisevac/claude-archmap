@@ -1,0 +1,18 @@
+{
+  "gates": {
+    "test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task, expectRedFirst false; no test added",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "Edited the paragraph introducing the mixed-platform build row in skills/architecture-map/evals/README.md: removed 'the run took 85 seconds and exited 0', 'all four areas were explored' and the unbacked 'model passed validate.mjs --repo' claim; kept the clone commit, the profile-backed figures sentence, and reworded the counts sentence to say plainly the model is not tracked (only the profile is), so the node/edge/entity/sequence/view counts are the orchestrator's reading of the run, backed by no tracked file and re-derived by nothing. Table row figures, profile (evidence/iteration-3/mixed-with-skill-1.json) and tests/readme.test.mjs untouched. Gate: `node --test` from project dir: tests 581, pass 581, fail 0 (tail of output; includes tests/readme.test.mjs). Dependants: tests/readme.test.mjs, README.md, CHANGELOG.md, docs/roadmap.md - still correct, grep for '85 seconds|four areas|18 nodes' finds nothing else, and readme.test.mjs checks only profile figures and the unchanged table row; the profile is unchanged. Other evals README dependants (architecture.model.json, archmap.html, evals/benchmark/diffmap tests, audit.config.json) - still correct, change is one paragraph of prose.",
+    "descriptive": "The mixed-platform build paragraph no longer states an unsourced duration or area claim, and labels the map counts as the orchestrator's reading of an untracked model."
+  },
+  "testsAdded": [],
+  "stamp": "audit-stamp: {\"content\":\"sha256:3239dfaae527e2f6a67c55468d976bc9638bb394156fe57ec687881404a45053\",\"dirtyDigest\":\"sha256:81af5715758b7b98e029947e916d25c7c7ebe0e8f984929832b98899053bf56c\",\"dirtyPaths\":{\"skills/architecture-map/evals/README.md\":\"2a51740cded5bb7d\"},\"head\":\"9fbfd6b\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"skills/architecture-map/evals/README.md\",\"skills/architecture-map/evals/evidence/iteration-3/mixed-with-skill-1.json\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:3bc7108fc7020ddc47e33eac248927d8d5579730b47e910f83dd07bd4d139f6c\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

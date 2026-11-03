@@ -178,10 +178,10 @@ report lists them, and each model passed `validate.mjs` with `--repo`, exit 0.
 The last row of the table is not a self-build: it is one build of the `tests/fixtures/repos/mixed-platform` fixture
 (a small Node API, a compose file, a GitHub Actions workflow, a Terraform module and a dbt project), run the same way
 (`/archmap:build`, balanced profile, without `--issues`, the orchestrator on Opus, the Sonnet explorers and
-synthesizer). The plugin ran from a clone at commit `784ecfd`; the run took 85 seconds and exited 0, all four areas
-were explored, and the model passed `validate.mjs` with `--repo` at the fixture's commit. Its cost, turns, context and
-model figures are from `evidence/iteration-3/mixed-with-skill-1.json`; the map counts are those of the model the run
-built, whose model is not tracked (only the profile is), so they are not re-derived. The fixture's end-to-end case `e6`
+synthesizer). The plugin ran from a clone at commit `784ecfd`. Its cost, turns, context and model figures are from
+`evidence/iteration-3/mixed-with-skill-1.json`. The model the run built is not tracked (only the profile is), so the
+node, edge, entity, sequence and view counts are the orchestrator's reading of that run, not a figure any tracked file
+backs, and nothing re-derives them. The fixture's end-to-end case `e6`
 in `tests/e2e.test.mjs` covers the no-LLM chain over the same repository (prescan, merge, validate, layout, render,
 byte-identical on a second run); this row is its one LLM build.
 
