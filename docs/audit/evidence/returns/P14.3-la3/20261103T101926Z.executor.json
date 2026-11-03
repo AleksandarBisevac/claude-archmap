@@ -1,0 +1,20 @@
+{
+  "gates": {
+    "test": "pass"
+  },
+  "redFirst": {
+    "status": "not-attempted",
+    "basis": "gate-only task with expectRedFirst false; no red owed. The pinning assertions added to tests/readme.test.mjs were not run against the old bullet (the bullet was rewritten first).",
+    "at": "n/a"
+  },
+  "outcome": {
+    "technical": "README.md: rewrote the last cost-section caveat bullet. It now reads 'The committed map is an update, not a fresh build': the /archmap:update of the build made at ddbd0be (run 4 row, third self-build row, 1.65 USD, 16 turns), run at 549c3c3, 0.92 USD, 11 orchestrator turns, median context 43.7 K against 55.2 K for the build; the run 3 update comparison (0.80 vs 1.00 USD, 47.3 K vs 46.4 K) is kept, lines wrapped so the existing r5 swap phrases stay on one line. Figures read from iteration-2/self-with-skill-4.json (1.649095 USD, 16 turns, median 55213.5) and iteration-3/self-with-skill-5.json (0.917692 USD, 11 turns, median 43724). Also edited tests/readme.test.mjs, which is OUTSIDE this task's declared files (only README.md): the resolution asked for a README test case pinning the bullet to the profile, so checkCostTable now matches the bullet and asserts its cost, turns and both median contexts against the two profiles (selfRows[2] and [3]), and r5 gained six tamper cases (cost, turns, update median, build median, build turns, the 'is an update' wording). I did not check whether the plan gate allowed that edit beyond the Edit tool succeeding; it did succeed with no refusal. Because the task is gate-only with tests.add none, no case is bound by id (casesAdded absent). Commands: node --test tests/readme.test.mjs -> 10 pass 0 fail; node --test (whole suite) -> tests 581, pass 581, fail 0 (exit code not captured through the pipe).",
+    "descriptive": "The README cost caveat no longer contradicts the committed-map row: it says the committed map is the 0.92 USD update of the ddbd0be build, and a test now pins its figures to the profiles."
+  },
+  "testsAdded": [
+    "checkCostTable (r2/r5) now parses the committed-map caveat bullet and asserts its build cost and turns and its update cost, turns and median contexts equal the run 4 and run 5 profiles; r5 tampers each figure and the wording and expects a throw"
+  ],
+  "stamp": "audit-stamp: {\"content\":\"sha256:1ed1d4ac87aabc26cc420604aa2eb7af56b0c0cb21a48b95c9e34a92d80ec7ec\",\"dirtyDigest\":\"sha256:624e39a1ddb886dad6701c72e2f5f8cd7a5649b015ee8d16b7b6c39c651f7146\",\"dirtyPaths\":{\"README.md\":\"6fed7e3e29bdfd35\",\"tests/readme.test.mjs\":\"2b9b52007b9736a2\"},\"head\":\"746f6b0\",\"manifest\":\"docs/audit/audit-plan.json\",\"scope\":[\"README.md\",\"tests/readme.test.mjs\"],\"scopeDigest\":\"sha256:5d387f8b43397ac9bf2426b34dd515c167a3d000a51b2f905c3d380b0a805067\",\"v\":2}",
+  "testsAddGaps": [],
+  "testsAddUnchecked": []
+}

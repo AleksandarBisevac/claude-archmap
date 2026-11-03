@@ -1,0 +1,56 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "severity": "med",
+      "file": "README.md:136",
+      "issue": "The cost caveat 'The committed map is a fresh build. It was built at commit `ddbd0be` and cost 1.65 USD in 16 orchestrator turns' is now false: P14.2 made the committed map the run 5 update (0.92 USD, 11 turns, shown in the cost table row the same diff adds at README.md:120 and in the What a build delivers prose). The next sentence also calls the update row 'an earlier map'. The README contradicts itself in the release page; r2/r4/r5 do not read this bullet, so the green suite does not catch it.",
+      "resolution": "Rewrite the bullet to say the committed map is the update of the ddbd0be build at 549c3c3 (0.92 USD, 11 turns, median context 43.7 K vs 55.2 K for the build) and that the run 4 row is the fresh build; keep the run 3 update comparison; add a README test case pinning the bullet's figures to the profile."
+    }
+  ],
+  "preExisting": [],
+  "intent": {
+    "answer": "matches",
+    "note": "desiredOutcome: version 1.1.0 in plugin.json, dated CHANGELOG entry holding the Unreleased changes, README status naming 1.1.0, committed map updated at the 1.1.0 head with tracked profile recorded in both READMEs, versions and counts pinned by tests. The diff does this: plugin.json 1.1.0; '## [1.1.0] - 2026-11-03' under an empty Unreleased; README status names 1.1.0 and the 1.1 additions; model is 51 nodes/41 edges/1/4/6 and validate.mjs --repo exits OK (I ran it, read-only); the tracked profile iteration-3/self-with-skill-5.json figures (0.917692 USD, 11 orchestrator turns, max context 50375, median 43724, Opus 0.39, Sonnet 0.53) match both READMEs; mf5/r2/r4/e17-e20 read the rows. archmap-review scan.mjs over f0d693e..746f6b0: 16 files, no leads, denylist checked. One stale sentence remains (finding 1). Choices left open by the request (pin Opus for the update, leave plugin.json/marketplace descriptions, tag after sign-off) are the plan's recorded choices, which the tasks follow; no task chose anything further.",
+    "missing": [],
+    "redFirst": "not-attempted",
+    "redFirstBasis": "Phase level: no new tests owed beyond P14.1 (could-not-prove, helper output carried no tally) and P14.2 (gate-only, expectRedFirst false).",
+    "inheritedTests": "not-asked",
+    "inheritedTestsBasis": "The gate command of both tasks is `test` -> `node --test`, which runs the whole project, so the question is not bounded to a selection."
+  },
+  "verdict": "findings",
+  "tasks": [
+    {
+      "id": "P14.1",
+      "commit": "549c3c35bb9e",
+      "answer": "matches",
+      "note": "Clause 'Set plugin.json version to 1.1.0' / 'move every entry under Unreleased under ## [1.1.0] - 2026-11-03, leave Unreleased empty' / 'replace the owner's-decision sentence' / 'README Status names 1.1.0 and says in one sentence what 1.1 adds ... keep CHANGELOG link and released wording' / 'mf5 reads counts from the newest version entry while still pinning 1.0.0 (34,23,1,4,5)': all present in the diff (plugin.json:3, CHANGELOG.md hunk at 6-8 and 77, README.md Status, manifest.test.mjs mf5 asserting empty Unreleased, newest 1.1.0 and the 1.0.0 pin). The clause 'tests/readme.test.mjs only where a 1.0.0 literal pins the status wording' found no such literal; the executor instead extended r3 with five phrase assertions, a small addition declared in tests.add. The executor's outcome claims 'Red first: before the fix mf5 failed and r3 failed', which the filed redFirst block does not support (could-not-prove); the claim otherwise describes the diff.",
+      "missing": [],
+      "redFirst": "could-not-prove",
+      "redFirstBasis": "Executor/helper: `node --test tests/manifest.test.mjs tests/readme.test.mjs` in a throwaway tree at HEAD exited 1, but 'no tally or error reader matched its output, so ... no test is known to have been collected'; the prose red claim in outcome is not a recorded run.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "Computed: tests.gate `test` -> `node --test` runs the whole project; no selection to bound the question."
+    },
+    {
+      "id": "P14.2",
+      "commit": "746f6b002eb0",
+      "answer": "matches",
+      "note": "Clauses: 'committed map catches up with the 1.1.0 head and shows the pipeline of ci.yml' (model 51 nodes/41 edges, misc-ci and misc-ci-test per the claim; validate --repo OK); 'track the profile as iteration-3/self-with-skill-5.json' (present, figures verified); 'record the update as the last self-build row of the evals README table and the README cost table, run 4 loses the mark' (README.md:120, evals README table rows); 'counts in What a build delivers and the CHANGELOG 1.1.0 map-count sentence' (README.md counts row 51|41, CHANGELOG.md:22); 'extend r2, r4, e19, mf5' (done, plus e17/e18/e20/r5). The claim describes the diff, but it and the diff leave README.md:136 ('The committed map is a fresh build ... 1.65 USD') untouched and now false (finding 1).",
+      "missing": [],
+      "redFirst": "not-attempted",
+      "redFirstBasis": "Task owes none: gate-only, tests.add none, expectRedFirst false. The executor's basis says the extended tests were red on the new map until the rows were recorded, with no command quoted; I did not credit it as a proof.",
+      "inheritedTests": "not-asked",
+      "inheritedTestsBasis": "Computed: tests.gate `test` -> `node --test` runs the whole project; no selection to bound the question."
+    }
+  ],
+  "shown": [
+    {
+      "id": "P14.1",
+      "commit": "549c3c35bb9e"
+    },
+    {
+      "id": "P14.2",
+      "commit": "746f6b002eb0"
+    }
+  ]
+}

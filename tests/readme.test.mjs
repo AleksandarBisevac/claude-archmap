@@ -198,6 +198,17 @@ const checkCostTable = (text, read = readEvidence, expectations = expectationCou
   assert.equal(caveat[2], `${usd(build)} USD`, "the update caveat: the build's cost is total.costUsd of the build profile");
   assert.equal(caveat[3], (orchestratorOf(update).medianContext / 1000).toFixed(1), 'the update caveat: the median context is the orchestrator medianContext of the update profile');
   assert.equal(caveat[4], (orchestratorOf(build).medianContext / 1000).toFixed(1), "the update caveat: the build's median context is the orchestrator medianContext of the build profile");
+  // P14.3: the committed-map caveat names the update, the build it updates, and the figures of both profiles
+  const [fresh, committed] = [selfRows[2], selfRows[3]].map((r) => read(citations(r[at.Evidence])['with skill'][0]));
+  const committedCaveat = flat.match(/the build made at commit `([0-9a-f]{7,})` \(the run 4 row, the third `self-build` row, ([\d.]+ USD) in (\d+) orchestrator turns\), run at `([0-9a-f]{7,})`: it cost ([\d.]+ USD) in (\d+) orchestrator turns, and its orchestrator's median context was ([\d.]+) K tokens, against ([\d.]+) K for the build/);
+  assert.ok(committedCaveat, 'the committed-map caveat: the build, its commit, and the cost, turns and median context of the update against the build');
+  assert.equal(committedCaveat[2], `${usd(fresh)} USD`, "the committed-map caveat: the build's cost is total.costUsd of the run 4 profile");
+  assert.equal(committedCaveat[3], String(orchestratorOf(fresh).turns), "the committed-map caveat: the build's turns are the orchestrator row of the run 4 profile");
+  assert.equal(committedCaveat[5], `${usd(committed)} USD`, 'the committed-map caveat: the update cost is total.costUsd of the committed-map profile');
+  assert.equal(committedCaveat[6], String(orchestratorOf(committed).turns), 'the committed-map caveat: the update turns are the orchestrator row of the committed-map profile');
+  assert.equal(committedCaveat[7], (orchestratorOf(committed).medianContext / 1000).toFixed(1), 'the committed-map caveat: the update median context is the orchestrator medianContext of the committed-map profile');
+  assert.equal(committedCaveat[8], (orchestratorOf(fresh).medianContext / 1000).toFixed(1), "the committed-map caveat: the build's median context is the orchestrator medianContext of the run 4 profile");
+  assert.ok(flat.includes('is an update, not a fresh build'), 'the committed-map caveat says the committed map is an update, not a fresh build');
   // the rate table every cited profile was priced at is the date the README states
   const date = text.match(/rate table dated (\d{4}-\d{2}-\d{2})/)?.[1];
   assert.ok(date, 'the README states the date of the rate table');
@@ -477,6 +488,13 @@ test('r5 the README checks fail on a missing or altered command row, a tampered 
   assert.throws(() => checkCostTable(swap('against 46.4 K for the build', 'against 57.6 K for the build')), /build's median context/);
   assert.throws(() => checkCostTable(swap("against the build's 1.00 USD", "against the build's 1.11 USD")), /build's cost/);
   assert.throws(() => checkDeliversAndMethod(swap('at commit `549c3c3`', 'at commit `8174e41`')), /committed model records commit 8174e41/);
+  // P14.3: the committed-map caveat against its profiles
+  assert.throws(() => checkCostTable(swap('cost 0.92 USD in 11 orchestrator turns', 'cost 0.93 USD in 11 orchestrator turns')), /update cost is total\.costUsd/);
+  assert.throws(() => checkCostTable(swap('0.92 USD in 11 orchestrator turns, and', '0.92 USD in 12 orchestrator turns, and')), /update turns are/);
+  assert.throws(() => checkCostTable(swap('was 43.7 K tokens', 'was 47.3 K tokens')), /update median context/);
+  assert.throws(() => checkCostTable(swap('against 55.2 K for the build', 'against 46.4 K for the build')), /build's median context is the orchestrator medianContext of the run 4/);
+  assert.throws(() => checkCostTable(swap('1.65 USD in 16 orchestrator turns)', '1.65 USD in 15 orchestrator turns)')), /build's turns are/);
+  assert.throws(() => checkCostTable(swap('is an update, not a fresh build', 'is a fresh build')), /committed-map caveat/);
   // BF2.2: the build wording and the update wording both name the commit; neither wording, no commit
   checkDeliversAndMethod(swap('updated with `/archmap:update` at commit', 'built with `/archmap:build` at commit'));
   assert.throws(() => checkDeliversAndMethod(swap('updated with `/archmap:update` at commit', 'made at commit')), /names the commit the committed map was built or updated at/);

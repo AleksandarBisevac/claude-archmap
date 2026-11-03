@@ -11242,7 +11242,17 @@
         "tool": null,
         "model": "sonnet",
         "status": "pending",
-        "findings": []
+        "findings": [
+          {
+            "id": "P14-R1",
+            "severity": "med",
+            "file": "README.md:136",
+            "issue": "The cost caveat 'The committed map is a fresh build. It was built at commit `ddbd0be` and cost 1.65 USD in 16 orchestrator turns' is now false: P14.2 made the committed map the run 5 update (0.92 USD, 11 turns, shown in the cost table row the same diff adds at README.md:120 and in the What a build delivers prose). The next sentence also calls the update row 'an earlier map'. The README contradicts itself in the release page; r2/r4/r5 do not read this bullet, so the green suite does not catch it.",
+            "resolution": "Rewrite the bullet to say the committed map is the update of the ddbd0be build at 549c3c3 (0.92 USD, 11 turns, median context 43.7 K vs 55.2 K for the build) and that the run 4 row is the fresh build; keep the run 3 update comparison; add a README test case pinning the bullet's figures to the profile.",
+            "fixTask": "P14.3-la3"
+          }
+        ],
+        "outcome": "[findings: 1 - 0 high, 1 med, 0 low; 0 with a recorded fix commit]"
       },
       "summary": null,
       "tasks": [
@@ -11309,7 +11319,7 @@
         {
           "id": "P14.2",
           "title": "The committed map updated at the 1.1.0 head with /archmap:update, its profile tracked and both READMEs record the update (orchestrator-run)",
-          "status": "in_progress",
+          "status": "done",
           "description": "Orchestrator-run, after the bump task is committed: run /archmap:update (balanced, no issues) headlessly with the orchestrator pinned to Opus on a detached clone of this repository at the phase branch head, with a clone at the same head as the plugin directory, so the committed map catches up with the 1.1.0 head and shows the pipeline of .github/workflows/ci.yml; profile the stream with scripts/cost-profile.mjs. Bring docs/architecture (model, layout, clean HTML) in unchanged, validate.mjs --repo exit 0, denylist test green; track the profile as skills/architecture-map/evals/evidence/iteration-3/self-with-skill-5.json. The executor then records the update as the last self-build row of the evals README self-build table (run 5, update, the committed map; run 4 loses that mark) and of the README cost table, puts the counts of the updated model in the What a build delivers table and in the CHANGELOG 1.1.0 entry's map-count sentence, every figure derived from the profile, and extends tests r2, r4, e19 and mf5 to read these rows; the full suite must pass. If the update changes no node, say so and record the run anyway. No executor runs while this build runs.",
           "files": [
             "docs/architecture",
@@ -11339,13 +11349,13 @@
           ],
           "attempts": 1,
           "maxAttempts": 3,
-          "commit": null,
+          "commit": "746f6b002eb0",
           "outcome": {
-            "technical": null,
-            "descriptive": null
+            "technical": "Orchestrator's map update was already in the tree (docs/architecture model, layout, html; profile iteration-3/self-with-skill-5.json staged). Checked: validate.mjs docs/architecture/architecture.model.json --repo exit 0 (OK: no findings); model counts 51 nodes, 41 edges, 1 entity, 4 sequences, 6 views (was 43/25/1/4/6; update changed 8 nodes net, carried 14 nodes and 10 edges unchanged over 107 changed files; meta.commit 549c3c3; ci.yml nodes misc-ci and misc-ci-test present). Profile figures: total 0.917692 USD -> 0.92; orchestrator 11 turns, maxContext 50375 -> 50.4 K, medianContext 43.7 K (run 4: 55.2 K); Opus 11 turns 0.39 USD; Sonnet 44 turns 0.53 USD. README.md: What a build delivers prose now says build at ddbd0be updated with /archmap:update at 549c3c3, counts row 51|41|1|4|6; cost table: run 4 row loses 'the committed map', new row 'self-build update (balanced, no issues), the committed map' 0.92 USD, 11, 50.4 K, iteration-3/self-with-skill-5.json. skills/architecture-map/evals/README.md: intro names runs 3 and 5 as updates, run 4 bullet says it was the committed map until run 5, new Run 5 bullet (growth 43->51 nodes, 25->41 edges, ci.yml pipeline, median ctx 43.7 K vs 55.2 K), self-build table run 4 loses the mark and run 5 row added (0.92 USD, 11, 50.4 K, 11 turns 0.39 USD, 44 turns 0.53 USD, 51/41/1/4/6), profile list names run 5. CHANGELOG 1.1.0 Fixed item: committed map rebuilt at the fix then updated at the 1.1.0 head, 51 nodes, 41 edges, 1 entity, 4 sequences and 6 views. Tests: tests/readme.test.mjs (r2 self rows build/update/build/update, committed mark on last, last row cites iteration-3 profile; r4/r5 follow the update commit 549c3c3 and the iteration-3 profile, new negative cases for a re-marked run 4 row and a wrong-iteration profile); tests/evals.test.mjs (e17/e18: five self-build rows, update flags, run 4 hard-coded counts, run 5 equals committed model, run 5 growth sentence, commit 549c3c3, ci.yml pipeline nodes, with negatives; e19/e20: run 5 names iteration-3 profile, run 5 row cost/context/model figures, median context sentences for runs 5 and 4, with tamper cases); tests/manifest.test.mjs mf5 (1.1.0 entry says update at the 1.1.0 head with the ci.yml pipeline and its counts equal the evals README committed-map row). Full suite: node --test -> 581 tests, 581 pass, 0 fail (denylist test included). Dependants: docs/architecture (model/html/schema/scripts consumers) unchanged in contract, model validates against schema; README.md, evals README, CHANGELOG, readme/evals/manifest tests are mutually consistent as shown by the green suite; the new profile is named by no other file besides the evals README and README.",
+            "descriptive": "The committed map is the 1.1.0-head update (51 nodes, 41 edges, CI pipeline shown), recorded as run 5 in both READMEs and the CHANGELOG, with the tests reading those rows."
           },
           "startedAt": "2026-11-03T10:08:43Z",
-          "completedAt": null,
+          "completedAt": "2026-11-03T10:18:09Z",
           "verifiedBy": [],
           "reviewPerTask": "phase",
           "notes": [
@@ -11358,6 +11368,81 @@
             "runId": "2026-11-03T10:18:08Z.8174d7",
             "status": "passed",
             "at": "2026-11-03T10:18:08Z"
+          },
+          "intentCheck": {
+            "answer": "deferred",
+            "commit": "746f6b002eb0",
+            "at": "2026-11-03T10:18:09Z"
+          },
+          "redFirst": {
+            "status": "not-attempted",
+            "basis": "gate-only task (expectRedFirst false, tests.add none): no new test owed; existing tests r2, r4, r5, e17-e20 and mf5 were extended to read the new rows and were red on the orchestrator's map update (counts 51/41 vs 43/25 in the rows) until the rows were recorded",
+            "at": "n/a"
+          }
+        },
+        {
+          "id": "P14.3-la3",
+          "title": "fix P14-R1: The cost caveat 'The committed map is a fresh build. It was built...",
+          "status": "in_progress",
+          "description": "The cost caveat 'The committed map is a fresh build. It was built at commit `ddbd0be` and cost 1.65 USD in 16 orchestrator turns' is now false: P14.2 made the committed map the run 5 update (0.92 USD, 11 turns, shown in the cost table row the same diff adds at README.md:120 and in the What a build delivers prose). The next sentence also calls the update row 'an earlier map'. The README contradicts itself in the release page; r2/r4/r5 do not read this bullet, so the green suite does not catch it.\n\nResolution asked: Rewrite the bullet to say the committed map is the update of the ddbd0be build at 549c3c3 (0.92 USD, 11 turns, median context 43.7 K vs 55.2 K for the build) and that the run 4 row is the fresh build; keep the run 3 update comparison; add a README test case pinning the bullet's figures to the profile.",
+          "files": [
+            "README.md",
+            "tests/readme.test.mjs"
+          ],
+          "tests": {
+            "mode": "gate-only",
+            "add": [],
+            "expectRedFirst": false,
+            "gate": [
+              "test"
+            ],
+            "gateBasis": "phase-no-spelling"
+          },
+          "model": "sonnet",
+          "skills": [],
+          "risk": "low",
+          "blockedBy": [],
+          "dependsOn": [],
+          "attempts": 1,
+          "maxAttempts": 3,
+          "commit": null,
+          "outcome": {
+            "technical": null,
+            "descriptive": null
+          },
+          "startedAt": "2026-11-03T10:19:26Z",
+          "completedAt": null,
+          "verifiedBy": [],
+          "notes": [
+            {
+              "at": "2026-11-03T10:19:26Z",
+              "text": "scope: README.md, every path the finding(s) P14-R1 name"
+            },
+            {
+              "at": "2026-11-03T10:19:26Z",
+              "text": "no suite: README.md - a document, so no test of it is inferred; the files that name it, the checks that read it, are tests/benchmark.test.mjs, tests/diffmap.test.mjs, tests/evals.test.mjs, tests/glob.test.mjs, tests/manifest.test.mjs, tests/prescan-core.test.mjs and 3 more"
+            },
+            {
+              "at": "2026-11-03T10:19:26Z",
+              "text": "the resolution of P14-R1 asks for a test, but names no test file and its directory shows no test convention to place one by; name the case with `scope --tests-mode tdd --tests-add \"<path>: <what it asserts>\"`"
+            },
+            {
+              "at": "2026-11-03T10:19:26Z",
+              "text": "gate-only, not tdd: every file P14-R1 names is a document (README.md) with no test of its own, so there is no case to write first and no red to show; the gate the task carries is its check"
+            },
+            {
+              "at": "2026-11-03T10:19:26Z",
+              "text": "no test runner in this task's gate for the test P14-R1 asks for: the gate is ['test'], derived as the phase's testGate, wide -- no sibling task in P14 declares a path-scoped gate entry and meta.phaseGate.derived.spelling records none, so there is no spelling of this project's to read; name the runner with `retarget --gate-set`, or the test will have nothing that runs it"
+            }
+          ],
+          "fixes": [
+            "P14-R1"
+          ],
+          "reviewPerTask": "phase",
+          "testEvidence": {
+            "runId": "2026-11-03T10:22:32Z.e284e7",
+            "status": "passed",
+            "at": "2026-11-03T10:22:32Z"
           }
         }
       ],
@@ -12112,7 +12197,8 @@
       "P13.9",
       "P13.11",
       "P14.1",
-      "P14.2"
+      "P14.2",
+      "P14.3-la3"
     ],
     "CHANGELOG.md": [
       "P7.6",
@@ -12306,7 +12392,8 @@
       "P13.18-exy",
       "P13.17-exy",
       "P14.1",
-      "P14.2"
+      "P14.2",
+      "P14.3-la3"
     ],
     "docs/architecture": [
       "P11.6",

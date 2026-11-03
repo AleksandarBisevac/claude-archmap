@@ -133,9 +133,12 @@ Read the table with these caveats, which [the evals README](skills/architecture-
 - **The baselines of evals 2 and 4 are iteration-1 runs**, as they were not rerun; the iteration-1 baselines of the
   other evals are tracked beside the iteration-2 ones.
 - Eval 5 took 13 turns and eval 2 up to 14, one and two over the 12-turn target of a build.
-- **The committed map is a fresh build.** It was built at commit `ddbd0be` and cost 1.65 USD in 16 orchestrator turns.
-  The update row is an earlier map: `/archmap:update` re-analysed only the areas whose files changed between the
-  build at `8174e41` and `63d7495`, so it cost 0.80 USD against the build's 1.00 USD; its orchestrator's median
+- **The committed map is an update, not a fresh build.** It is the `/archmap:update` of the build made at commit
+  `ddbd0be` (the run 4 row, the third `self-build` row, 1.65 USD in 16 orchestrator turns), run at `549c3c3`:
+  it cost 0.92 USD in 11 orchestrator turns, and its orchestrator's median context was 43.7 K tokens,
+  against 55.2 K for the build. The earlier update row (run 3) is the same comparison one build earlier:
+  `/archmap:update` re-analysed only the areas whose files changed between the build at `8174e41` and `63d7495`,
+  so it cost 0.80 USD against the build's 1.00 USD; its orchestrator's median
   context was 47.3 K tokens, against 46.4 K for the build.
 
 The 1.0.0 build was also benchmarked against three other mapping plugins for Claude Code, on the same prompt and the
